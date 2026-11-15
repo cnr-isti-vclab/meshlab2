@@ -22,11 +22,7 @@ See also: [Data Model](data_model.md) · [Rendering](rendering.md) · [Memory Ac
 
 ### `Document`
 
-Owns the ordered mesh list (`MeshEntry`), ordered raster list (`RasterEntry`), current mesh/raster indices, explicit active-layer kind, per-document log, the `DocumentUndoManager`, I/O and filter plugin managers, the shared GPU cache, render-state snapshot callback, and tracked mesh/image/undo/GPU memory APIs. Does not own live per-widget pipelines/camera state; those remain in `RenderWidget`. Undo nodes include serialized mesh/raster state or compact selection deltas, optional script-action metadata, and one `ViewState` snapshot captured/restored through callbacks (with camera restoration optionally skipped during history jumps). The undo manager can enforce an opt-in byte budget and defer OS-pressure purges until an active transaction closes.
-
-Each `MeshEntry` stores: identity/revision keys (`meshId`, `geometryRevision`, `materialRevision`, `selectionRevision`), render placement (`transform`), source metadata (`name`, `sourcePath`, `ioMask`), texture metadata (`textureFileNames`, `textureFilePaths`, `textureAssets`), material set, `visible` and `modified` flags, and the `VCGMesh`.
-
-Each `RasterEntry` stores: identity/revision keys (`rasterId`, `imageRevision`, `cameraRevision`), source metadata (`name`, `sourcePath`), `visible` flag, a `CameraShot`, a list of `RasterPlane` image planes, and `currentPlaneIndex`. A `RasterPlane` records semantic role (`RGBA`, masks, depth, or extra planes), display/source names, pixel size, and optional `QImage` payload.
+The authoritative model: the ordered mesh (`MeshEntry`) and raster (`RasterEntry`) lists, the current layer, the log, the undo history (`DocumentUndoManager`), the I/O and filter plugin managers, the shared GPU cache, and memory accounting. It holds no per-view state. Pipelines, cameras and render modes stay in each `RenderWidget` and reach the document only through two callbacks: the `ViewState` an undo node captures and restores, and the render-state snapshot a filter asks for. What a layer record holds is in [Data Model](data_model.md#document-ownership), the history tree in [Data Model](data_model.md#undoredo-model), and the undo budget in [Memory Accounting](memory_accounting.md).
 
 ### `CameraShot`
 
@@ -34,7 +30,7 @@ Core camera model (`src/core/camerashot.*`) used by raster layers and snapshot r
 
 ### `MeshGpuResourceCache`
 
-Central cache for mesh GPU resources, keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max/center/crop where applicable)`. Caches fill batches (vertex/index buffers + PBR textures), wire, explicit-edge, points, bbox, selection, and decorator buffers (normals, boundaries, seams, non-manifold markers, curvature directions). Explicit-edge buffers retain both endpoint vertex colors and flat edge colors, allowing color-source switches without geometry rebuilds. The cache allows GPU buffer reuse across render-mode changes and across views sharing the same `QRhi`.
+The mesh GPU resources, owned by `Document` and keyed by `QRhi`, mesh, product and revision, so a render-mode change, or another view on the same `QRhi`, reuses buffers instead of rebuilding them. Keys, products and lifetime are in [Rendering](rendering.md#shared-gpu-cache-meshgpuresourcecache).
 
 ### `LineRenderer`
 
@@ -42,14 +38,9 @@ Shared utility for generating triangle-expanded fat-line geometry from line segm
 
 ### `RenderWidget`
 
-`QRhiWidget` owning per-view state: pipelines/SRBs/UBOs, fallback textures, quality LUT texture, offscreen targets (depth pick, current-mesh mask), radiance-scaling gradient pre-pass resources, view mode (`Scene3D` / `ParametrizationUV` / `RasterImage`), `ViewTrackball`, headlight rotation/gizmo state, view-axis gizmo state, depth-cued tool-line resources, UV pan/zoom/cache, raster pan/zoom/opacity plus GPU image resources, per-mesh render modes, per-view visibility vector, active/suspended interactive-tool state, camera/render-state JSON capture/apply helpers, help/interaction overlays, tool overlays, decorator info overlay, and quality histogram cache. Implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes,raster}.cpp` plus the tool files under `src/render/tools/`.
+The `QRhiWidget` of one view, in one of three modes: `Scene3D`, `ParametrizationUV` or `RasterImage`. It owns everything that is per view: pipelines and offscreen targets, the camera, render modes, visibility, overlays and the active tool (see [State Ownership](#state-ownership)). It draws the document's meshes from the shared cache. The implementation is split under `src/render/` across `renderwidget_{render,resources,selection,uv,modes,frame_plan,fill,scene_passes,raster}.cpp`, with the tools in `src/render/tools/`.
 
-Scene3D rendering is now organized around two internal data boundaries:
-
-- `RenderFrameRequest` is the lightweight per-frame intent: view mode, viewport size, projection/view matrices, light direction, and `RenderFramePassRequests`.
-- `RenderFramePlan` is the concrete GPU draw plan: fill items, simple buffer items, decorator items, and selection items holding pipelines, buffers, SRBs, and material renderer pointers.
-
-`RenderFramePassRequests` is collected once from visible meshes, rasters, and per-mesh render settings, then reused by both GPU resource preparation and concrete plan construction. In Scene3D, raster camera layers plan small frustum glyphs rather than textured image planes. In `RasterImage` mode the request layer pins the current raster as the background reference and, when that raster has a valid camera, still feeds the normal mesh passes through the same Scene3D frame-plan path. This keeps the per-frame "what passes are needed?" decision in one place and prepares the codebase for later UV convergence. Public programmatic rendering targets versioned camera/render-state JSON; the concrete `RenderFramePlan` remains an internal process-local GPU object.
+A `Scene3D` frame, and the meshes a `RasterImage` view draws through its raster's camera, is planned in two steps. A lightweight `RenderFrameRequest` says which passes the visible layers need; the concrete `RenderFramePlan` holds the pipelines and buffers that draw them ([Rendering](rendering.md#scene3d-request-and-plan-pipeline)). The plan is internal: programmatic rendering goes through the versioned render-state JSON.
 
 ### `ViewState`
 
@@ -57,7 +48,7 @@ Lightweight snapshot type (`src/render/viewstate.h`) for one `RenderWidget`: `Vi
 
 ### `ViewTrackball`
 
-Scene navigation: arcball/hyperbola rotation, `Shift`-drag roll about the view axis, pan, dolly, `Shift+Wheel` vertigo (FOV + compensating dolly), reset/reframe, animated recenter. The companion `ViewAxisGizmo` draws the corner orientation widget, uses the `view.axisGizmoSize` preference, and lets axis clicks snap the current 3D view.
+The camera of a 3D view: an orbit centre, rotation, distance, field of view and projection, with animated moves. Its state is the `MeshLab.CameraState` JSON (`cameraStateJson`, `stateFromCameraStateJson`). The companion `ViewAxisGizmo` draws the corner orientation widget. The gestures that drive both are in [User Interface](user_interface.md#scene3d-camera-and-interaction).
 
 ### `InteractiveTool`
 
@@ -79,7 +70,7 @@ The filter browser and runner: search, a parameter form built from the descripto
 
 ### `MainWindow`
 
-Orchestrates the central splitter (one or more `RenderWidget`s), right-column docks (`LayerWidget` + `MeshFilterPanel`), bottom log/Python docks, status bar (progress bars, frame-time stats -- the GPU time only when the `advanced.gpuTiming` preference had Qt create the graphics context with timestamps, through `QSG_RHI_PROFILE` set in `main.cpp` before the first window, otherwise *GPU: not measured* -- the document's unit menu), undo graph panel, tool toolbar/menu, and menus (file, edit, filters, view, help). Manages mesh/project/raster file open/save/drop flows, split/close, active-view highlight border, optional camera synchronization across 3D views, camera-state copy/paste, center-on-selection, document visibility proxy synchronization from the current view, view PNG snapshots, snapshot-to-raster creation, render-state snapshot callbacks for filters, undo-node thumbnails/snapshots, action-history Python script generation into the script editor, and embedded Python console visibility when enabled. It also presents the separated OS/CPU/GPU memory report and connects the platform `MemoryPressureMonitor` to opt-in undo purging.
+Builds the window and wires it to the document. It holds the central splitter of `RenderWidget`s, the layer, filter, log, Python and history docks, the status bar, the menus and the tool actions. It runs the file flows (open, save and drop of meshes, projects and rasters), splitting and closing views (the active one marked by a highlight border), camera synchronization and copy/paste, snapshots, and history-to-script export. It installs the document's view callbacks (`ViewState`, render-state snapshots, undo-node thumbnails) and keeps the document's visibility in step with the current view. It also connects the platform `MemoryPressureMonitor` to opt-in undo purging. What each part does for the user is in [User Interface](user_interface.md).
 
 ### `PythonHost` and `_meshlab`
 
@@ -89,7 +80,7 @@ When `MESHLAB2_PYTHON_CONSOLE` is enabled, `src/app/main.cpp` registers the stat
 
 **I/O plugins** (`MeshIOPlugin`): `canLoad`/`load`, `canSave`/`save`, dialog filter strings, mask capability, and for the formats that state one the unit of their coordinates (see the Unit paragraph of [data_model.md](data_model.md)). MeshLab project (`.mlp`) loading and saving are handled directly by `Document` so project files can combine plugin-loaded/saved mesh files with transforms, generated mesh paths, raster planes, and raster camera shots.
 
-**Filter plugins** (`MeshFilterPlugin`): plugin id/name, `filters(const Document&)` returning descriptors (domain/codomain, validated ordered categories, requirements, tags, structured provenance/references, parameters, `pythonName`), `runFilter(id, params, Document&)`.
+**Filter plugins** (`MeshFilterPlugin`): plugin id and name; `filters(const Document&)`, which by default loads the descriptors from the plugin's `filters.json` and resolves their bound tokens against the document ([Adding a Filter](adding_a_filter.md)); and `runFilter(id, params, Document&)`.
 
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 

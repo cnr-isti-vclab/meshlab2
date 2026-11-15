@@ -23,7 +23,7 @@ Two records from the move to the category ontology of [Vocabulary](../vocabulary
 | `MLS` | 8 | *split by result* — `Geometry/Smoothing` (projection) · `Creation/Reconstruction` (marching cubes) · `Attribute/Curvature` · `Measurement/Statistics` (radius) · `Selection/by Topology` (small components) |
 | `Measure` | 5 | `Measurement/Geometric`, `Measurement/Topological` |
 | `Measure/Quality` | 4 | `Measurement/Statistics` |
-| `Meshing` | 38 | *split ten ways* — see the `filter_meshing` breakdown in [Filter Organization](filter_organization.md) |
+| `Meshing` | 38 | *split ten ways* — see the `filter_meshing` breakdown in [Plugin Reorganization](plugin_reorganization.md#filter_meshing-breakdown-37-filters--9-families) |
 | `Normals/Embree` | 1 | `Attribute/Normal` — backend dropped |
 | `Parameterization` | 2 | `Parametrization/UV Creation` — spelling normalized |
 | `Quality` | 7 | `Attribute/Scalar` |
@@ -87,7 +87,7 @@ safe, not merely an improvement.
 
 Ranking is unaffected: name matches sort above category-only matches (since 2026-10-30
 by `FilterPresentation::rank`, which replaced the name-only `titleMatchesAllTerms`; see
-[Filter Search](proposals/filter_search.md)).
+[Filter Search](../proposals/filter_search.md)).
 
 The implementation loops over the `categories` array; a single legacy `menuPath` string
 is still accepted by the loader for descriptors that predate it.

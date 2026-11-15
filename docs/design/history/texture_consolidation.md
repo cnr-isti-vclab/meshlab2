@@ -105,7 +105,7 @@ Three routes were considered.
 
 | Route | For | Against |
 |---|---|---|
-| **A. Pinned submodule; build the three programs unmodified; run them as helpers** | Zero patches. An `exit(0)`, an assertion or a crash ends a child process, not MeshLab. Exactly the [QuadWild-BiMDF](../../plugins/filter_quadwild/UPSTREAM.md) arrangement, whose runner (`src/core/helperprocess.{h,cpp}`) already gives progress, cancellation and logging. C++20 and OpenMP stay inside the helper build. | Packaging on three platforms. File I/O round trip, small beside a minute-long solve. |
+| **A. Pinned submodule; build the three programs unmodified; run them as helpers** | Zero patches. An `exit(0)`, an assertion or a crash ends a child process, not MeshLab. Exactly the [QuadWild-BiMDF](../../../plugins/filter_quadwild/UPSTREAM.md) arrangement, whose runner (`src/core/helperprocess.{h,cpp}`) already gives progress, cancellation and logging. C++20 and OpenMP stay inside the helper build. | Packaging on three platforms. File I/O round trip, small beside a minute-long solve. |
 | B. Link the headers into the plugin | No files, no packaging | The stitcher is a program (`TextureStitching.cpp` with its own `main`), not a library; using it in-process means vendoring it with patches. Every `MK_ERROR_OUT` path would have to be redirected — the macro is `#ifndef`-guarded, so predefining it to throw is possible, but unverified against assertions and other exits. OpenMP and C++20 enter the application build. |
 | C. Vendor a subset under `upstream/` | Freezes a moving target | It would be a patched copy of a repository three weeks old and changing daily. |
 

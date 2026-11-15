@@ -116,5 +116,34 @@ The moves, splits and deletions, in one pass on 2026-11-15:
   into Rendering and Architecture.
 - Every link into a moved section was repointed and checked against the headings.
 
-The trims (**T**) and the merging of the passages that now overlap inside
-`user_interface.md` are a second pass.
+## The trim pass
+
+The twelve **T** sections and the overlaps inside `user_interface.md`, in a second pass on
+2026-11-15, with every remaining fact checked against the code:
+
+- **Architecture** keeps each component's responsibility and points at the home of its
+  details: the layer records to Data Model, the cache to Rendering, the gestures to User
+  Interface, the descriptor fields to Adding a Filter. Its `MeshEntry` list named a
+  `modified` flag that does not exist; Data Model's list gained the two fields it lacked,
+  `polygonFaceCount` and `pluginData`.
+- **Data Model** takes back the undo storage paragraphs (full snapshots, deltas, custom
+  attributes, the API list), which the move had carried to User Interface under the
+  Action History heading. They now say that an undo keeps the layers whose revisions match
+  and copies the rest.
+- **User Interface** has one list of the built-in tools instead of two, the 3D gestures as
+  a list, and the views each tool works in; it said only the selection tool left the 3D
+  view, but the raster alignment tool works in the raster view.
+- **Rendering**: the defaults for a new mesh name their preferences instead of the
+  constants they replaced (`FN < 10000`, `edgeSize = 4.0`); restated defaults and
+  pixel bounds give way to the preference or constant that holds them; the GPU-timing
+  setup moved from Architecture to *Frame Timing*; how to check what only the screen shows
+  is now a rule in *Verifying the Render Path* rather than one fix's diary.
+- **Vocabulary**: *Why this exists* says what the rules fixed and that the renaming is
+  done. The 2026-07-29 audit moved to [Filter Names](filter_names.md), beside the count
+  that closed it; the progress report of 2026-08-31, which still listed six rounds and
+  pass 2 as to do, was dropped.
+
+Dropped as of no further use: how the radiance-scaling option used to be a material, and
+its dropped invert switch (the refusal of old render states stays); the earlier five-second
+auto-close of the settings pages; the earlier `Ctrl`+wheel near-plane gesture; the
+enumeration of the `view.grid.*` preferences, which their own help describes.

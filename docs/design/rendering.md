@@ -117,15 +117,17 @@ One instance per view in `m_renderSettings`. Holds:
 - scene overlay: `highlightCurrentMesh`, `currentMeshOutlineColor`/`Width`, `currentMeshDilateRadius`/`ErodeRadius`, `currentMeshDebugView`, `showTrackballGizmo`, `showViewCameras`, `showBoundingBoxCorners`, `showBoundingBoxDimensions`, `showDecoratorInfo`
 - scene background: `sceneBackgroundTopColor`, `sceneBackgroundBottomColor`
 - UV viewer: `uvShowReferenceFrame`, `uvShowFullTexture`, `uvTextureChannel`, `uvTextureNearestSampling`; the active texture group is view-local per-mesh state selected from viewport thumbnails
-- quality histogram/range: `showQualityHistogram`, `qualityHistogramBins`, `qualityHistogramSource`, `qualityHistogramFixedRange`, `qualityHistogramMin`/`Max`, `qualityHistogramCenterOnZero`, `qualityHistogramPercentileCrop` (default `0.01`, cropping both tails for automatic ranges), `qualityHistogramColorMapId`, `qualityHistogramInvertColorMap`, `qualityIsolinesEnabled`, `qualityIsolineCount`
+- quality histogram/range: `showQualityHistogram`, `qualityHistogramBins`, `qualityHistogramSource`, `qualityHistogramFixedRange`, `qualityHistogramMin`/`Max`, `qualityHistogramCenterOnZero`, `qualityHistogramPercentileCrop` (default `0.01`, cropping both tails of automatic ranges so a few outliers do not flatten the color map), `qualityHistogramColorMapId`, `qualityHistogramInvertColorMap`, `qualityIsolinesEnabled`, `qualityIsolineCount`
 - overlay panel state: `settingsPanelVisible`, `currentPass`
 
 `using RenderSettings = GlobalRenderSettings` and `using MeshRenderMode = PerMeshRenderSettings` (widget-local alias) are provided.
 
-Default mode for new meshes:
-- surfaces (`FN > 0`): fill on, wire on for `FN < 10000`
-- edge-only meshes: edges on (`edgeSize = 4.0`)
+Default mode for a new mesh, read from the preferences as each mesh arrives:
+- surfaces (`FN > 0`): fill on; wire on below `render.wireframeOnLoadMaxFaces` faces, and flat shading below `render.flatShadingMaxFaces`
+- edge-only meshes: edges on, `render.edgeLayerWidth` wide
 - point-only: points on
+
+Point size, edge width and wireframe width start from `render.pointSize`, `render.edgeSize` and `render.wireSize`.
 
 Default fill color source preference: texture → per-vertex → per-face → per-vertex-quality → per-face-quality → constant, clamped to mesh `ioMask` + texture availability. Texture availability is based on `Document::meshTextureAssociationCount(...)`.
 
@@ -135,10 +137,8 @@ Default explicit-edge color source preference: per-edge → per-vertex → const
 
 Radiance scaling (Vergne, Pacanowski, Barla, Granier, *Radiance Scaling for Versatile Surface Enhancement*,
 I3D 2010) is an **option of the plain fill material** (`fillPlain.radianceScaling`, with `rsEnhancement`
-and `rsResolutionBias`), not a material of its own. It used to be a third material, with a shader that replaced the
-lighting by a diffuse-only one and had its own copy of the colour logic; a render state that still says
-`fill_material: 2` or has a `fill_rs` block is refused (`parsePerMeshSettings`), with a message saying where it
-went.
+and `rsResolutionBias`), not a material of its own. A render state from when it was one (`fill_material: 2`, or a
+`fill_rs` block) is refused by `parsePerMeshSettings`, with a message saying where it went.
 
 **What it does.** The lighting scalar before the albedo -- `shade = ambient + diffuse`, in [0, 1] -- is replaced by
 `shade * sigma(kappa, shade)`, and the colour is `albedo * shade + specular`. `sigma` is the paper's scaling function
@@ -146,8 +146,7 @@ went.
 the brighter values on convexities and darkens them on concavities, and the other way round below alpha. The
 colour source is out of it, so a texture, per-vertex colours or a scalar map keep their hues, and the
 specular term is added unscaled. With the lighting off `shade` is one, which is the curvature shading the paper
-notes. PBR does not have the option. (There was an invert switch, the sign of the gain, which the curvature signal is odd in;
-it was dropped as of little use.)
+notes. PBR does not have the option.
 
 **Where the curvature comes from.** A **pre-pass** (`RenderWidget::renderRadianceScalingPrepass`,
 `fill_radscale_buf.frag` for surfaces and `points_radscale_buf.frag` for points)
@@ -182,9 +181,9 @@ user trade some of that away. The Hessian of a gradient buffer measured per pixe
 height, so a snapshot twice as big reads half as curved. The bias multiplies the gain by
 `(viewHeight / 1000) ^ bias` (`radianceScalingGain`, on the CPU, against the height of the tile being drawn): 0, the
 default, leaves the pixel-space behaviour as it is, 1 makes the strength about the same at any resolution, and
-between is a blend. The reference of 1000 pixels is where the bias changes nothing. The probe measures that the
-strength at 240 and 720 pixels is much closer with the bias at 1 than at 0 (not equal: the signal goes through `tanh`
-and the display clamps).
+between is a blend. The reference of 1000 pixels is where the bias changes nothing. With the bias at 1 the strength
+at 240 and at 720 pixels is much closer than at 0, though not equal: the signal goes through `tanh` and the display
+clamps.
 
 **Bindings.** The pass binds the main uniform buffer through its own shader-resource bindings, with a dynamic
 offset like every other binding of that buffer. The buffer is replaced when it has to grow (its capacity follows the
@@ -194,7 +193,8 @@ buffer.
 
 Tested by the render probe `tests/render_probes/radiance_scaling` (the option changes the lighting, scales
 nothing at zero gain, keeps the colour proportions of vertex colours, works with flat shading and with point
-clouds, survives the buffer being replaced under 81 layers, and the refusal) and by `RenderSettingsJsonTests`.
+clouds, survives the buffer being replaced under 81 layers, evens out with the resolution bias, and the refusal) and
+by `RenderSettingsJsonTests`.
 
 ## Back lighting
 
@@ -250,11 +250,8 @@ glyphs). A perspective view lets the far reaches of the grid be clipped by its f
 by then. The setting is part of the render-state JSON, so snapshots and scripted renders draw it too.
 
 **Preferences.** `view.referenceGrid` is the grid a new view starts with (read when a view is created and by
-File > New), and `view.grid.*` set how it looks: the strength of the fine, middle and coarse lines, the width
-of the axis lines, the reach (a multiple of the default radius the grid fades out by), and the colours of the
-rules and of the three axes. They are read every frame (`viewGridStyle()`), and a change in the dialog repaints
-the views. A newly loaded layer's point size, edge width, edge-only-layer width and wireframe width start from
-`render.pointSize`, `render.edgeSize`, `render.edgeLayerWidth` and `render.wireSize`.
+File > New). `view.grid.*` set how it looks; they are read every frame (`viewGridStyle()`), so a change in the
+dialog repaints the views.
 
 Tests: `ViewGridTests` (plane choice and level arithmetic) and the render probe
 `tests/render_probes/reference_grid` (the axis colours, the orthographic rule, and the grid far from the
@@ -292,7 +289,7 @@ Main pass draw order: scene background · raster background in RasterImage mode 
 
 **Fill**: Fill planning and execution are isolated in `renderwidget_fill.cpp`. `SceneFillFramePlan` contains fill draw items, each with a material renderer selected from `PlainFillRenderer` or `PbrFillRenderer`. Shared behavior such as UBO upload, texture SRB resolution, selected PBR texture lookup, and radiance-scaling gradient resource access goes through `FillRenderServices`.
 
-Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings; automatic ranges default to a `0.01` crop at both tails to reduce outlier influence when filters map newly computed quality values to color. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance scaling is covered below.
+Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfaceCulling` controls culling. Quality variants LUT-sample from the per-view colormap texture, including optional isoline stripes. Quality normalization honors fixed range, center-on-zero, and percentile crop settings. PBR binds base/normal/occlusion/roughness per batch. Tangent-space normal maps derive TBN from screen-space derivatives of view position and UV; object-space normal maps are transformed by the normal matrix and blended with the base normal using `normalScale`. Radiance scaling has [its own section](#radiance-scaling).
 
 **Wireframe**: barycentric triangles + fragment edge test; depth `LessOrEqual`, no depth write; alpha blending; `wireBackfaceCulling`; optional `wireRespectFaux` controls faux polygon edge handling in the cached wire data.
 
@@ -300,11 +297,11 @@ Smooth/Flat shading use distinct shader pairs. Depth test+write on; `fillBackfac
 
 **Bounding box**: line topology; depth on, no depth write.
 
-**Points**: `QRhiGraphicsPipeline::Points`; depth test+write; point lighting, size, and color source from settings; quality variant LUT-sampled. The size is `pointSize` pixels, or, with `pointSizeObjectSpace`, a diameter of `pointObjectSize` in the mesh's own units: `pointParams.x` carries the pixel size as a positive number and the object size as a negative one (`encodedPointSize`). The vertex shader projects an offset of that length along the view's vertical, carried back into mesh space, so the dot is as tall on screen as the surface it stands for, under a perspective or an orthographic camera, and holds it between 1 and 64 pixels (`kMaxObjectPointPixels`). `depth_pick.vert` repeats the computation, so a pick hits the dot that was drawn. The first time a layer switches to object space with no size set, the view fills in the spacing its points would have spread evenly over its bounding box (diagonal / sqrt(vertex count), to two significant digits).
+**Points**: `QRhiGraphicsPipeline::Points`; depth test+write; point lighting, size, and color source from settings; quality variant LUT-sampled. The size is `pointSize` pixels, or, with `pointSizeObjectSpace`, a diameter of `pointObjectSize` in the mesh's own units: `pointParams.x` carries the pixel size as a positive number and the object size as a negative one (`encodedPointSize`). The vertex shader projects an offset of that length along the view's vertical, carried back into mesh space, so the dot is as tall on screen as the surface it stands for, under a perspective or an orthographic camera, and holds it between one pixel and `kMaxObjectPointPixels` (`overlay_points.vert`). `depth_pick.vert` repeats the computation, so a pick hits the dot that was drawn. The first time a layer switches to object space with no size set, the view fills in the spacing its points would have spread evenly over its bounding box (diagonal / sqrt(vertex count), to two significant digits).
 
 **Decorators**: depth `LessOrEqual`, no depth write. Normals and curvature directions use the line pipeline. Boundary, seams, and non-manifold edges use the fat-decorator pipeline (`decoratorBoundaryWidth`) with line fallback. Non-manifold vertices use a point pipeline.
 
-**Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`/`showSelectionEdges`, all in `RenderWidget::kSelectionColor`. Selected edges are drawn as quads `render.selectedEdgeWidth` pixels wide (default 4, the width an edge layer is first drawn with), through the fat-line decorator pipeline: `planSelectionPasses` puts them on the decorator list, so they draw in the decorators' slot of the order above. A line primitive is one device pixel wide on Metal whatever width is asked for, so the plain-line selection pipeline only stands in when the fat one cannot be drawn. Scene3D selection resources come from the shared mesh GPU cache; UV mode has a dedicated UV-space selection overlay.
+**Selection overlay** (final pass): semi-transparent red fill triangles + red vertex points; depth `LessOrEqual`, no depth write; per-mesh `showSelection`/`showSelectionFaces`/`showSelectionVertices`/`showSelectionEdges`, all in `RenderWidget::kSelectionColor`. Selected edges are drawn as quads `render.selectedEdgeWidth` pixels wide, through the fat-line decorator pipeline: `planSelectionPasses` puts them on the decorator list, so they draw in the decorators' slot of the order above. A line primitive is one device pixel wide on Metal whatever width is asked for, so the plain-line selection pipeline only stands in when the fat one cannot be drawn. Scene3D selection resources come from the shared mesh GPU cache; UV mode has a dedicated UV-space selection overlay.
 
 **Decorator info overlay**: 2D label controlled by `showDecoratorInfo`, on by default. It reports numeric counts for enabled decorator data on the current mesh (boundary/seam/non-manifold families) while the boundary decorator is on, and hides itself otherwise or when no relevant decorator information is available. All four boundary-page decorators -- boundary edges, texture seams, non-manifold edges and vertices -- default on, so turning the pass on shows everything it can.
 
@@ -490,15 +487,15 @@ PBR rendering can consume normal maps directly as either tangent-space or object
 
 ## Quality Histogram Overlay
 
-2D overlay label inside `RenderWidget`. Controlled by `showQualityHistogram` and `qualityHistogramSource` (auto / forced vertex / forced face). Configurable bin count, optional fixed range (`qualityHistogramFixedRange`/`Min`/`Max`), center-on-zero mode, percentile crop (default `0.01` for automatic ranges), selectable colormap (`qualityHistogramColorMapId`), colormap inversion, and optional isolines (`qualityIsolinesEnabled`, `qualityIsolineCount`). Color mapping is shared with quality-based rendering so histogram colors and rendered quality colors stay aligned.
+A 2D panel inside `RenderWidget`, driven by the `qualityHistogram*` and `qualityIsoline*` fields of `GlobalRenderSettings`: the source (auto, forced vertex or forced face), bins, range, colormap and isolines. It shares the color mapping of quality-based rendering, so its colors and the rendered ones agree.
 
 Unlike the pass-bar/settings overlay panel, which floats over the 3D content regardless (fine for something you open briefly to change a setting), the histogram claims a real strip on the right of the on-screen view for as long as it is showing, so it never sits on top of the mesh it describes. The right, not the left, so that opening it leaves the pass bar's buttons where they are. `RenderWidget::sceneContentRect()` narrows the viewport by that strip whenever `wantsQualityHistogramPanel()` holds -- `showQualityHistogram`, `Scene3D`, and a valid current mesh, mirroring `updateQualityHistogramOverlay()`'s own conditions for showing something at all -- and `viewTiles()` tiles within the result, in both layer arrangements, so the camera aspect ratio, mouse hit-testing, and every overlay that follows a tile's rect (the trackball gizmo, the current-mesh outline, grid tile captions) move together. The axis gizmo and the decorator info, which anchor to the right edge of the content area rather than of the widget, shift left by the same amount in `layoutOverlayButtons()`, and the tool strip and the status line centre on the content. In UV/Raster mode, where nothing consults `viewTiles()` for its own viewport, the histogram (if shown there at all) still just floats, at the widget's right edge.
 
-The strip is decided once, in logical pixels: `qualityHistogramPanelWidth()` takes no size and reads the widget's own width (a fraction of it, clamped to 180-300 px), because the panel is a native widget laid out in logical pixels. `sceneContentRect()` only scales it into the caller's units -- 1:1 for hit-testing, the device pixel ratio for the on-screen render target. Evaluating the clamp separately in each unit system is the mistake to avoid: on a Retina screen it caps the rendered strip at 300 device pixels under a panel 250 logical (500 device) pixels wide, so the gradient starts halfway under the panel and the content area the camera frames is not the one the mouse is tested against.
+The strip is decided once, in logical pixels: `qualityHistogramPanelWidth()` takes no size and reads the widget's own width (a fraction of it, clamped), because the panel is a native widget laid out in logical pixels. `sceneContentRect()` only scales it into the caller's units -- 1:1 for hit-testing, the device pixel ratio for the on-screen render target. Clamping separately in each unit would make the rendered strip and the panel disagree on a high-DPI screen, and the camera would frame a different area from the one the mouse is tested against.
 
 An offscreen capture keeps the whole frame (`m_offscreenCaptureActive`, set for the duration of `renderOffscreenToImage()`): the panel is never part of a capture, and `cameraShotForViewport()` describes a capture as one full-frame camera, so a reserved strip would come out as a blank band and a snapshot raster would be misregistered against its own camera.
 
-The backdrop is drawn across the whole target when there is a single tile, rather than in the tile's viewport, so the strip behind the translucent panel continues the gradient instead of showing the flat clear colour; the gradient only varies with height and the tile spans all of it, so nothing inside the tile changes. With more than one tile the strip is one more gap and clears to the grid's own frame colour like the others. `tests/render_probes/quality_histogram_layout` checks the capture side: a snapshot is pixel-identical with the histogram on or off, in both arrangements. The on-screen strip cannot be checked from a probe -- every render a probe can ask for is a capture, which is exactly the case that keeps the full frame -- so it was checked by grabbing a live window (`QWidget::grab()`, which composites the native panel over the view) at DPR 2: every row inside the panel one colour across its width, and the mesh centred in what the strip leaves.
+The backdrop is drawn across the whole target when there is a single tile, rather than in the tile's viewport, so the strip behind the translucent panel continues the gradient instead of showing the flat clear colour; the gradient only varies with height and the tile spans all of it, so nothing inside the tile changes. With more than one tile the strip is one more gap and clears to the grid's own frame colour like the others. `tests/render_probes/quality_histogram_layout` checks the capture side: a snapshot is pixel-identical with the histogram on or off, in both arrangements. The on-screen strip cannot be checked from a probe, since every render a probe can ask for is a capture, which keeps the full frame (see [Verifying the Render Path](#verifying-the-render-path)).
 
 ## Snapshot Capture
 
@@ -563,6 +560,11 @@ background is a gradient that passes through a band any naive "is this pixel lit
 scores as geometry, so render on a flat colour; and a pass that changes only hidden geometry
 must leave the image **exactly** unchanged, so equality is the assertion, not a tolerance.
 
+**What only the screen shows.** Every render a probe can ask for is a capture, so what a view
+does only on screen -- the strip the quality histogram reserves -- is out of a probe's reach.
+Check it by grabbing a live window with `QWidget::grab()`, which composites native child
+widgets over the view, at a device pixel ratio of 2.
+
 Moving the render sources into a linkable library would let these become real tests.
 
 ## Diagnosing Another Machine
@@ -580,4 +582,4 @@ warnings; *Copy System Information* puts it all on the clipboard for a bug repor
 
 ## Frame Timing
 
-`RenderWidget` emits per-frame CPU time (`QElapsedTimer`) and GPU time when `QRhi::Timestamps` is supported (`lastCompletedGpuTime`). `MainWindow` displays a rolling 100-frame average in the status bar.
+`RenderWidget` emits per-frame CPU time (`QElapsedTimer`) and GPU time when `QRhi::Timestamps` is supported (`lastCompletedGpuTime`). `MainWindow` displays a rolling 100-frame average in the status bar. The GPU time needs a graphics context created with timestamps: with the `advanced.gpuTiming` preference on, `main.cpp` sets `QSG_RHI_PROFILE` before the first window, and without it the status bar reads *GPU: not measured*.

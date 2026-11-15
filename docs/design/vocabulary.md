@@ -12,36 +12,15 @@ applied to plugins and menus), [Adding a Filter](adding_a_filter.md).
 
 ## Why this exists
 
-The initial audit covered the 272-filter registry present on 2026-07-29:
-
-- **165 of 272 display names (61 %) did not lead with a verb**, so the reader could not
-  tell what would change.
-- Live synonym pairs, both spellings in active use: `remove` (10) / `delete` (8) ·
-  `create` (16) / `generate` (19) · `apply` (16) / `set` (16) · `transfer` (11) /
-  `project` (5) · `simplification` (6) / `decimation` (4) · `quality` (29) /
-  `scalar` (7) · `texcoord` (4) / `uv` (2).
-- Spelling splits: `parametrization` (8) vs `parameterization` (2); American
-  `Color` alongside British `Colourisation`.
-- 32 distinct free-text `menuPath` values across 32 plugins, including one-offs like
-  `Remeshing, Smoothing and Resampling` and backend leakage like `Normals/Embree`.
-
-**The registry as measured on 2026-08-31: 327 filters**, with five renaming rounds applied —
-`Meshing`, `Attribute`, `Creation`, `Geometry`, and `Selection`:
-
-- **57 of 327 (17 %)** do not lead with a verb, and every one of them sits in a root
-  whose round has not run yet.
-- The same is true of every surviving rejected synonym: `delete` and `generate` in
-  `Document`, `quality` in `Repair`/`Transfer`/`Measurement`/`Selection`,
-  `parameterization` in `Parametrization`. The completed rounds left no synonym debt,
-  so no separate sweep is needed — each round retires its own.
-- Free-text `menuPath` is gone from the descriptors in favour of the `categories`
-  array; the loader still reads a single `menuPath` string as a legacy fallback.
-- British spellings are gone (`colour` 0 / `color` 34).
-
-Remaining rounds, largest first: `Repair` (24), `Document` (22),
-`Parametrization` (17), `Measurement` (14), `Transfer` (13), `Texture` (3, plus 7
-filters still at the bare root awaiting a subcategory decision). Then pass 2: the
-Python names and parameter ids.
+An audit of the 272 filters registered on 2026-07-29 found most display names not
+leading with a verb, synonyms in live use side by side (`remove`/`delete`,
+`create`/`generate`, `quality`/`scalar`, ...), split spellings, and 32 free-text menu
+paths. This document is the rule set the renaming then applied, in eleven rounds by
+category root and a final pass over ids and Python names. Every display name now leads
+with a ratified verb, or is one of the named results of §6, and
+`tests/test_filter_descriptors.cpp` enforces it against §3. The audit and the rounds
+are recorded in [Filter Names](history/filter_names.md), the identifier pass in
+[Pass 2 Identifier Map](history/pass2_identifier_map.md).
 
 ## 1. Filter categories (closed set)
 
@@ -373,7 +352,7 @@ asks for as *Compute Normals*.
 
 Every verb above the `Estimate` footnote is ratified. The rounds that introduced the
 later ones are recorded in [Filter Names](history/filter_names.md), which is the history; this
-table is the authority. `tests/test_filters.cpp` parses it and fails if any shipped
+table is the authority. `tests/test_filter_descriptors.cpp` parses it and fails if any shipped
 display name leads with a word that is not here.
 
 ## 4. Element and data nouns
