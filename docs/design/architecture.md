@@ -63,25 +63,19 @@ Scene navigation: arcball/hyperbola rotation, `Shift`-drag roll about the view a
 
 Base class for interactive editing tools. A tool owns mouse/keyboard handling for one `RenderWidget` at a time, shows live feedback/cursors, and commits durable document changes by calling `Document::runFilter(...)` once. This keeps tool edits in the same undo tree and Python script-action history as menu-invoked filters.
 
-Built-in tools are registered by `createBuiltinInteractiveTools()`:
-
-- `RubberBandSelectTool`: runs the `select_by_screen_rectangle` filter -- or, with the lasso (`P`), `select_by_screen_polygon` -- in Scene3D or UV space, with replace/add/subtract modes, face/vertex selection, and growth to whole connected components or UV islands.
-- `MeasureTool`: uses asynchronous surface picks to place/edit endpoints, draws 2D labels plus depth-cued segments, can print/save measurements, and can export them as an edge-only document layer. Each length, in the label, the log and the saved table, carries the document's unit (`Document::unit()`) once it is set -- "12.5 mm", and `length_mm`, `ax_mm`... as the table's column names -- and plain numbers while it is unknown; the view redraws when the unit changes (`RenderWidget` follows `unitChanged()`). *Scale to Length* (L) brings a layer to its real size from the last measurement: it shows the form of the *Scale to Known Length* filter (`scale_to_known_length`), less the two points, which are the measurement's, and runs it on the layer the points were picked on (the tool keeps each point's layer id; a segment between two layers presets *Scale all layers*). The filter returns the factor and the center it used (`outputValues`), and the tool moves the points on the scaled layers with them, so the label reads the length just given.
-- `TransformTool`: provides Blender-style `G`/`R`/`S` layer transforms with axis/plane constraints, numeric entry, a toolbar icon, depth-cued constraint guides, and one filter-backed commit per gesture.
-
-`MainWindow` owns the tool instances and toolbar/menu actions. A tool is pinned to its owner view, where its `ToolStrip` shows its name, what it is doing and a button for each of its controls with the key that does the same (see [rendering.md](rendering.md#interactive-tools)); `Tab` temporarily suspends the tool so camera navigation can use the same gestures, and `Esc` exits the tool.
+The built-in tools and how each behaves are in [User Interface](user_interface.md#interactive-tools).
 
 ### `RenderOverlayPanel`
 
-Compact pass/settings panel: pass toggles, mode-specific world settings page (Scene vs UV), per-pass style controls (colors, color sources, widths, lighting/culling, quality histogram), PBR texture/normal-space controls, decorator info overlay toggle, and `PerMeshRenderSettings`/`GlobalRenderSettings` sync. Explicit-edge color choices are constrained by the current mesh's vertex/edge color mask. Every page opens under a one-line title row: the pass's name (see the pass-bar table in [vocabulary.md](vocabulary.md#the-views-pass-bar-2026-09-29)) and, for the eight per-layer passes, one shared *Apply to all* that copies the page's settings to every visible layer — the same `applyToAllMeshesRequested` a shift-click on the pass button sends. Every button that acts rather than sets — *Apply to all*, and those that hand the view's state to a filter or pin it (*Bake to Vertex Color*, *Trim Current Layer*, *Freeze to View*) — is made by `makeActionButton` and shares its small style. A page stays open until its arrow is pressed again (it used to close itself five seconds after the pointer left it, which closed it under anyone reading a help tooltip or working in another window). Pages are as tall as their own content: the stack declines height-for-width, because `QStackedLayout` answers it with the tallest page's minimum height.
+The per-view pass bar and settings pages, writing `PerMeshRenderSettings` and `GlobalRenderSettings`; see [User Interface](user_interface.md#renderoverlaypanel).
 
 ### `LayerWidget`
 
-Layer dock with two synchronized presentations over the same `Document`: a detailed tree view and a sortable table view. Mesh rows expose visibility, loaded/generated/modified markers, counts, texture/material/attribute summaries, and current-layer selection. Raster rows expose visibility, active raster selection, current plane, plane export, image size, plane count, and camera summary. Every column of the table but the eye and the name can be hidden from a right-click on the header, and the choice is remembered (`QSettings`, `layers/meshTableColumns` and `layers/rasterTableColumns`). Two columns are off until asked for: `#`, the layer's position in the document counting from 0 -- the order of the tree view and the index a script uses -- and `ID`, its persistent id (`MeshEntry::meshId`, `RasterEntry::rasterId`), never reused. Sorting by `#` restores the tree order. A layer row of the tree can be dragged to another place in the list (`LayerTreeWidget`, for meshes and for rasters): the drop becomes `Document::moveMesh(from, to)` (`moveRaster` for a raster), one undo step, which changes the `#` and nothing else -- the id, the current layer and the layer's settings stay with it -- and emits `meshMoved` (`rasterMoved`), on which a view moves its per-layer visibility. The order is the layer list's: grid arrangements and a saved project follow it. The title bar holds two 22-px buttons placed over the tree's two narrow columns: the collapse-all toggle over the disclosure arrows and, to its right, one **eye** over the visibility check marks (`LayerWidget::disclosureArrowCenter()` and `visibilityCheckCenter()` say where the columns are, from the style's own geometry, and `MainWindow` spaces the buttons by them). The eye shows every layer, or hides every layer when they all are shown (`toggleAllVisible()`; open when all are shown, closed when none, faded between, drawn from `layerVisibilityChanged(shown, total)`; meshes and rasters both). Each layer row carries only the style's own small check mark for its visibility, with the Ctrl / Alt / Shift modifier clicks on it as before (hide others, show others, invert). Under the layers a row of **visibility set** chips (see [data_model.md](data_model.md)): a "+" keeps the layers visible now under a name, and each set is a chip that shows exactly its layers in the current view (Shift+click adds them to the visible ones; right-click renames, replaces the set with the visible layers, or deletes; hovering a chip previews the set by shading its layers' rows, which the row delegate paints rather than setting item backgrounds, so nothing is re-sorted or re-reported). A layer's right-click menu has *Add to Visibility Set* and *Remove from Visibility Set* for editing a set one layer at a time; the chip of the set that is on screen is highlighted, and Alt+1 .. Alt+9 show the first nine from anywhere.
+The layer dock: a tree and a table over the same `Document`; see [User Interface](user_interface.md#layerwidget).
 
 ### `MeshFilterPanel`
 
-Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, optional markdown description, advanced-parameter toggle, reset-to-defaults button, per-filter parameter-value cache, a "?" *details* button that opens the filter's long description and puts each parameter's help under its row (hidden, the help is the row's tooltip: rich text so that it wraps, markdown spans rendered, with the range and default added; the button's state is remembered per filter in QSettings under `filterPanel/details/<filter key>`, kept only while on, default off), current-view providers for camera/render-state JSON parameters, and, when Python support is compiled in, compact/full Python call formatting shared with action-history export.
+The filter browser and runner: search, a parameter form built from the descriptor, and the Python call of the filter; see [User Interface](user_interface.md#meshfilterpanel).
 
 ### `MainWindow`
 
@@ -91,43 +85,6 @@ Orchestrates the central splitter (one or more `RenderWidget`s), right-column do
 
 When `MESHLAB2_PYTHON_CONSOLE` is enabled, `src/app/main.cpp` registers the statically linked nanobind module `_meshlab` with `PyImport_AppendInittab` before `QApplication` starts. `PythonHost` owns the embedded CPython interpreter, redirects `stdout`/`stderr` to Qt signals, creates the combined script editor/interactive console, injects the live document as `ms`, injects the live view helper as `mlgui`, and installs the public `pymeshlab2` facade backed by the private extension. `_meshlab.MeshSet`/`MeshSetCore` wraps either a borrowed live `Document` (embedded console) or an owned standalone `Document`, exposes mesh/raster/project load/save helpers, lists filters, applies filters by key/id/Python name, and renders snapshots through the live view or `HeadlessRenderContext`.
 
-## Render Planning Types
-
-Defined privately in `RenderWidget`:
-
-- **`RenderMeshPassRequests`** — one visible mesh plus the per-mesh pass requirements derived from `PerMeshRenderSettings`: fill, wire, edges, bbox, points, selection, decorator normals, and decorator boundary/seam/non-manifold data.
-- **`RenderFramePassRequests`** — the frame-wide aggregate of visible `RenderMeshPassRequests` plus raster backplate/projected/frustum requests; answers whether any family of passes is needed and is used by resource preparation.
-- **`RenderFrameRequest`** — the lightweight frame request object containing camera/viewport/light state plus pass requests.
-- **`RenderFramePlan`** — the concrete draw list consumed by pass executors, including fill/simple/decorator/selection draw items and raster draw items. Presence of a pass is derived from planned draw items (`hasFillPass()`, `hasSceneDrawItems()`, etc.), not from separate request booleans.
-
-The high-level Scene3D flow is:
-
-```text
-visible meshes + PerMeshRenderSettings
-   │
-   ▼
-RenderFramePassRequests
-   │
-   ├──▶ prepareDirtyBuffers(...) / MeshGpuResourceCache
-   │
-   ▼
-RenderFrameRequest
-   │
-   ▼
-RenderFramePlan
-   │
-   ▼
-fill/simple/decorator/selection pass executors
-```
-
-## Render Settings Types
-
-Defined in `renderingsettings.h`:
-
-- **`PerMeshRenderSettings`** — one instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds pass toggles, decorator toggles (normals, boundary/seams, non-manifold markers, curvature directions), lighting/culling flags, wire faux-edge handling, fill material (`Plain` or `Pbr`) and its sub-structs (`PlainFillParams`, which carries the radiance-scaling option, and `PbrFillParams`), PBR normal-map space, colors, sizes, point color source, and explicit-edge color source (`Constant`, `PerVertex`, or `PerEdge`).
-- **`GlobalRenderSettings`** — one instance per view in `m_renderSettings`. Holds scene highlight parameters, background colors, UV viewer options, quality histogram/range/isolines options, and overlay panel state. `using RenderSettings = GlobalRenderSettings` is provided as an alias.
-- **`MeshRenderMode`** — widget-local alias for `PerMeshRenderSettings`.
-
 ## Plugin System
 
 **I/O plugins** (`MeshIOPlugin`): `canLoad`/`load`, `canSave`/`save`, dialog filter strings, mask capability, and for the formats that state one the unit of their coordinates (see the Unit paragraph of [data_model.md](data_model.md)). MeshLab project (`.mlp`) loading and saving are handled directly by `Document` so project files can combine plugin-loaded/saved mesh files with transforms, generated mesh paths, raster planes, and raster camera shots.
@@ -136,113 +93,7 @@ Defined in `renderingsettings.h`:
 
 **Managers** (`MeshIOPluginManager`, `MeshFilterPluginManager`): keep plugins in registration order; I/O manager stores per-extension preferred plugin in `QSettings`. Registration via `plugins/meshpluginregistry.*` and `plugins/filterpluginregistry.*`.
 
-Built-in I/O (when enabled at build time): `io_vcg`, `io_obj_rapidobj`, `io_3mf`, `io_gltf`, `io_e57`, `io_trueform`.
-Built-in filter plugins (when enabled at build time): `filter_basic`, `filter_bpa`, `filter_camera`, `filter_cgal`, `filter_clean`, `filter_color_projection`, `filter_colorproc`, `filter_create`, `filter_embree`, `filter_expression`, `filter_geodesic`, `filter_geogram`, `filter_icp`, `filter_igl`, `filter_img_patch_param`, `filter_instant_meshes`, `filter_isoparam`, `filter_layer`, `filter_measure`, `filter_meshfix`, `filter_meshing`, `filter_mls`, `filter_open3d`, `filter_plymc`, `filter_qslim`, `filter_quadwild`, `filter_sampling`, `filter_screened_poisson`, `filter_select`, `filter_texture`, `filter_texture_consolidation`, `filter_texture_defragmentation`, `filter_texture_signal_processing`, `filter_trioptimize`, `filter_trueform`, `filter_unsharp`, `filter_vertex_displacement`, `filter_voronoi`, `filter_xatlas`.
-
-## Third-party geometry code
-
-The geometry libraries and the vendored algorithm packages are listed to the user in the
-**Libraries** tab of the About dialog, as two lists: general-purpose libraries that many
-filters draw on, and packages vendored for one algorithm. Each entry carries a link.
-
-**Those two lists are `kGeometryLibraries` and `kFocusedPackages` in
-[`src/ui/aboutdialog.cpp`](../../src/ui/aboutdialog.cpp), and nothing generates them.**
-They are the only place either inventory is written down for the user, so they go stale
-silently. Add or remove an entry whenever any of these changes:
-
-| What changed | Where it shows |
-| --- | --- |
-| A geometry dependency added to or dropped from `vcpkg.json` | CGAL, libigl, Geogram, Embree today |
-| A submodule added to or dropped from `.gitmodules` | VCGLib, TrueForm, MeshFix, QSlim, QuadWild-BiMDF today |
-| A tree vendored under `plugins/*/upstream/` or similar | PoissonRecon, Texture Defragmentation, xatlas, BPA, Instant Meshes, Isoparametrization, Open3D today |
-
-Not every dependency belongs there: the lists are about *geometry processing*, so the
-file-format, UI and numerics libraries are deliberately absent and the tab says so. A new
-dependency that only reads a file format needs no entry.
-
-`tests/test_third_party.cpp` enforces all of this. It reads the two arrays back out of the
-source and checks them against `.gitmodules`, `vcpkg.json` and the vendored trees on disk,
-in both directions: anything the build pulls in must be either listed in the dialog or
-recorded in that test's `notGeometry()` table with a reason, and anything the dialog lists
-must still come from somewhere. So the reminder above is a courtesy — the build is what
-actually stops the lists going stale.
-
-Each vendored package also records its own upstream and license next to its code, in
-`plugins/<plugin>/UPSTREAM.md` — see [`external/README.md`](../../external/README.md) for
-the submodules. Those are for a developer updating the package; the About lists are for a
-user asking what MeshLab is built on, and the two are maintained separately.
-
-### Choosing how to bring third-party code in
-
-There are four ways third-party code reaches the build, and which one a package gets is
-decided by one question first: **do we change the source?**
-
-| Do we change it? | Mechanism | Because |
-|---|---|---|
-| **Yes** — patch it, adapt it to the document model, or take a subset of it | **Vendored**, under `plugins/<plugin>/upstream/` (PoissonRecon keeps its own spelling, `Src/`, so the tree matches upstream) | Neither vcpkg nor a submodule can carry a patch without a build-time patch step, which is machinery we would own for every package. A copy in the tree can be patched, diffed against the reference clone and refreshed by hand. |
-| No, and a **vcpkg port** exists that suits us | **vcpkg** (`vcpkg.json`) | Someone else maintains the build. "Suits us" has to be checked: it must work with the external Qt, and not drag in heavy dependencies we do not use. |
-| No, and no suitable port | **Pinned submodule** under `external/` | Upstream stays byte-for-byte what its authors published, at a recorded commit. |
-| No, and only two or three files of it are wanted | **Vendored verbatim** | Copying `xatlas.cpp`/`xatlas.h` is cheaper than a submodule of a whole repository that we compile a corner of. |
-
-**Upstream activity does not decide the mechanism, but it decides what vendoring costs.**
-A dormant upstream cannot drift, so a vendored copy is the end of the story. An active
-upstream will move away from the copy, so a vendored tree of one must be pinned to a
-commit or tag, keep its patches few and recorded, and be revisited when a vcpkg port
-appears. Measured 2026-10-16:
-
-| Vendored | Upstream's last push | Local changes |
-|---|---|---|
-| BPA | 2022-09 | none; 3 source files and the license |
-| xatlas | 2024-06 | none; 2 source files and the license, verbatim from one commit |
-| Instant Meshes | 2022-01 | 6 files: removed TBB API, deterministic sorts, dropped serialization |
-| Texture Defragmentation | 2021-10 | adapted: OpenGL and file IO removed, plus MeshLab additions marked `QMeshLab:` (25 marked lines in 9 files) |
-| Isoparametrization | MeshLab's own history | patched: levmar replaced by newuoa (63 marked lines in 15 files) |
-| **PoissonRecon** | **2026-04, active** | 2 files: a thread-count setter, an MSVC parser workaround |
-| **Open3D** | **2026-09, active** | 1 file, plus being a 116-file subset of the library |
-
-The four dormant or quiet upstreams (BPA, xatlas, Instant Meshes, Texture Defragmentation) cost nothing to vendor. The two active ones are vendored
-*because* we patch them, and are the ones to watch: PoissonRecon is held at version 18.75
-(commit `cd6dc7d`), and Open3D at its v0.20.0 tag. Open3D is also the case to revisit
-first, since [microsoft/vcpkg#53211](https://github.com/microsoft/vcpkg/pull/53211) would
-become its port; see `plugins/filter_open3d/UPSTREAM.md` for why it is not an option yet.
-
-Every **submodule** is unmodified (MeshFix, QSlim, QuadWild-BiMDF, TrueForm,
-JKQtPlotter), and `external/README.md` gives each one's reason; JKQtPlotter's is the
-clearest case of a vcpkg port that does not suit (it needs vcpkg's Qt). **vcglib is the
-exception**: it is the project's own library, edited in lockstep with MeshLab, and is
-governed by its own rules in `AGENTS.md`. One package is fetched at configure time, not stored: QuadWild's GMM dependency, pinned by
-SHA-224 with mirrors, because the unmodified QuadWild submodule would otherwise download it
-over plain HTTP.
-
-#### What a vendored tree must record
-
-`plugins/<plugin>/UPSTREAM.md`, beside the plugin and outside the vendored tree (so the tree
-stays comparable with upstream), giving: the upstream URL; the **commit or tag** vendored;
-the licence; which files were taken; **every local modification, with the reason**; and how
-to refresh. A `check_upstream_status.sh` that diffs against a reference clone under the
-git-ignored `.reference/` is worth having once a tree has patches, as PoissonRecon, Instant
-Meshes and Open3D do. A new vendored tree also needs its About entry and passes
-`tests/test_third_party.cpp`, which now checks that the `UPSTREAM.md` exists.
-
-The document had four names until 2026-10-16. The mapping that made them one, measured
-before the move (no collision at any target, no script or CMake reference to any old name,
-three documentation mentions updated):
-
-| Was | Now |
-|---|---|
-| `filter_screened_poisson/POISSONRECON_PROVENANCE.md` | `filter_screened_poisson/UPSTREAM.md` |
-| `filter_xatlas/UPSTREAM_PROVENANCE.md` | `filter_xatlas/UPSTREAM.md` |
-| `filter_texture_defragmentation/upstream/README_QMESHLAB.md` | `filter_texture_defragmentation/UPSTREAM.md` — out of the vendored tree |
-| the eight already named `UPSTREAM.md` (BPA, Instant Meshes, Isoparametrization, MeshFix, Open3D, QSlim, QuadWild, io_trueform) | unchanged |
-
-#### Known gaps (2026-10-16)
-
-- **Texture Defragmentation's vendored commit is inferred, not recorded** —
-  `5c5543a`, from the one file in upstream's history that changed after the initial import.
-  Its note also records, for the first time, 12 files that differ from the classic MeshLab
-  copy it was imported from, one of them functional (`Pack` takes a `randomSeed`).
-- Isoparametrization's "upstream" is the classic MeshLab repository, not a separate
-  project, so it is vendored in the sense of "extracted and patched" rather than "copied".
+The built-in plugins are those registered in `plugins/meshpluginregistry.cpp` and `plugins/filterpluginregistry.cpp`, each when its dependencies are found; the [README](../../readme.md) lists them.
 
 ## State Ownership
 
@@ -251,10 +102,12 @@ three documentation mentions updated):
 | mesh geometry, material, and selection data | per-mesh render modes/styles |
 | mesh transforms | per-view visibility vector |
 | mesh/raster lists, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster pan/zoom/opacity |
-| document visibility proxy | overlay settings, histogram cache, active/suspended tool state and transient tool feedback |
+| document visibility proxy (`MeshEntry::visible`) | overlay settings, histogram cache, active/suspended tool state and transient tool feedback |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
-| undo tree, labels, lanes, full snapshots, selection deltas, script-action records | UV-local GPU cache, raster GPU image cache |
+| undo tree, labels, full snapshots, selection deltas, script-action records | UV-local GPU cache, per-mesh active UV texture group, raster GPU image cache |
 | shared mesh GPU cache | |
+
+`MainWindow` synchronizes the document's visibility from the active view so the layer panel reflects it; each view keeps its own visibility vector.
 
 Note: undo history stores `ViewState` snapshots, but this is serialized view data attached to undo nodes, not live ownership of render widgets.
 

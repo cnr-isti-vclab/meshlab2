@@ -159,10 +159,6 @@ Filters can consume document-level mesh, raster, camera, texture, and render-sta
 
 Python integration: `_meshlab.MeshSet` wraps a `Document` and exposes mesh/raster/project helpers, visibility/current-layer methods, `list_filters`, `apply_filter`, and `render_snapshot`. `apply_filter` resolves a fully qualified key, descriptor id, or Python name, converts supported Python kwargs to `MeshFilterParameterValues` (`bool`, integer, float, string, and 3-number point/vector sequences), and runs the same `Document::runFilter(...)` path used by the GUI. In the embedded console, `PythonHost` exposes the public `pymeshlab2` facade, injects the live document as `ms`, injects the live view helper as `mlgui`, and dynamically adds one method per filter to `MeshSet` using each descriptor's `effectivePythonName()`.
 
-## Preference Model
-
-Application preferences live in `resources/preferences.json`, using the same parameter-descriptor schema as filter parameters. `Preferences` is a process-wide `src/core` singleton backed by `QSettings`; it exposes declared descriptors, typed reads, immediate writes, reset-to-defaults, and a `changed` signal. `PreferencesDialog` renders those descriptors through the shared `ParameterFormBuilder`, so adding a preference is a JSON/schema change plus a call-site read, not a custom-widget change.
-
 ## Undo/Redo Model
 
 History is a tree, not a flat stack:
@@ -175,38 +171,7 @@ History is a tree, not a flat stack:
 
 Committing an action appends a child to the current node, preserving alternate timelines instead of truncating siblings. `redo()` follows `preferredChild` when present, otherwise the first child. `jumpToUndoNode(nodeId, restoreCamera)` walks through the lowest common ancestor, suppressing intermediate GUI refresh signals and restoring camera only at the final target when requested. `undoTreeInfo()` exposes nodes, depths, current-node state, and current-path flags; the Action History lays them out itself (below).
 
-### The Action History view
-
-`UndoGraphWidget` draws the tree as rows, newest at top, laid out by `UndoGraphLayout` (`src/ui/undographlayout.h`), which is pure and tested in `tests/test_undographlayout.cpp`. Two kinds of repeat fold into one row, drawn with a strip of dots under the label, one per state:
-
-- **Tries** — siblings made by the same filter: the sweep left by undoing a filter and running it again. Only tries that went nowhere fold. A try that was continued keeps a row for its children to hang from, and when exactly one was, the others fold into its row.
-- **Runs** — a chain of the same action, as an interactive tool leaves it, each step carried on by its oldest child made by that action. A branch does not split the run: the row that leaves it hangs from the step it left, whose dot carries a notch, and takes a column of its own even when it is the run's only branch, so it cannot pass for what came after the last step. Hovering the branch enlarges that dot; hovering the dot lights up the branches and names them in the caption. A run's dots are joined, solid along the path to the current state and dashed, muted, where it does not come from them; tries stand apart.
-
-When siblings of one action hang from a step made by that same action and the oldest of them was continued, that one carries on the run and only the others can fold as tries: undoing two selections and selecting again is a branch off the run, not a sweep. A sweep of leaves on top of the same filter still folds as tries.
-
-"The same action" is the same filter key whatever its parameters, or the same label for anything that is not a filter. When exactly one parameter differs between the states, each dot carries its value and the strip starts with that parameter's name. Hovering a thumbnail or a dot shows the state's snapshot, captioned with the try or step and, up to three, the parameters that differ. Where it shows is the `view.historyPreview` preference: by default over the 3D view itself (`RenderWidget::showStatePreview`), filling it inside a cloudy frame and under a *Preview* label so it cannot pass for the live document, which stays untouched underneath; or in a popup beside the panel. Camera and render states are left out of the comparison: they say where a screen-space tool acted from, not what was chosen. Clicking the count, or the `+N` standing for older states that do not fit, expands a group into a row per state.
-
-*Update camera* stores the current view, camera and look alike, into a state and retakes its row thumbnail and hover snapshot. On a folded row, right-clicked anywhere but on a dot, it does so for every state the row holds. Only the live document can be photographed, so `MainWindow::updateUndoNodeCameras` visits each other state with `jumpToUndoNode(id, false)`, puts the live view back over the look the state was recorded with, grabs the frame, and returns to where it started. A visit's own refreshes of the filter UI and of the panel are skipped, since the document ends where it started. Selection steps are deltas and cost almost nothing to visit; filter steps restore a geometry snapshot each.
-
-The panel's images (the row thumbnail and the hover snapshot) and its expanded rows are kept by node serial, so they follow their states through a renumbering; MainWindow maps the panel's node ids to serials at each refresh.
-
-Columns are assigned on the folded rows by the rule the history has always used: a row's oldest child continues its column, and each later one opens a new column, in creation order. The undo model stores no display lane.
-
-Undo-tree maintenance APIs keep the graph controllable after branching: `makeUndoRoot(nodeId)` promotes a chosen node to the new root and discards unreachable history, `purgeUndoBranch(nodeId)` deletes a descendant branch, and `linearizeUndoHistory()` keeps only the root-to-current path. Byte-aware pruning discards side branches first and then advances through old full checkpoints; delta nodes cannot become roots. These operations preserve the current live state and notify the UI through the normal undo/redo state signal.
-
-Full snapshot nodes store an `UndoState` containing `MeshSnapshot` and `RasterSnapshot` arrays plus current mesh/raster/layer ids, next id counters, and one `ViewState`. A `MeshSnapshot` copies all cheap metadata fields by value (`transform`, names/paths/assets/materials/visibility/mask/revisions) and holds geometry behind a `shared_ptr<const VCGMesh>`. `captureUndoState()` interns geometry objects in `m_undoGeometryCache` (keyed by `(meshId, geometryRevision, selectionRevision, materialRevision)`, stored as `weak_ptr`): if the full mesh content identity is unchanged since the last capture, nodes share the same allocation. A cache miss triggers a deep copy. On undo/redo, `restoreUndoState()` deep-copies geometry out of the shared pointer so the live document is always freely mutable. Main geometry replacement paths use document-level monotonic revision sources so branch-local edits do not accidentally reuse an older cache key after undo/redo navigation. Branch restore also evicts newer cached revisions for restored mesh ids to avoid stale geometry reuse across branches. `RasterSnapshot` stores raster metadata, `CameraShot`, lens, planes, current plane, visibility, and raster image/camera revision ids. `undoMemoryStats()` de-duplicates geometry, includes the capacity of the packed attribute deltas, counts only image backing stores retained by history rather than the live document, and reports resources unique to a pending operation. Current-path rows describe references and are not additive.
-
-A change confined to one attribute class can use `UndoStorageKind::Delta` instead of a full snapshot. `DocumentUndoManager::beginDeltaStep(...)` captures a `MeshAttributeDelta` for the target mesh before and after the operation, holding only the classes named in its `kinds` mask: **selection** (packed bits for vertices, faces and polyline edges), **color** (one packed RGBA word per element) and **scalar** (one float per element). Capture is selective on purpose: taking all three for a selection-only change would cost far more than the selection bits. Undo/redo applies the deltas directly to the live mesh, avoiding a full geometry copy while preserving the same tree behavior and script-action metadata.
-
-**Custom attributes** (vcglib's named per-element attributes, such as `KH`, `outlierScore` or `BentNormal`) are in neither class, so a delta does not see them. A filter that leaves one on a layer declares `VA` or `FA`, which routes it to a full snapshot. `deepCopyMesh` carries named per-vertex, per-face and per-edge attributes of type `float`, `Point3f` and `int`; unnamed attributes, per-mesh ones and any other type are left behind, so a filter removes the scratch attributes it or vcglib created (pointers, booleans, a geodesic visit's `geod`) before it returns. The smoke sweep (`tests/test_filter_smoke.cpp`) undoes and redoes every filter that changes the set of attribute names, and fails if either step does not bring that set back.
-
-Applying a delta bumps the revision the affected data is keyed on. Selection has its own `selectionRevision`; color and scalar live inside the `VCGMesh`, so restoring them bumps `geometryRevision`, or the GPU buffers that read them would keep showing the old values. Measured on a 200k-vertex, 100k-face mesh, a color or scalar step stores about 2.4 MB where a full snapshot adds a second 15 MB mesh, and a selection step about 0.075 MB.
-
-The filter runner picks the path from the descriptor: a SingleMesh filter whose `outputModifies` codes all fall within `VS FS ES`, `VC FC EC` or `VQ FQ EQ` takes the delta path, with the union as its `kinds`. **The descriptor is trusted completely.** A filter that declares `VC` but also moves a vertex will not have the movement undone, because geometry is not captured; declaring `outputModifies` accurately is what keeps undo correct. Transforms, renames, visibility and material changes need no delta: they do not bump `geometryRevision`, so their snapshots already share one geometry allocation.
-
-Each `UndoState` also stores a `ViewState` snapshot (`src/render/viewstate.h`) captured via `Document::setViewStateFunctions(...)`. Current wiring captures/restores the active `RenderWidget` camera/render-style state (`ViewTrackball::State`, `GlobalRenderSettings`, per-mesh `PerMeshRenderSettings`) with each node. Per-view visibility vectors, UV pan/zoom, and view mode are not part of `ViewState`; camera restore can be skipped when jumping to a node.
-
-APIs: `beginUndoStep(label)`, `beginUndoStep(label, ScriptAction)`, `beginUndoStep(label, meshIndexForDelta, kinds)`, `beginUndoStep(label, ScriptAction, meshIndexForDelta, kinds)`, `endUndoStep(commit, restoreOnCancel)`, `undo()`, `redo()`, `jumpToUndoNode(nodeId, restoreCamera)`, `updateUndoNodeCamera(nodeId)`, `makeUndoRoot(nodeId)`, `purgeUndoBranch(nodeId)`, `linearizeUndoHistory()`, `undoTreeInfo()`, `undoNodeScriptAction(nodeId)`, `clearUndoHistory()`, `setUndoLimit(limit)`, `setUndoMemoryLimitBytes(bytes)`, `pruneUndoToMemoryBudget(bytes)`, `handleUndoMemoryPressure(critical)`. Integrated with mesh mutations (`add/remove/duplicate/reload/rename/visibility`, `setMeshTransform`, `markMeshGeometryChanged`, `markMeshMaterialChanged`, `markMeshSelectionChanged`) and raster mutations (`add/remove/rename/visibility`, `setRasterShot`, `setRasterLens`, `setCurrentRasterPlaneIndex`, `markRasterImageChanged`).
+The Action History panel that draws this tree is described in [User Interface](user_interface.md#the-action-history-view); it keeps its images by node `serial`, so they follow their states through a renumbering.
 
 ## Revision and Transform Model
 
@@ -218,83 +183,3 @@ APIs: `beginUndoStep(label)`, `beginUndoStep(label, ScriptAction)`, `beginUndoSt
 - `setRasterShot(...)` advances `cameraRevision`; raster-projected rendering and raster camera glyphs pick up the new camera lazily.
 - `setRasterLens(...)` advances both `cameraRevision` and `imageRevision`, and drops the planes decoded from photos so they decode again through the new lens.
 - `setCurrentRasterPlaneIndex(...)` changes which plane is considered current for display/export without changing raster image data.
-
-## Render-State Snapshot Model
-
-`RenderWidget` exposes two JSON state families:
-
-- `MeshLab.CameraState`: camera/trackball payload used by camera copy/paste and filter parameters.
-- `MeshLab.RenderState`: sparse per-view rendering payload containing view mode, raster opacity, trackball, `GlobalRenderSettings`, per-view visibility, per-mesh render modes keyed by `mesh_id`, current mesh/raster indices, current layer kind, and viewport metadata. Default-valued fields are omitted by export; on import, omitted settings/mode maps parse from default settings, while omitted view mode and raster opacity keep the current view values.
-
-`MainWindow` wires `Document::setRenderStateSnapshotFunction(...)` to the active `RenderWidget`. `Document::renderSnapshotFromStateJson(renderStateJson, pixelSize, outImage, outShot, error)` applies the requested render state to that view, renders an offscreen image, returns the resulting `QImage` and `CameraShot`, then restores the previous view state. This keeps filter code document-centric while leaving all GPU and per-view state inside `RenderWidget`.
-
-## Render Settings Model
-
-Defined in `renderingsettings.h`:
-
-### `PerMeshRenderSettings`
-
-One instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds:
-
-- pass toggles: `showFill`, `showWire`, `showEdges`, `showPoints`, `showBoundingBox`, `showSelection`, `showSelectionFaces`, `showSelectionVertices`
-- decorator toggles: `decoratorVertexNormals`, `decoratorFaceNormals`, `decoratorBoundaryEdges`, `decoratorTextureSeams`, `decoratorNonManifoldEdges`, `decoratorNonManifoldVertices`, `decoratorCurvatureDir`
-- lighting/culling flags: `fillLighting`, `fillBackfaceCulling`, `wireLighting`, `wireBackfaceCulling`, `wireRespectFaux`, `pointLighting`
-- fill material: `fillMaterial` (`Plain` / `Pbr`) + sub-structs `fillPlain` (`PlainFillParams`, including the radiance-scaling option: `radianceScaling`, `rsEnhancement`, `rsResolutionBias`) and `fillPbr` (`PbrFillParams`, including PBR texture sources, normal-map space, normal scale, AO strength, roughness factor)
-- colors and sizes: `fillColor`, `wireColor`/`wireSize`, `edgeColor`/`edgeSize`, `pointColor`/`pointSize`, `bboxWireColor`, decorator colors, `decoratorBoundaryWidth`
-- `pointColorSource`: `Constant` / `PerVertex` / `PerVertexQuality`
-- `edgeColorSource`: `Constant` / `PerVertex` / `PerEdge`; this applies to explicit mesh edges, not triangle wireframe or topology decorators
-
-### `GlobalRenderSettings`
-
-One instance per view in `m_renderSettings`. Holds:
-
-- scene overlay: `highlightCurrentMesh`, `currentMeshOutlineColor`/`Width`, `currentMeshDilateRadius`/`ErodeRadius`, `currentMeshDebugView`, `showTrackballGizmo`, `showViewCameras`, `showBoundingBoxCorners`, `showBoundingBoxDimensions`, `showDecoratorInfo`
-- scene background: `sceneBackgroundTopColor`, `sceneBackgroundBottomColor`
-- UV viewer: `uvShowReferenceFrame`, `uvShowFullTexture`, `uvTextureChannel`, `uvTextureNearestSampling`; the active texture group is view-local per-mesh state selected from viewport thumbnails
-- quality histogram/range: `showQualityHistogram`, `qualityHistogramBins`, `qualityHistogramSource`, `qualityHistogramFixedRange`, `qualityHistogramMin`/`Max`, `qualityHistogramCenterOnZero`, `qualityHistogramPercentileCrop` (default `0.01`, cropping both tails for automatic ranges), `qualityHistogramColorMapId`, `qualityHistogramInvertColorMap`, `qualityIsolinesEnabled`, `qualityIsolineCount`
-- overlay panel state: `settingsPanelVisible`, `currentPass`
-
-`using RenderSettings = GlobalRenderSettings` and `using MeshRenderMode = PerMeshRenderSettings` (widget-local alias) are provided.
-
-## Render Request / Plan Model
-
-Scene3D rendering now has an explicit lightweight request layer before GPU draw planning:
-
-- `RenderMeshPassRequests` stores one visible mesh index, its resolved `PerMeshRenderSettings`, and booleans for fill, wire, edges, bbox, points, selection, decorator-normal resources, and decorator-boundary/seam/non-manifold resources.
-- `RenderFramePassRequests` is the frame-wide aggregate of those per-mesh requests plus raster backplate/projected/frustum requests. It answers whether a pass family is needed and is also used to decide which shared mesh GPU resources to prepare.
-- `RenderFrameRequest` combines pass requests with frame-local view data (`ViewMode`, pixel size, projection matrix, view matrix, light direction).
-- `RenderFramePlan` is the concrete GPU draw plan generated from a `RenderFrameRequest`; it contains mesh and raster draw items with QRhi pipelines/buffers/material renderer pointers and is therefore not suitable as a persisted or JSON object.
-
-This split keeps user/render settings as stable input data, pass requests as an implementation-neutral frame description, and GPU objects inside the concrete plan. Programmatic rendering now targets versioned camera/render-state JSON, then lets the application build the GPU `RenderFramePlan` internally.
-
-## Shared vs Per-View State
-
-| Shared (Document) | Per-view (RenderWidget) |
-|---|---|
-| mesh geometry, material, and selection data | per-mesh render modes/styles |
-| mesh transforms | per-view visibility vector |
-| mesh/raster list, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster pan/zoom/opacity |
-| document visibility proxy (`MeshEntry::visible`) | overlay settings, histogram cache |
-| logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
-| undo tree, full snapshots, selection deltas, script-action records | UV-local GPU cache (`m_uvMeshGpu`), per-mesh active UV texture group, raster GPU image cache, active/suspended tool state, transient measure/transform feedback |
-| shared mesh GPU cache | |
-
-`MainWindow` synchronizes document visibility from the active view so the layer panel reflects it; each view keeps its own local visibility vector independently.
-
-Undo stores serialized `ViewState` snapshots in undo-node history, but live render-widget ownership remains per-view.
-
-## GPU Cache Integration
-
-Renderer-facing APIs on `Document`: `ensureMeshGpuResources(...)`, `fillPassGpuView(...)`, `wirePassGpuView(...)`, `edgePassGpuView(...)`, `edgeFatPassGpuView(...)`, `pointsPassGpuView(...)`, `bboxPassGpuView(...)`, `selectionPassGpuView(...)`, `decoratorPassGpuView(...)`.
-
-Scene3D resource preparation is driven by `RenderFramePassRequests`, not by a second ad-hoc scan of per-mesh render modes. For each visible mesh, the request says which cache products are needed; current-mesh highlighting can additionally request fill/edge/point resources for the highlighted mesh.
-
-Cache keyed by `(QRhi*, meshId, variant, revision, quality-range mode/min/max, center-on-zero flag, percentile crop, wire faux-edge mode where relevant)`. Fill/wire/point variants use geometry/material revisions as appropriate, while selection resources include `selectionRevision` so selection overlays can refresh independently. `MeshSource` carries legacy texture paths, `textureAssets`, material metadata, and quality-range options. Invalidatable per-RHI or globally. Explicit-edge buffers carry both endpoint vertex RGBA and edge RGBA so changing `edgeColorSource` is a settings/UBO change rather than a cache rebuild. Selection and decorator buffers are first-class cache outputs, including normals, boundary/seam lines, non-manifold edge/vertex markers, and curvature direction lines when the mesh provides the required data.
-
-## Memory Diagnostics
-
-`MainWindow::showMemoryInfo()` reads `cpuMeshMemoryStats`, `undoMemoryStats` (de-duplicates shared geometry), and `gpuMemoryStats` from `Document`.
-
-These values are implementation-level mesh/cache estimates (capacity-based for VCG containers, VCG OCF side-data vectors, undo snapshots, and cache-owned GPU allocations), not full process RSS/Activity-Monitor memory.
-
-For rendering pipeline details, see [Rendering](rendering.md).

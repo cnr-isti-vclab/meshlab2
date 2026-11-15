@@ -17,7 +17,7 @@ Renderings* (arXiv 2610.36098). MeshLab pins it as the recursive submodule
 
 **All four point at forks**, which carry fixes proposed upstream. MeshLab's own tree
 carries no patch, so this is still the pinned-submodule case of
-[the third-party rule](../../docs/design/architecture.md#choosing-how-to-bring-third-party-code-in);
+[the third-party rule](../../docs/design/third_party.md#choosing-how-to-bring-third-party-code-in);
 the goal is forks with nothing beyond upstream, and then the original URLs.
 
 Nothing is linked into MeshLab. `ExternalProject` builds three programs --

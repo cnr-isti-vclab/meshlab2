@@ -76,7 +76,7 @@ QString buildInformation()
 //
 // These two lists are the only place either is written down for the user, so they have to
 // be kept in step with what the build actually links -- the reminder, and where to look
-// for what changed, is in docs/design/architecture.md.
+// for what changed, is in docs/design/third_party.md.
 struct ThirdPartyEntry
 {
     const char *name;

@@ -8,7 +8,7 @@
 // or listed here with a reason, and every About entry must correspond to something that
 // really is pulled in -- so the check fails in both directions and cannot rot quietly.
 //
-// See docs/design/architecture.md, "Third-party geometry code".
+// See docs/design/third_party.md, "Third-party geometry code".
 #include <QFile>
 #include <QDir>
 #include <QJsonArray>

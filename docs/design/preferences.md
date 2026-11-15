@@ -73,7 +73,7 @@ only the first of them.
 With **inline help**, each row's help is shown as text under it, in place of its tooltip.
 *Show help* hides and shows it (`setInlineHelpVisible`); hidden, the help is the tooltip.
 The filter panel uses the same option, driven by its "?" button -- see
-[architecture.md](architecture.md#meshfilterpanel). The
+[architecture.md](user_interface.md#meshfilterpanel). The
 choice is kept in QSettings as `preferencesDialog/showHelp`, outside the `preferences`
 group: it is how the dialog looks, not a preference, so *Restore All Defaults* leaves it
 alone.

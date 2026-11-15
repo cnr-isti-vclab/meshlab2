@@ -3,7 +3,7 @@
 How a raster's camera is aligned to the mesh: by point pairs, by mutual information, both at
 once, and globally over a set of rasters. How rasters, cameras and lenses are stored is in
 [Data Model](data_model.md#raster-data-type); the interactive tool and picking in the raster
-view are in [Rendering](rendering.md#interactive-tools). The record of how this was built,
+view are in [Rendering](user_interface.md#interactive-tools). The record of how this was built,
 with the measurements and the decisions behind it, is
 [history/raster_alignment.md](history/raster_alignment.md).
 

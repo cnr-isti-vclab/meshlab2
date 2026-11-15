@@ -109,7 +109,7 @@ Three routes were considered.
 | B. Link the headers into the plugin | No files, no packaging | The stitcher is a program (`TextureStitching.cpp` with its own `main`), not a library; using it in-process means vendoring it with patches. Every `MK_ERROR_OUT` path would have to be redirected — the macro is `#ifndef`-guarded, so predefining it to throw is possible, but unverified against assertions and other exits. OpenMP and C++20 enter the application build. |
 | C. Vendor a subset under `upstream/` | Freezes a moving target | It would be a patched copy of a repository three weeks old and changing daily. |
 
-**Recommended: A.** Under [the third-party rule](../architecture.md#choosing-how-to-bring-third-party-code-in)
+**Recommended: A.** Under [the third-party rule](../third_party.md#choosing-how-to-bring-third-party-code-in)
 it is the "no change, no suitable port" case: a pinned, unmodified submodule. No vcpkg
 port exists for any of the four repositories. Route B would turn that into "we patch it",
 which means vendoring, for a gain that is not needed.

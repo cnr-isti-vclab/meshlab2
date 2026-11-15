@@ -3,12 +3,12 @@
 > Adding or removing anything here also means editing `kFocusedPackages` (or
 > `kGeometryLibraries`) in `src/ui/aboutdialog.cpp`: the About dialog's **Libraries** tab
 > is where these are shown to the user, and nothing generates it. See
-> [Third-party geometry code](../docs/design/architecture.md#third-party-geometry-code).
+> [Third-party geometry code](../docs/design/third_party.md#third-party-geometry-code).
 
 
 How a package comes to be here, rather than in vcpkg or vendored under a plugin, is the
 rule in [Choosing how to bring third-party code
-in](../docs/design/architecture.md#choosing-how-to-bring-third-party-code-in): everything
+in](../docs/design/third_party.md#choosing-how-to-bring-third-party-code-in): everything
 in this directory is kept unmodified.
 
 ## JKQtPlotter

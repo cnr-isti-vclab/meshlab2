@@ -41,7 +41,7 @@ Design notes:
 
 Filter integration:
 
-- `MainWindow` wires `Document::setRenderStateSnapshotFunction(...)` to the active view. `Document::renderSnapshotFromStateJson(...)` applies JSON to that view, renders an offscreen image at the requested size, returns both the `QImage` and resulting `CameraShot`, then restores the previous render state.
+- `MainWindow` wires `Document::setRenderStateSnapshotFunction(...)` to the active view. `Document::renderSnapshotFromStateJson(...)` applies JSON to that view, renders an offscreen image at the requested size, returns both the `QImage` and resulting `CameraShot`, then restores the previous render state. This keeps filter code document-centric while all GPU and per-view state stays inside `RenderWidget`.
 - Layer menu filter `Render from Render-State JSON` (`id: render_from_render_state_json`) consumes typed `camera_state` (`MeshLab.CameraState`) and `render_state` (`MeshLab.RenderState`) payloads and runs an offscreen render.
 - Both parameters support the same UI source modes: inline text, JSON file, or capture from current view -- the current 3D view, the one a filter's camera result goes back to.
 - The MeshLab.CameraState document is written and read in one place, `ViewTrackball::cameraStateJson` and `stateFromCameraStateJson` (the view, the snapshot metadata, the camera filters and `select_by_rectangle` share them). Besides the trackball it records `viewport_px`, the size of the image the camera is for: the trackball fixes the height it sees and only this says how wide the image is. A snapshot records its own image's size; the view, its scene tile's.
@@ -67,6 +67,8 @@ This is an internal architecture boundary, not a public serialization contract. 
 
 Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision, selectionRevision where relevant)`. Quality variants also include fixed-range mode, min/max, center-on-zero, and percentile crop. Wire resources also track whether faux polygon edges should be respected.
 
+Entries are released when their layer leaves the document (`removeMesh`, `clearAllLayers`, or an undo that drops the layer: `purgeMesh`) and, for one QRhi, when a view's QRhi is replaced (`releaseRhiResources`). A revision change releases nothing by itself: the stale buffers of a product are replaced the next time a frame asks for that product.
+
 Cached outputs:
 
 - **fill**: one or more batches — vertex/index buffers, optional base/normal/occlusion/roughness textures and per-batch PBR factors. Variants: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`. Texture lookup can use legacy texture paths, `MeshIOTextureAsset` entries, and material slots. PBR normal textures can be interpreted as tangent-space maps or object-space maps according to `fillPbr.normalMapSpace`.
@@ -76,6 +78,8 @@ Cached outputs:
 - **bbox**: line buffer.
 - **selection**: selected-face triangles, selected-vertex points, and selected edges both as plain segments and as fat-line quads (`LineRenderer::buildFatLineVertices`), keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
 - **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line), non-manifold edges (line + fat-line), non-manifold vertices, and curvature principal-direction lines.
+
+Views reach it through `Document`: `ensureMeshGpuResources(...)` builds what a frame's pass requests ask for, and `fillPassGpuView(...)`, `wirePassGpuView(...)` and the other `*PassGpuView(...)` calls return the buffers to draw.
 
 `MeshGpuResourceCache::gpuMemoryStats()` sums the QRhi buffer sizes and known RGBA8
 texture payloads for all cache variants and RHIs, including non-manifold decorator
@@ -90,7 +94,33 @@ Boundary extraction: topological edge incidence (`incidentCount == 1`). Non-mani
 
 ## Per-Mesh Render Modes
 
-`RenderWidget` holds a `PerMeshRenderSettings` per mesh id (`m_meshRenderModes`; `MeshRenderMode` is a local alias). View-level settings are in `m_renderSettings` (`GlobalRenderSettings`). See [Data Model](data_model.md) for field details.
+`RenderWidget` holds a `PerMeshRenderSettings` per mesh id (`m_meshRenderModes`; `MeshRenderMode` is a local alias). View-level settings are in `m_renderSettings` (`GlobalRenderSettings`).
+
+Defined in `renderingsettings.h`:
+
+### `PerMeshRenderSettings`
+
+One instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds:
+
+- pass toggles: `showFill`, `showWire`, `showEdges`, `showPoints`, `showBoundingBox`, `showSelection`, `showSelectionFaces`, `showSelectionVertices`
+- decorator toggles: `decoratorVertexNormals`, `decoratorFaceNormals`, `decoratorBoundaryEdges`, `decoratorTextureSeams`, `decoratorNonManifoldEdges`, `decoratorNonManifoldVertices`, `decoratorCurvatureDir`
+- lighting/culling flags: `fillLighting`, `fillBackfaceCulling`, `wireLighting`, `wireBackfaceCulling`, `wireRespectFaux`, `pointLighting`
+- fill material: `fillMaterial` (`Plain` / `Pbr`) + sub-structs `fillPlain` (`PlainFillParams`, including the radiance-scaling option: `radianceScaling`, `rsEnhancement`, `rsResolutionBias`) and `fillPbr` (`PbrFillParams`, including PBR texture sources, normal-map space, normal scale, AO strength, roughness factor)
+- colors and sizes: `fillColor`, `wireColor`/`wireSize`, `edgeColor`/`edgeSize`, `pointColor`/`pointSize`, `bboxWireColor`, decorator colors, `decoratorBoundaryWidth`
+- `pointColorSource`: `Constant` / `PerVertex` / `PerVertexQuality`
+- `edgeColorSource`: `Constant` / `PerVertex` / `PerEdge`; this applies to explicit mesh edges, not triangle wireframe or topology decorators
+
+### `GlobalRenderSettings`
+
+One instance per view in `m_renderSettings`. Holds:
+
+- scene overlay: `highlightCurrentMesh`, `currentMeshOutlineColor`/`Width`, `currentMeshDilateRadius`/`ErodeRadius`, `currentMeshDebugView`, `showTrackballGizmo`, `showViewCameras`, `showBoundingBoxCorners`, `showBoundingBoxDimensions`, `showDecoratorInfo`
+- scene background: `sceneBackgroundTopColor`, `sceneBackgroundBottomColor`
+- UV viewer: `uvShowReferenceFrame`, `uvShowFullTexture`, `uvTextureChannel`, `uvTextureNearestSampling`; the active texture group is view-local per-mesh state selected from viewport thumbnails
+- quality histogram/range: `showQualityHistogram`, `qualityHistogramBins`, `qualityHistogramSource`, `qualityHistogramFixedRange`, `qualityHistogramMin`/`Max`, `qualityHistogramCenterOnZero`, `qualityHistogramPercentileCrop` (default `0.01`, cropping both tails for automatic ranges), `qualityHistogramColorMapId`, `qualityHistogramInvertColorMap`, `qualityIsolinesEnabled`, `qualityIsolineCount`
+- overlay panel state: `settingsPanelVisible`, `currentPass`
+
+`using RenderSettings = GlobalRenderSettings` and `using MeshRenderMode = PerMeshRenderSettings` (widget-local alias) are provided.
 
 Default mode for new meshes:
 - surfaces (`FN > 0`): fill on, wire on for `FN < 10000`
@@ -229,17 +259,6 @@ the views. A newly loaded layer's point size, edge width, edge-only-layer width 
 Tests: `ViewGridTests` (plane choice and level arithmetic) and the render probe
 `tests/render_probes/reference_grid` (the axis colours, the orthographic rule, and the grid far from the
 scene).
-
-## Resetting the views
-
-*File > New* closes the layers, the undo history and the log, and then puts everything else the
-user could have changed back as a fresh start has it: `RenderWidget::resetToDefaults()` on the
-remaining view (render settings seeded from the preferences again, per-layer render modes dropped, default
-camera and projection, headlight, 3D mode, UV and raster views refitted), the active tool, the
-camera synchronisation, and the values the filter panel remembers
-(`MeshFilterPanel::forgetRememberedParameters()`). The camera is framed by the next layer, by the
-same path as Reset Camera. Split views are closed down to one, the current view, as a launch opens with. Preferences are kept. State a new
-view carries should be added to `resetToDefaults()`, or New will not clear it.
 
 ## Clip-space convention
 
@@ -399,59 +418,7 @@ Depth picking does not see it — a click on the cap picks the wall behind.
 (`kClipPlaneGizmoRasterIndex`). It appears while the plane is moving and for 1200 ms after;
 `clipPlaneShowPlane` keeps it up permanently.
 
-**Snapping.** Every edge crossing the plane is split exactly, except at a vertex already
-lying on the plane to within rounding -- vcglib's `PlaneTolerance`: 1e-5 of the diagonal, or
-16 float ulps of the largest coordinate for a small piece far from the origin, the same test
-`CapPlanarBoundary` and the filter's open-edge count use -- which is moved onto the plane
-instead. That snap is invisible, and it is the only one the cut needs: split a float's width
-away from such a vertex, its crossing edges leave a cluster of split points that zig-zag at
-rounding level, and the planar tessellator rightly rejects the outline. The filter's *Snap
-to existing vertices* (`ClipMeshWithPlane`'s tolerance, 0 by default) goes further: a
-crossing within that fraction of an edge from an endpoint moves the endpoint rather than
-splitting the edge. It saves thin triangles, but a fraction of an edge is a long way on a
-long edge -- a second cut through the cap of a first drags that cap's vertices visibly off
-its plane -- so it is off unless asked for. A non-manifold edge cannot be split, so its
-nearer end is moved onto the plane in any case. A face a move lays flat on the plane is
-discarded with the removed side; kept, it would lie under the cap and leave edges shared by
-four faces.
-
-**Capping.** *Close the cut* is vcglib's `CapPlanarBoundary`, which fills only the loops lying
-on the plane and leaves holes the mesh already had alone. All of them are tessellated at once
-under the even-odd rule, so a torus cut through its central circle caps as a ring. When the
-planar tessellator rejects them -- it takes only outlines that neither cross nor touch
-themselves -- each outer outline is tried again alone with the holes inside it, outer and
-hole told apart by the mesh's winding rather than by nesting, so shells of one layer that
-pass through each other get a cap each. What it still rejects is ear-cut on the mesh
-boundary instead: a loop that crosses itself because the scanned surface does, or an
-outline pinched where it touches itself. Ear cutting always closes such a hole, but where
-the outline crosses itself a few of its triangles fold over others. Left open, and counted
-in the filter's log: an outline that runs into a pre-existing hole, an outer outline with
-holes that the tessellator rejects, and a hole that needs ear cutting beside a non-manifold
-edge, which vcglib's boundary walk cannot cross.
-
-**Making the cut real.** The clip-plane page's *Trim Current Layer* button runs
-`meshlab2.filter.meshing::trim_surface_by_plane` on the current layer -- or, when the layer
-is a bare point cloud (vertices, no faces or edges),
-`meshlab2.filter.meshing::trim_point_cloud_by_plane`, which drops the points behind the plane
-and has no cut to close -- and then switches the clipping plane off, so what is on screen
-becomes the geometry rather than a view of it.
-
-The plane is handed over as a normal measured from the origin rather than copied across as
-the settings: the view measures its offset in diagonals of the whole visible scene while the
-filter measures a distance against one layer's bounding box, so the same numbers would mean
-different planes as soon as there is more than one layer. And it is the plane in the layer's
-own coordinates (`ClipPlane::toLocal`, what the shaders clip with), because the filters work
-in those and ignore the layer matrix; the world plane would cut a different slab once the
-layer has been moved. It matches what the viewport shows -- one layer, and the cut closed when
-it is shown as solid (`closeCut` follows `clipPlaneSolidCut`); the Filters panel has the rest
-of the filter's options.
-
-**Interaction.** `Ctrl`+wheel slides the plane along its normal at 0.02 diagonals a notch;
-`Alt`+drag tips it, switching the axis to `Custom`. Both enable clipping if it is off, and
-the wheel starts it at `ClipPlane::offsetClearOfScene()` — the offset where the plane just
-touches the scene — so the next notch cuts. `Ctrl`+wheel used to scale `view.nearClipRatio`;
-that ratio is now a depth-precision setting reached only from the preferences. The controls
-also live behind the `RenderPass::ClipPlane` button on the pass bar.
+How *Trim Surface by Plane* splits, snaps and closes the cut is in that filter's help. The clip-plane page's *Trim Current Layer* button and the mouse controls are in [User Interface](user_interface.md#clipping-plane-controls).
 
 ## Depth Picking
 
@@ -459,28 +426,13 @@ Double click schedules an offscreen depth-pick frame: depth encoded in RGB → o
 
 A tool's pick (`requestSurfacePick`) is the same pass. In the raster view it runs too, for a tool that supports that view (`supportsRasterView()`) and a raster with a camera: it projects through the matrices that frame drew with, the raster's camera behind the image's pan and zoom, so the point it returns is the surface under the cursor as the mesh is drawn over the photo. No other pick is scheduled there.
 
-## `Scene3D` Camera and Interaction
-
-`ViewTrackball`: left drag = arcball/hyperbola rotation; middle/right drag or `Ctrl+Left` = pan; `Shift+Left` drag = roll, the view turning about its own axis by the angle the cursor sweeps about the centre of the viewport (nothing turns within 32 pixels of the centre; a layer tool that is live takes the drag first, as it does every left drag); wheel = dolly; `Shift+Wheel` = vertigo (FOV + compensating dolly), which past the narrowest field of view goes on into orthographic and back; a plain click -- left button, no modifier, released within the drag distance -- makes the layer under the cursor current (`PickPurpose::CurrentLayer`, the same GPU pick as the double click's, decided on release so that a press that becomes a drag stays a rotation, and run only once the double-click interval has passed with no second press, so that a double click recenters without changing the current layer; a click on the background changes nothing, one that stops a camera animation picks nothing, and a press in a view that is not current only makes that view current, here and on a tile of the layer grid; a change of layer is said briefly over the view); `5` or View > Orthographic Projection toggles the projection of the current 3D view (the `view.projection` preference sets where a new view starts); double click = depth-pick + animated recenter. `Ctrl+Shift+Left` rotates the view-space headlight, the light following the cursor as the model does under the trackball. While dragging, `LightGizmo` shows the light in the bottom-left corner: a ball lit as the current layer's fill is, under its back-lighting mode (Single, Double or Fancy, with the fill shader's ambient, sided diffuse and tints), the light as a small ball 1.5 radii out with the ray it comes along from the big ball's surface (both drawn fainter where the big ball occludes them, and the ray and the small ball occluding each other, as 3D objects would, so a light behind the model does not read as its mirror in front), and its azimuth and elevation. It is a `QPainter` child widget like `ViewAxisGizmo`, held for a moment after release and then faded; the `view.lightGizmoSize` and `view.lightGizmoLinger` preferences set its size and how long it stays, read each time it is shown. `Ctrl+Wheel` slides the clipping plane and `Alt+Left` tips it (see [Clipping Plane](#clipping-plane)). Gizmos are depth-aware and scale-stable across dolly/FOV changes. The corner `ViewAxisGizmo` uses the `view.axisGizmoSize` preference and lets axis clicks snap the 3D camera orientation. `MainWindow` can optionally synchronize camera state across 3D views and exposes a `Center on Selection` camera command, and `Frame Scene from Here` (`Ctrl+Shift+F`, `ViewTrackball::frameFromEye`), which frames the vertices of the visible layers exactly without moving the eye: it turns the view axis about the eye until their extent on the image plane is centred -- by half the angle it is off centre, as aiming at the middle of the extent on the image plane overshoots by 1 + x² and diverges in a wide view -- keeping the old up direction, then sets the field of view to the tighter of height and width. The trackball gizmo keeps its size on screen, as through a zoom: re-basing it on the scene's half-diagonal, as a reset does, makes a sphere that a view framed this tightly cannot hold. It is animated (`startCameraAnimation(target, aboutEye)`, which the axis-gizmo snaps share): the rotation slerps, the field of view changes by equal ratios as a zoom does, and the orbit centre is recomputed from the fixed eye every frame rather than interpolated, which would let the eye wander off and come back. It does nothing, saying why in the status bar, in orthographic, when a point is behind the eye or nearer than the near plane would be, or when the field of view would leave the trackball's 10°–120° range; UV views keep independent pan/zoom.
-
 ## Interactive Tools
 
 Interactive tools are thin view-owned interaction front-ends over filter/document operations. A tool is active in at most one `RenderWidget`; it owns mouse/keyboard input while active, shows a cursor and an icon, can paint a 2D overlay, and can contribute depth-cued line segments to the scene pass. Durable edits commit through `Document::runFilter(...)` when possible so undo nodes and Python action history stay coherent. `Tab` suspends the tool and temporarily returns gestures to camera navigation; `Esc` exits the tool or cancels the active gesture.
 
-**The tool strip** (`ToolStrip`, `toolstrip.h`) is how an engaged tool shows itself: a bar at the bottom centre of its owner view (above the texture chooser in the UV view) with the tool's name, a line of text, a button for each of the tool's options and actions, and two buttons every tool has, *Camera* (`Tab`) and *Exit* (`Esc`, which reads *Cancel* while a gesture is under way, since `Esc` then cancels it). Each button shows its key as a keycap and its purpose in the tooltip; pressing the key lights the button. The border is the accent colour while the tool has the mouse and grey while it does not (Tab, another view current), and in a view that does not take the tool (the layer grid, an unsupported mode) the buttons are greyed and the text says so. The text is the tool's `statusHint()` -- what the mouse does, in a few words -- or, while it works, its `statusDetail()` (the transform readout, the measurement count). On a narrow view the groups of buttons wrap onto more rows and the text is cut short, whole in its tooltip.
-
 The buttons and the keys come from one description: a tool lists its controls (`InteractiveTool::controls()`: id, toggle or action, label, help, keys, group) and answers `isControlChecked`, `isControlEnabled` and `triggerControl(id, modifiers)`. A tool measures the screen against `RenderWidget::sceneRect()` -- where the scene is drawn: the whole view, less the quality histogram's strip while it is shown -- and places world points with `projectToWidget`, which goes through the same camera (`projectionMatrix()` takes the scene's aspect, not the widget's); the selection's rectangle and lasso are normalized over that rect, and the measure labels, the endpoint hit test and the transform's pivot use it, so none of them is thrown off by the strip. `RenderWidget` runs a control from its button or from its key alike (`toolControlForKey`, then `triggerToolControl`); only what is left -- a gesture's own keys, such as typing a value or closing a lasso -- reaches `InteractiveTool::keyPress`. A key with `Ctrl`, `Alt` or `Cmd` held never reaches a control, so the menus keep their shortcuts, an auto-repeated press is swallowed, and a disabled control lets its key go on to the tool. The strip never takes the keyboard focus, keeps the presses on its background so that a click between two buttons does not reach the scene, and makes its view current when pressed. Its test (`tests/test_toolstrip.cpp`) drives it with a stand-in tool; `MESHLAB2_GRAB_DIR` saves what it looks like.
 
-Current built-in tools:
-
-- `Rubber-band Select`: drag a rectangle in Scene3D or UV mode, then run `meshlab2.filter.select::select_by_screen_rectangle`. `Shift` adds, `Ctrl` subtracts, *Faces* (`F`) and *Vertices* (`V`) choose what is selected, *Visible Only* (`B`) keeps only the faces visible from the viewpoint, and *Components* (`C`) and *UV Islands* (`T`) grow what the rectangle touched to whole connected components or whole UV islands (the filter's `expand_to`). *Lasso* (`P`) switches to a polygonal lasso: click the corners, close it with a double click, `Enter` or a click on the first corner (`Backspace` takes back the last corner, `Esc` drops the polygon, and `Tab` is held back while one is open); it commits `select_by_screen_polygon`, whose polygon is a JSON array of normalized `[x, y]` points tested even-odd, and the modifiers and the other keys apply to it as to the rectangle. The tool passes either camera-state JSON or UV pan/zoom parameters depending on the active view mode. In the 3D view the filter projects through the layer's matrix (`MeshEntry::transform`), and casts the visible-only rays from the eye -- or along the view direction, orthographically -- mapped into the layer's own coordinates, so a moved, turned or stretched layer is selected where it is drawn (`screenSelectionFollowsTheLayerMatrix`, `visibleOnlySelectionLooksThroughTheLayerMatrix`); the selection overlay is drawn through the same matrix.
-
-  Six more controls edit the selection already made, each by running one ordinary selection filter (so each is one undo step and one recorded script call) on whichever of faces or vertices the tool is picking: *All* (`A`), *None* (`N`), *Invert* (`I`), *Dilate* (`+` or `=`), *Erode* (`-`), *Remove* (`X`). Remove removes the selected faces together with the vertices no face uses any more (`remove_selected_faces_and_vertices`) in face mode, and the selected vertices with their faces (`remove_selected_vertices`) in vertex mode. The key-to-filter mapping lives in `tools/selectionshortcuts.h` and passes the kind explicitly, because the filters' own defaults act on both kinds (`select_all`, `select_none`), on whichever kind already has something selected (`invert_selection`, which would do nothing to an empty selection) or, before `dilate_selection` and `erode_selection` took an `element`, from faces only. They are disabled while a drag or a polygon is in progress, and None, Dilate and Erode skip an empty selection rather than leave an empty undo step. They apply in the UV view too, where selection is the same selection.
-- `Measuring Tool`: click surface points in Scene3D to build/edit measurement segments. It uses asynchronous surface picking for placement and drag previews, draws labels and depth-cued segments, *Undo* (Backspace) takes back the point just placed or the last segment, *Clear* (`C`) removes them all, *Print* (`P`) writes them to the log, *Save* (`S`) saves a TSV, and *Export Layer* (`X`) adds them as an edge-only mesh layer; the strip's text says how many there are and which point comes next.
-- `Raster Alignment Tool`: pairs points of the mesh with pixels of the current raster's photo, in the raster view, which engaging it switches to when the raster has a camera. A left drag goes from a feature where the mesh is drawn (a surface pick through the raster's camera) to where the photo shows it; a click pairs a point already in the right place; the middle button pans. Its cursor carries a small *3D→2D* to say so, and becomes a move cursor over an end of a pair: dragging the photo end (an orange square with a cross, flat on the image) moves its pixel, dragging the mesh end (a cyan disc lying on the surface, with its normal, drawn faint when the surface faces away) picks the pair's point again where the drag ends, on the surface, and `Esc` during the drag puts the end back. The photo end is taken first where the two coincide, as after a fit. The view refreshes a tool's cursor on every move it takes (`applyToolCursor`), so a cursor can follow what is under the pointer. Each pair is drawn as a line from where the camera projects its point to its pixel, which a fit shrinks to that pair's error. Two loupes in the top corner magnify what is being placed, four times the view by default (the `view.loupeSize` and `view.loupeMagnification` preferences set their size and magnification): a *3D* one with the layers alone and a *2D* one with the photo alone, each with a sight at the point it magnifies. Hovering shows the 3D one at the pointer, where a press would pick; during a drag both are shown, the end being placed under the pointer and the pair's other end beside it, so the two can be compared. *Fit* (`F`, Enter) commits *Align Current Raster to Mesh by Point Correspondences* once, *Mutual Information* (`M`) refines the camera by *Align Current Raster to Mesh by Mutual Information* with the pairs as point pairs (or without, when there are none), *Focal Length* (`L`) lets either change it, *Delete* (Backspace, Delete) removes the pair under the cursor, or the last one, *Clear* (`C`) removes them all, and *Save* (`S`) and *Load* (`O`) write and read them as the filter's JSON. Pairs are kept per raster (by `rasterId`) while the tool is engaged; a raster without a camera greys the controls and says so. How the filters behind it work is in [Raster Alignment](raster_alignment.md).
-- `Transform Layer`: modal layer transform tool for the current mesh. *Move* (`G`), *Rotate* (`R`) and *Scale* (`S`) start translate/rotate/scale gestures; *X*, *Y* and *Z* constrain to an axis, `Shift` plus an axis constrains to the perpendicular plane, typed numbers set exact values, and *Apply* (Enter) or a click commits. The readout is the strip's text. A gesture started from its button, with the pointer on the strip, starts from where the pointer first moves in the scene. During preview it updates the layer matrix directly, then restores the original matrix and commits exactly one transform filter so undo/script history remain clean. The tool exposes the shared `:/img/axis.png` toolbar icon.
-
-`Rubber-band Select` is the only tool that currently supports `ParametrizationUV`. The other built-ins are Scene3D-only, and Raster mode remains image-navigation oriented.
+The tool strip and the built-in tools are described in [User Interface](user_interface.md#interactive-tools).
 
 ## Camera Models: `CameraShot` vs `ViewTrackball`
 
@@ -513,12 +465,6 @@ Current status: UV mode is still a separate renderer in `renderwidget_uv.cpp`. I
 When the mesh has multiple texture/material groups, a bottom-centered viewport strip shows one thumbnail per group. Clicking a thumbnail changes view-local, per-mesh state; it does not modify the document or undo history. Each UV buffer remains a single GPU allocation, with compact per-group byte ranges selecting what is drawn.
 
 UV fill: color source comes from `fillPlain.colorSource`. Quality UV buffers use the same fixed-range, center-on-zero, and percentile-crop normalization controls as Scene3D quality rendering. In `Texture` mode, `uvTextureChannel` selects base color, normal, occlusion, or roughness for the active group. Non-texture paths force `fillMaterial = Plain`. Scene corner/dimension overlays are hidden in UV mode.
-
-## `ParametrizationUV` Camera and Interaction
-
-Orthographic projection; `m_uvPan` + `m_uvZoom`. Left/middle drag = pan; wheel = zoom around cursor; double click = fit to mesh UV bounds (or `[0,1]²` when `uvShowFullTexture`); `Reset Camera` = UV fit. When `Rubber-band Select` is active, the same view coordinates are converted to UV-space filter parameters so rectangle selection can operate directly in the parametrization view.
-
-Undo/redo restores trackball/render-style `ViewState`; UV pan/zoom and per-view visibility remain local runtime state.
 
 ## `RasterImage` Frame Sequence
 
