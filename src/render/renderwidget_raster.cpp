@@ -273,13 +273,6 @@ void RenderWidget::ensureRasterResources(
             return;
 
         Document::RasterEntry &entry = m_doc->raster(rasterIndex);
-        RasterPlane *plane = entry.currentPlane();
-        if (!plane)
-            return;
-        Document::ensureRasterPlaneImage(entry, *plane);
-        if (plane->image.isNull())
-            return;
-
         RasterGpu &gpu = m_rastersGpu[entry.rasterId];
 
         if (projected) {
@@ -330,22 +323,29 @@ void RenderWidget::ensureRasterResources(
             return;
         }
 
-        if (!m_rasterSampler)
+        // Only the backplate needs the photo itself.
+        RasterPlane *plane = entry.currentPlane();
+        if (!plane)
+            return;
+        Document::ensureRasterPlaneImage(entry, *plane);
+        if (plane->image.isNull())
             return;
 
-        QImage uploadImage = plane->image.convertToFormat(QImage::Format_RGBA8888);
-        if (uploadImage.isNull() || uploadImage.width() <= 0 || uploadImage.height() <= 0)
+        if (!m_rasterSampler)
             return;
 
         const bool needsTexture =
             !gpu.texture
             || gpu.imageRevision != entry.imageRevision
             || gpu.planeIndex != entry.currentPlaneIndex
-            || gpu.size != uploadImage.size();
+            || gpu.size != plane->image.size();
 
         if (needsTexture) {
+            // Converted only when uploaded: a 4K photo is 33 MB to copy.
+            const QImage uploadImage = plane->image.convertToFormat(QImage::Format_RGBA8888);
+            if (uploadImage.isNull())
+                return;
             gpu.backplateSrb.reset();
-            gpu.projectedSrb.reset();
             gpu.texture.reset(
                 m_rhi->newTexture(QRhiTexture::RGBA8, uploadImage.size(), 1));
             if (!gpu.texture || !gpu.texture->create()) {
@@ -366,7 +366,7 @@ void RenderWidget::ensureRasterResources(
                 QRhiTextureUploadDescription({ textureEntry }));
         }
 
-        if (!projected && !gpu.backplateSrb && gpu.texture) {
+        if (!gpu.backplateSrb && gpu.texture) {
             if (!m_rasterBackplateUbuf)
                 return;
             gpu.backplateSrb.reset(m_rhi->newShaderResourceBindings());

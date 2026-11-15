@@ -635,6 +635,13 @@ Then paint a selection on ESTE and check peak RSS.
 
 **Size:** about +20 / -15.
 
+**Done (2026-11-15).** +30 / -25 lines, comments included.
+- **R2.** The 3D view needs only the camera to draw a frustum; the photo is decoded only for the raster view's backplate. On 2930Colmap (35 rasters, 4K), `--capture-window` peak RSS went from 2.55 GB to 1.38 GB and the run from 5.5-9 s to 2.8-3.4 s, with identical captures.
+- **R3.** The RGBA8888 conversion moved inside the upload branch.
+- **R4.** The selection buffers reserve vcglib's `UpdateSelection::FaceCount`/`VertexCount` instead of the whole mesh.
+- **R5.** Fill and point variants at an older revision are released when the mesh is next prepared; current-revision variants stay, because split views may draw the same mesh with different color sources.
+- R3, R4 and R5 were not measured: each needs interaction in the running app (switching photos, painting a selection on ESTE, switching color sources).
+
 ### Phase 3: uniforms uploaded before the pass (R1)
 
 - Add one per-frame CPU staging buffer per dynamic UBO (main, decorator ×N, decorator-fat,

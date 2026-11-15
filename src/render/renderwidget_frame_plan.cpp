@@ -72,15 +72,11 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
                 return requests;
             }
         } else {
+            // A raster is drawn here as its camera's frustum, which needs the camera
+            // only: decoding the photo would cost its full size for a few lines.
             for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
-                Document::RasterEntry &entry = m_doc->raster(ri);
-                RasterPlane *plane = entry.currentPlane();
-                if (!entry.visible || !plane)
-                    continue;
-                Document::ensureRasterPlaneImage(entry, *plane);
-                if (plane->image.isNull())
-                    continue;
-                if (entry.shot.isValid())
+                const Document::RasterEntry &entry = m_doc->raster(ri);
+                if (entry.visible && entry.shot.isValid())
                     requests.rasterProjected.push_back(ri);
             }
         }

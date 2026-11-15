@@ -67,7 +67,7 @@ This is an internal architecture boundary, not a public serialization contract. 
 
 Cache key: `(QRhi*, meshId, variant, geometryRevision, materialRevision, selectionRevision where relevant)`. Quality variants also include fixed-range mode, min/max, center-on-zero, and percentile crop. Wire resources also track whether faux polygon edges should be respected.
 
-Entries are released when their layer leaves the document (`removeMesh`, `clearAllLayers`, or an undo that drops the layer: `purgeMesh`) and, for one QRhi, when a view's QRhi is replaced (`releaseRhiResources`). A revision change releases nothing by itself: the stale buffers of a product are replaced the next time a frame asks for that product.
+Entries are released when their layer leaves the document (`removeMesh`, `clearAllLayers`, or an undo that drops the layer: `purgeMesh`) and, for one QRhi, when a view's QRhi is replaced (`releaseRhiResources`). A revision change releases the fill and point variants left at the older revision as soon as a frame prepares that mesh; a variant still at the current revision stays, since another view may draw it. The other products' stale buffers are replaced the next time a frame asks for them.
 
 Cached outputs:
 
