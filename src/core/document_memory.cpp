@@ -78,7 +78,4 @@ UndoMemoryStats Document::undoMemoryStats() const
     return m_undoManager->memoryStats();
 }
 
-std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> Document::gpuMemoryStats() const
-{
-    return m_gpuCache->gpuMemoryStats();
-}
+

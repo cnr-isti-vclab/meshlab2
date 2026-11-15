@@ -487,6 +487,66 @@ void DocumentUndoManager::clear()
     emitStateChanged();
 }
 
+// nodeId and every node below it, in ascending id order.
+std::vector<int> DocumentUndoManager::subtreeNodes(int nodeId) const
+{
+    std::vector<int> nodes;
+    std::vector<int> stack = { nodeId };
+    while (!stack.empty()) {
+        const int id = stack.back();
+        stack.pop_back();
+        nodes.push_back(id);
+        for (int c : m_undoNodes[static_cast<size_t>(id)].children)
+            stack.push_back(c);
+    }
+    std::sort(nodes.begin(), nodes.end());
+    return nodes;
+}
+
+// Keeps the nodes in keepSorted (ascending ids, the current node among them), renumbers
+// them in that order, and drops every link to a node that is not kept. A node whose
+// preferred child is gone prefers its newest remaining child.
+void DocumentUndoManager::compactNodes(const std::vector<int> &keepSorted)
+{
+    std::vector<int> remap(m_undoNodes.size(), -1);
+    for (int ni = 0; ni < static_cast<int>(keepSorted.size()); ++ni)
+        remap[static_cast<size_t>(keepSorted[static_cast<size_t>(ni)])] = ni;
+    const auto mapped = [&remap](int id) { return id >= 0 ? remap[static_cast<size_t>(id)] : -1; };
+
+    std::vector<UndoNode> compacted;
+    compacted.reserve(keepSorted.size());
+    for (int oldId : keepSorted) {
+        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
+        n.parentId = mapped(n.parentId);
+        std::vector<int> children;
+        for (int c : n.children) {
+            if (const int m = mapped(c); m >= 0)
+                children.push_back(m);
+        }
+        n.children = std::move(children);
+        n.preferredChild = mapped(n.preferredChild);
+        if (n.preferredChild < 0)
+            n.preferredChild = n.children.empty() ? -1 : n.children.back();
+        compacted.push_back(std::move(n));
+    }
+    m_undoCurrentNode = mapped(m_undoCurrentNode);
+    m_undoNodes = std::move(compacted);
+}
+
+// Drops everything outside nodeId's subtree. The current node must be in it.
+void DocumentUndoManager::rootAt(int nodeId)
+{
+    const std::vector<int> keep = subtreeNodes(nodeId);
+    compactNodes(keep);
+    UndoNode &newRoot = m_undoNodes[static_cast<size_t>(
+        std::lower_bound(keep.begin(), keep.end(), nodeId) - keep.begin())];
+    // A root state has no label, and the actions that produced it must not be replayed.
+    // Informational calls made afterwards remain valid and stay in trailingActionRecords.
+    newRoot.label.clear();
+    newRoot.prefixActionRecords.clear();
+    newRoot.actionRecord.reset();
+}
+
 bool DocumentUndoManager::makeRoot(int nodeId)
 {
     if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
@@ -501,58 +561,13 @@ bool DocumentUndoManager::makeRoot(int nodeId)
         m_undoNodes.size() == 1)
         return false;
 
-    // Collect all nodes reachable from nodeId (the node itself + all descendants).
-    std::vector<int> reachable;
-    {
-        std::vector<int> stack = { nodeId };
-        while (!stack.empty()) {
-            const int id = stack.back(); stack.pop_back();
-            reachable.push_back(id);
-            for (int c : m_undoNodes[static_cast<size_t>(id)].children)
-                stack.push_back(c);
-        }
-    }
-    std::sort(reachable.begin(), reachable.end());
-
     // If the current node is not in the surviving subtree, go to nodeId first, so that the
     // live document is the state the tree then calls current.
-    const bool currentSurvives =
-        std::binary_search(reachable.begin(), reachable.end(), m_undoCurrentNode);
-    if (!currentSurvives && !jumpToNode(nodeId, false))
+    const std::vector<int> keep = subtreeNodes(nodeId);
+    if (!std::binary_search(keep.begin(), keep.end(), m_undoCurrentNode)
+        && !jumpToNode(nodeId, false))
         return false;
-    const int effectiveCurrent = m_undoCurrentNode;
-
-    // Compact: remap old ids → new compact ids.
-    std::map<int, int> remap;
-    for (int ni = 0; ni < static_cast<int>(reachable.size()); ++ni)
-        remap[reachable[ni]] = ni;
-
-    std::vector<UndoNode> compacted;
-    compacted.reserve(reachable.size());
-    for (int oldId : reachable) {
-        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
-        n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
-        std::vector<int> newChildren;
-        for (int c : n.children)
-            if (remap.count(c)) newChildren.push_back(remap[c]);
-        n.children = std::move(newChildren);
-        if (n.preferredChild >= 0 && remap.count(n.preferredChild))
-            n.preferredChild = remap[n.preferredChild];
-        else
-            n.preferredChild = n.children.empty() ? -1 : n.children.back();
-        compacted.push_back(std::move(n));
-    }
-    // The new root (nodeId) has no parent and no label (it is a root state).
-    UndoNode &newRoot = compacted[remap[nodeId]];
-    newRoot.parentId = -1;
-    newRoot.label.clear();
-    // Actions that produced the new baseline must not be replayed. Informational
-    // calls made afterwards remain valid and stay in trailingActionRecords.
-    newRoot.prefixActionRecords.clear();
-    newRoot.actionRecord.reset();
-
-    m_undoNodes = std::move(compacted);
-    m_undoCurrentNode = remap.count(effectiveCurrent) ? remap[effectiveCurrent] : remap[nodeId];
+    rootAt(nodeId);
     emitStateChanged();
     return true;
 }
@@ -567,60 +582,20 @@ bool DocumentUndoManager::purgeBranch(int nodeId)
     if (m_undoNodes[static_cast<size_t>(nodeId)].children.empty())
         return false;
 
-    // Collect the set of strictly descendant ids (not including nodeId itself).
-    std::set<int> descendants;
-    {
-        std::vector<int> stack;
-        for (int c : m_undoNodes[static_cast<size_t>(nodeId)].children)
-            stack.push_back(c);
-        while (!stack.empty()) {
-            const int id = stack.back(); stack.pop_back();
-            descendants.insert(id);
-            for (int c : m_undoNodes[static_cast<size_t>(id)].children)
-                stack.push_back(c);
-        }
-    }
-
-    // Collect surviving nodes: everything that is not a descendant of nodeId.
-    std::vector<int> reachable;
+    // Everything but nodeId's strict descendants survives; the root always does.
+    std::vector<bool> purged(m_undoNodes.size(), false);
+    for (int id : subtreeNodes(nodeId))
+        purged[static_cast<size_t>(id)] = id != nodeId;
+    std::vector<int> keep;
     for (int i = 0; i < static_cast<int>(m_undoNodes.size()); ++i)
-        if (!descendants.count(i))
-            reachable.push_back(i);
-    // reachable is already sorted (sequential iteration).
-
-    // The root is always index 0 and is never a descendant, so it always survives.
-    const int rootId = reachable.front(); // always 0
+        if (!purged[static_cast<size_t>(i)])
+            keep.push_back(i);
 
     // If the current node is being purged, go back to nodeId first, so that the live
     // document is the state the tree then calls current.
-    if (descendants.count(m_undoCurrentNode) && !jumpToNode(nodeId, false))
+    if (purged[static_cast<size_t>(m_undoCurrentNode)] && !jumpToNode(nodeId, false))
         return false;
-    const int effectiveCurrent = m_undoCurrentNode;
-
-    // Compact: remap old ids → new compact ids.
-    std::map<int, int> remap;
-    for (int ni = 0; ni < static_cast<int>(reachable.size()); ++ni)
-        remap[reachable[ni]] = ni;
-
-    std::vector<UndoNode> compacted;
-    compacted.reserve(reachable.size());
-    for (int oldId : reachable) {
-        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
-        n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
-        std::vector<int> newChildren;
-        for (int c : n.children)
-            if (remap.count(c)) newChildren.push_back(remap[c]);
-        n.children = std::move(newChildren);
-        if (n.preferredChild >= 0 && remap.count(n.preferredChild))
-            n.preferredChild = remap[n.preferredChild];
-        else
-            n.preferredChild = n.children.empty() ? -1 : n.children.back();
-        compacted.push_back(std::move(n));
-    }
-    compacted[remap[rootId]].parentId = -1;
-
-    m_undoNodes = std::move(compacted);
-    m_undoCurrentNode = remap.count(effectiveCurrent) ? remap[effectiveCurrent] : remap[nodeId];
+    compactNodes(keep);
     emitStateChanged();
     return true;
 }
@@ -646,31 +621,8 @@ bool DocumentUndoManager::linearizeHistory()
     if (static_cast<int>(path.size()) == static_cast<int>(m_undoNodes.size()))
         return false;
 
-    // Keep only path nodes, sorted ascending (they already are after the reverse).
     std::sort(path.begin(), path.end());
-
-    // Remap old ids → new compact ids (0 = root, 1 = next, …, n-1 = current).
-    std::map<int, int> remap;
-    for (int ni = 0; ni < static_cast<int>(path.size()); ++ni)
-        remap[path[ni]] = ni;
-
-    std::vector<UndoNode> compacted;
-    compacted.reserve(path.size());
-    for (int oldId : path) {
-        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
-        n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
-        // Keep only the single child that is also on the path.
-        std::vector<int> newChildren;
-        for (int c : n.children)
-            if (remap.count(c)) newChildren.push_back(remap[c]);
-        n.children = std::move(newChildren);
-        n.preferredChild = n.children.empty() ? -1 : n.children.front();
-        compacted.push_back(std::move(n));
-    }
-    compacted[0].parentId = -1; // root has no parent
-
-    m_undoNodes = std::move(compacted);
-    m_undoCurrentNode = remap[m_undoCurrentNode];
+    compactNodes(path);
     emitStateChanged();
     return true;
 }
@@ -1004,44 +956,7 @@ void DocumentUndoManager::pruneTreeToLimit()
         newRoot = m_undoNodes[static_cast<size_t>(newRoot)].parentId;
     if (m_undoNodes[static_cast<size_t>(newRoot)].parentId < 0)
         return;
-    // newRoot is the node to become the new root; everything above it is discarded.
-    // Use a BFS/DFS to mark all reachable node ids from newRoot; drop the rest.
-    // We do this by building a remapping of old ids → new compact ids.
-    std::vector<int> reachable;
-    {
-        std::vector<int> stack = { newRoot };
-        while (!stack.empty()) {
-            const int id = stack.back(); stack.pop_back();
-            reachable.push_back(id);
-            for (int c : m_undoNodes[static_cast<size_t>(id)].children)
-                stack.push_back(c);
-        }
-    }
-    std::sort(reachable.begin(), reachable.end());
-    // Build old→new id map.
-    std::map<int,int> remap;
-    for (int ni = 0; ni < static_cast<int>(reachable.size()); ++ni)
-        remap[reachable[ni]] = ni;
-
-    std::vector<UndoNode> pruned;
-    pruned.reserve(reachable.size());
-    for (int oldId : reachable) {
-        UndoNode n = std::move(m_undoNodes[static_cast<size_t>(oldId)]);
-        n.parentId = (n.parentId >= 0 && remap.count(n.parentId)) ? remap[n.parentId] : -1;
-        std::vector<int> newChildren;
-        for (int c : n.children)
-            if (remap.count(c))
-                newChildren.push_back(remap[c]);
-        n.children = std::move(newChildren);
-        if (n.preferredChild >= 0 && remap.count(n.preferredChild))
-            n.preferredChild = remap[n.preferredChild];
-        else
-            n.preferredChild = n.children.empty() ? -1 : n.children.back();
-        pruned.push_back(std::move(n));
-    }
-    pruned[0].parentId = -1;  // new root has no parent
-    m_undoCurrentNode = remap[m_undoCurrentNode];
-    m_undoNodes = std::move(pruned);
+    rootAt(newRoot);
 }
 
 void DocumentUndoManager::emitStateChanged()

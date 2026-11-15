@@ -279,14 +279,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         return;
     }
     const bool rasterMode = (m_viewMode == ViewMode::RasterImage);
-    for (QLabel *label : m_uvScaleXTickLabels) {
-        if (label)
-            label->hide();
-    }
-    for (QLabel *label : m_uvScaleYTickLabels) {
-        if (label)
-            label->hide();
-    }
 
     // A pick pending in the raster view is a tool's, through the raster's camera:
     // scheduleDepthPick lets no other kind through there.
@@ -295,7 +287,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
         // After the center: it reads the animated center back out of the state.
         advanceCameraAnimation();
     }
-    syncPerMeshRenderModesWithDocument();
     if (!rasterMode) {
         updateCameraFrameIfNeeded();
         // Every camera change funnels through a frame, so this is the one place that tells the
@@ -433,22 +424,8 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
                 const Document::MeshEntry &meshEntry = m_doc->mesh(meshIndex);
                 if (meshEntry.mesh.bbox.IsNull())
                     continue;
-                const vcg::Box3f &box = meshEntry.mesh.bbox;
-                const QVector3D corners[8] = {
-                    QVector3D(box.min[0], box.min[1], box.min[2]),
-                    QVector3D(box.max[0], box.min[1], box.min[2]),
-                    QVector3D(box.min[0], box.max[1], box.min[2]),
-                    QVector3D(box.max[0], box.max[1], box.min[2]),
-                    QVector3D(box.min[0], box.min[1], box.max[2]),
-                    QVector3D(box.max[0], box.min[1], box.max[2]),
-                    QVector3D(box.min[0], box.max[1], box.max[2]),
-                    QVector3D(box.max[0], box.max[1], box.max[2])
-                };
-                for (const QVector3D &corner : corners) {
-                    const QVector4D transformed = meshEntry.transform * QVector4D(corner, 1.0f);
-                    const QVector3D worldCorner = (std::abs(transformed.w()) > 1e-8f)
-                        ? transformed.toVector3DAffine()
-                        : transformed.toVector3D();
+                for (const QVector3D &worldCorner :
+                     RenderWidgetInternal::worldBoxCorners(meshEntry.mesh.bbox, meshEntry.transform)) {
                     const float depth = rasterEntry->shot.depth(worldCorner);
                     // Perspective cannot see what is behind the camera; an orthographic
                     // volume can start there.

@@ -187,19 +187,24 @@ public:
     MeshGpuResourceCache();
     ~MeshGpuResourceCache();
 
+    // Which products a frame needs from one mesh.
+    struct Needs {
+        bool fill = false;
+        bool wire = false;
+        bool edges = false;
+        bool points = false;
+        bool boundingBox = false;
+        bool selection = false;
+        bool decoratorNormals = false;
+        bool decoratorBoundaries = false;
+    };
+
     EnsureStats ensureMeshResources(QRhi *rhi,
                                     QRhiCommandBuffer *cb,
                                     const MeshSource &source,
                                     FillVariant fillVariant,
                                     PointVariant pointVariant,
-                                    bool needFill,
-                                    bool needWire,
-                                    bool needEdges,
-                                    bool needPoints,
-                                    bool needBoundingBox,
-                                    bool needSelection,
-                                    bool needDecoratorNormals,
-                                    bool needDecoratorBoundaries);
+                                    const Needs &needs);
 
     FillPassView fillPassView(QRhi *rhi, std::uint64_t meshId, FillVariant variant) const;
     WirePassView wirePassView(QRhi *rhi, std::uint64_t meshId) const;

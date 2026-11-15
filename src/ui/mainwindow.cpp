@@ -2881,7 +2881,7 @@ void MainWindow::showMemoryInfo()
     const auto cpuStats = m_doc->cpuMeshMemoryStats();
     const auto imageStats = m_doc->cpuImageMemoryStats();
     const auto undoStats = m_doc->undoMemoryStats();
-    const auto gpuStats = m_doc->gpuMemoryStats();
+    const auto gpuStats = m_doc->gpuCache().gpuMemoryStats();
 
     qint64 cpuMeshTotal = 0;
     for (const auto &stats : cpuStats)

@@ -244,10 +244,10 @@ RenderWidget::SceneFillFramePlan RenderWidget::buildSceneFillFramePlan(
         QRhiGraphicsPipeline *fillPipeline = fillPipelineForSettings(meshSettings);
         if (!fillPipeline)
             continue;
-        const auto fillVariant = static_cast<Document::FillGpuVariant>(
+        const auto fillVariant = static_cast<MeshGpuResourceCache::FillVariant>(
             fillGpuVariantIndexForSettings(meshSettings));
-        const Document::FillPassGpuView fillView =
-            m_doc->fillPassGpuView(m_rhi, mi, fillVariant);
+        const MeshGpuResourceCache::FillPassView fillView =
+            m_doc->gpuCache().fillPassView(m_rhi, m_doc->mesh(mi).meshId, fillVariant);
         if (!fillView.valid)
             continue;
 

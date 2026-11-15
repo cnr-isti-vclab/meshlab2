@@ -40,7 +40,7 @@ void Document::removeMesh(int index)
     }
 
     m_meshes.erase(m_meshes.begin() + index);
-    purgeMeshGpuResources(meshId);
+    m_gpuCache->purgeMesh(meshId);
     writeLog(tr("Removed mesh '%1'").arg(meshName), LogSource::Application);
     emit meshRemoved(index);
     setCurrentMeshIndexInternal(newCurrent, m_currentLayerKind == CurrentLayerKind::Mesh);
@@ -364,7 +364,7 @@ void Document::moveRaster(int from, int to)
 void Document::clearAllLayers()
 {
     for (const auto &entry : m_meshes)
-        purgeMeshGpuResources(entry->meshId);
+        m_gpuCache->purgeMesh(entry->meshId);
     m_meshes.clear();
     m_rasters.clear();
     m_currentMeshIndex = -1;

@@ -658,6 +658,18 @@ Then paint a selection on ESTE and check peak RSS.
 - The UV renderer (`renderwidget_uv.cpp:950-1383`) has the same pattern. Fix it in the same
   phase unless phase 6 is scheduled soon after.
 
+**Reassessed before starting (2026-11-15).** Read against Qt 6.11's sources: every backend's
+`resourceUpdate` asserts `recordingPass == NoPass`, so a **debug** Qt aborts on the first
+in-pass upload. A release Qt draws correctly on all of them, because every in-pass batch here
+holds only `updateDynamicBuffer` writes. Those are host writes that Metal and Vulkan queue and
+apply when the buffer is next bound (`pendingUpdates`, `executeBufferHostWritesForSlot`), and
+D3D and GL write them directly. No in-pass batch carries a texture or static-buffer upload, which
+would be a real copy-inside-a-pass bug. The single-slot buffers rewritten at offset 0 inside the
+pass (outline, mask debug view, solid-cut cap) are written once per frame or with identical data
+per tile. The fix is larger than estimated: about 20 in-pass sites in six files (main pass,
+depth pick, current-layer masks, radiance-scaling pre-pass, UV pass), each computing its
+uniforms inside the draw loop, so each loop splits in two.
+
 **Verify:** all render probes, plus `MESHLAB2_GRAPHICS_API=vulkan` and `opengl` on this Mac (see
 the clipping-plane section of rendering.md), with the GPU timing preference on, to compare frame
 times.
@@ -681,6 +693,31 @@ commit.
   - the fallback-texture loop.
 
 **Size:** about +80 / -330. Behavior unchanged; the existing suite covers it.
+
+**Done (2026-11-15).** +309 / -735 lines across 25 files, comments included.
+- **U6.** `subtreeNodes`, `compactNodes` (a `std::vector<int>` remap) and `rootAt` replace the four
+  copies. Pruning by count now roots through `rootAt` as `makeRoot` does, so it clears the new
+  root's label and action records too. Before, a script exported after a count prune could
+  replay the action that produced the baseline.
+- **R7.** `document_gpu.cpp` is deleted, with the eight forwarders, the 19-argument
+  `ensureMeshGpuResources` and the eleven type aliases. `Document` keeps owning the cache and
+  exposes it as `gpuCache()`; `document.h` no longer includes a `src/render` header. The nine
+  `bool`s are `MeshGpuResourceCache::Needs`, and one `RenderWidget::ensureMeshGpu` builds the
+  source. It always takes the quality range from the view's settings: the depth pick had passed
+  only three of the five fields, so a scalar-colored point cloud was rebuilt for every pick and
+  again on the next frame.
+- **R8.1** The per-frame `syncPerMeshRenderModesWithDocument` calls are gone; `onLayersChanged`
+  already runs it on every layer signal and undo restore. **R8.3** One `worldBoxCorners` (on
+  vcglib's `Box3::P`) replaces five copies of the corner block, a fifth having been found in
+  `computeVisibleSceneBoundingBox`, which is now a flag of `computeWorldSceneBBox`; the frustum
+  depth is computed once per frame instead of once per raster. **R8.4** Preference descriptors
+  are found by `QHash`. **R8.5** The UV tick labels are hidden on leaving the UV view, not every
+  frame. **R8.6** The four fallback-texture uploads are one loop.
+- **Not done.** R8.2: a tile's request skips every other mesh on an index comparison before it
+  copies anything, so a tile copies one mesh's settings, not all; filtering the frame request
+  would mean re-aggregating its flags for no measurable gain. The frustum vertex buffers are
+  still refilled each frame: a few dozen floats per raster into a dynamic buffer.
+- Phase 3 (R1) was skipped by decision; see the reassessment above.
 
 ### Phase 5: undo capture cost (U2, U1 small form, U5, U7)
 

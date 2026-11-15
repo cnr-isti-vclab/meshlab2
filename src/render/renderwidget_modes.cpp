@@ -589,29 +589,29 @@ int RenderWidget::fillGpuVariantIndexForSettings(const PerMeshRenderSettings &se
         ? FillColorSource::Texture
         : settings.fillPlain.colorSource;
     switch (source) {
-    case FillColorSource::PerVertex: return static_cast<int>(Document::FillGpuVariant::PerVertex);
-    case FillColorSource::PerFace: return static_cast<int>(Document::FillGpuVariant::PerFace);
+    case FillColorSource::PerVertex: return static_cast<int>(MeshGpuResourceCache::FillVariant::PerVertex);
+    case FillColorSource::PerFace: return static_cast<int>(MeshGpuResourceCache::FillVariant::PerFace);
     case FillColorSource::PerVertexQuality:
-        return static_cast<int>(Document::FillGpuVariant::PerVertexQuality);
+        return static_cast<int>(MeshGpuResourceCache::FillVariant::PerVertexQuality);
     case FillColorSource::PerFaceQuality:
-        return static_cast<int>(Document::FillGpuVariant::PerFaceQuality);
-    case FillColorSource::Texture: return static_cast<int>(Document::FillGpuVariant::Texture);
+        return static_cast<int>(MeshGpuResourceCache::FillVariant::PerFaceQuality);
+    case FillColorSource::Texture: return static_cast<int>(MeshGpuResourceCache::FillVariant::Texture);
     case FillColorSource::PerMesh:
     case FillColorSource::Constant:
     default:
-        return static_cast<int>(Document::FillGpuVariant::Constant);
+        return static_cast<int>(MeshGpuResourceCache::FillVariant::Constant);
     }
 }
 
 int RenderWidget::pointGpuVariantIndexForSettings(const PerMeshRenderSettings &settings) const
 {
     switch (settings.pointColorSource) {
-    case PointColorSource::PerVertex: return static_cast<int>(Document::PointGpuVariant::PerVertex);
+    case PointColorSource::PerVertex: return static_cast<int>(MeshGpuResourceCache::PointVariant::PerVertex);
     case PointColorSource::PerVertexQuality:
-        return static_cast<int>(Document::PointGpuVariant::PerVertexQuality);
+        return static_cast<int>(MeshGpuResourceCache::PointVariant::PerVertexQuality);
     case PointColorSource::Constant:
     default:
-        return static_cast<int>(Document::PointGpuVariant::Constant);
+        return static_cast<int>(MeshGpuResourceCache::PointVariant::Constant);
     }
 }
 

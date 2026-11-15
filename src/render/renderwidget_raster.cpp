@@ -161,53 +161,15 @@ void RenderWidget::ensureRasterResources(
 
     syncRasterCacheWithDocument();
 
-    auto rasterFrustumDepth = [&]() {
-        bool hasBounds = false;
+    // How far in front of each camera its frustum glyph reaches: a share of the scene's size,
+    // the same for every raster, so it is worked out once per frame.
+    const float frustumDepth = [&]() {
         QVector3D sceneMin;
         QVector3D sceneMax;
-        for (int meshIndex = 0; meshIndex < m_doc->meshCount(); ++meshIndex) {
-            if (!meshVisible(meshIndex))
-                continue;
-            const Document::MeshEntry &meshEntry = m_doc->mesh(meshIndex);
-            if (meshEntry.mesh.bbox.IsNull())
-                continue;
-
-            const vcg::Box3f &box = meshEntry.mesh.bbox;
-            const QVector3D corners[8] = {
-                QVector3D(box.min[0], box.min[1], box.min[2]),
-                QVector3D(box.max[0], box.min[1], box.min[2]),
-                QVector3D(box.min[0], box.max[1], box.min[2]),
-                QVector3D(box.max[0], box.max[1], box.min[2]),
-                QVector3D(box.min[0], box.min[1], box.max[2]),
-                QVector3D(box.max[0], box.min[1], box.max[2]),
-                QVector3D(box.min[0], box.max[1], box.max[2]),
-                QVector3D(box.max[0], box.max[1], box.max[2])
-            };
-            for (const QVector3D &corner : corners) {
-                const QVector4D transformed = meshEntry.transform * QVector4D(corner, 1.0f);
-                const QVector3D worldCorner = (std::abs(transformed.w()) > 1e-8f)
-                    ? transformed.toVector3DAffine()
-                    : transformed.toVector3D();
-                if (!hasBounds) {
-                    sceneMin = worldCorner;
-                    sceneMax = worldCorner;
-                    hasBounds = true;
-                    continue;
-                }
-                sceneMin.setX(std::min(sceneMin.x(), worldCorner.x()));
-                sceneMin.setY(std::min(sceneMin.y(), worldCorner.y()));
-                sceneMin.setZ(std::min(sceneMin.z(), worldCorner.z()));
-                sceneMax.setX(std::max(sceneMax.x(), worldCorner.x()));
-                sceneMax.setY(std::max(sceneMax.y(), worldCorner.y()));
-                sceneMax.setZ(std::max(sceneMax.z(), worldCorner.z()));
-            }
-        }
-
-        if (hasBounds)
+        if (computeWorldSceneBBox(sceneMin, sceneMax))
             return std::max(1e-3f, (sceneMax - sceneMin).length() * 0.12f);
-
         return std::max(1e-3f, m_trackball.radius() * 0.25f);
-    };
+    }();
 
     auto buildProjectedVertices = [&](const Document::RasterEntry &entry) {
         std::vector<float> vertices;
@@ -218,7 +180,7 @@ void RenderWidget::ensureRasterResources(
         if (viewport.width() <= 0 || viewport.height() <= 0)
             return vertices;
 
-        const float depth = rasterFrustumDepth();
+        const float depth = frustumDepth;
         if (!std::isfinite(depth) || depth <= 0.0f)
             return vertices;
 

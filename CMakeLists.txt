@@ -212,7 +212,6 @@ add_library(MeshLab2Core STATIC
     src/core/document_internal.h src/core/document_internal.cpp
     src/core/documentundomanager.h src/core/documentundomanager.cpp
     src/core/document_filters.cpp
-    src/core/document_gpu.cpp
     src/core/document_io.cpp
     src/core/document_layers.cpp
     src/core/document_logging.cpp

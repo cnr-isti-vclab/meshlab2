@@ -15,6 +15,7 @@
 #include <rhi/qrhi.h>
 #include <rhi/qshader.h>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -22,6 +23,18 @@
 #include <QDir>
 
 namespace RenderWidgetInternal {
+
+// The eight corners of a layer's bounding box, carried through the layer matrix.
+inline std::array<QVector3D, 8> worldBoxCorners(const vcg::Box3f &box, const QMatrix4x4 &transform)
+{
+    std::array<QVector3D, 8> corners;
+    for (int i = 0; i < 8; ++i) {
+        const vcg::Point3f p = box.P(i);
+        const QVector4D t = transform * QVector4D(p[0], p[1], p[2], 1.0f);
+        corners[size_t(i)] = std::abs(t.w()) > 1e-8f ? t.toVector3DAffine() : t.toVector3D();
+    }
+    return corners;
+}
 
 inline QString normalizeTexturePath(const QString &path)
 {

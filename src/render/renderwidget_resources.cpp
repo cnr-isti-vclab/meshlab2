@@ -15,44 +15,27 @@ namespace {
 constexpr int kSceneBackgroundUbufSize = 32;
 }
 
-bool RenderWidget::computeWorldSceneBBox(QVector3D &minCorner, QVector3D &maxCorner) const
+bool RenderWidget::computeWorldSceneBBox(
+    QVector3D &minCorner, QVector3D &maxCorner, bool shownBoxesOnly) const
 {
     bool hasVisibleMesh = false;
     for (int i = 0; i < m_doc->meshCount(); ++i) {
         if (!meshVisible(i))
             continue;
+        if (shownBoxesOnly && !renderModeForMesh(i).showBoundingBox)
+            continue;
         const auto &entry = m_doc->mesh(i);
         if (entry.mesh.bbox.IsNull())
             continue;
-
-        const vcg::Box3f &box = entry.mesh.bbox;
-        const QVector3D corners[8] = {
-            QVector3D(box.min[0], box.min[1], box.min[2]),
-            QVector3D(box.max[0], box.min[1], box.min[2]),
-            QVector3D(box.min[0], box.max[1], box.min[2]),
-            QVector3D(box.max[0], box.max[1], box.min[2]),
-            QVector3D(box.min[0], box.min[1], box.max[2]),
-            QVector3D(box.max[0], box.min[1], box.max[2]),
-            QVector3D(box.min[0], box.max[1], box.max[2]),
-            QVector3D(box.max[0], box.max[1], box.max[2])
-        };
-        for (const QVector3D &corner : corners) {
-            const QVector4D transformed = entry.transform * QVector4D(corner, 1.0f);
-            const QVector3D worldCorner = (std::abs(transformed.w()) > 1e-8f)
-                ? transformed.toVector3DAffine()
-                : transformed.toVector3D();
+        for (const QVector3D &corner : RenderWidgetInternal::worldBoxCorners(entry.mesh.bbox, entry.transform)) {
             if (!hasVisibleMesh) {
-                minCorner = worldCorner;
-                maxCorner = worldCorner;
+                minCorner = maxCorner = corner;
                 hasVisibleMesh = true;
-                continue;
             }
-            minCorner.setX(std::min(minCorner.x(), worldCorner.x()));
-            minCorner.setY(std::min(minCorner.y(), worldCorner.y()));
-            minCorner.setZ(std::min(minCorner.z(), worldCorner.z()));
-            maxCorner.setX(std::max(maxCorner.x(), worldCorner.x()));
-            maxCorner.setY(std::max(maxCorner.y(), worldCorner.y()));
-            maxCorner.setZ(std::max(maxCorner.z(), worldCorner.z()));
+            minCorner = QVector3D(std::min(minCorner.x(), corner.x()), std::min(minCorner.y(), corner.y()),
+                                  std::min(minCorner.z(), corner.z()));
+            maxCorner = QVector3D(std::max(maxCorner.x(), corner.x()), std::max(maxCorner.y(), corner.y()),
+                                  std::max(maxCorner.z(), corner.z()));
         }
     }
     return hasVisibleMesh;
@@ -74,22 +57,7 @@ bool RenderWidget::meshFitsInCurrentFrame(int index) const
     if (!(state.radius > 0.0f))
         return false;
 
-    const vcg::Box3f &box = entry.mesh.bbox;
-    const QVector3D corners[8] = {
-        QVector3D(box.min[0], box.min[1], box.min[2]),
-        QVector3D(box.max[0], box.min[1], box.min[2]),
-        QVector3D(box.min[0], box.max[1], box.min[2]),
-        QVector3D(box.max[0], box.max[1], box.min[2]),
-        QVector3D(box.min[0], box.min[1], box.max[2]),
-        QVector3D(box.max[0], box.min[1], box.max[2]),
-        QVector3D(box.min[0], box.max[1], box.max[2]),
-        QVector3D(box.max[0], box.max[1], box.max[2])
-    };
-    for (const QVector3D &corner : corners) {
-        const QVector4D transformed = entry.transform * QVector4D(corner, 1.0f);
-        const QVector3D world = (std::abs(transformed.w()) > 1e-8f)
-            ? transformed.toVector3DAffine()
-            : transformed.toVector3D();
+    for (const QVector3D &world : RenderWidgetInternal::worldBoxCorners(entry.mesh.bbox, entry.transform)) {
         if ((world - state.center).length() > state.radius)
             return false;
     }
@@ -590,7 +558,7 @@ void RenderWidget::ensureRenderResources()
 {
     if (m_rhi != rhi()) {
         if (m_rhi)
-            m_doc->releaseRhiGpuResources(m_rhi);
+            m_doc->gpuCache().releaseRhiResources(m_rhi);
         m_rhi = rhi();
         m_fillPipelinesByKey.clear();
         m_wirePipelinesByKey.clear();

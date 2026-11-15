@@ -244,14 +244,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     const MeshSource &source,
     FillVariant fillVariant,
     PointVariant pointVariant,
-    bool needFill,
-    bool needWire,
-    bool needEdges,
-    bool needPoints,
-    bool needBoundingBox,
-    bool needSelection,
-    bool needDecoratorNormals,
-    bool needDecoratorBoundaries)
+    const Needs &needs)
 {
     EnsureStats stats;
     if (!m_state || !rhi || !cb || !source.mesh || source.meshId == 0)
@@ -1939,15 +1932,15 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         return true;
     };
 
-    if (needFill) {
+    if (needs.fill) {
         auto &fill = meshCache.fill[fillVariantIndex(fillVariant)];
         stats.rebuiltFill = rebuildFillVariant(fill, fillVariant);
     }
-    if (needWire)
+    if (needs.wire)
         stats.rebuiltWire = rebuildWire(meshCache.wire);
-    if (needEdges)
+    if (needs.edges)
         stats.rebuiltEdges = rebuildEdges(meshCache.edges);
-    if (needPoints) {
+    if (needs.points) {
         auto &points = meshCache.points[pointVariantIndex(pointVariant)];
         stats.rebuiltPoints = rebuildPointsVariant(points, pointVariant);
     }
@@ -1963,13 +1956,13 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         if (points.valid && points.geometryRevision != source.geometryRevision)
             points = CacheState::PointsVariantGpu{};
     }
-    if (needBoundingBox)
+    if (needs.boundingBox)
         stats.rebuiltBoundingBox = rebuildBBox(meshCache.bbox);
-    if (needSelection)
+    if (needs.selection)
         stats.rebuiltSelection = rebuildSelection(meshCache.selection);
-    if (needDecoratorNormals)
+    if (needs.decoratorNormals)
         stats.rebuiltDecoratorNormals = rebuildDecoratorNormals(meshCache.decoratorNormals);
-    if (needDecoratorBoundaries)
+    if (needs.decoratorBoundaries)
         stats.rebuiltDecoratorBoundaries =
             rebuildDecoratorBoundaries(meshCache.decoratorBoundaries);
 

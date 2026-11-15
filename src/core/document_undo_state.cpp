@@ -164,7 +164,7 @@ void Document::restoreUndoState(const UndoState &state, bool keepUnchangedMeshes
             // The GPU cache is keyed by revision, so a copied layer simply misses it; only
             // the layers that are gone have buffers nobody will ask for again.
             for (const auto &dropped : live)
-                purgeMeshGpuResources(dropped.first);
+                m_gpuCache->purgeMesh(dropped.first);
             writeLog(tr("Undo/redo — mesh restore: %1 ms (%2 of %3 layers kept, deepCopy %4 ms)")
                 .arg(t.elapsed()).arg(kept).arg(meshCount()).arg(copyMs),
                 LogSource::Application, LogLevel::Debug);

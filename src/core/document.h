@@ -4,7 +4,6 @@
 #include "document_undo_types.h"
 #include "meshfilterplugin.h"
 #include "meshioplugin.h"
-#include "meshgpuresourcecache.h"
 #include "rasterplane.h"
 #include "layerdata.h"
 #include "vcgmesh.h"
@@ -29,8 +28,7 @@
 class MeshIOPluginManager;
 class MeshFilterPluginManager;
 class DocumentUndoManager;
-class QRhi;
-class QRhiCommandBuffer;
+class MeshGpuResourceCache;
 
 class Document : public QObject
 {
@@ -172,18 +170,6 @@ public:
         qint64 rasterImageBytes = 0;
         qint64 totalBytes() const { return meshTextureBytes + rasterImageBytes; }
     };
-
-    using FillGpuVariant = MeshGpuResourceCache::FillVariant;
-    using PointGpuVariant = MeshGpuResourceCache::PointVariant;
-    using FillBatchGpuView = MeshGpuResourceCache::FillBatchView;
-    using FillPassGpuView = MeshGpuResourceCache::FillPassView;
-    using WirePassGpuView = MeshGpuResourceCache::WirePassView;
-    using EdgePassGpuView = MeshGpuResourceCache::EdgePassView;
-    using EdgeFatPassGpuView = MeshGpuResourceCache::EdgeFatPassView;
-    using PointsPassGpuView = MeshGpuResourceCache::PointsPassView;
-    using BBoxPassGpuView = MeshGpuResourceCache::BBoxPassView;
-    using SelectionPassGpuView = MeshGpuResourceCache::SelectionPassView;
-    using DecoratorPassGpuView = MeshGpuResourceCache::DecoratorPassView;
 
     explicit Document(QObject *parent = nullptr);
     ~Document() override;
@@ -533,39 +519,13 @@ public:
     QStringList exportSupportedExtensions() const;
     QString preferredImportPluginForExtension(const QString &extension) const;
     void setPreferredImportPluginForExtension(const QString &extension, const QString &pluginId);
-    void ensureMeshGpuResources(QRhi *rhi,
-                                QRhiCommandBuffer *cb,
-                                int meshIndex,
-                                FillGpuVariant fillVariant,
-                                PointGpuVariant pointVariant,
-                                bool needFill,
-                                bool needWire,
-                                bool needEdges,
-                                bool needPoints,
-                                bool needBoundingBox,
-                                bool needDecoratorNormals,
-                                bool needDecoratorBoundaries,
-                                bool qualityFixedRange = false,
-                                float qualityRangeMin = 0.0f,
-                                float qualityRangeMax = 1.0f,
-                                bool needSelection = false,
-                                bool wireRespectFaux = true,
-                                bool qualityCenterOnZero = false,
-                                float qualityPercentileCrop = 0.0f);
-    FillPassGpuView fillPassGpuView(QRhi *rhi, int meshIndex, FillGpuVariant variant) const;
-    WirePassGpuView wirePassGpuView(QRhi *rhi, int meshIndex) const;
-    EdgePassGpuView edgePassGpuView(QRhi *rhi, int meshIndex) const;
-    EdgeFatPassGpuView edgeFatPassGpuView(QRhi *rhi, int meshIndex) const;
-    PointsPassGpuView pointsPassGpuView(QRhi *rhi, int meshIndex, PointGpuVariant variant) const;
-    BBoxPassGpuView bboxPassGpuView(QRhi *rhi, int meshIndex) const;
-    SelectionPassGpuView selectionPassGpuView(QRhi *rhi, int meshIndex) const;
-    DecoratorPassGpuView decoratorPassGpuView(QRhi *rhi, int meshIndex) const;
-    void releaseRhiGpuResources(QRhi *rhi);
+    // The shared mesh GPU cache. The document owns it so that a layer's buffers go with the
+    // layer; the views fill and read it directly (see docs/design/rendering.md).
+    MeshGpuResourceCache &gpuCache() { return *m_gpuCache; }
 
     std::vector<CpuMeshMemoryStats> cpuMeshMemoryStats() const;
     CpuImageMemoryStats cpuImageMemoryStats() const;
     UndoMemoryStats undoMemoryStats() const;
-    std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> gpuMemoryStats() const;
 
 signals:
     // A project load has put all its layers in. While it runs, meshAdded and its companions
@@ -646,7 +606,6 @@ private:
     void appendOrReplaceLog(const QString &message, LogSource source, LogLevel level, bool replaceLast);
     void writeProgressLog(const QString &message);
     static bool dispatchLogCallback(int pos, const char *message);
-    void purgeMeshGpuResources(std::uint64_t meshId);
     void mergeImportedStlVertices(const QString &path, VCGMesh &mesh);
     // What a file that has just been loaded says its unit is (Unknown when it says none). It
     // becomes the document's unit only if nothing else has said so: the file's layer is the

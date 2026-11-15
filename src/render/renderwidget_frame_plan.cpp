@@ -536,7 +536,7 @@ void RenderWidget::planSimpleBufferPasses(
 
         if (meshRequest.wire) {
             const MeshGpuResourceCache::WirePassView wireView =
-                m_doc->wirePassGpuView(m_rhi, mi);
+                m_doc->gpuCache().wirePassView(m_rhi, m_doc->mesh(mi).meshId);
             if (wireView.valid) {
                 appendBufferDrawItem(
                     plan.wireItems,
@@ -551,7 +551,7 @@ void RenderWidget::planSimpleBufferPasses(
         if (meshRequest.edges) {
             bool edgeItemAppended = false;
             const MeshGpuResourceCache::EdgeFatPassView fatView =
-                m_doc->edgeFatPassGpuView(m_rhi, mi);
+                m_doc->gpuCache().edgeFatPassView(m_rhi, m_doc->mesh(mi).meshId);
             if (fatView.valid) {
                 const size_t before = plan.edgeItems.size();
                 appendBufferDrawItem(
@@ -566,7 +566,7 @@ void RenderWidget::planSimpleBufferPasses(
 
             if (!edgeItemAppended) {
                 const MeshGpuResourceCache::EdgePassView lineView =
-                    m_doc->edgePassGpuView(m_rhi, mi);
+                    m_doc->gpuCache().edgePassView(m_rhi, m_doc->mesh(mi).meshId);
                 if (lineView.valid) {
                     appendBufferDrawItem(
                         plan.edgeItems,
@@ -581,7 +581,7 @@ void RenderWidget::planSimpleBufferPasses(
 
         if (meshRequest.boundingBox && m_bboxPipeline) {
             const MeshGpuResourceCache::BBoxPassView bboxView =
-                m_doc->bboxPassGpuView(m_rhi, mi);
+                m_doc->gpuCache().bboxPassView(m_rhi, m_doc->mesh(mi).meshId);
             if (bboxView.valid) {
                 // The buffer carries the box edges then the corner brackets; the style
                 // chooses which half to draw.
@@ -600,10 +600,10 @@ void RenderWidget::planSimpleBufferPasses(
         }
 
         if (meshRequest.points && m_pointsPipeline) {
-            const auto pointVariant = static_cast<Document::PointGpuVariant>(
+            const auto pointVariant = static_cast<MeshGpuResourceCache::PointVariant>(
                 pointGpuVariantIndexForSettings(meshSettings));
             const MeshGpuResourceCache::PointsPassView pointsView =
-                m_doc->pointsPassGpuView(m_rhi, mi, pointVariant);
+                m_doc->gpuCache().pointsPassView(m_rhi, m_doc->mesh(mi).meshId, pointVariant);
             if (pointsView.valid) {
                 // The points have no material of their own: radiance scaling is the plain
                 // material's option, and the points take it whatever the layer's surface is.
@@ -674,7 +674,7 @@ void RenderWidget::planDecoratorPasses(
                     continue;
 
                 const MeshGpuResourceCache::DecoratorPassView decoratorView =
-                    m_doc->decoratorPassGpuView(m_rhi, mi);
+                    m_doc->gpuCache().decoratorPassView(m_rhi, m_doc->mesh(mi).meshId);
                 if (!decoratorView.valid)
                     continue;
 
@@ -709,7 +709,7 @@ void RenderWidget::planDecoratorPasses(
                     continue;
 
                 const MeshGpuResourceCache::DecoratorPassView decoratorView =
-                    m_doc->decoratorPassGpuView(m_rhi, mi);
+                    m_doc->gpuCache().decoratorPassView(m_rhi, m_doc->mesh(mi).meshId);
                 if (!decoratorView.valid)
                     continue;
 
@@ -870,7 +870,7 @@ void RenderWidget::planDecoratorPasses(
                 continue;
 
             const MeshGpuResourceCache::DecoratorPassView decoratorView =
-                m_doc->decoratorPassGpuView(m_rhi, mi);
+                m_doc->gpuCache().decoratorPassView(m_rhi, m_doc->mesh(mi).meshId);
             if (!decoratorView.valid)
                 continue;
 
@@ -907,7 +907,7 @@ void RenderWidget::planSelectionPasses(
         const PerMeshRenderSettings &meshSettings = meshRequest.meshSettings;
 
         const MeshGpuResourceCache::SelectionPassView selectionView =
-            m_doc->selectionPassGpuView(m_rhi, mi);
+            m_doc->gpuCache().selectionPassView(m_rhi, m_doc->mesh(mi).meshId);
         if (!selectionView.valid)
             continue;
 

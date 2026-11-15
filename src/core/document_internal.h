@@ -3,6 +3,7 @@
 #include "document.h"
 #include "documentundomanager.h"
 #include "meshfilterpluginmanager.h"
+#include "meshgpuresourcecache.h"
 #include "meshiopluginmanager.h"
 #include "plugins/filterpluginregistry.h"
 #include "plugins/meshpluginregistry.h"

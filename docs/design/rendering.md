@@ -56,7 +56,7 @@ Scene3D rendering is split into a lightweight request layer and a concrete GPU d
 
 The same request object is used for two things:
 
-1. `prepareDirtyBuffers(...)` asks `Document::ensureMeshGpuResources(...)` only for the cache products needed by the requested passes, plus extra resources needed by current-mesh highlighting.
+1. `prepareDirtyBuffers(...)` asks the cache (through `RenderWidget::ensureMeshGpu`) only for the cache products needed by the requested passes, plus extra resources needed by current-mesh highlighting.
 2. `buildRenderFramePlan(...)` converts the request into concrete draw items after resources/pipelines are available.
 
 `RenderFrameRequest` adds frame-local state to the pass requests: view mode, pixel size, projection matrix, view matrix, light direction, and raster overlay state (opacity plus raster pan/zoom in `RasterImage` mode). `RenderFramePlan` is the concrete in-process result: fill items, buffer items, decorator items, selection items, and raster draw items with QRhi buffers/pipelines and material renderer pointers. Pass presence is derived from non-empty draw-item lists (`hasFillPass()`, `hasSceneDrawItems()`, etc.).
@@ -79,7 +79,7 @@ Cached outputs:
 - **selection**: selected-face triangles, selected-vertex points, and selected edges both as plain segments and as fat-line quads (`LineRenderer::buildFatLineVertices`), keyed on `selectionRevision` so selection overlays rebuild without invalidating fill/wire/point resources.
 - **decorators**: vertex normals, face normals, boundary edges (line + fat-line), texture seams (line + fat-line), non-manifold edges (line + fat-line), non-manifold vertices, and curvature principal-direction lines.
 
-Views reach it through `Document`: `ensureMeshGpuResources(...)` builds what a frame's pass requests ask for, and `fillPassGpuView(...)`, `wirePassGpuView(...)` and the other `*PassGpuView(...)` calls return the buffers to draw.
+`Document` owns the cache, so a layer's buffers go with the layer, and hands it to the views as `gpuCache()`; a view builds what its frame needs through `RenderWidget::ensureMeshGpu` (the products as one `MeshGpuResourceCache::Needs`, the quality range always from the view's own settings) and reads the buffers back with the cache's `*PassView(rhi, meshId, ...)` calls.
 
 `MeshGpuResourceCache::gpuMemoryStats()` sums the QRhi buffer sizes and known RGBA8
 texture payloads for all cache variants and RHIs, including non-manifold decorator

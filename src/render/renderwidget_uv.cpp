@@ -811,7 +811,6 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     if (!m_rhi || !m_ubuf || !cb || !renderTarget())
         return;
 
-    syncPerMeshRenderModesWithDocument();
     syncUvCacheWithDocument();
     syncUvTextureGroupUi();
     m_frameTimer.start();
@@ -1016,7 +1015,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     normalMat(1, 1) = 1.0f;
     normalMat(2, 2) = 1.0f;
 
-    Document::FillPassGpuView textureFillView {};
+    MeshGpuResourceCache::FillPassView textureFillView {};
     const int activeGroup = activeUvTextureGroup();
     auto displayedTexture = [this](const auto &batch) -> QRhiTexture * {
         switch (std::clamp(m_renderSettings.uvTextureChannel, 0, 3)) {
@@ -1033,20 +1032,11 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         && (m_renderSettings.uvShowFullTexture
             || (meshSettings.showFill && useTextureDrivenFill));
     if (canDraw && needTextureGeometry) {
-        m_doc->ensureMeshGpuResources(
-            m_rhi,
-            cb,
-            meshIndex,
-            Document::FillGpuVariant::Texture,
-            Document::PointGpuVariant::Constant,
-            true,   // fill
-            false,  // wire
-            false,  // edges
-            false,  // points
-            false,  // bbox
-            false,  // decorator normals
-            false); // decorator boundaries
-        textureFillView = m_doc->fillPassGpuView(m_rhi, meshIndex, Document::FillGpuVariant::Texture);
+        MeshGpuResourceCache::Needs needs;
+        needs.fill = true;
+        ensureMeshGpu(cb, meshIndex, MeshGpuResourceCache::FillVariant::Texture,
+                      MeshGpuResourceCache::PointVariant::Constant, needs, meshSettings.wireRespectFaux);
+        textureFillView = m_doc->gpuCache().fillPassView(m_rhi, m_doc->mesh(meshIndex).meshId, MeshGpuResourceCache::FillVariant::Texture);
     }
 
     // Always push the UV-space transform at frame start so pan/zoom is applied
@@ -1246,7 +1236,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 if (useTextureDrivenFill
                     && m_uvTextureFillPipeline) {
                     updateStyleUbuf(meshSettings);
-                    const Document::FillPassGpuView fillView = textureFillView;
+                    const MeshGpuResourceCache::FillPassView fillView = textureFillView;
                     if (fillView.valid) {
                         cb->setGraphicsPipeline(m_uvTextureFillPipeline.get());
                         updateStyleUbuf(meshSettings);

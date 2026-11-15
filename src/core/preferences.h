@@ -4,6 +4,7 @@
 
 #include <QColor>
 #include <QObject>
+#include <QHash>
 #include <QString>
 #include <QVariant>
 
@@ -65,5 +66,6 @@ private:
 
     mutable bool m_loaded = false;
     mutable std::vector<MeshFilterParameterDescriptor> m_descriptors;
+    mutable QHash<QString, int> m_descriptorIndex;
     mutable MeshFilterParameterValues m_values;
 };

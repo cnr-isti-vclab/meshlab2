@@ -31,41 +31,28 @@ void RenderWidget::prepareDirtyBuffers(
     if (!m_rhi || !cb)
         return;
 
-    if (m_fallbackTextureUploadPending && m_fallbackTexture) {
+    // The 1x1 textures a material slot falls back to: white for color, occlusion and
+    // roughness, a flat normal for the normal map.
+    const struct {
+        QRhiTexture *texture;
+        bool &pending;
+        QColor color;
+    } fallbacks[] = {
+        { m_fallbackTexture.get(), m_fallbackTextureUploadPending, Qt::white },
+        { m_fallbackNormalTexture.get(), m_fallbackNormalTextureUploadPending, QColor(128, 128, 255) },
+        { m_fallbackOcclusionTexture.get(), m_fallbackOcclusionTextureUploadPending, Qt::white },
+        { m_fallbackRoughnessTexture.get(), m_fallbackRoughnessTextureUploadPending, Qt::white },
+    };
+    for (const auto &fallback : fallbacks) {
+        if (!fallback.pending || !fallback.texture)
+            continue;
+        QImage pixel(1, 1, QImage::Format_RGBA8888);
+        pixel.fill(fallback.color);
         QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-        QImage white(1, 1, QImage::Format_RGBA8888);
-        white.fill(Qt::white);
-        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(white));
-        u->uploadTexture(m_fallbackTexture.get(), QRhiTextureUploadDescription({ entry }));
+        u->uploadTexture(fallback.texture, QRhiTextureUploadDescription(
+                                               { QRhiTextureUploadEntry(0, 0, QRhiTextureSubresourceUploadDescription(pixel)) }));
         cb->resourceUpdate(u);
-        m_fallbackTextureUploadPending = false;
-    }
-    if (m_fallbackNormalTextureUploadPending && m_fallbackNormalTexture) {
-        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-        QImage flatNormal(1, 1, QImage::Format_RGBA8888);
-        flatNormal.fill(QColor(128, 128, 255, 255));
-        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(flatNormal));
-        u->uploadTexture(m_fallbackNormalTexture.get(), QRhiTextureUploadDescription({ entry }));
-        cb->resourceUpdate(u);
-        m_fallbackNormalTextureUploadPending = false;
-    }
-    if (m_fallbackOcclusionTextureUploadPending && m_fallbackOcclusionTexture) {
-        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-        QImage white(1, 1, QImage::Format_RGBA8888);
-        white.fill(Qt::white);
-        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(white));
-        u->uploadTexture(m_fallbackOcclusionTexture.get(), QRhiTextureUploadDescription({ entry }));
-        cb->resourceUpdate(u);
-        m_fallbackOcclusionTextureUploadPending = false;
-    }
-    if (m_fallbackRoughnessTextureUploadPending && m_fallbackRoughnessTexture) {
-        QRhiResourceUpdateBatch *u = m_rhi->nextResourceUpdateBatch();
-        QImage white(1, 1, QImage::Format_RGBA8888);
-        white.fill(Qt::white);
-        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(white));
-        u->uploadTexture(m_fallbackRoughnessTexture.get(), QRhiTextureUploadDescription({ entry }));
-        cb->resourceUpdate(u);
-        m_fallbackRoughnessTextureUploadPending = false;
+        fallback.pending = false;
     }
 
     if (requests.hasRasters())
@@ -85,30 +72,20 @@ void RenderWidget::prepareDirtyBuffers(
             || needHighlightForMesh;
         if (!needResourcesForMesh)
             continue;
-        const auto pointVariant = static_cast<Document::PointGpuVariant>(
+        const auto pointVariant = static_cast<MeshGpuResourceCache::PointVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
-        const auto fillVariant = static_cast<Document::FillGpuVariant>(
+        const auto fillVariant = static_cast<MeshGpuResourceCache::FillVariant>(
             fillGpuVariantIndexForSettings(meshSettings));
-        m_doc->ensureMeshGpuResources(
-            m_rhi,
-            cb,
-            mi,
-            fillVariant,
-            pointVariant,
-            meshRequest.fill || needHighlightForMesh,
-            meshRequest.wire,
-            meshRequest.edges || needHighlightForMesh,
-            meshRequest.points || needHighlightForMesh,
-            meshRequest.boundingBox,
-            meshRequest.decoratorNormals,
-            meshRequest.decoratorBoundaries,
-            m_renderSettings.qualityHistogramFixedRange,
-            m_renderSettings.qualityHistogramMin,
-            m_renderSettings.qualityHistogramMax,
-            meshRequest.selection,
-            meshSettings.wireRespectFaux,
-            m_renderSettings.qualityHistogramCenterOnZero,
-            m_renderSettings.qualityHistogramPercentileCrop);
+        MeshGpuResourceCache::Needs needs;
+        needs.fill = meshRequest.fill || needHighlightForMesh;
+        needs.wire = meshRequest.wire;
+        needs.edges = meshRequest.edges || needHighlightForMesh;
+        needs.points = meshRequest.points || needHighlightForMesh;
+        needs.boundingBox = meshRequest.boundingBox;
+        needs.selection = meshRequest.selection;
+        needs.decoratorNormals = meshRequest.decoratorNormals;
+        needs.decoratorBoundaries = meshRequest.decoratorBoundaries;
+        ensureMeshGpu(cb, mi, fillVariant, pointVariant, needs, meshSettings.wireRespectFaux);
     }
 }
 
@@ -172,7 +149,7 @@ void RenderWidget::executePendingDepthPick(
         ? (pixelSize.height() - 1 - pyScreen)
         : pyScreen;
 
-    const auto fillVariant = Document::FillGpuVariant::Constant;
+    const auto fillVariant = MeshGpuResourceCache::FillVariant::Constant;
 
     // The pick target covers the whole view, but only the clicked tile is drawn into it, at
     // the tile's own place and through the tile's own projection. The readback coordinate is
@@ -183,24 +160,12 @@ void RenderWidget::executePendingDepthPick(
         if (!meshVisible(mi) || !tileShowsMesh(tile, mi))
             continue;
         const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
-        const auto pointVariant = static_cast<Document::PointGpuVariant>(
+        const auto pointVariant = static_cast<MeshGpuResourceCache::PointVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
-        m_doc->ensureMeshGpuResources(
-            m_rhi,
-            cb,
-            mi,
-            fillVariant,
-            pointVariant,
-            true,   // fill
-            false,  // wire
-            false,  // edges
-            true,   // points
-            false,  // bbox
-            false,  // decorator normals
-            false,  // decorator boundaries
-            m_renderSettings.qualityHistogramFixedRange,
-            m_renderSettings.qualityHistogramMin,
-            m_renderSettings.qualityHistogramMax);
+        MeshGpuResourceCache::Needs needs;
+        needs.fill = true;
+        needs.points = true;
+        ensureMeshGpu(cb, mi, fillVariant, pointVariant, needs, meshSettings.wireRespectFaux);
     }
 
     cb->beginPass(m_depthPickRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
@@ -211,7 +176,7 @@ void RenderWidget::executePendingDepthPick(
             continue;
 
         const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
-        const auto pointVariant = static_cast<Document::PointGpuVariant>(
+        const auto pointVariant = static_cast<MeshGpuResourceCache::PointVariant>(
             pointGpuVariantIndexForSettings(meshSettings));
 
         const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
@@ -223,8 +188,8 @@ void RenderWidget::executePendingDepthPick(
             QVector3D(0.0f, 0.0f, 1.0f), MainUbufMaterialOverrides{}, ubufOffset, pickId);
 
         if (m_depthPickFillPipeline) {
-            const Document::FillPassGpuView fillView =
-                m_doc->fillPassGpuView(m_rhi, mi, fillVariant);
+            const MeshGpuResourceCache::FillPassView fillView =
+                m_doc->gpuCache().fillPassView(m_rhi, m_doc->mesh(mi).meshId, fillVariant);
             cb->setGraphicsPipeline(m_depthPickFillPipeline.get());
             setShaderResourcesWithOffset(cb, m_depthPickSrb.get(), ubufOffset);
             for (int bi = 0; bi < fillView.batchCount; ++bi) {
@@ -236,8 +201,8 @@ void RenderWidget::executePendingDepthPick(
         }
 
         if (m_depthPickPointsPipeline) {
-            const Document::PointsPassGpuView pointsView =
-                m_doc->pointsPassGpuView(m_rhi, mi, pointVariant);
+            const MeshGpuResourceCache::PointsPassView pointsView =
+                m_doc->gpuCache().pointsPassView(m_rhi, m_doc->mesh(mi).meshId, pointVariant);
             if (pointsView.valid && pointsView.vertexBuffer && pointsView.vertexCount > 0) {
                 cb->setGraphicsPipeline(m_depthPickPointsPipeline.get());
                 setShaderResourcesWithOffset(cb, m_depthPickSrb.get(), ubufOffset);
@@ -417,19 +382,19 @@ void RenderWidget::renderCurrentMeshMask(
 
     const PerMeshRenderSettings currentMeshSettings = renderModeForMesh(currentMeshIndex);
     const MeshRenderMode currentMeshMode = renderModeForMesh(currentMeshIndex);
-    const auto pointVariant = static_cast<Document::PointGpuVariant>(
+    const auto pointVariant = static_cast<MeshGpuResourceCache::PointVariant>(
         pointGpuVariantIndexForSettings(currentMeshSettings));
-    const auto fillVariant = static_cast<Document::FillGpuVariant>(
+    const auto fillVariant = static_cast<MeshGpuResourceCache::FillVariant>(
         fillGpuVariantIndexForSettings(currentMeshSettings));
 
-    const Document::FillPassGpuView currentFillView =
-        m_doc->fillPassGpuView(m_rhi, currentMeshIndex, fillVariant);
-    const Document::EdgePassGpuView currentEdgeView =
-        m_doc->edgePassGpuView(m_rhi, currentMeshIndex);
-    const Document::EdgeFatPassGpuView currentEdgeFatView =
-        m_doc->edgeFatPassGpuView(m_rhi, currentMeshIndex);
-    const Document::PointsPassGpuView currentPointsView =
-        m_doc->pointsPassGpuView(m_rhi, currentMeshIndex, pointVariant);
+    const MeshGpuResourceCache::FillPassView currentFillView =
+        m_doc->gpuCache().fillPassView(m_rhi, m_doc->mesh(currentMeshIndex).meshId, fillVariant);
+    const MeshGpuResourceCache::EdgePassView currentEdgeView =
+        m_doc->gpuCache().edgePassView(m_rhi, m_doc->mesh(currentMeshIndex).meshId);
+    const MeshGpuResourceCache::EdgeFatPassView currentEdgeFatView =
+        m_doc->gpuCache().edgeFatPassView(m_rhi, m_doc->mesh(currentMeshIndex).meshId);
+    const MeshGpuResourceCache::PointsPassView currentPointsView =
+        m_doc->gpuCache().pointsPassView(m_rhi, m_doc->mesh(currentMeshIndex).meshId, pointVariant);
 
     bool currentHasFill = false;
     if (currentMeshMode.showFill) {
@@ -485,7 +450,7 @@ void RenderWidget::renderCurrentMeshMask(
 
     auto drawFillDepth = [&](int meshIndex,
                              const PerMeshRenderSettings &meshSettings,
-                             const Document::FillPassGpuView &fillView) {
+                             const MeshGpuResourceCache::FillPassView &fillView) {
         if (!m_currentMaskFillDepthOnlyPipeline)
             return;
         const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
@@ -513,8 +478,8 @@ void RenderWidget::renderCurrentMeshMask(
 
     auto drawEdgeDepth = [&](int meshIndex,
                              const PerMeshRenderSettings &meshSettings,
-                             const Document::EdgePassGpuView &edgeView,
-                             const Document::EdgeFatPassGpuView &fatEdgeView) {
+                             const MeshGpuResourceCache::EdgePassView &edgeView,
+                             const MeshGpuResourceCache::EdgeFatPassView &fatEdgeView) {
         const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
         uploadMainUbufForMesh(
             cb,
@@ -567,7 +532,7 @@ void RenderWidget::renderCurrentMeshMask(
 
     auto drawPointsDepth = [&](int meshIndex,
                                const PerMeshRenderSettings &meshSettings,
-                               const Document::PointsPassGpuView &pointsView) {
+                               const MeshGpuResourceCache::PointsPassView &pointsView) {
         if (!m_currentMaskPointsDepthOnlyPipeline)
             return;
         if (!pointsView.valid || !pointsView.vertexBuffer || pointsView.vertexCount <= 0)
@@ -636,19 +601,15 @@ void RenderWidget::renderCurrentMeshMask(
         const MeshRenderMode mode = renderModeForMesh(mi);
         const PerMeshRenderSettings meshSettings = renderModeForMesh(mi);
 
-        const Document::FillPassGpuView fillView =
-            m_doc->fillPassGpuView(
-                m_rhi,
-                mi,
-                static_cast<Document::FillGpuVariant>(
+        const MeshGpuResourceCache::FillPassView fillView =
+            m_doc->gpuCache().fillPassView(m_rhi, m_doc->mesh(mi).meshId,
+                static_cast<MeshGpuResourceCache::FillVariant>(
                     fillGpuVariantIndexForSettings(meshSettings)));
-        const Document::EdgePassGpuView edgeView = m_doc->edgePassGpuView(m_rhi, mi);
-        const Document::EdgeFatPassGpuView edgeFatView = m_doc->edgeFatPassGpuView(m_rhi, mi);
-        const Document::PointsPassGpuView pointsView =
-            m_doc->pointsPassGpuView(
-                m_rhi,
-                mi,
-                static_cast<Document::PointGpuVariant>(
+        const MeshGpuResourceCache::EdgePassView edgeView = m_doc->gpuCache().edgePassView(m_rhi, m_doc->mesh(mi).meshId);
+        const MeshGpuResourceCache::EdgeFatPassView edgeFatView = m_doc->gpuCache().edgeFatPassView(m_rhi, m_doc->mesh(mi).meshId);
+        const MeshGpuResourceCache::PointsPassView pointsView =
+            m_doc->gpuCache().pointsPassView(m_rhi, m_doc->mesh(mi).meshId,
+                static_cast<MeshGpuResourceCache::PointVariant>(
                     pointGpuVariantIndexForSettings(meshSettings)));
 
         if (mode.showFill)
@@ -832,4 +793,56 @@ void RenderWidget::drawCurrentMeshOutline(QRhiCommandBuffer *cb, const QSize &pi
     cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
     cb->setShaderResources(m_outlineSrb.get());
     cb->draw(3);
+}
+
+// Builds or refreshes what one mesh needs in the shared cache. The quality range always
+// comes from this view's settings, so every caller asks for the same normalization and no
+// caller rebuilds a quality buffer another has just built.
+void RenderWidget::ensureMeshGpu(
+    QRhiCommandBuffer *cb,
+    int meshIndex,
+    MeshGpuResourceCache::FillVariant fillVariant,
+    MeshGpuResourceCache::PointVariant pointVariant,
+    const MeshGpuResourceCache::Needs &needs,
+    bool wireRespectFaux)
+{
+    if (!m_doc || !m_rhi || !cb || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return;
+    const Document::MeshEntry &entry = m_doc->mesh(meshIndex);
+    MeshGpuResourceCache::MeshSource source;
+    source.meshId = entry.meshId;
+    source.geometryRevision = entry.geometryRevision;
+    source.materialRevision = entry.materialRevision;
+    source.selectionRevision = entry.selectionRevision;
+    source.ioMask = entry.ioMask;
+    source.qualityFixedRange = m_renderSettings.qualityHistogramFixedRange;
+    source.qualityRangeMin = std::min(m_renderSettings.qualityHistogramMin, m_renderSettings.qualityHistogramMax);
+    source.qualityRangeMax = std::max(m_renderSettings.qualityHistogramMin, m_renderSettings.qualityHistogramMax);
+    source.qualityCenterOnZero = m_renderSettings.qualityHistogramCenterOnZero;
+    source.qualityPercentileCrop = m_renderSettings.qualityHistogramPercentileCrop;
+    source.wireRespectFaux = wireRespectFaux;
+    source.mesh = &entry.mesh;
+    source.textureFilePaths = &entry.textureFilePaths;
+    source.textureAssets = &entry.textureAssets;
+    source.materialSet = &entry.materialSet;
+
+    const MeshGpuResourceCache::EnsureStats stats = m_doc->gpuCache().ensureMeshResources(
+        m_rhi, cb, source, fillVariant, pointVariant, needs);
+    if (!stats.anyRebuilt())
+        return;
+    QStringList rebuilt;
+    const std::pair<bool, const char *> products[] = {
+        { stats.rebuiltFill, "fill" }, { stats.rebuiltWire, "wire" },
+        { stats.rebuiltEdges, "edges" }, { stats.rebuiltPoints, "points" },
+        { stats.rebuiltBoundingBox, "bbox" }, { stats.rebuiltSelection, "selection" },
+        { stats.rebuiltDecoratorNormals, "decorator normals" },
+        { stats.rebuiltDecoratorBoundaries, "decorator boundaries" } };
+    for (const auto &[built, name] : products) {
+        if (built)
+            rebuilt << QString::fromLatin1(name);
+    }
+    m_doc->writeLog(tr("GPU buffers built for '%1': %2 in %3 ms")
+                        .arg(entry.name, rebuilt.join(QStringLiteral(", ")),
+                             QString::number(stats.elapsedMs, 'f', 2)),
+                    Document::LogSource::Application, Document::LogLevel::Debug);
 }

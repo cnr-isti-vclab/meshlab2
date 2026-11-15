@@ -1614,6 +1614,9 @@ bool RenderWidget::setViewMode(ViewMode mode, QString *errorMessage)
     }
 
     m_viewMode = mode;
+    // Outside the UV view the tick labels are hidden here, once, rather than every frame.
+    if (mode != ViewMode::ParametrizationUV)
+        updateUvScaleOverlay(QMatrix4x4(), QSize(), false);
     applyToolCursor();
     updateToolStrip();
     syncUvTextureGroupUi();
@@ -2642,60 +2645,6 @@ void RenderWidget::showInteractionStatusOverlay(const QString &text, bool persis
         m_interactionStatusOverlayTimer->start(1200);
 }
 
-bool RenderWidget::computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const
-{
-    bool hasBox = false;
-    QVector3D sceneMin;
-    QVector3D sceneMax;
-    for (int i = 0; i < m_doc->meshCount(); ++i) {
-        const auto &meshEntry = m_doc->mesh(i);
-        if (!meshVisible(i))
-            continue;
-        if (!renderModeForMesh(i).showBoundingBox)
-            continue;
-        if (meshEntry.mesh.bbox.IsNull())
-            continue;
-
-        const vcg::Box3f &box = meshEntry.mesh.bbox;
-        const QVector3D corners[8] = {
-            QVector3D(box.min[0], box.min[1], box.min[2]),
-            QVector3D(box.max[0], box.min[1], box.min[2]),
-            QVector3D(box.min[0], box.max[1], box.min[2]),
-            QVector3D(box.max[0], box.max[1], box.min[2]),
-            QVector3D(box.min[0], box.min[1], box.max[2]),
-            QVector3D(box.max[0], box.min[1], box.max[2]),
-            QVector3D(box.min[0], box.max[1], box.max[2]),
-            QVector3D(box.max[0], box.max[1], box.max[2])
-        };
-
-        for (const QVector3D &corner : corners) {
-            const QVector4D transformed = meshEntry.transform * QVector4D(corner, 1.0f);
-            const QVector3D worldCorner = (std::abs(transformed.w()) > 1e-8f)
-                ? transformed.toVector3DAffine()
-                : transformed.toVector3D();
-            if (!hasBox) {
-                sceneMin = worldCorner;
-                sceneMax = worldCorner;
-                hasBox = true;
-                continue;
-            }
-            sceneMin.setX(std::min(sceneMin.x(), worldCorner.x()));
-            sceneMin.setY(std::min(sceneMin.y(), worldCorner.y()));
-            sceneMin.setZ(std::min(sceneMin.z(), worldCorner.z()));
-            sceneMax.setX(std::max(sceneMax.x(), worldCorner.x()));
-            sceneMax.setY(std::max(sceneMax.y(), worldCorner.y()));
-            sceneMax.setZ(std::max(sceneMax.z(), worldCorner.z()));
-        }
-    }
-
-    if (!hasBox)
-        return false;
-
-    minCorner = sceneMin;
-    maxCorner = sceneMax;
-    return true;
-}
-
 void RenderWidget::updateBoundingBoxCornersOverlay()
 {
     if (!m_bboxMinCornerOverlayLabel || !m_bboxMaxCornerOverlayLabel
@@ -2725,7 +2674,7 @@ void RenderWidget::updateBoundingBoxCornersOverlay()
 
     QVector3D minCorner;
     QVector3D maxCorner;
-    if (!computeVisibleSceneBoundingBox(minCorner, maxCorner)) {
+    if (!computeWorldSceneBBox(minCorner, maxCorner, true)) {
         m_bboxOverlayCornersValid = false;
         m_bboxMinCornerOverlayLabel->hide();
         m_bboxMaxCornerOverlayLabel->hide();

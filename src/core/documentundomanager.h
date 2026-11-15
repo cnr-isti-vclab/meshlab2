@@ -89,6 +89,9 @@ private:
         MeshAttributeDelta &&after,
         std::optional<ScriptAction> scriptAction = {});
     void pruneTreeToLimit();
+    std::vector<int> subtreeNodes(int nodeId) const;
+    void compactNodes(const std::vector<int> &keepSorted);
+    void rootAt(int nodeId);
     UndoPruneResult pruneToMemoryBudgetInternal(
         qint64 triggerBytes,
         qint64 targetBytes,

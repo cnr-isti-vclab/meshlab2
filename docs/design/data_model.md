@@ -19,7 +19,7 @@ MeshLab is **single-document, multi-view**: one `Document` owns canonical meshes
 - `pluginData`: immutable, shared intermediates a plugin keeps on the layer (`setLayerData`; see [Adding a Filter](adding_a_filter.md))
 - mesh state: `visible`, `VCGMesh mesh`
 
-`Document` also owns: remembered current mesh/raster indices, explicit active layer kind, document log (application / VCG / error sources), I/O and filter plugin managers, shared GPU cache, `DocumentUndoManager`, operation cancel flag, and memory accounting APIs (`cpuMeshMemoryStats`, `cpuImageMemoryStats`, `undoMemoryStats`, `gpuMemoryStats`). Optional Python bindings borrow or own a `Document` through `MeshSetCore`; the embedded console borrows the live `MainWindow` document and does not take ownership.
+`Document` also owns: remembered current mesh/raster indices, explicit active layer kind, document log (application / VCG / error sources), I/O and filter plugin managers, shared GPU cache, `DocumentUndoManager`, operation cancel flag, and memory accounting APIs (`cpuMeshMemoryStats`, `cpuImageMemoryStats`, `undoMemoryStats`; GPU figures come from `gpuCache().gpuMemoryStats()`). Optional Python bindings borrow or own a `Document` through `MeshSetCore`; the embedded console borrows the live `MainWindow` document and does not take ownership.
 
 ## Mesh Data Type
 

@@ -444,10 +444,10 @@ struct SceneRasterProjectedDrawItem {
         return m_rhi ? m_rhi->clipSpaceCorrMatrix() * glMatrix : glMatrix;
     }
     void emitCameraStateChangedIfNeeded();
-    bool computeVisibleSceneBoundingBox(QVector3D &minCorner, QVector3D &maxCorner) const;
     // World-space bbox over all visible meshes' full geometry (not gated on the
     // bbox-display toggle). Used for camera framing and far-plane clipping.
-    bool computeWorldSceneBBox(QVector3D &minCorner, QVector3D &maxCorner) const;
+    // shownBoxesOnly: only the layers whose bounding box is drawn.
+    bool computeWorldSceneBBox(QVector3D &minCorner, QVector3D &maxCorner, bool shownBoxesOnly = false) const;
     void updateBoundingBoxCornersOverlay();
     // `viewportRect` is where the frame was drawn inside the render target, in device
     // pixels: the labels follow projected world positions, so they need the tile's origin
@@ -500,6 +500,13 @@ struct SceneRasterProjectedDrawItem {
     void ensureDepthPickResources(const QSize &pixelSize);
     void ensureRsGradResources(const QSize &pixelSize);
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
+    void ensureMeshGpu(
+        QRhiCommandBuffer *cb,
+        int meshIndex,
+        MeshGpuResourceCache::FillVariant fillVariant,
+        MeshGpuResourceCache::PointVariant pointVariant,
+        const MeshGpuResourceCache::Needs &needs,
+        bool wireRespectFaux);
     void prepareDirtyBuffers(
         QRhiCommandBuffer *cb,
         const RenderFramePassRequests &requests,

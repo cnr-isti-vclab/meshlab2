@@ -32,6 +32,9 @@ void Preferences::ensureLoaded() const
         qWarning() << "Preferences:" << error;
         return;
     }
+    // Read on the frame path, so looked up by hash rather than by walking the list.
+    for (int i = 0; i < int(m_descriptors.size()); ++i)
+        m_descriptorIndex.insert(m_descriptors[size_t(i)].id, i);
 
     // Stored values are only adopted for ids that are still declared, so removing a
     // preference from the JSON does not leave a stale entry behind.
@@ -60,11 +63,8 @@ const std::vector<MeshFilterParameterDescriptor> &Preferences::descriptors() con
 const MeshFilterParameterDescriptor *Preferences::descriptor(const QString &id) const
 {
     ensureLoaded();
-    for (const auto &d : m_descriptors) {
-        if (d.id == id)
-            return &d;
-    }
-    return nullptr;
+    const auto it = m_descriptorIndex.constFind(id);
+    return it == m_descriptorIndex.constEnd() ? nullptr : &m_descriptors[size_t(it.value())];
 }
 
 QVariant Preferences::value(const QString &id) const
