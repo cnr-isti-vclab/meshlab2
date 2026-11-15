@@ -5,6 +5,7 @@
 #include "qualityrange.h"
 #include "parallelfor.h"
 
+#include <vcg/complex/algorithms/update/selection.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
@@ -243,14 +244,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     const MeshSource &source,
     FillVariant fillVariant,
     PointVariant pointVariant,
-    bool needFill,
-    bool needWire,
-    bool needEdges,
-    bool needPoints,
-    bool needBoundingBox,
-    bool needSelection,
-    bool needDecoratorNormals,
-    bool needDecoratorBoundaries)
+    const Needs &needs)
 {
     EnsureStats stats;
     if (!m_state || !rhi || !cb || !source.mesh || source.meshId == 0)
@@ -1375,7 +1369,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             return true;
 
         std::vector<float> selectedFaceTriangles;
-        selectedFaceTriangles.reserve(static_cast<size_t>(meshData.FN()) * 9);
+        // Sized to the selection, not the mesh: reserving for every face cost hundreds of
+        // MB on a large scan for each selection change, however little was selected.
+        selectedFaceTriangles.reserve(vcg::tri::UpdateSelection<VCGMesh>::FaceCount(meshData) * 9);
         for (int fi = 0; fi < meshData.FN(); ++fi) {
             const auto &f = meshData.face[fi];
             if (f.IsD() || !f.IsS())
@@ -1407,7 +1403,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         }
 
         std::vector<float> selectedVertices;
-        selectedVertices.reserve(static_cast<size_t>(meshData.VN()) * 3);
+        selectedVertices.reserve(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(meshData) * 3);
         for (int vi = 0; vi < meshData.VN(); ++vi) {
             const auto &v = meshData.vert[vi];
             if (v.IsD() || !v.IsS())
@@ -1936,25 +1932,37 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         return true;
     };
 
-    if (needFill) {
+    if (needs.fill) {
         auto &fill = meshCache.fill[fillVariantIndex(fillVariant)];
         stats.rebuiltFill = rebuildFillVariant(fill, fillVariant);
     }
-    if (needWire)
+    if (needs.wire)
         stats.rebuiltWire = rebuildWire(meshCache.wire);
-    if (needEdges)
+    if (needs.edges)
         stats.rebuiltEdges = rebuildEdges(meshCache.edges);
-    if (needPoints) {
+    if (needs.points) {
         auto &points = meshCache.points[pointVariantIndex(pointVariant)];
         stats.rebuiltPoints = rebuildPointsVariant(points, pointVariant);
     }
-    if (needBoundingBox)
+    // A variant of an older revision is rebuilt before it is drawn again, so its buffers
+    // only hold memory: release them. One at the current revision stays, since another
+    // view may be drawing the mesh with that color source.
+    for (auto &fill : meshCache.fill) {
+        if (fill.valid && (fill.geometryRevision != source.geometryRevision
+                           || fill.materialRevision != source.materialRevision))
+            fill = CacheState::FillVariantGpu{};
+    }
+    for (auto &points : meshCache.points) {
+        if (points.valid && points.geometryRevision != source.geometryRevision)
+            points = CacheState::PointsVariantGpu{};
+    }
+    if (needs.boundingBox)
         stats.rebuiltBoundingBox = rebuildBBox(meshCache.bbox);
-    if (needSelection)
+    if (needs.selection)
         stats.rebuiltSelection = rebuildSelection(meshCache.selection);
-    if (needDecoratorNormals)
+    if (needs.decoratorNormals)
         stats.rebuiltDecoratorNormals = rebuildDecoratorNormals(meshCache.decoratorNormals);
-    if (needDecoratorBoundaries)
+    if (needs.decoratorBoundaries)
         stats.rebuiltDecoratorBoundaries =
             rebuildDecoratorBoundaries(meshCache.decoratorBoundaries);
 

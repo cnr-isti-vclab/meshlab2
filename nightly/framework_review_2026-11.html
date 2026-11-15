@@ -999,6 +999,14 @@ the drop.</p></li>
 Then switch the raster view between two photos and check per-frame CPU time in the status bar.
 Then paint a selection on ESTE and check peak RSS.</p>
 <p><strong>Size:</strong> about +20 / -15.</p>
+<p><strong>Done (2026-11-15).</strong> +30 / -25 lines, comments included.</p>
+<ul class="simple">
+<li><p><strong>R2.</strong> The 3D view needs only the camera to draw a frustum; the photo is decoded only for the raster view’s backplate. On 2930Colmap (35 rasters, 4K), <code class="docutils literal notranslate"><span class="pre">--capture-window</span></code> peak RSS went from 2.55 GB to 1.38 GB and the run from 5.5-9 s to 2.8-3.4 s, with identical captures.</p></li>
+<li><p><strong>R3.</strong> The RGBA8888 conversion moved inside the upload branch.</p></li>
+<li><p><strong>R4.</strong> The selection buffers reserve vcglib’s <code class="docutils literal notranslate"><span class="pre">UpdateSelection::FaceCount</span></code>/<code class="docutils literal notranslate"><span class="pre">VertexCount</span></code> instead of the whole mesh.</p></li>
+<li><p><strong>R5.</strong> Fill and point variants at an older revision are released when the mesh is next prepared; current-revision variants stay, because split views may draw the same mesh with different color sources.</p></li>
+<li><p>R3, R4 and R5 were not measured: each needs interaction in the running app (switching photos, painting a selection on ESTE, switching color sources).</p></li>
+</ul>
 </section>
 <section id="phase-3-uniforms-uploaded-before-the-pass-r1">
 <h3>Phase 3: uniforms uploaded before the pass (R1)<a class="headerlink" href="#phase-3-uniforms-uploaded-before-the-pass-r1" title="Link to this heading">¶</a></h3>
@@ -1017,6 +1025,17 @@ into the batch <code class="docutils literal notranslate"><span class="pre">u</s
 <li><p>The UV renderer (<code class="docutils literal notranslate"><span class="pre">renderwidget_uv.cpp:950-1383</span></code>) has the same pattern. Fix it in the same
 phase unless phase 6 is scheduled soon after.</p></li>
 </ul>
+<p><strong>Reassessed before starting (2026-11-15).</strong> Read against Qt 6.11’s sources: every backend’s
+<code class="docutils literal notranslate"><span class="pre">resourceUpdate</span></code> asserts <code class="docutils literal notranslate"><span class="pre">recordingPass</span> <span class="pre">==</span> <span class="pre">NoPass</span></code>, so a <strong>debug</strong> Qt aborts on the first
+in-pass upload. A release Qt draws correctly on all of them, because every in-pass batch here
+holds only <code class="docutils literal notranslate"><span class="pre">updateDynamicBuffer</span></code> writes. Those are host writes that Metal and Vulkan queue and
+apply when the buffer is next bound (<code class="docutils literal notranslate"><span class="pre">pendingUpdates</span></code>, <code class="docutils literal notranslate"><span class="pre">executeBufferHostWritesForSlot</span></code>), and
+D3D and GL write them directly. No in-pass batch carries a texture or static-buffer upload, which
+would be a real copy-inside-a-pass bug. The single-slot buffers rewritten at offset 0 inside the
+pass (outline, mask debug view, solid-cut cap) are written once per frame or with identical data
+per tile. The fix is larger than estimated: about 20 in-pass sites in six files (main pass,
+depth pick, current-layer masks, radiance-scaling pre-pass, UV pass), each computing its
+uniforms inside the draw loop, so each loop splits in two.</p>
 <p><strong>Verify:</strong> all render probes, plus <code class="docutils literal notranslate"><span class="pre">MESHLAB2_GRAPHICS_API=vulkan</span></code> and <code class="docutils literal notranslate"><span class="pre">opengl</span></code> on this Mac (see
 the clipping-plane section of rendering.md), with the GPU timing preference on, to compare frame
 times.</p>
@@ -1043,6 +1062,32 @@ the eight <code class="docutils literal notranslate"><span class="pre">*PassGpuV
 </li>
 </ul>
 <p><strong>Size:</strong> about +80 / -330. Behavior unchanged; the existing suite covers it.</p>
+<p><strong>Done (2026-11-15).</strong> +309 / -735 lines across 25 files, comments included.</p>
+<ul class="simple">
+<li><p><strong>U6.</strong> <code class="docutils literal notranslate"><span class="pre">subtreeNodes</span></code>, <code class="docutils literal notranslate"><span class="pre">compactNodes</span></code> (a <code class="docutils literal notranslate"><span class="pre">std::vector&lt;int&gt;</span></code> remap) and <code class="docutils literal notranslate"><span class="pre">rootAt</span></code> replace the four
+copies. Pruning by count now roots through <code class="docutils literal notranslate"><span class="pre">rootAt</span></code> as <code class="docutils literal notranslate"><span class="pre">makeRoot</span></code> does, so it clears the new
+root’s label and action records too. Before, a script exported after a count prune could
+replay the action that produced the baseline.</p></li>
+<li><p><strong>R7.</strong> <code class="docutils literal notranslate"><span class="pre">document_gpu.cpp</span></code> is deleted, with the eight forwarders, the 19-argument
+<code class="docutils literal notranslate"><span class="pre">ensureMeshGpuResources</span></code> and the eleven type aliases. <code class="docutils literal notranslate"><span class="pre">Document</span></code> keeps owning the cache and
+exposes it as <code class="docutils literal notranslate"><span class="pre">gpuCache()</span></code>; <code class="docutils literal notranslate"><span class="pre">document.h</span></code> no longer includes a <code class="docutils literal notranslate"><span class="pre">src/render</span></code> header. The nine
+<code class="docutils literal notranslate"><span class="pre">bool</span></code>s are <code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache::Needs</span></code>, and one <code class="docutils literal notranslate"><span class="pre">RenderWidget::ensureMeshGpu</span></code> builds the
+source. It always takes the quality range from the view’s settings: the depth pick had passed
+only three of the five fields, so a scalar-colored point cloud was rebuilt for every pick and
+again on the next frame.</p></li>
+<li><p><strong>R8.1</strong> The per-frame <code class="docutils literal notranslate"><span class="pre">syncPerMeshRenderModesWithDocument</span></code> calls are gone; <code class="docutils literal notranslate"><span class="pre">onLayersChanged</span></code>
+already runs it on every layer signal and undo restore. <strong>R8.3</strong> One <code class="docutils literal notranslate"><span class="pre">worldBoxCorners</span></code> (on
+vcglib’s <code class="docutils literal notranslate"><span class="pre">Box3::P</span></code>) replaces five copies of the corner block, a fifth having been found in
+<code class="docutils literal notranslate"><span class="pre">computeVisibleSceneBoundingBox</span></code>, which is now a flag of <code class="docutils literal notranslate"><span class="pre">computeWorldSceneBBox</span></code>; the frustum
+depth is computed once per frame instead of once per raster. <strong>R8.4</strong> Preference descriptors
+are found by <code class="docutils literal notranslate"><span class="pre">QHash</span></code>. <strong>R8.5</strong> The UV tick labels are hidden on leaving the UV view, not every
+frame. <strong>R8.6</strong> The four fallback-texture uploads are one loop.</p></li>
+<li><p><strong>Not done.</strong> R8.2: a tile’s request skips every other mesh on an index comparison before it
+copies anything, so a tile copies one mesh’s settings, not all; filtering the frame request
+would mean re-aggregating its flags for no measurable gain. The frustum vertex buffers are
+still refilled each frame: a few dozen floats per raster into a dynamic buffer.</p></li>
+<li><p>Phase 3 (R1) was skipped by decision; see the reassessment above.</p></li>
+</ul>
 </section>
 <section id="phase-5-undo-capture-cost-u2-u1-small-form-u5-u7">
 <h3>Phase 5: undo capture cost (U2, U1 small form, U5, U7)<a class="headerlink" href="#phase-5-undo-capture-cost-u2-u1-small-form-u5-u7" title="Link to this heading">¶</a></h3>
