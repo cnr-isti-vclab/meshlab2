@@ -1109,6 +1109,14 @@ MeshAttributeDelta Document::captureAttributeDelta(int meshIndex, std::uint32_t 
                           [](const VCGFace &f) { return f.IsS(); });
         packSelectionBits(delta.edgeSelectionBits, m.edge, en,
                           [](const VCGEdge &e) { return e.IsS(); });
+        if (std::any_of(m.face.begin(), m.face.end(), [](const VCGFace &f) {
+                return f.IsFaceEdgeS(0) || f.IsFaceEdgeS(1) || f.IsFaceEdgeS(2); })) {
+            delta.faceEdgeSelectionBits.assign(size_t((3 * fn + 31) / 32), 0);
+            for (int i = 0; i < 3 * fn; ++i) {
+                if (m.face[size_t(i / 3)].IsFaceEdgeS(i % 3))
+                    delta.faceEdgeSelectionBits[size_t(i / 32)] |= 1u << unsigned(i % 32);
+            }
+        }
     }
     if (kinds & MeshAttributeColor) {
         delta.vertexColors.resize(size_t(std::max(0, vn)));
@@ -1135,53 +1143,67 @@ MeshAttributeDelta Document::captureAttributeDelta(int meshIndex, std::uint32_t 
     return delta;
 }
 
+void DocumentInternal::applyAttributeValues(VCGMesh &m, const MeshAttributeDelta &delta)
+{
+    const int vn = m.VN();
+    const int fn = m.FN();
+    const int en = m.EN();
+
+    if (delta.kinds & MeshAttributeSelection) {
+        unpackSelectionBits(delta.vertexSelectionBits, m.vert, vn,
+                            [](VCGVertex &v) { v.ClearS(); },
+                            [](VCGVertex &v) { v.SetS(); });
+        unpackSelectionBits(delta.faceSelectionBits, m.face, fn,
+                            [](VCGFace &f) { f.ClearS(); },
+                            [](VCGFace &f) { f.SetS(); });
+        unpackSelectionBits(delta.edgeSelectionBits, m.edge, en,
+                            [](VCGEdge &e) { e.ClearS(); },
+                            [](VCGEdge &e) { e.SetS(); });
+        const auto &edgeBits = delta.faceEdgeSelectionBits;
+        for (int i = 0; i < fn; ++i) {
+            for (int k = 0; k < 3; ++k) {
+                const size_t bit = size_t(3 * i + k);
+                if (bit / 32 < edgeBits.size() && (edgeBits[bit / 32] & (1u << unsigned(bit % 32))))
+                    m.face[size_t(i)].SetFaceEdgeS(k);
+                else
+                    m.face[size_t(i)].ClearFaceEdgeS(k);
+            }
+        }
+    }
+    // The element counts cannot have changed -- a delta step is only taken for an
+    // action that declared it touches nothing else -- but clamp anyway so a
+    // mis-declared filter corrupts colours rather than memory.
+    if (delta.kinds & MeshAttributeColor) {
+        const int nv = std::min(vn, int(delta.vertexColors.size()));
+        for (int k = 0; k < nv; ++k)
+            m.vert[size_t(k)].C() = unpackColor(delta.vertexColors[size_t(k)]);
+        const int nf = std::min(fn, int(delta.faceColors.size()));
+        for (int k = 0; k < nf; ++k)
+            m.face[size_t(k)].C() = unpackColor(delta.faceColors[size_t(k)]);
+        const int ne = std::min(en, int(delta.edgeColors.size()));
+        for (int k = 0; k < ne; ++k)
+            m.edge[size_t(k)].C() = unpackColor(delta.edgeColors[size_t(k)]);
+    }
+    if (delta.kinds & MeshAttributeScalar) {
+        const int nv = std::min(vn, int(delta.vertexScalars.size()));
+        for (int k = 0; k < nv; ++k)
+            m.vert[size_t(k)].Q() = delta.vertexScalars[size_t(k)];
+        const int nf = std::min(fn, int(delta.faceScalars.size()));
+        for (int k = 0; k < nf; ++k)
+            m.face[size_t(k)].Q() = delta.faceScalars[size_t(k)];
+        const int ne = std::min(en, int(delta.edgeScalars.size()));
+        for (int k = 0; k < ne; ++k)
+            m.edge[size_t(k)].Q() = delta.edgeScalars[size_t(k)];
+    }
+}
+
 void Document::applyAttributeDelta(const MeshAttributeDelta &delta)
 {
     for (int i = 0; i < meshCount(); ++i) {
         MeshEntry &entry = mesh(i);
         if (entry.meshId != delta.meshId)
             continue;
-        VCGMesh &m = entry.mesh;
-        const int vn = m.VN();
-        const int fn = m.FN();
-        const int en = m.EN();
-
-        if (delta.kinds & MeshAttributeSelection) {
-            unpackSelectionBits(delta.vertexSelectionBits, m.vert, vn,
-                                [](VCGVertex &v) { v.ClearS(); },
-                                [](VCGVertex &v) { v.SetS(); });
-            unpackSelectionBits(delta.faceSelectionBits, m.face, fn,
-                                [](VCGFace &f) { f.ClearS(); },
-                                [](VCGFace &f) { f.SetS(); });
-            unpackSelectionBits(delta.edgeSelectionBits, m.edge, en,
-                                [](VCGEdge &e) { e.ClearS(); },
-                                [](VCGEdge &e) { e.SetS(); });
-        }
-        // The element counts cannot have changed -- a delta step is only taken for an
-        // action that declared it touches nothing else -- but clamp anyway so a
-        // mis-declared filter corrupts colours rather than memory.
-        if (delta.kinds & MeshAttributeColor) {
-            const int nv = std::min(vn, int(delta.vertexColors.size()));
-            for (int k = 0; k < nv; ++k)
-                m.vert[size_t(k)].C() = unpackColor(delta.vertexColors[size_t(k)]);
-            const int nf = std::min(fn, int(delta.faceColors.size()));
-            for (int k = 0; k < nf; ++k)
-                m.face[size_t(k)].C() = unpackColor(delta.faceColors[size_t(k)]);
-            const int ne = std::min(en, int(delta.edgeColors.size()));
-            for (int k = 0; k < ne; ++k)
-                m.edge[size_t(k)].C() = unpackColor(delta.edgeColors[size_t(k)]);
-        }
-        if (delta.kinds & MeshAttributeScalar) {
-            const int nv = std::min(vn, int(delta.vertexScalars.size()));
-            for (int k = 0; k < nv; ++k)
-                m.vert[size_t(k)].Q() = delta.vertexScalars[size_t(k)];
-            const int nf = std::min(fn, int(delta.faceScalars.size()));
-            for (int k = 0; k < nf; ++k)
-                m.face[size_t(k)].Q() = delta.faceScalars[size_t(k)];
-            const int ne = std::min(en, int(delta.edgeScalars.size()));
-            for (int k = 0; k < ne; ++k)
-                m.edge[size_t(k)].Q() = delta.edgeScalars[size_t(k)];
-        }
+        applyAttributeValues(entry.mesh, delta);
 
         // Colour and scalar live inside the VCGMesh, so the GPU buffers that read them
         // are keyed on geometryRevision; selection has its own. Bump whichever applies

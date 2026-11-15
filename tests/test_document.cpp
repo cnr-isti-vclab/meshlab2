@@ -123,6 +123,10 @@ private slots:
     void polylineLayerWalksItsEdgeGraph();
     void memoryStatsDeduplicateImagesAndTrackUndoOwnership();
     void memoryStatsIncludeSelectionAndPendingSnapshots();
+    void aSelectionChangeCostsTheNextStateNoCopyOfTheMesh();
+    void aFullStepUndoesAFaceEdgeSelection();
+    void jumpingRestoresTheTargetAcrossFullAndDeltaSteps();
+    void aMemoryBudgetKeepsTheNewestStatesThatFit();
     void selectionDeltaUndoCoversEdges();
     void undoMemoryBudgetAndPressurePurgeSafely();
     void processMemoryInfoReportsCurrentProcess();
@@ -3287,6 +3291,182 @@ void DocumentTests::memoryStatsIncludeSelectionAndPendingSnapshots()
     QVERIFY(pendingStats.totalBytes() >= pendingStats.pendingGeometryBytes);
     doc.endUndoStep(false);
     QCOMPARE(doc.undoMemoryStats().pendingBytes(), 0);
+}
+
+// States keep the selection apart from the geometry: the full step after a selection shares
+// the copy made before it, and every restore -- onto that shared copy or onto the live layer
+// -- puts back the selection of its own state, not the one the copy was made with.
+void DocumentTests::aSelectionChangeCostsTheNextStateNoCopyOfTheMesh()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 8);
+    doc.setSuppressUndo(true);
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Shared")), 0);
+    doc.setSuppressUndo(false);
+    doc.clearUndoHistory();
+    const auto selected = [&doc](int v) { return doc.mesh(0).mesh.vert[size_t(v)].IsS(); };
+
+    doc.beginUndoStep(QStringLiteral("Select v0"), 0, MeshAttributeSelection);
+    doc.mesh(0).mesh.vert[0].SetS();
+    doc.markMeshSelectionChanged(0);
+    doc.endUndoStep(true);
+    doc.setMeshName(0, QStringLiteral("Renamed"));
+    QCOMPARE(doc.undoMemoryStats().uniqueGeometryCount, 1);
+
+    doc.beginUndoStep(QStringLiteral("Move v5, select v1"));
+    doc.mesh(0).mesh.vert[5].P() = vcg::Point3f(1, 2, 3);
+    doc.mesh(0).mesh.vert[0].ClearS();
+    doc.mesh(0).mesh.vert[1].SetS();
+    doc.markMeshGeometryChanged(0);
+    doc.markMeshSelectionChanged(0);
+    doc.endUndoStep(true);
+
+    // Back to the rename: a copy of the geometry captured with nothing selected.
+    QVERIFY(doc.undo());
+    QVERIFY(selected(0));
+    QVERIFY(!selected(1));
+    QCOMPARE(doc.mesh(0).mesh.vert[5].P(), vcg::Point3f(0, 0, 0));
+    QVERIFY(doc.redo());
+    QVERIFY(!selected(0));
+    QVERIFY(selected(1));
+    // Back past the selection delta and the rename to the start, then forward again.
+    QVERIFY(doc.undo());
+    QVERIFY(doc.undo());
+    QVERIFY(doc.undo());
+    QVERIFY(!selected(0));
+    QVERIFY(doc.redo());
+    QVERIFY(doc.redo());
+    QVERIFY(selected(0));
+    QCOMPARE(doc.mesh(0).name, QStringLiteral("Renamed"));
+}
+
+// The per-face edge bits are selection too: a full step that sets them alone shares the
+// geometry copy, so the selection it keeps beside that copy must carry them.
+void DocumentTests::aFullStepUndoesAFaceEdgeSelection()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 3);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    doc.setSuppressUndo(true);
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Edges")), 0);
+    doc.setSuppressUndo(false);
+    doc.clearUndoHistory();
+
+    doc.beginUndoStep(QStringLiteral("Select an edge"));
+    doc.mesh(0).mesh.face[0].SetFaceEdgeS(1);
+    doc.markMeshSelectionChanged(0);
+    doc.endUndoStep(true);
+
+    QVERIFY(doc.undo());
+    QVERIFY(!doc.mesh(0).mesh.face[0].IsFaceEdgeS(1));
+    QVERIFY(doc.redo());
+    QVERIFY(doc.mesh(0).mesh.face[0].IsFaceEdgeS(1));
+    QVERIFY(!doc.mesh(0).mesh.face[0].IsFaceEdgeS(0));
+}
+
+// A jump restores the target once -- or its nearest full snapshot and the deltas below it --
+// instead of undoing and redoing through every state on the way, and leaves the redo
+// branches pointing back the way it came.
+void DocumentTests::jumpingRestoresTheTargetAcrossFullAndDeltaSteps()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 8);
+    doc.setSuppressUndo(true);
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Jump")), 0);
+    doc.setSuppressUndo(false);
+    doc.clearUndoHistory();
+    const auto moveTo = [&doc](float x) {
+        doc.beginUndoStep(QStringLiteral("Move"));
+        doc.mesh(0).mesh.vert[0].P() = vcg::Point3f(x, 0, 0);
+        doc.markMeshGeometryChanged(0);
+        doc.endUndoStep(true);
+        return doc.undoCurrentNodeId();
+    };
+    const auto select = [&doc](int v) {
+        doc.beginUndoStep(QStringLiteral("Select"), 0, MeshAttributeSelection);
+        doc.mesh(0).mesh.vert[size_t(v)].SetS();
+        doc.markMeshSelectionChanged(0);
+        doc.endUndoStep(true);
+        return doc.undoCurrentNodeId();
+    };
+    const auto check = [&doc](float x, std::initializer_list<int> selectedVerts) {
+        const VCGMesh &live = doc.mesh(0).mesh;
+        if (live.vert[0].P().X() != x)
+            return false;
+        for (int v = 0; v < 8; ++v) {
+            const bool want = std::find(selectedVerts.begin(), selectedVerts.end(), v) != selectedVerts.end();
+            if (live.vert[size_t(v)].IsS() != want)
+                return false;
+        }
+        return true;
+    };
+
+    moveTo(1.0f);
+    const int b = select(1);
+    moveTo(2.0f);
+    const int d = select(2);
+    QVERIFY(doc.undo());
+    QVERIFY(doc.undo());
+    const int e = moveTo(5.0f);
+
+    QVERIFY(doc.jumpToUndoNode(d, false));
+    QVERIFY(check(2.0f, { 1, 2 }));
+    QVERIFY(doc.undo());
+    QVERIFY(check(2.0f, { 1 }));
+    QVERIFY(doc.jumpToUndoNode(b, false));
+    QVERIFY(check(1.0f, { 1 }));
+    QVERIFY(doc.jumpToUndoNode(e, false));
+    QVERIFY(check(5.0f, { 1 }));
+    QVERIFY(doc.jumpToUndoNode(0, false));
+    QVERIFY(check(0.0f, {}));
+    // Redo retraces the jump: up to B, and on along the branch it came down, to E.
+    QVERIFY(doc.redo());
+    QVERIFY(doc.redo());
+    QVERIFY(doc.redo());
+    QCOMPARE(doc.undoCurrentNodeId(), e);
+    QVERIFY(check(5.0f, { 1 }));
+}
+
+// Pruning to a byte budget keeps as much of the recent history as fits the target (four
+// fifths of the budget) and no more: one state further back would not fit.
+void DocumentTests::aMemoryBudgetKeepsTheNewestStatesThatFit()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 1000);
+    doc.setSuppressUndo(true);
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Budget")), 0);
+    doc.setSuppressUndo(false);
+    doc.clearUndoHistory();
+    for (int step = 1; step <= 6; ++step) {
+        doc.beginUndoStep(QStringLiteral("Move"));
+        doc.mesh(0).mesh.vert[0].P().X() = float(step);
+        doc.markMeshGeometryChanged(0);
+        doc.endUndoStep(true);
+    }
+    const UndoMemoryStats before = doc.undoMemoryStats();
+    QCOMPARE(before.uniqueGeometryCount, 7);
+    // Every state is one copy of the mesh, and all of them share the one empty selection,
+    // which each step's referenced bytes include.
+    const qint64 copy = (before.geometryBytes - before.steps.back().referencedGeometryBytes) / 6;
+    const qint64 selection = before.steps.back().referencedGeometryBytes - copy;
+    QVERIFY(copy > 0 && selection > 0);
+    QCOMPARE(before.geometryBytes, 7 * copy + selection);
+
+    const qint64 budget = 5 * copy + selection;
+    const qint64 target = budget * 4 / 5;
+    const UndoPruneResult result = doc.pruneUndoToMemoryBudget(budget);
+    QVERIFY(!result.cleared);
+    const int kept = doc.undoMemoryStats().uniqueGeometryCount;
+    QVERIFY(kept * copy + selection <= target);
+    QVERIFY((kept + 1) * copy + selection > target);
+    QCOMPARE(doc.mesh(0).mesh.vert[0].P().X(), 6.0f);
+    for (int i = 1; i < kept; ++i)
+        QVERIFY(doc.undo());
+    QVERIFY(!doc.canUndo());
 }
 
 void DocumentTests::undoMemoryBudgetAndPressurePurgeSafely()

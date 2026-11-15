@@ -1405,6 +1405,9 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             vcg::tri::OutlierRemoval<VCGMesh>::SelectLoOPOutliers(mesh, kdTree, kNearest, threshold);
         if (doc.isOperationCancelRequested())
             return interruptResult();
+        // The outlierScore attribute it leaves is content the selection revision does not
+        // cover: an undo that keeps the layer would keep the attribute too.
+        doc.markMeshMaterialChanged(meshIndex, QObject::tr("Stored outlierScore on '%1'").arg(entry.name));
         return selectionResult(
             meshIndex,
             entry,

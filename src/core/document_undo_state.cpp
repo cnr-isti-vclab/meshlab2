@@ -14,7 +14,8 @@ UndoState Document::captureUndoState() const
     state.visibilitySets = m_visibilitySets;
     state.unit = m_unit;
     state.meshes.reserve(m_meshes.size());
-    for (const auto &entry : m_meshes) {
+    for (int meshIndex = 0; meshIndex < meshCount(); ++meshIndex) {
+        const auto &entry = m_meshes[size_t(meshIndex)];
         if (!entry)
             continue;
 
@@ -39,24 +40,30 @@ UndoState Document::captureUndoState() const
         // Pointers, not payloads: immutability makes sharing the capture.
         snap.pluginData         = entry->pluginData;
 
-        // Attempt to reuse an already-interned geometry object.
-        // Key: (meshId, geometryRevision, selectionRevision, materialRevision) — the full
-        // content identity. As long as those revisions haven't changed since the last
-        // capture, every subsequent checkpoint shares the same VCGMesh allocation
-        // — zero extra deep-copy cost for actions that touch none of them.
-        const auto key = std::make_tuple(entry->meshId, entry->geometryRevision,
-                                         entry->selectionRevision, entry->materialRevision);
-        auto it = m_undoManager->geometryCache().find(key);
-        if (it != m_undoManager->geometryCache().end())
-            snap.geometry = it->second.lock(); // null if all checkpoints were evicted
-
+        // Reuse the interned geometry and selection when their revisions have not moved
+        // since the last capture: actions that touch neither cost no copy. A miss (the
+        // first capture after a change, or after every state holding it was pruned)
+        // copies and interns; the caches hold weak_ptrs and keep nothing alive.
+        const DocumentUndoManager::GeometryKey geometryKey(
+            entry->meshId, entry->geometryRevision, entry->materialRevision);
+        if (auto it = m_undoManager->geometryCache().find(geometryKey);
+            it != m_undoManager->geometryCache().end())
+            snap.geometry = it->second.lock();
         if (!snap.geometry) {
-            // Cache miss (first capture after a geometry change, or after the cached
-            // weak_ptr expired). Deep-copy now and intern for future captures.
             auto g = std::make_shared<VCGMesh>();
             deepCopyMesh(entry->mesh, *g);
             snap.geometry = g;
-            m_undoManager->geometryCache()[key] = g; // weak_ptr — does not keep g alive on its own
+            m_undoManager->geometryCache()[geometryKey] = g;
+        }
+        const DocumentUndoManager::SelectionKey selectionKey(entry->meshId, entry->selectionRevision);
+        if (auto it = m_undoManager->selectionCache().find(selectionKey);
+            it != m_undoManager->selectionCache().end())
+            snap.selection = it->second.lock();
+        if (!snap.selection) {
+            auto sel = std::make_shared<const MeshAttributeDelta>(
+                captureAttributeDelta(meshIndex, MeshAttributeSelection));
+            snap.selection = sel;
+            m_undoManager->selectionCache()[selectionKey] = sel;
         }
 
         state.meshes.push_back(std::move(snap));
@@ -89,22 +96,16 @@ void Document::restoreUndoState(const UndoState &state, bool keepUnchangedMeshes
     const bool prevRestoring = m_undoManager->isRestoring();
     m_undoManager->setRestoring(true);
 
-    // Evict geometry cache entries whose revision is strictly greater than the
-    // revision we are about to restore.  Because m_nextGeometryRevision is a
-    // globally monotonic counter that is never reset during undo/redo, each
-    // distinct geometry snapshot always receives a unique (meshId, geometryRevision)
-    // key.  Cross-branch cache collisions are therefore impossible.
-    // The loop below is kept as a memory-hygiene pass: it removes weak_ptr entries
-    // that can never be referenced by any state reachable from the restored node,
-    // letting the map stay compact even before the natural weak_ptr expiry of
-    // pruned nodes.
-    for (const auto &snap : state.meshes) {
-        auto it = m_undoManager->geometryCache().lower_bound(
-            std::make_tuple(snap.meshId, snap.geometryRevision, snap.selectionRevision,
-                            snap.materialRevision + 1));
-        while (it != m_undoManager->geometryCache().end() && std::get<0>(it->first) == snap.meshId)
-            it = m_undoManager->geometryCache().erase(it);
-    }
+    // Drop the cache entries no state holds any more, so the maps stay as small as the
+    // history. The rest stay, those of the states ahead of this one included: a redo
+    // brings their revisions back, and the next capture then finds the copy instead of
+    // making another.
+    const auto dropExpired = [](auto &cache) {
+        for (auto it = cache.begin(); it != cache.end();)
+            it = it->second.expired() ? cache.erase(it) : std::next(it);
+    };
+    dropExpired(m_undoManager->geometryCache());
+    dropExpired(m_undoManager->selectionCache());
 
     {
         QElapsedTimer t; t.start();
@@ -126,11 +127,11 @@ void Document::restoreUndoState(const UndoState &state, bool keepUnchangedMeshes
             int kept = 0;
             for (const auto &snap : state.meshes) {
                 std::unique_ptr<MeshEntry> entry;
+                bool copied = false;
                 const auto it = live.find(snap.meshId);
                 if (keepUnchangedMeshes && it != live.end()
                     && it->second->geometryRevision == snap.geometryRevision
-                    && it->second->materialRevision == snap.materialRevision
-                    && it->second->selectionRevision == snap.selectionRevision) {
+                    && it->second->materialRevision == snap.materialRevision) {
                     entry = std::move(it->second);
                     live.erase(it);
                     ++kept;
@@ -139,7 +140,12 @@ void Document::restoreUndoState(const UndoState &state, bool keepUnchangedMeshes
                     QElapsedTimer t2; t2.start();
                     deepCopyMesh(*snap.geometry, entry->mesh);
                     copyMs += t2.elapsed();
+                    copied = true;
                 }
+                // A kept layer may differ from the state in its selection alone, and a copy
+                // carries the selection of whichever state made it.
+                if (copied || entry->selectionRevision != snap.selectionRevision)
+                    applyAttributeValues(entry->mesh, *snap.selection);
                 entry->meshId           = snap.meshId;
                 entry->geometryRevision = snap.geometryRevision;
                 entry->materialRevision = snap.materialRevision;

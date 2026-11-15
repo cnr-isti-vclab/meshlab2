@@ -55,6 +55,7 @@ struct ScriptAction {
 // shared_ptr so that multiple checkpoints with the same (meshId, geometryRevision)
 // can share a single copy — the common case when an action does not touch geometry
 // (e.g. toggle visibility, change transform, rename).
+struct MeshAttributeDelta;
 struct MeshSnapshot {
     std::uint64_t meshId = 0;
     std::uint64_t geometryRevision = 0;
@@ -73,8 +74,13 @@ struct MeshSnapshot {
     bool visible = false;
     int ioMask = 0;
     int polygonFaceCount = -1;
-    // Shared, immutable geometry; never null after capture.
+    // Shared, immutable geometry; never null after capture. Its selection bits are not the
+    // state's: states that differ only in selection share one copy, and `selection` says
+    // which elements were selected.
     std::shared_ptr<const VCGMesh> geometry;
+    // The selection (MeshAttributeSelection kinds only), shared by states with the same
+    // selectionRevision; never null after capture.
+    std::shared_ptr<const MeshAttributeDelta> selection;
     // Plugin-owned intermediates. Immutable, so the snapshot shares the very objects the
     // layer held at capture -- copying this map copies pointers, not payloads, and no
     // plugin code runs on either the undo or the redo path.
@@ -193,6 +199,10 @@ struct MeshAttributeDelta {
     std::vector<std::uint32_t> vertexSelectionBits;
     std::vector<std::uint32_t> faceSelectionBits;
     std::vector<std::uint32_t> edgeSelectionBits;
+    // The per-face edge bits of a triangle mesh (FaceEdgeS), three per face, packed the
+    // same way. Undo states keep the selection apart from the geometry they share, so
+    // these go with the selection, not the copy.
+    std::vector<std::uint32_t> faceEdgeSelectionBits;
 
     // Colour: one packed RGBA word per element.
     std::vector<std::uint32_t> vertexColors;

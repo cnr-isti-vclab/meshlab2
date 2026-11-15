@@ -122,6 +122,8 @@ void compactMeshStorageInvariant(VCGMesh &mesh);
 void computeMissingNormals(VCGMesh &mesh, int loadMask);
 void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst);
 void deepCopyMesh(const VCGMesh &src, VCGMesh &dst);
+// Writes the attribute values `delta` carries into `m`; no revision moves, no signal.
+void applyAttributeValues(VCGMesh &m, const MeshAttributeDelta &delta);
 
 // Mesh memory accounting helpers (shared between document_memory.cpp and documentundomanager.cpp)
 template <typename Vector>

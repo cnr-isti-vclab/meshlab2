@@ -64,14 +64,19 @@ public:
     void setRestoring(bool restoring) { m_restoringUndoRedo = restoring; }
     void emitStateChanged();
 
-    // Key: (meshId, geometryRevision, selectionRevision, materialRevision) — the full
-    // content identity of a mesh, so a change that bumps only the selection or the material
-    // still gets its own interned copy. Material covers colors and custom attributes: the
-    // Define Custom Attribute filters bump only it, and without it in the key the "after"
-    // checkpoint reused the "before" copy, so redo lost the attribute.
-    std::map<std::tuple<std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>> &geometryCache()
+    // Key: (meshId, geometryRevision, materialRevision) — the content identity of a mesh
+    // apart from its selection, which states keep on their own (selectionCache) so that a
+    // selection change does not cost the next state a copy of the mesh. Material covers
+    // colors and custom attributes: the Define Custom Attribute filters bump only it, and
+    // without it in the key the "after" checkpoint reused the "before" copy, so redo lost
+    // the attribute.
+    using GeometryKey = std::tuple<std::uint64_t, std::uint64_t, std::uint64_t>;
+    std::map<GeometryKey, std::weak_ptr<const VCGMesh>> &geometryCache() { return m_undoGeometryCache; }
+    // Key: (meshId, selectionRevision).
+    using SelectionKey = std::pair<std::uint64_t, std::uint64_t>;
+    std::map<SelectionKey, std::weak_ptr<const MeshAttributeDelta>> &selectionCache()
     {
-        return m_undoGeometryCache;
+        return m_undoSelectionCache;
     }
 
     const std::vector<UndoNode> &nodes() const { return m_undoNodes; }
@@ -101,7 +106,8 @@ private:
     void logAutomaticPrune(const UndoPruneResult &result, const QString &reason);
 
     Document &m_doc;
-    std::map<std::tuple<std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t>, std::weak_ptr<const VCGMesh>> m_undoGeometryCache;
+    std::map<GeometryKey, std::weak_ptr<const VCGMesh>> m_undoGeometryCache;
+    std::map<SelectionKey, std::weak_ptr<const MeshAttributeDelta>> m_undoSelectionCache;
     std::vector<UndoNode> m_undoNodes;
     int m_undoCurrentNode = -1;
     int m_undoLimit = 20;
