@@ -547,6 +547,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         vcg::tri::LocalFlattening<VCGMesh>::Param par;
         par.halfWidth = float(params.getDouble(QStringLiteral("halfWidth")));
         par.stiffness = float(params.getDouble(QStringLiteral("stiffness")));
+        par.gridStep = float(params.getDouble(QStringLiteral("gridStep")));
+        par.smoothSigma = float(params.getDouble(QStringLiteral("smoothSigma")));
         par.cb = doc.progressCallback();
         doc.beginFilterProgress(QObject::tr("Parametrize Surface along Polyline (Local Flattening)"));
         vcg::tri::LocalFlattening<VCGMesh>::Stats st;
@@ -569,7 +571,8 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(patch);
 
         const int ioMask = Mask::IOM_VERTTEXCOORD | Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTNORMAL
-            | Mask::IOM_FACENORMAL | (entry.ioMask & (Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY));
+            | Mask::IOM_FACENORMAL | (entry.ioMask & (Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY))
+            | (par.gridStep > 0 ? Mask::IOM_BITPOLYGONAL : 0);  // the grid's quads, as faux diagonals
         const int newIndex = doc.addMesh(patch, {}, ioMask);
         if (newIndex >= 0)
             doc.mesh(newIndex).transform = entry.transform;  // a piece of the same surface, in its frame

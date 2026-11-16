@@ -155,6 +155,22 @@ as the method, and the propagation only if the first proves fragile.
    which zigzag and run 20 to 60% longer than the curve they stand for, 5 to 20%, U only or U and
    V alike. A few strips still collapse locally at a corner (one face pair with a ratio in the
    thousands); not yet understood.
+   **Grid remeshing and smoothing** (added 2026-11-16, Paolo): the patch can be remeshed in
+   parametric space as a regular grid laid exactly on the rectangle (*Remesh as a grid*, a step),
+   and its shape smoothed by a Gaussian (*Smoothing*, sigma), both through one geometry image:
+   the cropped surface sampled at the grid's nodes, each node at the nearest point of the patch in
+   UV within a twentieth of a step, so that rounding along the crop's border loses no node while
+   a hole in the scan stays one. Smoothing moves each sample only along the normal of the
+   smoothed shape, P' = P - n((P - S) . n): the smoothed point S alone also slides sideways near
+   the border, where the Gaussian sees one side only, and pulled the patch's edges in (edge
+   ratios down to 0.36 on the test cylinder). Without the grid, each vertex moves as the grid
+   samples around it did. The crop was made exact on the way: `ClipMeshWithUVLine` now puts the
+   vertices it takes as lying on a line exactly on it, as `ClipMeshWithPlane` does. Measured on
+   the cylinder: a complete 2 x 40 x 80 grid with ratios 0.999 to 1.003 unsmoothed, and with
+   sigma 0.3 pulled in by sigma^2 / 2r as a smoothed cylinder should be; on the Ruth strip, a 1 mm
+   grid smoothed by 5 mm from the raw scan, then baked from it along the normal, reads the same
+   grooves as the two-copy workflow, in one step, sampling the scan evenly (0.5% against 1.4% by
+   closest point).
 2. **The height map**, decided 2026-11-15 after a first version was withdrawn: not a filter of
    its own but a **Signed Distance** data source of *Transfer Vertex Attributes to Texture by
    Closest Point*, which already samples a source mesh at every texel of the current mesh's UV

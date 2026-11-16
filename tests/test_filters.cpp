@@ -16161,6 +16161,22 @@ void FilterTests::localFlatteningUnrollsACylinderIsometrically()
     QVERIFY(std::abs(box.min[0]) < 1e-5f && std::abs(box.max[0] - 2 / scale) < 1e-5f);
     QVERIFY(std::abs(box.min[1]) < 1e-5f && std::abs(box.max[1] - 1) < 1e-5f);
 
+    // remeshed as a grid in parametric space and smoothed: a complete grid on the same rectangle,
+    // still near-isometric, pulled inside the cylinder by about sigma^2 / 2r
+    p.insert(QStringLiteral("gridStep"), 0.1);
+    p.insert(QStringLiteral("smoothSigma"), 0.3);
+    res = doc.runFilter(key, p);
+    QVERIFY2(res.success, qPrintable(res.errorMessage));
+    const VCGMesh &grid = doc.mesh(res.newMeshIndices.front()).mesh;
+    const int nu = 21, nv = int(std::lround(res.outputValues.value(QStringLiteral("length")).toDouble() / 0.1)) + 1;
+    QCOMPARE(grid.VN(), nu * nv);
+    QCOMPARE(grid.FN(), 2 * (nu - 1) * (nv - 1));
+    QVERIFY(res.outputValues.value(QStringLiteral("min_length_ratio")).toDouble() > 0.98);
+    QVERIFY(res.outputValues.value(QStringLiteral("max_length_ratio")).toDouble() < 1.02);
+    double meanRadius = 0;
+    for (const VCGVertex &v : grid.vert) meanRadius += std::hypot(v.cP()[0], v.cP()[1]) / grid.VN();
+    QVERIFY2(std::abs(meanRadius - (r - 0.09 / (2 * r))) < 0.01, qPrintable(QString::number(meanRadius)));
+
     // a closed polyline has no ends to run along
     helix.push_back(helix.front());
     makePolyline(line, helix);

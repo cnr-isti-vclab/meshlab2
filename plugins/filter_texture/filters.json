@@ -105,7 +105,7 @@
       "name": "Parametrize Surface along Polyline (Local Flattening)",
       "pythonName": "parametrize_surface_along_polyline_local_flattening",
       "shortDescription": "Create a rectangular patch of the surface around a polyline, flattened with proportional UVs in the unit square.",
-      "longDescriptionMarkdown": "Flatten a strip of the current surface that runs along a polyline drawn on it, into a rectangle: the local flattening operator of Pietroni et al., which turns a portion of a scanned artwork into an image in which lengths can be measured, carved marks compared and photographs laid side by side.\n\nThe faces within a geodesic distance of the polyline a little over the half-width are taken, and must form a disk. A conformal map that pulls the polyline onto a straight line gives a cross field that follows it, and the strip is then parametrized aligned to that field. The result is cropped exactly to the rectangle $2w \\times L$, the polyline running along its middle in the $V$ direction from its end with the lower index, where $w$ is the half-width and $L$ the polyline's straightened length.\n\nThe patch is a **new layer** with per-vertex and per-wedge texture coordinates scaled uniformly into the unit square, its longer side spanning 0 to 1, so texture tools can use it at once: lengths in UV are lengths on the surface divided by `uv_scale`, an output value. The current mesh is left unchanged. To make a height map of the residual marks, flatten a smoothed or simplified copy, then bake the full model onto the patch with *Transfer Vertex Attributes to Texture by Closest Point* and *Signed Distance*; photographs go onto it with *Transfer Color from Visible Rasters to Texture*. The log and the output values report the distortion as the paper does: the smallest and largest ratio between an edge's length on the surface and in UV, and their average deviation from 1.\n\nThe paper's equation 1 pulls only the U coordinate of the polyline to a constant. Here V is also pulled to the arc length along the polyline, which on a developable surface cuts the length distortion by an order of magnitude; the polyline need not be a geodesic, and is straightened. The polyline must be a single open curve lying on the surface; one made with *Create Polyline from Geodesic Path* is.",
+      "longDescriptionMarkdown": "Flatten a strip of the current surface that runs along a polyline drawn on it, into a rectangle: the local flattening operator of Pietroni et al., which turns a portion of a scanned artwork into an image in which lengths can be measured, carved marks compared and photographs laid side by side.\n\nThe faces within a geodesic distance of the polyline a little over the half-width are taken, and must form a disk. A conformal map that pulls the polyline onto a straight line gives a cross field that follows it, and the strip is then parametrized aligned to that field. The result is cropped exactly to the rectangle $2w \\times L$, the polyline running along its middle in the $V$ direction from its end with the lower index, where $w$ is the half-width and $L$ the polyline's straightened length.\n\nThe patch is a **new layer** with per-vertex and per-wedge texture coordinates scaled uniformly into the unit square, its longer side spanning 0 to 1, so texture tools can use it at once: lengths in UV are lengths on the surface divided by `uv_scale`, an output value. The current mesh is left unchanged. *Remesh as a grid* replaces the surface's own triangles with a regular grid over the rectangle, meshed in parametric space; *Smoothing* keeps only the patch's overall shape, moving each point along the normal, as the paper does with its geometry image. To make a height map of the residual marks, smooth the patch, then bake the original surface onto it with *Transfer Vertex Attributes to Texture by Closest Point*, *Signed Distance* and *Along the normal*; photographs go onto it with *Transfer Color from Visible Rasters to Texture*. The log and the output values report the distortion as the paper does: the smallest and largest ratio between an edge's length on the surface and in UV, and their average deviation from 1.\n\nThe paper's equation 1 pulls only the U coordinate of the polyline to a constant. Here V is also pulled to the arc length along the polyline, which on a developable surface cuts the length distortion by an order of magnitude; the polyline need not be a geodesic, and is straightened. The polyline must be a single open curve lying on the surface; one made with *Create Polyline from Geodesic Path* is.",
       "tags": [
         "parametrization",
         "uv",
@@ -140,6 +140,28 @@
           "default": "@bboxDiag005",
           "min": 0.0,
           "max": "@bboxDiagHalf",
+          "decimals": 6
+        },
+        {
+          "id": "gridStep",
+          "label": "Remesh as a grid",
+          "help": "If above zero, the patch is remeshed in parametric space as a regular grid of this step, laid exactly on the rectangle, instead of keeping the surface's own triangles. Nodes take the color, scalar and normal of the surface under them; holes stay holes.",
+          "group": "main",
+          "type": "absperc",
+          "default": 0.0,
+          "min": 0.0,
+          "max": "@bboxDiagTenth",
+          "decimals": 6
+        },
+        {
+          "id": "smoothSigma",
+          "label": "Smoothing (sigma)",
+          "help": "If above zero, the patch's shape is smoothed by a Gaussian of this standard deviation, moving each point only along the normal: the smooth base whose normals the detail can then be projected along. Features much narrower than sigma are removed.",
+          "group": "main",
+          "type": "absperc",
+          "default": 0.0,
+          "min": 0.0,
+          "max": "@bboxDiagTenth",
           "decimals": 6
         },
         {
