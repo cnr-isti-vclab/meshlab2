@@ -884,6 +884,37 @@ Behaviour:
 
 Size: about +110 / −470.
 
+**R9 done (2026-11-16).** `src/render` +428 / −716, net −288. The 4 rows were done, but not in the form the table planned.
+
+- **Implemented differently.** Building `(u, v, 0)` positions inside every cache builder would have touched each of them. Instead, `RenderWidget::ensureUvLayout` builds the active group as a mesh of its own, laid out in UV space:
+  - one vertex per vertex and UV pair;
+  - the colors, scalars and flags of its source;
+  - the UVs as wedge texcoords.
+
+  The cache builds every product from that mesh unchanged, under its own id: high bit set, the group above the mesh id. The key is `(meshId, group)`, as R9.1 planned.
+- **One cache change.** `MeshSource::vertexIdentity` lets the boundary and seam pass key edges by the layer's vertex and draw an edge on each of its sides. In 3D it is null, and the behaviour is unchanged.
+- **Gone:**
+  - `ensureUvMeshResources` (428 lines);
+  - `UvMeshGpu` and `m_uvMeshGpu`;
+  - the per-group draw ranges;
+  - the UV view's CPU color map baking.
+- **Selection.** A selection change alone copies the flags into the layout. The old code rebuilt every UV buffer.
+- **Behaviour.**
+  - Seams follow the 3D rule, which counts a boundary edge with UVs as a seam too.
+  - An edge between the shown group and another group is a boundary of the shown group.
+  - The wire is the 3D barycentric overlay and honors faux edges (D6-1).
+  - Edges draws that wire in the edge style, as before.
+- **Found on the way.** The UV view never uploaded the color map texture, because it baked colors on the CPU. The LUT refresh is now `RenderWidget::updateQualityColorMapLut`, called by both views.
+- **Tests.** The new `tests/render_probes/uv_view` renders a gargoyle parametrized by xatlas in the UV view and checks:
+  - the fill covers the charts;
+  - a per-vertex 0.25 is a quarter gray over exactly that area;
+  - select all tints the charts, and select none, a selection change alone, clears the tint;
+  - the wire draws;
+  - the seams outline the charts.
+
+  All 11 render probes and the 23 ctest suites pass.
+- **Not measured.** Speed and memory against the old UV renderer: its binary is gone with R6's commit.
+
 **U1 full form: every node a snapshot made of shared layers**
 
 | # | Current | Target | Measured evidence | Verdict |

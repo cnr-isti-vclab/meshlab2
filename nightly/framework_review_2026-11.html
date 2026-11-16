@@ -1365,6 +1365,47 @@ view of a group builds that group’s faces.</p></li>
 <li><p><strong>Memory.</strong> There is one shared copy instead of one per UV view.</p></li>
 </ul>
 <p>Size: about +110 / −470.</p>
+<p><strong>R9 done (2026-11-16).</strong> <code class="docutils literal notranslate"><span class="pre">src/render</span></code> +428 / −716, net −288. The 4 rows were done, but not in the form the table planned.</p>
+<ul>
+<li><p><strong>Implemented differently.</strong> Building <code class="docutils literal notranslate"><span class="pre">(u,</span> <span class="pre">v,</span> <span class="pre">0)</span></code> positions inside every cache builder would have touched each of them. Instead, <code class="docutils literal notranslate"><span class="pre">RenderWidget::ensureUvLayout</span></code> builds the active group as a mesh of its own, laid out in UV space:</p>
+<ul class="simple">
+<li><p>one vertex per vertex and UV pair;</p></li>
+<li><p>the colors, scalars and flags of its source;</p></li>
+<li><p>the UVs as wedge texcoords.</p></li>
+</ul>
+<p>The cache builds every product from that mesh unchanged, under its own id: high bit set, the group above the mesh id. The key is <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">group)</span></code>, as R9.1 planned.</p>
+</li>
+<li><p><strong>One cache change.</strong> <code class="docutils literal notranslate"><span class="pre">MeshSource::vertexIdentity</span></code> lets the boundary and seam pass key edges by the layer’s vertex and draw an edge on each of its sides. In 3D it is null, and the behaviour is unchanged.</p></li>
+<li><p><strong>Gone:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ensureUvMeshResources</span></code> (428 lines);</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">UvMeshGpu</span></code> and <code class="docutils literal notranslate"><span class="pre">m_uvMeshGpu</span></code>;</p></li>
+<li><p>the per-group draw ranges;</p></li>
+<li><p>the UV view’s CPU color map baking.</p></li>
+</ul>
+</li>
+<li><p><strong>Selection.</strong> A selection change alone copies the flags into the layout. The old code rebuilt every UV buffer.</p></li>
+<li><p><strong>Behaviour.</strong></p>
+<ul class="simple">
+<li><p>Seams follow the 3D rule, which counts a boundary edge with UVs as a seam too.</p></li>
+<li><p>An edge between the shown group and another group is a boundary of the shown group.</p></li>
+<li><p>The wire is the 3D barycentric overlay and honors faux edges (D6-1).</p></li>
+<li><p>Edges draws that wire in the edge style, as before.</p></li>
+</ul>
+</li>
+<li><p><strong>Found on the way.</strong> The UV view never uploaded the color map texture, because it baked colors on the CPU. The LUT refresh is now <code class="docutils literal notranslate"><span class="pre">RenderWidget::updateQualityColorMapLut</span></code>, called by both views.</p></li>
+<li><p><strong>Tests.</strong> The new <code class="docutils literal notranslate"><span class="pre">tests/render_probes/uv_view</span></code> renders a gargoyle parametrized by xatlas in the UV view and checks:</p>
+<ul class="simple">
+<li><p>the fill covers the charts;</p></li>
+<li><p>a per-vertex 0.25 is a quarter gray over exactly that area;</p></li>
+<li><p>select all tints the charts, and select none, a selection change alone, clears the tint;</p></li>
+<li><p>the wire draws;</p></li>
+<li><p>the seams outline the charts.</p></li>
+</ul>
+<p>All 11 render probes and the 23 ctest suites pass.</p>
+</li>
+<li><p><strong>Not measured.</strong> Speed and memory against the old UV renderer: its binary is gone with R6’s commit.</p></li>
+</ul>
 <p><strong>U1 full form: every node a snapshot made of shared layers</strong></p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
