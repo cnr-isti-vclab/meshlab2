@@ -554,6 +554,7 @@ private slots:
     void trueFormContainmentSelectionModesCompose();
     void trueFormChamferDistanceMeasuresAKnownOffset();
     void trueFormNonManifoldSelectionFindsTheSharedEdge();
+    void repairNonManifoldEdgesBySplittingVerticesSeparatesTheFins();
     void trueFormShellAndRepairOfOverlappingCubes();
     void voronoiAtlasHandlesCoarseMeshes();
     void geodesicQualityFilterDoesNotBakeVertexColors();
@@ -9625,6 +9626,69 @@ void FilterTests::trueFormChamferDistanceMeasuresAKnownOffset()
 // Three fins on one edge. The existing coverage asks a clean sphere for its non-manifold
 // edges and is told there are none, which a filter that selects nothing at all would
 // also satisfy; this asks a mesh that has one.
+void FilterTests::repairNonManifoldEdgesBySplittingVerticesSeparatesTheFins()
+{
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("repair_non_manifold_edges"));
+    QVERIFY(!key.isEmpty());
+
+    VCGMesh fan;
+    makeNonManifoldFanMesh(fan);
+    // Data the split must carry to the new vertices: colors, scalars, an optional
+    // component and a custom attribute.
+    fan.vert.EnableTexCoord();
+    auto tag = vcg::tri::Allocator<VCGMesh>::AddPerVertexAttribute<int>(fan, std::string("tag"));
+    for (VCGVertex &v : fan.vert) {
+        const int i = int(vcg::tri::Index(fan, v));
+        v.C() = vcg::Color4b(i * 40, 0, 0, 255);
+        v.Q() = float(i);
+        v.T().U() = float(i) / 10.0f;
+        tag[v] = 100 + i;
+    }
+    const int index = doc.addMesh(fan, QStringLiteral("Fan"),
+        vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR
+            | vcg::tri::io::Mask::IOM_VERTQUALITY | vcg::tri::io::Mask::IOM_VERTTEXCOORD);
+    doc.setCurrentMeshIndex(index);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("method"), QStringLiteral("split_vertices"));
+    const auto result = doc.runFilter(key, params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    VCGMesh &m = doc.mesh(index).mesh;
+    QCOMPARE(m.FN(), 3);
+    if (!m.face.IsFFAdjacencyEnabled())
+        m.face.EnableFFAdjacency();
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(m);
+    QCOMPARE(vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(m), 0);
+    // The edge 0-1 now has a copy per fin: 3 x 3 vertices, none shared.
+    QCOMPARE(m.VN(), 9);
+    auto splitTag = vcg::tri::Allocator<VCGMesh>::GetPerVertexAttribute<int>(m, std::string("tag"));
+    QVERIFY(m.vert.IsTexCoordEnabled());
+    for (const VCGVertex &v : m.vert) {
+        // The source vertex index, recovered from the color written above.
+        const int i = v.cC()[0] / 40;
+        QCOMPARE(v.cQ(), float(i));
+        QCOMPARE(v.cT().U(), float(i) / 10.0f);
+        QCOMPARE(splitTag[v], 100 + i);
+    }
+
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.mesh(index).mesh.VN(), 5);
+
+    // An edge-manifold mesh is left as it is.
+    VCGMesh tri;
+    makeNonManifoldFanMesh(tri);
+    vcg::tri::Allocator<VCGMesh>::DeleteFace(tri, tri.face[2]);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(tri);
+    const int plain = doc.addMesh(tri, QStringLiteral("Two fins"), vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(plain);
+    const auto untouched = doc.runFilter(key, params);
+    QVERIFY(untouched.success);
+    QVERIFY(!untouched.documentModified);
+    QCOMPARE(doc.mesh(plain).mesh.VN(), 5);
+}
+
 void FilterTests::trueFormNonManifoldSelectionFindsTheSharedEdge()
 {
     Document doc;

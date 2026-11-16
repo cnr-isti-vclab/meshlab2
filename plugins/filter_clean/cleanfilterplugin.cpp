@@ -536,13 +536,13 @@ MeshFilterRunResult CleanFilterPlugin::runFilter(
         int total = 0;
         QString info;
         if (method == QStringLiteral("split_vertices")) {
-            return {
-                false,
-                false,
-                QObject::tr(
-                    "Split Vertices mode is not supported by the current mesh container type. "
-                    "Use 'Remove Faces' method instead.")
-            };
+            // SplitManifoldComponents rebuilds the whole mesh even when nothing is wrong, so
+            // leave an edge-manifold mesh alone.
+            if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh) == 0)
+                return successResult(false, { QObject::tr("No non-manifold edges to repair.") });
+            total = int(vcg::tri::Clean<VCGMesh>::SplitManifoldComponents(mesh));
+            info = QObject::tr("Successfully split the mesh into %1 edge-manifold components.")
+                       .arg(total);
         } else {
             total = vcg::tri::Clean<VCGMesh>::RemoveNonManifoldFace(mesh);
             info = QObject::tr("Successfully removed %1 non-manifold faces.").arg(total);
