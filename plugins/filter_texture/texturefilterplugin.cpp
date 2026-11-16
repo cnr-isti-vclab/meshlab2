@@ -1030,7 +1030,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (appendNewTextures) {
             Tex::offsetTextureSlotIndices(entry.mesh, previousTextureCount);
             Tex::appendTextureAssociations(entry, outputAssets);
-            ++entry.materialRevision;
+            doc.markMeshMaterialChanged(meshIndex);
             doc.markMeshGeometryChanged(
                 meshIndex,
                 QObject::tr("Baked vertex color to %1 new texture image(s) and appended them to '%2'.")
@@ -1305,7 +1305,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         if (appendNewTextures) {
             Tex::offsetTextureSlotIndices(targetEntry.mesh, previousTextureCount);
             Tex::appendTextureAssociations(targetEntry, outputAssets);
-            ++targetEntry.materialRevision;
+            doc.markMeshMaterialChanged(targetMeshIndex);
             doc.markMeshGeometryChanged(
                 targetMeshIndex,
                 QObject::tr("Transferred %1 into %2 new texture image(s) and appended them to '%3'.")

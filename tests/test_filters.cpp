@@ -643,7 +643,7 @@ private slots:
     void incrementalSelectionPreservesEdges();
     void dilateAndErodeCanWorkOnOneKindOfSelection();
     void selectionToolShortcutsActOnTheKindOfElementBeingPicked();
-    void colorAndScalarFiltersUndoThroughDeltas();
+    void colorAndScalarFiltersUndo();
     void rotateToFittedPlaneUsesSelectionWithoutChangingIt();
     void triOptimizeLeavesTheSelectionAsItFoundIt();
     void expressionsReadIntegerAttributes();
@@ -3818,14 +3818,15 @@ void FilterTests::selectCoplanarFacesRefusesSelectionsOffOnePlane()
 
     // The bottom and one side: two planes at right angles, and no single one to extend.
     // The refusal leaves the selection as it was.
-    VCGMesh &m = doc.mesh(meshIndex).mesh;
-    m.face[0].SetS();
-    m.face[4].SetS();
+    doc.mesh(meshIndex).mesh.face[0].SetS();
+    doc.mesh(meshIndex).mesh.face[4].SetS();
+    doc.markMeshSelectionChanged(meshIndex);
     result = doc.runFilter(key, params);
     QVERIFY(!result.success);
     QVERIFY(!result.errorMessage.isEmpty());
+    // A refused run restores the layer from its undo state, so read it afresh.
     int selected = 0;
-    for (const VCGFace &f : m.face)
+    for (const VCGFace &f : doc.mesh(meshIndex).mesh.face)
         selected += f.IsS() ? 1 : 0;
     QCOMPARE(selected, 2);
 }
@@ -14798,7 +14799,7 @@ void FilterTests::rotateToFittedPlaneUsesSelectionWithoutChangingIt()
     }
 }
 
-void FilterTests::colorAndScalarFiltersUndoThroughDeltas()
+void FilterTests::colorAndScalarFiltersUndo()
 {
     Document doc;
     const QString sphereKey = filterKeyForId(doc, QStringLiteral("create_sphere"));
@@ -14826,12 +14827,7 @@ void FilterTests::colorAndScalarFiltersUndoThroughDeltas()
         const MeshFilterRunResult r = doc.runFilter(setColorKey, p);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
     }
-    const UndoMemoryStats colorStats = doc.undoMemoryStats();
-    QCOMPARE(colorStats.steps.size(), std::size_t(1));
-    QVERIFY2(colorStats.steps.front().attributeDelta,
-             "set_vertex_color stored a full snapshot instead of a colour delta");
-    QCOMPARE(colorStats.steps.front().referencedGeometryBytes, qint64(0));
-    QVERIFY(colorStats.deltaBytes > 0);
+    QCOMPARE(doc.undoMemoryStats().steps.size(), std::size_t(1));
 
     QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[0]), 255);
     QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[1]), 128);
@@ -14843,7 +14839,7 @@ void FilterTests::colorAndScalarFiltersUndoThroughDeltas()
     QVERIFY(doc.redo());
     QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[0]), 255);
 
-    // Geometry must be untouched by a colour delta in both directions.
+    // Geometry must be untouched by a colour step in both directions.
     QVERIFY(doc.mesh(index).mesh.VN() > 0);
     QCOMPARE(doc.mesh(index).mesh.FN() > 0, true);
 
@@ -14860,11 +14856,7 @@ void FilterTests::colorAndScalarFiltersUndoThroughDeltas()
         const MeshFilterRunResult r = doc.runFilter(faceScalarKey, p);
         QVERIFY2(r.success, qPrintable(r.errorMessage));
     }
-    const UndoMemoryStats scalarStats = doc.undoMemoryStats();
-    QCOMPARE(scalarStats.steps.size(), std::size_t(1));
-    QVERIFY2(scalarStats.steps.front().attributeDelta,
-             "compute_face_scalar_from_geometry stored a full snapshot");
-    QCOMPARE(scalarStats.steps.front().referencedGeometryBytes, qint64(0));
+    QCOMPARE(doc.undoMemoryStats().steps.size(), std::size_t(1));
 
     QVERIFY(doc.mesh(index).mesh.face[0].cQ() != -1.0f);
     QVERIFY(doc.undo());
@@ -15416,6 +15408,7 @@ void FilterTests::documentedExpressionExamplesRun()
     {
         Rig r; QVERIFY(r.sphere());
         for (auto &v : r.mesh().vert) v.C() = vcg::Color4b(9, 9, 9, 255);
+        r.doc.markMeshColorChanged(r.index);
         for (const char *bad : { "floor(x)", "if(x,1,0)", "pi", "nosuchname" }) {
             const auto res = r.run("compute_vertex_color_by_expression", {
                 {"r", bad}, {"g", "0"}, {"b", "0"}, {"a", "255"}});
@@ -15699,17 +15692,13 @@ void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
         p.insert(QStringLiteral("condSelect"), QStringLiteral("elen > 2.5"));
         runWith(QStringLiteral("select_edges_by_expression"), p);
     }
-    // Declaring only ES must route the filter onto the bit-packed delta undo rather
-    // than a full mesh snapshot -- the descriptor is what decides, so this is the
-    // check that the ES code is actually recognised.
+    // A selection change keeps a selection layer beside the one geometry copy, not a copy
+    // of its own.
     {
         const UndoMemoryStats stats = doc.undoMemoryStats();
         QCOMPARE(stats.steps.size(), std::size_t(1));
-        QVERIFY2(stats.steps.front().attributeDelta,
-                 "select_edges_by_expression stored a full snapshot instead of a delta");
-        QVERIFY(stats.deltaBytes > 0);
-        // A delta node references no geometry of its own; that is the whole point.
-        QCOMPARE(stats.steps.front().referencedGeometryBytes, qint64(0));
+        QCOMPARE(stats.uniqueGeometryCount, 1);
+        QVERIFY(stats.attributeBytes > 0);
     }
     const VCGMesh &m = doc.mesh(index).mesh;
     QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::EdgeCount(m)), 2);

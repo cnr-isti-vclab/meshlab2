@@ -942,6 +942,32 @@ Behaviour and risks:
 
 Size: about +120 / −330.
 
+**U1, first commit, done (2026-11-16):** rows U1.1 and U1.3–U1.9. `src` and `plugins` +269 / −488, tests +95 / −56.
+
+- **New revisions and markers.** `colorRevision`, `scalarRevision`, `markMeshColorChanged` and `markMeshScalarChanged` are in. The three attribute markers share one private `markMeshAttributeChanged`.
+- **Attribute layers.** `MeshAttributeDelta` became `MeshAttributeLayer`, interned in one cache by `(meshId, kind, revision)`. A geometry copy remembers the attribute revisions it was taken at, so a state keeps a layer only where its revision differs from the copy's. Restore writes, per kind, the state's layer, or the copy's values when the state has none.
+- **The delta node kind is gone,** with every delta branch:
+  - `jumpToNode` is one restore;
+  - Make Root, pruning and the undo limit can root anywhere;
+  - the `outputModifies` table is removed.
+- **GPU and render keys.** Fill, point and edge variants key on the revision of what they color with. The histogram, the quality range cache and the UV layout key on the new revisions too.
+- **Memory dialog (D6-2).** It has an *Attribute layers* row (`attributeBytes`); a step lists the geometry and layers it references.
+- **`filter_texture`** calls `markMeshMaterialChanged` instead of incrementing the revision by hand.
+- **The 63 filters are unmigrated,** so for now color and scalar steps cost a copy. The second commit migrates them.
+- **The cache-miss risk listed above does not occur.**
+  - The current node always holds the copy of the live revisions, so the next capture always finds it.
+  - With no history at all, the old delta path made the same copy: it captured the root state with `captureUndoState`.
+  - What does change is that undo now relies on the markers alone. A change made without one is invisible to the next capture. Before, the delta path read the selection and color bits directly.
+
+    Two tests edited a mesh by hand without announcing it, and a refused filter then rolled back over their edits; they now call the markers. A third held a reference to a mesh across a refused run, which replaces the layer's entry, as rolling back a full step always has.
+
+    Nothing in-process writes without a marker that I found. The Python API only reads mesh data or adds whole meshes.
+- **Not measured on ESTE.** Selection steps now store one bit set instead of two, and color steps keep costing a copy until the migration. The measurement belongs after the second commit.
+- **Tests.**
+  - `colorAndScalarChangesShareTheGeometryCopy`: color and scalar steps share the copy, and undo onto a copy made before them, onto a kept layer, and a jump to the tip each restore the right values.
+  - The delta-storage assertions now check for a single geometry copy.
+  - A selection step can be made the root.
+
 **Totals:** 19 rows.
 
 - R6, 6 rows: 3 change, 1 delete, 1 merge, 1 keep.

@@ -3025,6 +3025,7 @@ void RenderWidget::updateQualityHistogramOverlay()
         m_qualityHistogram.valid
         && m_qualityHistogram.meshId == entry.meshId
         && m_qualityHistogram.geometryRevision == entry.geometryRevision
+        && m_qualityHistogram.scalarRevision == entry.scalarRevision
         && m_qualityHistogram.bins == bins
         && m_qualityHistogram.sourceSelection == sourceSelection
         && m_qualityHistogram.fixedRange == fixedRange
@@ -3040,6 +3041,7 @@ void RenderWidget::updateQualityHistogramOverlay()
         m_qualityHistogram.valid = false;
         m_qualityHistogram.meshId = entry.meshId;
         m_qualityHistogram.geometryRevision = entry.geometryRevision;
+        m_qualityHistogram.scalarRevision = entry.scalarRevision;
         m_qualityHistogram.bins = bins;
         m_qualityHistogram.sourceSelection = sourceSelection;
         m_qualityHistogram.fixedRange = fixedRange;
@@ -3342,7 +3344,7 @@ RenderQualityRange RenderWidget::sampledQualityRange(int meshIndex, bool faceQua
     const float crop = std::clamp(m_renderSettings.qualityHistogramPercentileCrop, 0.0f, 0.5f);
     SampledQualityRange &cached = m_sampledQualityRanges[{ entry.meshId, faceQuality }];
     if (cached.valid && cached.geometryRevision == entry.geometryRevision
-        && cached.centerOnZero == centerOnZero && cached.percentileCrop == crop)
+        && cached.scalarRevision == entry.scalarRevision && cached.centerOnZero == centerOnZero && cached.percentileCrop == crop)
         return cached.range;
 
     const VCGMesh &mesh = entry.mesh;
@@ -3358,7 +3360,7 @@ RenderQualityRange RenderWidget::sampledQualityRange(int meshIndex, bool faceQua
             if (!v.IsD())
                 values.push_back(float(v.cQ()));
     }
-    cached = { true, entry.geometryRevision, centerOnZero, crop,
+    cached = { true, entry.geometryRevision, entry.scalarRevision, centerOnZero, crop,
                sampledRenderQualityRange(std::move(values), centerOnZero, crop) };
     return cached.range;
 }

@@ -68,9 +68,12 @@ public:
         std::uint64_t meshId = 0;
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
-        // Bumped on selection-bit changes only, so the GPU selection overlay can
-        // rebuild without invalidating the (far larger) fill/wire/point buffers.
+        // Selection, colors and scalars move revisions of their own, apart from the
+        // geometry: an undo state keeps them as layers beside a shared geometry copy, and
+        // a GPU buffer rebuilds only for the one it shows.
         std::uint64_t selectionRevision = 0;
+        std::uint64_t colorRevision = 0;
+        std::uint64_t scalarRevision = 0;
         QMatrix4x4 transform;
         QString name;
         QString sourcePath;
@@ -212,18 +215,6 @@ public:
     void beginUndoStep(const QString &label);
     void beginUndoStep(const QString &label,
                        const ScriptAction &scriptAction);
-    // Delta-storage steps: instead of a mesh deep-copy, record only the attribute
-    // classes named in `kinds` (MeshAttributeDeltaKind) for one mesh. Valid only when
-    // the action genuinely touches nothing else -- geometry is not captured, so a
-    // position moved under a colour-only step would not be undone.
-    void beginUndoStep(const QString &label,
-                       int meshIndexForDelta,
-                       std::uint32_t kinds);
-    // Same, recording a ScriptAction so the filter stays reproducible/scriptable.
-    void beginUndoStep(const QString &label,
-                       const ScriptAction &scriptAction,
-                       int meshIndexForDelta,
-                       std::uint32_t kinds);
     void endUndoStep(bool commit = true, bool restoreOnCancel = false);
     void setViewStateFunctions(std::function<ViewState()> capture,
                                 std::function<void(const ViewState &, bool restoreCamera)> restore);
@@ -407,12 +398,13 @@ public:
     // Recount an existing polygon mesh; fauxEdgesModified also reconciles its polygon flag.
     void refreshMeshPolygonFaceCount(int index, bool fauxEdgesModified = false);
     void markMeshMaterialChanged(int index, const QString &contextMessage = {});
-    // Selection is stored in per-vertex/per-face BitFlags, which are captured by the
-    // undo geometry snapshot.  Changes to selection must therefore bump selectionRevision,
-    // part of the undo cache key, so the "after" checkpoint gets a fresh deep copy.
+    // A change to the selection, the per-element colors or the scalars alone: each moves
+    // only its own revision, so the undo state after it shares the mesh copy and keeps
+    // just that layer. A change to anything else (positions, topology, normals, UVs) is a
+    // geometry change, whatever came with it.
     void markMeshSelectionChanged(int index, const QString &contextMessage = {});
-    MeshAttributeDelta captureAttributeDelta(int meshIndex, std::uint32_t kinds) const;
-    void applyAttributeDelta(const MeshAttributeDelta &delta);
+    void markMeshColorChanged(int index, const QString &contextMessage = {});
+    void markMeshScalarChanged(int index, const QString &contextMessage = {});
     // Wall-clock stamp taken when MeshLab2Core loaded, so a view can render an entry's
     // time as an elapsed offset from application start instead of a bare clock reading.
     static qint64 applicationStartMSecsSinceEpoch();
@@ -641,12 +633,17 @@ private:
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
         std::uint64_t selectionRevision = 0;
+        std::uint64_t colorRevision = 0;
+        std::uint64_t scalarRevision = 0;
     };
     struct StoredImage {
         QString path;
         bool packed = false;
     };
     std::unordered_map<std::uint64_t, StoredMesh> m_storedMeshes;
+    void markMeshAttributeChanged(int index, std::uint64_t MeshEntry::*revision,
+                                  const QString &stepLabel, const QString &contextMessage,
+                                  const QString &defaultMessage);
     std::unordered_map<qint64, StoredImage> m_storedImages;
     // Records that the layer's file is path. savedTexturePaths is what a save reported
     // (MeshIOTextureContext); null when the layer was just read from path, whose textures

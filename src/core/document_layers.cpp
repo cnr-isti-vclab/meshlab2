@@ -1016,24 +1016,45 @@ void Document::markMeshMaterialChanged(int index, const QString &contextMessage)
 
 void Document::markMeshSelectionChanged(int index, const QString &contextMessage)
 {
+    markMeshAttributeChanged(index, &MeshEntry::selectionRevision, tr("Change Selection"),
+                             contextMessage, tr("Selection changed on '%1'"));
+}
+
+void Document::markMeshColorChanged(int index, const QString &contextMessage)
+{
+    markMeshAttributeChanged(index, &MeshEntry::colorRevision, tr("Change Colors"),
+                             contextMessage, tr("Colors changed on '%1'"));
+}
+
+void Document::markMeshScalarChanged(int index, const QString &contextMessage)
+{
+    markMeshAttributeChanged(index, &MeshEntry::scalarRevision, tr("Change Scalars"),
+                             contextMessage, tr("Scalars changed on '%1'"));
+}
+
+// A change confined to one attribute layer moves only that layer's revision, so the next
+// undo state shares the geometry copy and the GPU buffers that do not show it stay.
+void Document::markMeshAttributeChanged(int index, std::uint64_t MeshEntry::*revision,
+                                        const QString &stepLabel, const QString &contextMessage,
+                                        const QString &defaultMessage)
+{
     if (index < 0 || index >= meshCount())
         return;
     const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
     if (ownUndoStep)
-        beginUndoStep(tr("Change Selection"), index, MeshAttributeSelection);
+        beginUndoStep(stepLabel);
     MeshEntry &entry = mesh(index);
-    // Bump only selectionRevision: the GPU selection overlay rebuilds while the
-    // fill/wire/point buffers (keyed on geometryRevision) are left intact, so
-    // selection stays cheap on large meshes.
-    entry.selectionRevision = m_nextGeometryRevision++;
-    if (!contextMessage.trimmed().isEmpty()) {
-        writeLog(contextMessage.trimmed(), LogSource::Application);
-    } else {
-        writeLog(tr("Selection changed on '%1'").arg(entry.name), LogSource::Application);
-    }
-    // Selection-only notification: keeps heavy meshDataChanged consumers (filter
-    // menu/panel rebuild, texture/UV cache refresh) out of the selection path.
-    emit meshSelectionChanged(index);
+    entry.*revision = m_nextGeometryRevision++;
+    writeLog(contextMessage.trimmed().isEmpty() ? defaultMessage.arg(entry.name)
+                                                : contextMessage.trimmed(),
+             LogSource::Application);
+    // The selection has a signal of its own, which keeps the heavy meshDataChanged
+    // consumers (filter menu and panel rebuilds) out of the selection path; colors and
+    // scalars are data the views draw.
+    if (revision == &MeshEntry::selectionRevision)
+        emit meshSelectionChanged(index);
+    else
+        emit meshDataChanged(index);
     if (ownUndoStep)
         endUndoStep(true);
 }
@@ -1088,16 +1109,10 @@ vcg::Color4b unpackColor(std::uint32_t v)
 
 } // namespace
 
-MeshAttributeDelta Document::captureAttributeDelta(int meshIndex, std::uint32_t kinds) const
+MeshAttributeLayer DocumentInternal::captureAttributeValues(const VCGMesh &m, std::uint32_t kinds)
 {
-    MeshAttributeDelta delta;
-    if (meshIndex < 0 || meshIndex >= meshCount() || kinds == MeshAttributeNone)
-        return delta;
-    const MeshEntry &entry = mesh(meshIndex);
-    const VCGMesh &m = entry.mesh;
-    delta.meshId = entry.meshId;
+    MeshAttributeLayer delta;
     delta.kinds = kinds;
-
     const int vn = m.VN();
     const int fn = m.FN();
     const int en = m.EN();
@@ -1143,7 +1158,7 @@ MeshAttributeDelta Document::captureAttributeDelta(int meshIndex, std::uint32_t 
     return delta;
 }
 
-void DocumentInternal::applyAttributeValues(VCGMesh &m, const MeshAttributeDelta &delta)
+void DocumentInternal::applyAttributeValues(VCGMesh &m, const MeshAttributeLayer &delta)
 {
     const int vn = m.VN();
     const int fn = m.FN();
@@ -1170,9 +1185,8 @@ void DocumentInternal::applyAttributeValues(VCGMesh &m, const MeshAttributeDelta
             }
         }
     }
-    // The element counts cannot have changed -- a delta step is only taken for an
-    // action that declared it touches nothing else -- but clamp anyway so a
-    // mis-declared filter corrupts colours rather than memory.
+    // A layer is only applied to a mesh with the same geometry revision, so the element
+    // counts match; clamp anyway, so a mismatch would corrupt colors rather than memory.
     if (delta.kinds & MeshAttributeColor) {
         const int nv = std::min(vn, int(delta.vertexColors.size()));
         for (int k = 0; k < nv; ++k)
@@ -1194,29 +1208,6 @@ void DocumentInternal::applyAttributeValues(VCGMesh &m, const MeshAttributeDelta
         const int ne = std::min(en, int(delta.edgeScalars.size()));
         for (int k = 0; k < ne; ++k)
             m.edge[size_t(k)].Q() = delta.edgeScalars[size_t(k)];
-    }
-}
-
-void Document::applyAttributeDelta(const MeshAttributeDelta &delta)
-{
-    for (int i = 0; i < meshCount(); ++i) {
-        MeshEntry &entry = mesh(i);
-        if (entry.meshId != delta.meshId)
-            continue;
-        applyAttributeValues(entry.mesh, delta);
-
-        // Colour and scalar live inside the VCGMesh, so the GPU buffers that read them
-        // are keyed on geometryRevision; selection has its own. Bump whichever applies
-        // or the restored values never reach the screen.
-        if (delta.kinds & (MeshAttributeColor | MeshAttributeScalar)) {
-            entry.geometryRevision = m_nextGeometryRevision++;
-            emit meshDataChanged(i);
-        }
-        if (delta.kinds & MeshAttributeSelection) {
-            entry.selectionRevision = m_nextGeometryRevision++;
-            emit meshSelectionChanged(i);
-        }
-        return;
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include "document_undo_types.h"
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -19,13 +20,6 @@ public:
 
     void beginStep(const QString &label, const ScriptAction &scriptAction = {});
     void endStep(bool commit = true, bool restoreOnCancel = false);
-
-    // Attribute delta steps — skip full snapshot capture for a change confined to the
-    // attribute classes in `kinds`. An optional scriptAction is recorded on the node so
-    // such filters stay reproducible/scriptable despite the lightweight storage.
-    void beginDeltaStep(const QString &label, int meshIndex, std::uint32_t kinds,
-                        std::optional<ScriptAction> scriptAction = std::nullopt);
-    void endDeltaStep();
 
     bool canUndo() const;
     bool canRedo() const;
@@ -65,18 +59,23 @@ public:
     void emitStateChanged();
 
     // Key: (meshId, geometryRevision, materialRevision) — the content identity of a mesh
-    // apart from its selection, which states keep on their own (selectionCache) so that a
-    // selection change does not cost the next state a copy of the mesh. Material covers
-    // colors and custom attributes: the Define Custom Attribute filters bump only it, and
-    // without it in the key the "after" checkpoint reused the "before" copy, so redo lost
-    // the attribute.
+    // apart from its selection, colors and scalars, which states keep as layers of their
+    // own (attributeCache), so that changing one of them does not cost the next state a
+    // copy of the mesh. Material covers textures and custom attributes: the Define Custom
+    // Attribute filters bump only it, and without it in the key the "after" checkpoint
+    // reused the "before" copy, so redo lost the attribute. A copy remembers the attribute
+    // revisions it was taken at (MeshSnapshot::geometryLayerRevisions).
     using GeometryKey = std::tuple<std::uint64_t, std::uint64_t, std::uint64_t>;
-    std::map<GeometryKey, std::weak_ptr<const VCGMesh>> &geometryCache() { return m_undoGeometryCache; }
-    // Key: (meshId, selectionRevision).
-    using SelectionKey = std::pair<std::uint64_t, std::uint64_t>;
-    std::map<SelectionKey, std::weak_ptr<const MeshAttributeDelta>> &selectionCache()
+    struct GeometryCopy {
+        std::weak_ptr<const VCGMesh> mesh;
+        std::array<std::uint64_t, 3> layerRevisions {};
+    };
+    std::map<GeometryKey, GeometryCopy> &geometryCache() { return m_undoGeometryCache; }
+    // Key: (meshId, MeshAttributeKind, that kind's revision).
+    using AttributeKey = std::tuple<std::uint64_t, std::uint32_t, std::uint64_t>;
+    std::map<AttributeKey, std::weak_ptr<const MeshAttributeLayer>> &attributeCache()
     {
-        return m_undoSelectionCache;
+        return m_undoAttributeCache;
     }
 
     const std::vector<UndoNode> &nodes() const { return m_undoNodes; }
@@ -87,11 +86,6 @@ private:
         const QString &label,
         UndoState &&before,
         UndoState &&after,
-        std::optional<ScriptAction> scriptAction = {});
-    void pushDeltaStep(
-        const QString &label,
-        MeshAttributeDelta &&before,
-        MeshAttributeDelta &&after,
         std::optional<ScriptAction> scriptAction = {});
     void pruneTreeToLimit();
     std::vector<int> subtreeNodes(int nodeId) const;
@@ -106,8 +100,8 @@ private:
     void logAutomaticPrune(const UndoPruneResult &result, const QString &reason);
 
     Document &m_doc;
-    std::map<GeometryKey, std::weak_ptr<const VCGMesh>> m_undoGeometryCache;
-    std::map<SelectionKey, std::weak_ptr<const MeshAttributeDelta>> m_undoSelectionCache;
+    std::map<GeometryKey, GeometryCopy> m_undoGeometryCache;
+    std::map<AttributeKey, std::weak_ptr<const MeshAttributeLayer>> m_undoAttributeCache;
     std::vector<UndoNode> m_undoNodes;
     int m_undoCurrentNode = -1;
     int m_undoLimit = 20;
@@ -117,9 +111,6 @@ private:
     QString m_undoStepLabel;
     std::optional<ScriptAction> m_pendingScriptAction;
     std::optional<UndoState> m_pendingUndoBefore;
-    std::optional<MeshAttributeDelta> m_pendingDeltaBefore;
-    std::optional<int> m_pendingDeltaMeshIndex;
-    std::uint32_t m_pendingDeltaKinds = MeshAttributeNone;
     bool m_restoringUndoRedo = false;
     bool m_suppressUndo = false;
     bool m_suppressUndoRedoSignals = false;

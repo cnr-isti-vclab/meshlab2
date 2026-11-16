@@ -14,8 +14,7 @@ UndoState Document::captureUndoState() const
     state.visibilitySets = m_visibilitySets;
     state.unit = m_unit;
     state.meshes.reserve(m_meshes.size());
-    for (int meshIndex = 0; meshIndex < meshCount(); ++meshIndex) {
-        const auto &entry = m_meshes[size_t(meshIndex)];
+    for (const auto &entry : m_meshes) {
         if (!entry)
             continue;
 
@@ -26,6 +25,8 @@ UndoState Document::captureUndoState() const
         snap.geometryRevision   = entry->geometryRevision;
         snap.materialRevision   = entry->materialRevision;
         snap.selectionRevision  = entry->selectionRevision;
+        snap.colorRevision      = entry->colorRevision;
+        snap.scalarRevision     = entry->scalarRevision;
         snap.transform    = entry->transform;
         snap.meshColor          = entry->mesh.C();
         snap.name              = entry->name;
@@ -40,30 +41,38 @@ UndoState Document::captureUndoState() const
         // Pointers, not payloads: immutability makes sharing the capture.
         snap.pluginData         = entry->pluginData;
 
-        // Reuse the interned geometry and selection when their revisions have not moved
-        // since the last capture: actions that touch neither cost no copy. A miss (the
+        // Reuse the interned geometry and layers when their revisions have not moved since
+        // the last capture: actions that touch none of them cost no copy. A miss (the
         // first capture after a change, or after every state holding it was pruned)
         // copies and interns; the caches hold weak_ptrs and keep nothing alive.
         const DocumentUndoManager::GeometryKey geometryKey(
             entry->meshId, entry->geometryRevision, entry->materialRevision);
-        if (auto it = m_undoManager->geometryCache().find(geometryKey);
-            it != m_undoManager->geometryCache().end())
-            snap.geometry = it->second.lock();
+        auto &geometryCache = m_undoManager->geometryCache();
+        if (auto it = geometryCache.find(geometryKey); it != geometryCache.end()) {
+            snap.geometry = it->second.mesh.lock();
+            snap.geometryLayerRevisions = it->second.layerRevisions;
+        }
         if (!snap.geometry) {
             auto g = std::make_shared<VCGMesh>();
             deepCopyMesh(entry->mesh, *g);
             snap.geometry = g;
-            m_undoManager->geometryCache()[geometryKey] = g;
+            for (size_t k = 0; k < meshAttributeKinds.size(); ++k)
+                snap.geometryLayerRevisions[k] = attributeRevision(*entry, k);
+            geometryCache[geometryKey] = { g, snap.geometryLayerRevisions };
         }
-        const DocumentUndoManager::SelectionKey selectionKey(entry->meshId, entry->selectionRevision);
-        if (auto it = m_undoManager->selectionCache().find(selectionKey);
-            it != m_undoManager->selectionCache().end())
-            snap.selection = it->second.lock();
-        if (!snap.selection) {
-            auto sel = std::make_shared<const MeshAttributeDelta>(
-                captureAttributeDelta(meshIndex, MeshAttributeSelection));
-            snap.selection = sel;
-            m_undoManager->selectionCache()[selectionKey] = sel;
+        // A layer only where the state's selection, colors or scalars are not the copy's.
+        for (size_t k = 0; k < meshAttributeKinds.size(); ++k) {
+            const std::uint64_t revision = attributeRevision(*entry, k);
+            if (revision == snap.geometryLayerRevisions[k])
+                continue;
+            const DocumentUndoManager::AttributeKey key(entry->meshId, meshAttributeKinds[k], revision);
+            auto &layer = m_undoManager->attributeCache()[key];
+            snap.layers[k] = layer.lock();
+            if (!snap.layers[k]) {
+                snap.layers[k] = std::make_shared<const MeshAttributeLayer>(
+                    captureAttributeValues(entry->mesh, meshAttributeKinds[k]));
+                layer = snap.layers[k];
+            }
         }
 
         state.meshes.push_back(std::move(snap));
@@ -100,12 +109,13 @@ void Document::restoreUndoState(const UndoState &state, bool keepUnchangedMeshes
     // history. The rest stay, those of the states ahead of this one included: a redo
     // brings their revisions back, and the next capture then finds the copy instead of
     // making another.
-    const auto dropExpired = [](auto &cache) {
+    const auto dropExpired = [](auto &cache, auto expired) {
         for (auto it = cache.begin(); it != cache.end();)
-            it = it->second.expired() ? cache.erase(it) : std::next(it);
+            it = expired(it->second) ? cache.erase(it) : std::next(it);
     };
-    dropExpired(m_undoManager->geometryCache());
-    dropExpired(m_undoManager->selectionCache());
+    dropExpired(m_undoManager->geometryCache(),
+                [](const DocumentUndoManager::GeometryCopy &c) { return c.mesh.expired(); });
+    dropExpired(m_undoManager->attributeCache(), [](const auto &layer) { return layer.expired(); });
 
     {
         QElapsedTimer t; t.start();
@@ -142,14 +152,21 @@ void Document::restoreUndoState(const UndoState &state, bool keepUnchangedMeshes
                     copyMs += t2.elapsed();
                     copied = true;
                 }
-                // A kept layer may differ from the state in its selection alone, and a copy
-                // carries the selection of whichever state made it.
-                if (copied || entry->selectionRevision != snap.selectionRevision)
-                    applyAttributeValues(entry->mesh, *snap.selection);
+                // A kept layer may differ from the state in its selection, colors or scalars,
+                // and a copy holds those of the state that made it: put back the state's own.
+                // Without a layer of its own the state has the copy's values.
+                for (size_t k = 0; k < meshAttributeKinds.size(); ++k) {
+                    const std::uint64_t held =
+                        copied ? snap.geometryLayerRevisions[k] : attributeRevision(*entry, k);
+                    if (held != attributeRevision(snap, k))
+                        applyAttributeValues(entry->mesh, snap.layers[k]
+                            ? *snap.layers[k]
+                            : captureAttributeValues(*snap.geometry, meshAttributeKinds[k]));
+                    attributeRevision(*entry, k) = attributeRevision(snap, k);
+                }
                 entry->meshId           = snap.meshId;
                 entry->geometryRevision = snap.geometryRevision;
                 entry->materialRevision = snap.materialRevision;
-                entry->selectionRevision = snap.selectionRevision;
                 entry->transform  = snap.transform;
                 entry->mesh.C()         = snap.meshColor;
                 entry->name            = snap.name;

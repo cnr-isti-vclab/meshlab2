@@ -125,6 +125,7 @@ private slots:
     void memoryStatsIncludeSelectionAndPendingSnapshots();
     void aSelectionChangeCostsTheNextStateNoCopyOfTheMesh();
     void aFullStepUndoesAFaceEdgeSelection();
+    void colorAndScalarChangesShareTheGeometryCopy();
     void jumpingRestoresTheTargetAcrossFullAndDeltaSteps();
     void aMemoryBudgetKeepsTheNewestStatesThatFit();
     void selectionDeltaUndoCoversEdges();
@@ -809,17 +810,14 @@ void DocumentTests::undoRootAndPurgeKeepTheDocumentOnTheCurrentNode()
     QVERIFY(doc.purgeUndoBranch(0));
     QCOMPARE(xOf(), 2.0f);
 
-    // A selection delta cannot be the root.
-    doc.beginUndoStep(QStringLiteral("Select"), m, MeshAttributeSelection);
+    // Every node is a whole state, so a selection step can be the root too.
+    doc.beginUndoStep(QStringLiteral("Select"));
     doc.mesh(m).mesh.vert[0].SetS();
     doc.markMeshSelectionChanged(m);
     doc.endUndoStep(true);
-    int deltaNode = -1;
-    for (const UndoTreeNodeInfo &info : doc.undoTreeInfo())
-        if (info.attributeDelta)
-            deltaNode = info.nodeId;
-    QVERIFY(deltaNode > 0);
-    QVERIFY(!doc.makeUndoRoot(deltaNode));
+    QVERIFY(doc.makeUndoRoot(doc.undoCurrentNodeId()));
+    QCOMPARE(doc.undoTreeInfo().size(), size_t(1));
+    QVERIFY(doc.mesh(m).mesh.vert[0].IsS());
 }
 
 // Undo keeps a live raster whose revisions match the state's. If two branches could give
@@ -3202,7 +3200,7 @@ void DocumentTests::memoryStatsDeduplicateImagesAndTrackUndoOwnership()
     QCOMPARE(undoStats.historyImageBytes, qint64(image.sizeInBytes()));
 }
 
-// Edge selection goes through the same bit-packed delta as vertices and faces, so a
+// Edge selection goes through the same bit-packed layer as vertices and faces, so a
 // polyline layer costs a few words per undo step rather than a whole mesh copy. The
 // three sets must also stay independent: restoring one must not disturb the others.
 void DocumentTests::selectionDeltaUndoCoversEdges()
@@ -3230,17 +3228,17 @@ void DocumentTests::selectionDeltaUndoCoversEdges()
     doc.markMeshSelectionChanged(index);
     doc.clearUndoHistory();
 
-    doc.beginUndoStep(QStringLiteral("Select edges"), index, MeshAttributeSelection);
+    doc.beginUndoStep(QStringLiteral("Select edges"));
     doc.mesh(index).mesh.edge[2].SetS();
     doc.mesh(index).mesh.edge[3].SetS();
     doc.markMeshSelectionChanged(index);
     doc.endUndoStep(true);
 
-    // Stored as a delta, not a mesh copy.
+    // Stored as a selection layer beside the one geometry copy, not as a second copy.
     const UndoMemoryStats stats = doc.undoMemoryStats();
     QCOMPARE(stats.steps.size(), std::size_t(1));
-    QVERIFY(stats.steps.front().attributeDelta);
-    QVERIFY(stats.deltaBytes > 0);
+    QCOMPARE(stats.uniqueGeometryCount, 1);
+    QVERIFY(stats.attributeBytes > 0);
 
     const auto edgeSelection = [&] {
         QVector<int> on;
@@ -3273,16 +3271,16 @@ void DocumentTests::memoryStatsIncludeSelectionAndPendingSnapshots()
     doc.setSuppressUndo(false);
     doc.clearUndoHistory();
 
-    doc.beginUndoStep(QStringLiteral("Select one"), 0, MeshAttributeSelection);
+    doc.beginUndoStep(QStringLiteral("Select one"));
     doc.mesh(0).mesh.vert[0].SetS();
     doc.markMeshSelectionChanged(0);
     doc.endUndoStep(true);
 
     const UndoMemoryStats selectionStats = doc.undoMemoryStats();
-    QVERIFY(selectionStats.deltaBytes > 0);
+    QVERIFY(selectionStats.attributeBytes > 0);
+    QCOMPARE(selectionStats.uniqueGeometryCount, 1);
     QCOMPARE(selectionStats.steps.size(), size_t(1));
-    QVERIFY(selectionStats.steps.front().attributeDelta);
-    QCOMPARE(selectionStats.steps.front().deltaBytes, selectionStats.deltaBytes);
+    QCOMPARE(selectionStats.steps.front().referencedAttributeBytes, selectionStats.attributeBytes);
 
     doc.clearUndoHistory();
     doc.beginUndoStep(QStringLiteral("Pending geometry"));
@@ -3307,7 +3305,7 @@ void DocumentTests::aSelectionChangeCostsTheNextStateNoCopyOfTheMesh()
     doc.clearUndoHistory();
     const auto selected = [&doc](int v) { return doc.mesh(0).mesh.vert[size_t(v)].IsS(); };
 
-    doc.beginUndoStep(QStringLiteral("Select v0"), 0, MeshAttributeSelection);
+    doc.beginUndoStep(QStringLiteral("Select v0"));
     doc.mesh(0).mesh.vert[0].SetS();
     doc.markMeshSelectionChanged(0);
     doc.endUndoStep(true);
@@ -3366,6 +3364,59 @@ void DocumentTests::aFullStepUndoesAFaceEdgeSelection()
     QVERIFY(!doc.mesh(0).mesh.face[0].IsFaceEdgeS(0));
 }
 
+// Colors and scalars are layers beside the geometry copy, as the selection is: changing them
+// costs the next state no copy, and every restore -- onto a kept layer or onto a copy made
+// with other values -- puts back its own state's.
+void DocumentTests::colorAndScalarChangesShareTheGeometryCopy()
+{
+    Document doc;
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 8);
+    doc.setSuppressUndo(true);
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Layers")), 0);
+    doc.setSuppressUndo(false);
+    doc.clearUndoHistory();
+    const auto red = [&doc] { return int(doc.mesh(0).mesh.vert[0].cC()[0]); };
+    const auto scalar = [&doc] { return doc.mesh(0).mesh.vert[0].cQ(); };
+    const auto x = [&doc] { return doc.mesh(0).mesh.vert[0].cP().X(); };
+
+    doc.beginUndoStep(QStringLiteral("Paint"));
+    doc.mesh(0).mesh.vert[0].C() = vcg::Color4b(200, 0, 0, 255);
+    doc.markMeshColorChanged(0);
+    doc.endUndoStep(true);
+    doc.beginUndoStep(QStringLiteral("Measure"));
+    doc.mesh(0).mesh.vert[0].Q() = 7.0f;
+    doc.markMeshScalarChanged(0);
+    doc.endUndoStep(true);
+    UndoMemoryStats stats = doc.undoMemoryStats();
+    QCOMPARE(stats.uniqueGeometryCount, 1);
+    QVERIFY(stats.attributeBytes > 0);
+
+    // A geometry step copies the mesh with the colors and scalars it has then.
+    doc.beginUndoStep(QStringLiteral("Move"));
+    doc.mesh(0).mesh.vert[0].P() = vcg::Point3f(3, 0, 0);
+    doc.markMeshGeometryChanged(0);
+    doc.endUndoStep(true);
+    QCOMPARE(doc.undoMemoryStats().uniqueGeometryCount, 2);
+
+    // Back onto the first copy, which was made before the paint: both layers go on.
+    QVERIFY(doc.undo());
+    QCOMPARE(x(), 0.0f);
+    QCOMPARE(red(), 200);
+    QCOMPARE(scalar(), 7.0f);
+    // The live layer is kept from here on, and differs in one layer at a time.
+    QVERIFY(doc.undo());
+    QCOMPARE(red(), 200);
+    QCOMPARE(scalar(), 0.0f);
+    QVERIFY(doc.undo());
+    QCOMPARE(red(), int(vcg::Color4b(vcg::Color4b::White)[0]));
+    // A jump to the tip copies the second mesh, which holds the paint and the scalar.
+    QVERIFY(doc.jumpToUndoNode(3, false));
+    QCOMPARE(x(), 3.0f);
+    QCOMPARE(red(), 200);
+    QCOMPARE(scalar(), 7.0f);
+}
+
 // A jump restores the target once -- or its nearest full snapshot and the deltas below it --
 // instead of undoing and redoing through every state on the way, and leaves the redo
 // branches pointing back the way it came.
@@ -3386,7 +3437,7 @@ void DocumentTests::jumpingRestoresTheTargetAcrossFullAndDeltaSteps()
         return doc.undoCurrentNodeId();
     };
     const auto select = [&doc](int v) {
-        doc.beginUndoStep(QStringLiteral("Select"), 0, MeshAttributeSelection);
+        doc.beginUndoStep(QStringLiteral("Select"));
         doc.mesh(0).mesh.vert[size_t(v)].SetS();
         doc.markMeshSelectionChanged(0);
         doc.endUndoStep(true);
@@ -3449,20 +3500,19 @@ void DocumentTests::aMemoryBudgetKeepsTheNewestStatesThatFit()
     }
     const UndoMemoryStats before = doc.undoMemoryStats();
     QCOMPARE(before.uniqueGeometryCount, 7);
-    // Every state is one copy of the mesh, and all of them share the one empty selection,
-    // which each step's referenced bytes include.
-    const qint64 copy = (before.geometryBytes - before.steps.back().referencedGeometryBytes) / 6;
-    const qint64 selection = before.steps.back().referencedGeometryBytes - copy;
-    QVERIFY(copy > 0 && selection > 0);
-    QCOMPARE(before.geometryBytes, 7 * copy + selection);
+    // Every state is one copy of the mesh, which holds its selection too: no layers.
+    const qint64 copy = before.steps.back().referencedGeometryBytes;
+    QVERIFY(copy > 0);
+    QCOMPARE(before.geometryBytes, 7 * copy);
+    QCOMPARE(before.attributeBytes, 0);
 
-    const qint64 budget = 5 * copy + selection;
+    const qint64 budget = 5 * copy;
     const qint64 target = budget * 4 / 5;
     const UndoPruneResult result = doc.pruneUndoToMemoryBudget(budget);
     QVERIFY(!result.cleared);
     const int kept = doc.undoMemoryStats().uniqueGeometryCount;
-    QVERIFY(kept * copy + selection <= target);
-    QVERIFY((kept + 1) * copy + selection > target);
+    QVERIFY(kept * copy <= target);
+    QVERIFY((kept + 1) * copy > target);
     QCOMPARE(doc.mesh(0).mesh.vert[0].P().X(), 6.0f);
     for (int i = 1; i < kept; ++i)
         QVERIFY(doc.undo());

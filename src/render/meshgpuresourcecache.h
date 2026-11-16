@@ -42,6 +42,8 @@ public:
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
         std::uint64_t selectionRevision = 0;
+        std::uint64_t colorRevision = 0;
+        std::uint64_t scalarRevision = 0;
         int ioMask = 0;
         bool wireRespectFaux = true;
         const VCGMesh *mesh = nullptr;

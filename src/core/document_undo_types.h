@@ -13,6 +13,7 @@
 #include <QStringList>
 #include <QVariant>
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -52,15 +53,17 @@ struct ScriptAction {
 
 // A lightweight snapshot of a single mesh, suitable for long-term undo storage.
 // Cheap metadata fields are copied by value. Geometry (VCGMesh) is held behind a
-// shared_ptr so that multiple checkpoints with the same (meshId, geometryRevision)
-// can share a single copy — the common case when an action does not touch geometry
-// (e.g. toggle visibility, change transform, rename).
-struct MeshAttributeDelta;
+// shared_ptr so that multiple checkpoints with the same (meshId, geometryRevision,
+// materialRevision) can share a single copy, and the selection, colors and scalars ride
+// beside it as layers of their own, so that changing one of them costs no copy either.
+struct MeshAttributeLayer;
 struct MeshSnapshot {
     std::uint64_t meshId = 0;
     std::uint64_t geometryRevision = 0;
     std::uint64_t materialRevision = 0;
     std::uint64_t selectionRevision = 0;
+    std::uint64_t colorRevision = 0;
+    std::uint64_t scalarRevision = 0;
     QMatrix4x4 transform;
     // VCGMesh::C(), kept here rather than in the geometry: states that share one interned
     // copy can still differ in it (Document::setMeshColor moves no revision).
@@ -74,13 +77,15 @@ struct MeshSnapshot {
     bool visible = false;
     int ioMask = 0;
     int polygonFaceCount = -1;
-    // Shared, immutable geometry; never null after capture. Its selection bits are not the
-    // state's: states that differ only in selection share one copy, and `selection` says
-    // which elements were selected.
+    // Shared, immutable geometry; never null after capture. Its selection, colors and
+    // scalars are those of the state that made it, whose revisions geometryLayerRevisions
+    // holds (indexed as meshAttributeKinds).
     std::shared_ptr<const VCGMesh> geometry;
-    // The selection (MeshAttributeSelection kinds only), shared by states with the same
-    // selectionRevision; never null after capture.
-    std::shared_ptr<const MeshAttributeDelta> selection;
+    std::array<std::uint64_t, 3> geometryLayerRevisions {};
+    // The state's own selection, colors and scalars where they differ from the copy's,
+    // shared by the states with the same revision of that kind; null where the copy
+    // already holds them.
+    std::array<std::shared_ptr<const MeshAttributeLayer>, 3> layers;
     // Plugin-owned intermediates. Immutable, so the snapshot shares the very objects the
     // layer held at capture -- copying this map copies pointers, not payloads, and no
     // plugin code runs on either the undo or the redo path.
@@ -169,39 +174,38 @@ struct UndoActionRecord {
 };
 
 // ---------------------------------------
-// Attribute delta — the payload of a Delta-storage undo node
+// Attribute layer — selection, colors or scalars apart from the geometry copy
 // ---------------------------------------
 
-// Which attribute classes a delta carries. A filter that only rewrites one of them
-// does not need a whole mesh copy to be undoable, and capturing only what it declared
-// is what keeps the saving: capturing all three on a selection-only change would cost
-// more than the selection bits by two orders of magnitude.
-enum MeshAttributeDeltaKind : std::uint32_t {
+// The attribute classes an undo state keeps apart from its geometry copy, each with a
+// revision of its own on the layer (MeshEntry::selectionRevision, colorRevision,
+// scalarRevision): changing one costs the next state a layer, not a copy of the mesh.
+enum MeshAttributeKind : std::uint32_t {
     MeshAttributeNone      = 0u,
     MeshAttributeSelection = 1u << 0,
     MeshAttributeColor     = 1u << 1,
     MeshAttributeScalar    = 1u << 2,
 };
+// The order MeshSnapshot::layers and geometryLayerRevisions follow.
+inline constexpr std::array<std::uint32_t, 3> meshAttributeKinds {
+    MeshAttributeSelection, MeshAttributeColor, MeshAttributeScalar
+};
 
-struct MeshAttributeDelta {
-    std::uint64_t meshId = 0;
-    // Bitwise OR of MeshAttributeDeltaKind: says which vectors below were captured,
-    // so apply() can tell "this attribute was not part of the change" from "this mesh
-    // has no elements of that kind".
+struct MeshAttributeLayer {
+    // Bitwise OR of MeshAttributeKind: says which vectors below were captured.
     std::uint32_t kinds = MeshAttributeNone;
 
     // Selection: one bit per element, LSB-first within each word. A VCGLib element's
     // flags carry many unrelated bits -- deleted, visited, border, faux -- and only the
-    // selection one is captured, hence the names: undoing a selection filter must not
-    // resurrect a deleted element or clear a border mark computed since. The edge
-    // vectors are polyline VCGEdge elements, not the per-face edge bits of a triangle
-    // mesh -- those live in the face flags and travel with the geometry.
+    // selection one is captured, hence the names: restoring a selection must not
+    // resurrect a deleted element or clear a border mark. The edge vectors are polyline
+    // VCGEdge elements, not the per-face edge bits of a triangle mesh, which have their
+    // own vector.
     std::vector<std::uint32_t> vertexSelectionBits;
     std::vector<std::uint32_t> faceSelectionBits;
     std::vector<std::uint32_t> edgeSelectionBits;
     // The per-face edge bits of a triangle mesh (FaceEdgeS), three per face, packed the
-    // same way. Undo states keep the selection apart from the geometry they share, so
-    // these go with the selection, not the copy.
+    // same way; empty when none is set.
     std::vector<std::uint32_t> faceEdgeSelectionBits;
 
     // Colour: one packed RGBA word per element.
@@ -213,15 +217,6 @@ struct MeshAttributeDelta {
     std::vector<float> vertexScalars;
     std::vector<float> faceScalars;
     std::vector<float> edgeScalars;
-};
-
-// ---------------------------------------
-// Storage kind — full vs delta
-// ---------------------------------------
-
-enum class UndoStorageKind {
-    FullSnapshot,
-    Delta
 };
 
 // ---------------------------------------
@@ -240,7 +235,6 @@ std::uint64_t nextUndoNodeSerial();
 // m_undoCurrentNode is the id of the node that represents the current live state.
 struct UndoNode {
     UndoState state;
-    UndoStorageKind storageKind = UndoStorageKind::FullSnapshot;
     QString   label;         // label of the action that led INTO this node ("" for root)
     // Taken when the node is made; compaction moves nodes whole, so it travels with them.
     std::uint64_t serial = nextUndoNodeSerial();
@@ -254,11 +248,6 @@ struct UndoNode {
     std::vector<UndoActionRecord> prefixActionRecords;
     std::optional<UndoActionRecord> actionRecord;
     std::vector<UndoActionRecord> trailingActionRecords;
-
-    // Optional attribute deltas (used when storageKind == Delta): the before and after
-    // values of just the attributes the action declared, instead of a mesh deep-copy.
-    std::optional<MeshAttributeDelta> beforeAttributes;
-    std::optional<MeshAttributeDelta> afterAttributes;
 };
 
 // ---------------------------------------
@@ -279,15 +268,13 @@ struct UndoTreeNodeInfo {
     // Only the state-changing action counts here: the informational calls recorded in
     // prefix/trailingActionRecords did not produce the state and are deliberately excluded.
     QString filterKey;
-    // Stores only the attributes its step changed, so it cannot become the root.
-    bool attributeDelta = false;
 };
 
+// What one state refers to, whoever else shares it.
 struct UndoStepMemoryInfo {
     QString label;
-    bool attributeDelta = false;
     qint64 referencedGeometryBytes = 0;
-    qint64 deltaBytes = 0;
+    qint64 referencedAttributeBytes = 0;
 };
 
 struct UndoMemoryStats {
@@ -295,21 +282,21 @@ struct UndoMemoryStats {
     int nodeCount = 0;
     int uniqueGeometryCount = 0;
     int uniqueHistoryImageCount = 0;
-    qint64 geometryBytes = 0;
-    qint64 deltaBytes = 0;
+    qint64 geometryBytes = 0;   // the mesh copies
+    qint64 attributeBytes = 0;  // the selection, color and scalar layers
     qint64 historyImageBytes = 0;
     qint64 pendingGeometryBytes = 0;
-    qint64 pendingDeltaBytes = 0;
+    qint64 pendingAttributeBytes = 0;
     qint64 pendingImageBytes = 0;
 
     qint64 pendingBytes() const
     {
-        return pendingGeometryBytes + pendingDeltaBytes + pendingImageBytes;
+        return pendingGeometryBytes + pendingAttributeBytes + pendingImageBytes;
     }
 
     qint64 totalBytes() const
     {
-        return geometryBytes + deltaBytes + historyImageBytes + pendingBytes();
+        return geometryBytes + attributeBytes + historyImageBytes + pendingBytes();
     }
 };
 

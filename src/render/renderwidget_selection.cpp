@@ -815,6 +815,8 @@ void RenderWidget::ensureMeshGpu(
     source.geometryRevision = entry.geometryRevision;
     source.materialRevision = entry.materialRevision;
     source.selectionRevision = entry.selectionRevision;
+    source.colorRevision = entry.colorRevision;
+    source.scalarRevision = entry.scalarRevision;
     source.ioMask = entry.ioMask;
     source.wireRespectFaux = wireRespectFaux;
     source.mesh = &entry.mesh;

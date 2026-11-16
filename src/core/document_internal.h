@@ -122,8 +122,16 @@ void compactMeshStorageInvariant(VCGMesh &mesh);
 void computeMissingNormals(VCGMesh &mesh, int loadMask);
 void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst);
 void deepCopyMesh(const VCGMesh &src, VCGMesh &dst);
-// Writes the attribute values `delta` carries into `m`; no revision moves, no signal.
-void applyAttributeValues(VCGMesh &m, const MeshAttributeDelta &delta);
+// The attribute values of `m` of the classes in `kinds` (MeshAttributeKind), and writing
+// them back; no revision moves, no signal.
+MeshAttributeLayer captureAttributeValues(const VCGMesh &m, std::uint32_t kinds);
+void applyAttributeValues(VCGMesh &m, const MeshAttributeLayer &layer);
+// The revision of the attribute class meshAttributeKinds[k] of a MeshEntry or MeshSnapshot.
+template <typename T>
+auto &attributeRevision(T &owner, size_t k)
+{
+    return k == 0 ? owner.selectionRevision : k == 1 ? owner.colorRevision : owner.scalarRevision;
+}
 
 // Mesh memory accounting helpers (shared between document_memory.cpp and documentundomanager.cpp)
 template <typename Vector>

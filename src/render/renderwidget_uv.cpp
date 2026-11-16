@@ -210,7 +210,9 @@ bool RenderWidget::ensureUvLayout(int meshIndex)
     const std::uint64_t cacheId = uvLayoutCacheId(entry.meshId, group);
     if (m_uvLayout && m_uvLayout->cacheId == cacheId
         && m_uvLayout->geometryRevision == entry.geometryRevision
-        && m_uvLayout->materialRevision == entry.materialRevision) {
+        && m_uvLayout->materialRevision == entry.materialRevision
+        && m_uvLayout->colorRevision == entry.colorRevision
+        && m_uvLayout->scalarRevision == entry.scalarRevision) {
         // A selection change only moves flags: copy them across.
         if (m_uvLayout->selectionRevision != entry.selectionRevision) {
             UvLayout &layout = *m_uvLayout;
@@ -229,6 +231,8 @@ bool RenderWidget::ensureUvLayout(int meshIndex)
     layout.geometryRevision = entry.geometryRevision;
     layout.materialRevision = entry.materialRevision;
     layout.selectionRevision = entry.selectionRevision;
+    layout.colorRevision = entry.colorRevision;
+    layout.scalarRevision = entry.scalarRevision;
     layout.ioMask = (entry.ioMask & ~vcg::tri::io::Mask::IOM_VERTTEXCOORD)
         | vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
     if (std::find(m_uvLayoutCacheIds.begin(), m_uvLayoutCacheIds.end(), cacheId)

@@ -95,7 +95,7 @@ The built-in plugins are those registered in `plugins/meshpluginregistry.cpp` an
 | mesh/raster lists, current indices, active layer kind | view mode, camera/trackball, headlight direction, UV pan/zoom, raster pan/zoom/opacity |
 | document visibility proxy (`MeshEntry::visible`) | overlay settings, histogram cache, active/suspended tool state and transient tool feedback |
 | logs, progress, plugin registries | pipelines, SRBs, UBOs, render targets |
-| undo tree, labels, full snapshots, selection deltas, script-action records | UV-local GPU cache, per-mesh active UV texture group, raster GPU image cache |
+| undo tree, labels, snapshots with shared geometry and attribute layers, script-action records | UV-local GPU cache, per-mesh active UV texture group, raster GPU image cache |
 | shared mesh GPU cache | |
 
 `MainWindow` synchronizes the document's visibility from the active view so the layer panel reflects it; each view keeps its own visibility vector.

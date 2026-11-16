@@ -3011,7 +3011,8 @@ void MainWindow::showMemoryInfo()
     addRow(undoSection, tr("Unique geometry snapshots"), undoStats.geometryBytes,
            tr("%1 allocation(s), shared snapshots counted once")
                .arg(undoStats.uniqueGeometryCount));
-    addRow(undoSection, tr("Attribute deltas"), undoStats.deltaBytes);
+    addRow(undoSection, tr("Attribute layers"), undoStats.attributeBytes,
+           tr("selection, colors and scalars kept beside a shared geometry snapshot"));
     addRow(undoSection, tr("History-only images"), undoStats.historyImageBytes,
            tr("%1 unique backing store(s); live images excluded")
                .arg(undoStats.uniqueHistoryImageCount));
@@ -3022,8 +3023,8 @@ void MainWindow::showMemoryInfo()
         pendingItem->setExpanded(true);
         if (undoStats.pendingGeometryBytes > 0)
             addRow(pendingItem, tr("Unique geometry"), undoStats.pendingGeometryBytes);
-        if (undoStats.pendingDeltaBytes > 0)
-            addRow(pendingItem, tr("Attribute delta"), undoStats.pendingDeltaBytes);
+        if (undoStats.pendingAttributeBytes > 0)
+            addRow(pendingItem, tr("Attribute layers"), undoStats.pendingAttributeBytes);
         if (undoStats.pendingImageBytes > 0)
             addRow(pendingItem, tr("History-only images"), undoStats.pendingImageBytes);
     }
@@ -3033,12 +3034,9 @@ void MainWindow::showMemoryInfo()
         pathItem->setText(0, tr("Current path references (not additive)"));
         pathItem->setText(1, QStringLiteral("-"));
         for (const auto &step : undoStats.steps) {
-            const qint64 bytes = step.attributeDelta
-                ? step.deltaBytes
-                : step.referencedGeometryBytes;
-            addRow(pathItem, step.label, bytes,
-                   step.attributeDelta ? tr("owned attribute storage")
-                                       : tr("shared geometry referenced by state"));
+            addRow(pathItem, step.label,
+                   step.referencedGeometryBytes + step.referencedAttributeBytes,
+                   tr("shared geometry and attribute layers referenced by state"));
         }
     }
 
@@ -3120,7 +3118,7 @@ void MainWindow::showMemoryInfo()
     QJsonObject undoJson;
     undoJson.insert(QStringLiteral("nodeCount"), undoStats.nodeCount);
     undoJson.insert(QStringLiteral("geometryBytes"), double(undoStats.geometryBytes));
-    undoJson.insert(QStringLiteral("deltaBytes"), double(undoStats.deltaBytes));
+    undoJson.insert(QStringLiteral("attributeBytes"), double(undoStats.attributeBytes));
     undoJson.insert(QStringLiteral("historyImageBytes"), double(undoStats.historyImageBytes));
     undoJson.insert(QStringLiteral("pendingBytes"), double(undoStats.pendingBytes()));
     undoJson.insert(QStringLiteral("totalBytes"), double(undoStats.totalBytes()));

@@ -724,7 +724,8 @@ QString Document::displayPath(const QString &path) const
 void Document::recordMeshStored(MeshEntry &entry, const QString &path, const QStringList *savedTexturePaths)
 {
     const QString file = QFileInfo(path).absoluteFilePath();
-    m_storedMeshes[entry.meshId] = { file, entry.geometryRevision, entry.materialRevision, entry.selectionRevision };
+    m_storedMeshes[entry.meshId] = { file, entry.geometryRevision, entry.materialRevision,
+                                     entry.selectionRevision, entry.colorRevision, entry.scalarRevision };
     bool repointed = false;
     for (int i = 0; i < int(entry.textureAssets.size()); ++i) {
         MeshIOTextureAsset &asset = entry.textureAssets[size_t(i)];
@@ -760,6 +761,7 @@ Document::StoredState Document::meshStoredState(int index) const
     const StoredMesh &s = stored->second;
     return s.geometryRevision == entry.geometryRevision && s.materialRevision == entry.materialRevision
             && s.selectionRevision == entry.selectionRevision
+            && s.colorRevision == entry.colorRevision && s.scalarRevision == entry.scalarRevision
         ? StoredState::Stored
         : StoredState::Changed;
 }

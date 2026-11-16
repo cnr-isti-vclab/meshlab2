@@ -5,10 +5,6 @@ using namespace DocumentInternal;
 
 void Document::beginUndoStep(const QString &label)
 {
-    // Named type, not {}: against these overloads a braced-init-list converts to int
-    // ahead of ScriptAction, so `{}` silently selected the selection-delta overload and
-    // turned every plain step -- Add Mesh, Rename, Open Meshes -- into a delta on mesh 0
-    // that carries no snapshot to restore from.
     beginUndoStep(label, ScriptAction{});
 }
 
@@ -17,23 +13,6 @@ void Document::beginUndoStep(
     const ScriptAction &scriptAction)
 {
     m_undoManager->beginStep(label, scriptAction);
-}
-
-void Document::beginUndoStep(
-    const QString &label,
-    int meshIndexForDelta,
-    std::uint32_t kinds)
-{
-    m_undoManager->beginDeltaStep(label, meshIndexForDelta, kinds);
-}
-
-void Document::beginUndoStep(
-    const QString &label,
-    const ScriptAction &scriptAction,
-    int meshIndexForDelta,
-    std::uint32_t kinds)
-{
-    m_undoManager->beginDeltaStep(label, meshIndexForDelta, kinds, scriptAction);
 }
 
 void Document::endUndoStep(bool commit, bool restoreOnCancel)

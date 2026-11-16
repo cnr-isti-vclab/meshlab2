@@ -1086,6 +1086,7 @@ struct SceneRasterProjectedDrawItem {
         bool invertColorMap = false;
         std::uint64_t meshId = 0;
         std::uint64_t geometryRevision = 0;
+        std::uint64_t scalarRevision = 0;
         int bins = 0;
         float minQ = 0.0f;
         float maxQ = 1.0f;
@@ -1097,6 +1098,7 @@ struct SceneRasterProjectedDrawItem {
     struct SampledQualityRange {
         bool valid = false;
         std::uint64_t geometryRevision = 0;
+        std::uint64_t scalarRevision = 0;
         bool centerOnZero = false;
         float percentileCrop = 0.0f;
         RenderQualityRange range;
@@ -1132,6 +1134,8 @@ struct SceneRasterProjectedDrawItem {
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
         std::uint64_t selectionRevision = 0;
+        std::uint64_t colorRevision = 0;
+        std::uint64_t scalarRevision = 0;
         int ioMask = 0;
         VCGMesh mesh;
         std::vector<int> sourceVertex; // the layer's vertex each vertex stands for

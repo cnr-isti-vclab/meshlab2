@@ -20,48 +20,39 @@ using namespace DocumentInternal;
 
 namespace {
 
-qint64 attributeDeltaBytes(const MeshAttributeDelta &delta)
+qint64 layerBytes(const MeshAttributeLayer &layer)
 {
     const qint64 words =
-        qint64(delta.vertexSelectionBits.capacity() + delta.faceSelectionBits.capacity()
-               + delta.edgeSelectionBits.capacity() + delta.faceEdgeSelectionBits.capacity())
-        + qint64(delta.vertexColors.capacity() + delta.faceColors.capacity()
-                 + delta.edgeColors.capacity());
+        qint64(layer.vertexSelectionBits.capacity() + layer.faceSelectionBits.capacity()
+               + layer.edgeSelectionBits.capacity() + layer.faceEdgeSelectionBits.capacity())
+        + qint64(layer.vertexColors.capacity() + layer.faceColors.capacity()
+                 + layer.edgeColors.capacity());
     const qint64 floats =
-        qint64(delta.vertexScalars.capacity() + delta.faceScalars.capacity()
-               + delta.edgeScalars.capacity());
+        qint64(layer.vertexScalars.capacity() + layer.faceScalars.capacity()
+               + layer.edgeScalars.capacity());
     return words * qint64(sizeof(std::uint32_t)) + floats * qint64(sizeof(float));
 }
 
-qint64 referencedGeometryBytes(const UndoState &state)
-{
-    qint64 bytes = 0;
-    for (const MeshSnapshot &snapshot : state.meshes) {
-        if (snapshot.geometry)
-            bytes += vcgMeshCpuBytes(*snapshot.geometry);
-        if (snapshot.selection)
-            bytes += attributeDeltaBytes(*snapshot.selection);
-    }
-    return bytes;
-}
-
-// A state's geometry and its selection, each counted once however many states share it.
+// A state's geometry copies and attribute layers, each counted once however many states
+// share it.
 void accountGeometry(
     const UndoState &state,
     std::set<const void *> &seen,
-    qint64 &bytes,
+    qint64 &geometryBytes,
+    qint64 &attributeBytes,
     int *count = nullptr)
 {
     for (const MeshSnapshot &snapshot : state.meshes) {
         const VCGMesh *geometry = snapshot.geometry.get();
         if (geometry && seen.insert(geometry).second) {
-            bytes += vcgMeshCpuBytes(*geometry);
+            geometryBytes += vcgMeshCpuBytes(*geometry);
             if (count)
                 ++*count;
         }
-        const MeshAttributeDelta *selection = snapshot.selection.get();
-        if (selection && seen.insert(selection).second)
-            bytes += attributeDeltaBytes(*selection);
+        for (const auto &layer : snapshot.layers) {
+            if (layer && seen.insert(layer.get()).second)
+                attributeBytes += layerBytes(*layer);
+        }
     }
 }
 
@@ -105,8 +96,8 @@ void accountStateImages(
     }
 }
 
-// What the history holds beyond the live document, a node at a time: every geometry,
-// selection and image counted once however many states share it. Images the live document
+// What the history holds beyond the live document, a node at a time: every geometry copy,
+// attribute layer and image counted once however many states share it. Images the live document
 // still shows are not counted, as pruning would not free them.
 struct HistoryBytes {
     std::set<const void *> geometry;
@@ -127,11 +118,8 @@ struct HistoryBytes {
     }
     void add(const UndoNode &node)
     {
-        accountGeometry(node.state, geometry, stats.geometryBytes, &stats.uniqueGeometryCount);
-        if (node.beforeAttributes)
-            stats.deltaBytes += attributeDeltaBytes(*node.beforeAttributes);
-        if (node.afterAttributes)
-            stats.deltaBytes += attributeDeltaBytes(*node.afterAttributes);
+        accountGeometry(node.state, geometry, stats.geometryBytes, stats.attributeBytes,
+                        &stats.uniqueGeometryCount);
         accountStateImages(node.state, images, stats.historyImageBytes, &stats.uniqueHistoryImageCount);
     }
 };
@@ -161,26 +149,6 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
     if (!m_undoStepActive)
         return;
 
-    // Delta mode: defer to endDeltaStep for selection-only operations.
-    if (m_pendingDeltaMeshIndex.has_value()) {
-        if (!commit) {
-            if (restoreOnCancel && m_pendingDeltaBefore.has_value()) {
-                m_restoringUndoRedo = true;
-                m_doc.applyAttributeDelta(*m_pendingDeltaBefore);
-                m_restoringUndoRedo = false;
-            }
-            m_pendingDeltaBefore.reset();
-            m_pendingDeltaMeshIndex.reset();
-            m_pendingScriptAction.reset();
-            m_undoStepActive = false;
-            m_undoStepLabel.clear();
-            applyDeferredMemoryPressure();
-            return;
-        }
-        endDeltaStep();
-        return;
-    }
-
     const QString label = m_undoStepLabel;
     std::optional<UndoState> before = std::move(m_pendingUndoBefore);
     std::optional<ScriptAction> scriptAction = std::move(m_pendingScriptAction);
@@ -205,46 +173,6 @@ void DocumentUndoManager::endStep(bool commit, bool restoreOnCancel)
     }
 
     pushStep(label, std::move(*before), m_doc.captureUndoState(), std::move(scriptAction));
-}
-
-void DocumentUndoManager::beginDeltaStep(const QString &label, int meshIndex,
-                                        std::uint32_t kinds,
-                                        std::optional<ScriptAction> scriptAction)
-{
-    if (m_restoringUndoRedo || m_undoStepActive || m_suppressUndo)
-        return;
-
-    m_undoStepActive = true;
-    m_undoStepLabel = label.trimmed();
-    if (m_undoStepLabel.isEmpty())
-        m_undoStepLabel = QObject::tr("Edit");
-    m_pendingDeltaBefore = m_doc.captureAttributeDelta(meshIndex, kinds);
-    m_pendingDeltaMeshIndex = meshIndex;
-    m_pendingDeltaKinds = kinds;
-    m_pendingScriptAction = std::move(scriptAction);
-    m_pendingUndoBefore.reset();
-}
-
-void DocumentUndoManager::endDeltaStep()
-{
-    if (!m_undoStepActive || !m_pendingDeltaMeshIndex.has_value())
-        return;
-
-    const QString label = m_undoStepLabel;
-    MeshAttributeDelta before = std::move(*m_pendingDeltaBefore);
-    const int meshIndex = *m_pendingDeltaMeshIndex;
-    const std::uint32_t kinds = m_pendingDeltaKinds;
-    std::optional<ScriptAction> scriptAction = std::move(m_pendingScriptAction);
-    m_pendingDeltaBefore.reset();
-    m_pendingDeltaMeshIndex.reset();
-    m_pendingDeltaKinds = MeshAttributeNone;
-    m_pendingScriptAction.reset();
-    m_undoStepActive = false;
-    m_undoStepLabel.clear();
-
-    MeshAttributeDelta after = m_doc.captureAttributeDelta(meshIndex, kinds);
-    pushDeltaStep(label, std::move(before), std::move(after), std::move(scriptAction));
-    applyDeferredMemoryPressure();
 }
 
 bool DocumentUndoManager::canUndo() const
@@ -319,7 +247,6 @@ std::vector<UndoTreeNodeInfo> DocumentUndoManager::undoTreeInfo() const
         info.parentId = node.parentId;
         info.depth = depth;
         info.isCurrent = (id == m_undoCurrentNode);
-        info.attributeDelta = node.storageKind == UndoStorageKind::Delta;
         info.isOnCurrentPath = onPath.count(id) > 0;
         info.label = node.label;
         if (node.actionRecord.has_value()
@@ -386,54 +313,18 @@ bool DocumentUndoManager::jumpToNode(int nodeId, bool restoreCamera)
 
     // Where the walk passes, the preferred children point back the way it came, as single
     // undos and redos would leave them: undo, then redo, returns to where the jump started.
-    bool walkHasFullStep = false;
-    for (int id = m_undoCurrentNode; id != lca; id = m_undoNodes[static_cast<size_t>(id)].parentId) {
-        UndoNode &node = m_undoNodes[static_cast<size_t>(id)];
-        m_undoNodes[static_cast<size_t>(node.parentId)].preferredChild = id;
-        walkHasFullStep |= node.storageKind == UndoStorageKind::FullSnapshot;
-    }
-    for (int id : redoPath) {
-        UndoNode &node = m_undoNodes[static_cast<size_t>(id)];
-        m_undoNodes[static_cast<size_t>(node.parentId)].preferredChild = id;
-        walkHasFullStep |= node.storageKind == UndoStorageKind::FullSnapshot;
-    }
+    for (int id = m_undoCurrentNode; id != lca; id = m_undoNodes[static_cast<size_t>(id)].parentId)
+        m_undoNodes[static_cast<size_t>(m_undoNodes[static_cast<size_t>(id)].parentId)].preferredChild = id;
+    for (int id : redoPath)
+        m_undoNodes[static_cast<size_t>(m_undoNodes[static_cast<size_t>(id)].parentId)].preferredChild = id;
 
-    // One state is restored, not every one in between: the target's, or, for a delta node,
-    // its nearest full snapshot followed by the deltas below it. Only a walk made of delta
-    // steps alone is replayed, as each of those is cheaper than a restore.
+    // Every node is a whole state: restore the target's, not each one in between.
     m_suppressUndoRedoSignals = true;
     m_restoringUndoRedo = true;
-    if (walkHasFullStep) {
-        std::vector<int> deltas;
-        int base = nodeId;
-        while (m_undoNodes[static_cast<size_t>(base)].storageKind == UndoStorageKind::Delta) {
-            deltas.push_back(base);
-            base = m_undoNodes[static_cast<size_t>(base)].parentId;
-        }
-        m_restoreCamera = deltas.empty() && restoreCamera;
-        m_doc.restoreUndoState(m_undoNodes[static_cast<size_t>(base)].state);
-        for (auto it = deltas.rbegin(); it != deltas.rend(); ++it) {
-            const UndoNode &node = m_undoNodes[static_cast<size_t>(*it)];
-            if (node.afterAttributes)
-                m_doc.applyAttributeDelta(*node.afterAttributes);
-        }
-    } else {
-        for (int id = m_undoCurrentNode; id != lca; id = m_undoNodes[static_cast<size_t>(id)].parentId)
-            m_doc.applyAttributeDelta(*m_undoNodes[static_cast<size_t>(id)].beforeAttributes);
-        for (int id : redoPath)
-            m_doc.applyAttributeDelta(*m_undoNodes[static_cast<size_t>(id)].afterAttributes);
-    }
+    m_restoreCamera = restoreCamera;
+    m_doc.restoreUndoState(m_undoNodes[static_cast<size_t>(nodeId)].state);
     m_undoCurrentNode = nodeId;
     m_restoringUndoRedo = false;
-    // A delta node's state carries no view of its own (its afterAttributes are the state);
-    // a full one's was put back by the restore above.
-    if (!walkHasFullStep && m_undoNodes[static_cast<size_t>(nodeId)].storageKind == UndoStorageKind::FullSnapshot)
-        m_doc.restoreViewState(m_undoNodes[static_cast<size_t>(nodeId)].state.viewState, restoreCamera);
-    m_doc.writeLog(QObject::tr("Jump to '%1': %2 restored state, %3")
-        .arg(m_undoNodes[static_cast<size_t>(nodeId)].label)
-        .arg(walkHasFullStep ? 1 : 0)
-        .arg(walkHasFullStep ? QObject::tr("then the deltas below it") : QObject::tr("deltas only")),
-        Document::LogSource::Application, Document::LogLevel::Debug);
 
     m_restoreCamera = true;
     m_suppressUndoRedoSignals = false;
@@ -449,19 +340,6 @@ bool DocumentUndoManager::undo()
     const auto &node = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
     const int parentId = node.parentId;
     const auto &target = m_undoNodes[static_cast<size_t>(parentId)];
-
-    if (node.storageKind == UndoStorageKind::Delta && node.beforeAttributes.has_value()) {
-        // Delta undo: revert selection on live mesh, no full state restore.
-        m_restoringUndoRedo = true;
-        m_doc.applyAttributeDelta(*node.beforeAttributes);
-        m_undoNodes[static_cast<size_t>(parentId)].preferredChild = m_undoCurrentNode;
-        m_undoCurrentNode = parentId;
-        emitStateChanged();
-        m_restoringUndoRedo = false;
-        m_doc.writeLog(QObject::tr("Undo '%1' (selection delta)").arg(node.label),
-            Document::LogSource::Application);
-        return true;
-    }
 
     QElapsedTimer timer;
     timer.start();
@@ -490,18 +368,6 @@ bool DocumentUndoManager::redo()
     const int childId = node.preferredChild >= 0 ? node.preferredChild
                                                   : node.children.front();
     const auto &target = m_undoNodes[static_cast<size_t>(childId)];
-    if (target.storageKind == UndoStorageKind::Delta && target.afterAttributes.has_value()) {
-        // Delta redo: apply after-selection on live mesh, no full state restore.
-        m_restoringUndoRedo = true;
-        m_doc.applyAttributeDelta(*target.afterAttributes);
-        m_undoCurrentNode = childId;
-        emitStateChanged();
-        m_restoringUndoRedo = false;
-        m_doc.writeLog(QObject::tr("Redo '%1' (selection delta)").arg(target.label),
-            Document::LogSource::Application);
-        return true;
-    }
-
     QElapsedTimer timer;
     timer.start();
     m_restoringUndoRedo = true;
@@ -525,13 +391,11 @@ void DocumentUndoManager::clear()
 
     m_undoNodes.clear();
     m_undoGeometryCache.clear();
-    m_undoSelectionCache.clear();
+    m_undoAttributeCache.clear();
     m_undoCurrentNode = -1;
     m_undoStepActive = false;
     m_undoStepLabel.clear();
     m_pendingUndoBefore.reset();
-    m_pendingDeltaBefore.reset();
-    m_pendingDeltaMeshIndex.reset();
     m_pendingMemoryPressure = 0;
     emitStateChanged();
 }
@@ -601,9 +465,6 @@ bool DocumentUndoManager::makeRoot(int nodeId)
     if (nodeId < 0 || nodeId >= static_cast<int>(m_undoNodes.size()))
         return false;
     if (m_undoStepActive)
-        return false;
-    // A delta node holds no complete document state to start the history from.
-    if (m_undoNodes[static_cast<size_t>(nodeId)].storageKind == UndoStorageKind::Delta)
         return false;
     // Already the only node (trivial root) – nothing to do.
     if (m_undoNodes[static_cast<size_t>(nodeId)].parentId < 0 &&
@@ -729,9 +590,8 @@ UndoPruneResult DocumentUndoManager::pruneToMemoryBudgetInternal(
     linearizeHistory();
 
     // Count the path from the tip back, so that the bytes kept by rooting at each node are
-    // known in one pass: root at the oldest full snapshot whose states fit the target, the
-    // present root meaning nothing to prune. A delta node has no complete document state to
-    // start the history from, and at least one transition stays.
+    // known in one pass: root at the oldest node whose states fit the target, the present
+    // root meaning nothing to prune. At least one transition stays.
     std::vector<int> path;
     for (int id = m_undoCurrentNode; id >= 0; id = m_undoNodes[static_cast<size_t>(id)].parentId)
         path.push_back(id);
@@ -740,7 +600,7 @@ UndoPruneResult DocumentUndoManager::pruneToMemoryBudgetInternal(
     for (size_t i = 0; i < path.size(); ++i) {
         const UndoNode &node = m_undoNodes[static_cast<size_t>(path[i])];
         kept.add(node);
-        if (i == 0 || (node.storageKind != UndoStorageKind::FullSnapshot && node.parentId >= 0))
+        if (i == 0)
             continue;
         if (newRoot >= 0 && kept.stats.totalBytes() > targetBytes)
             break;
@@ -862,7 +722,6 @@ void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, Und
     const int newId = static_cast<int>(m_undoNodes.size());
     UndoNode child;
     child.state    = std::move(after);
-    child.storageKind = UndoStorageKind::FullSnapshot;
     child.label    = label;
     child.parentId = m_undoCurrentNode;
     child.prefixActionRecords = std::move(
@@ -883,46 +742,6 @@ void DocumentUndoManager::pushStep(const QString &label, UndoState &&before, Und
     enforceConfiguredMemoryLimit();
     emitStateChanged();
     applyDeferredMemoryPressure();
-}
-
-void DocumentUndoManager::pushDeltaStep(
-    const QString &label,
-    MeshAttributeDelta &&before,
-    MeshAttributeDelta &&after,
-    std::optional<ScriptAction> scriptAction)
-{
-    if (m_undoCurrentNode < 0) {
-        UndoNode root;
-        root.state = m_doc.captureUndoState();
-        root.label = {};
-        root.parentId = -1;
-        m_undoNodes.push_back(std::move(root));
-        m_undoCurrentNode = 0;
-    }
-    // Don't overwrite current node's state — for delta steps the parent
-    // already carries the correct full snapshot from a prior action.
-
-    const int newId = static_cast<int>(m_undoNodes.size());
-    UndoNode child;
-    child.storageKind = UndoStorageKind::Delta;
-    child.label = label;
-    child.parentId = m_undoCurrentNode;
-    child.prefixActionRecords = std::move(
-        m_undoNodes[static_cast<size_t>(m_undoCurrentNode)].trailingActionRecords);
-    child.beforeAttributes = std::move(before);
-    child.afterAttributes = std::move(after);
-    if (scriptAction.has_value())
-        child.actionRecord = UndoActionRecord::fromScriptAction(*scriptAction);
-
-    m_undoNodes.push_back(std::move(child));
-    auto &parent = m_undoNodes[static_cast<size_t>(m_undoCurrentNode)];
-    parent.children.push_back(newId);
-    parent.preferredChild = newId;
-    m_undoCurrentNode = newId;
-
-    pruneTreeToLimit();
-    enforceConfiguredMemoryLimit();
-    emitStateChanged();
 }
 
 // Only the action that produced this state, unlike nodeScriptActions() which also returns
@@ -991,11 +810,6 @@ void DocumentUndoManager::pruneTreeToLimit()
     int newRoot = m_undoCurrentNode;
     for (int i = 0; i < m_undoLimit; ++i)
         newRoot = m_undoNodes[static_cast<size_t>(newRoot)].parentId;
-    // A delta node holds no complete document state to start the history from: keep the
-    // few steps back to the nearest full snapshot.
-    while (m_undoNodes[static_cast<size_t>(newRoot)].storageKind == UndoStorageKind::Delta
-           && m_undoNodes[static_cast<size_t>(newRoot)].parentId >= 0)
-        newRoot = m_undoNodes[static_cast<size_t>(newRoot)].parentId;
     if (m_undoNodes[static_cast<size_t>(newRoot)].parentId < 0)
         return;
     rootAt(newRoot);
@@ -1029,23 +843,15 @@ UndoMemoryStats DocumentUndoManager::memoryStats() const
         UndoStepMemoryInfo info;
         const UndoNode &node = m_undoNodes[static_cast<size_t>(path[pi])];
         info.label = node.label;
-        info.attributeDelta = node.storageKind == UndoStorageKind::Delta;
-        if (info.attributeDelta) {
-            if (node.beforeAttributes)
-                info.deltaBytes += attributeDeltaBytes(*node.beforeAttributes);
-            if (node.afterAttributes)
-                info.deltaBytes += attributeDeltaBytes(*node.afterAttributes);
-        } else {
-            info.referencedGeometryBytes = referencedGeometryBytes(node.state);
-        }
+        std::set<const void *> own;
+        accountGeometry(node.state, own, info.referencedGeometryBytes, info.referencedAttributeBytes);
         stats.steps.push_back(info);
     }
 
     if (m_pendingUndoBefore) {
-        accountGeometry(*m_pendingUndoBefore, history.geometry, stats.pendingGeometryBytes);
+        accountGeometry(*m_pendingUndoBefore, history.geometry, stats.pendingGeometryBytes,
+                        stats.pendingAttributeBytes);
         accountStateImages(*m_pendingUndoBefore, history.images, stats.pendingImageBytes);
     }
-    if (m_pendingDeltaBefore)
-        stats.pendingDeltaBytes = attributeDeltaBytes(*m_pendingDeltaBefore);
     return stats;
 }
