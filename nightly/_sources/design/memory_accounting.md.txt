@@ -49,15 +49,16 @@ footprint remains the authoritative whole-process comparison value.
 `DocumentUndoManager::memoryStats()` reports reclaimable history ownership rather than
 adding every node's logical state:
 
-- immutable geometry snapshots are de-duplicated by shared `VCGMesh` pointer;
-- packed before/after selection-delta vector capacities are included;
+- immutable geometry snapshots are de-duplicated by shared `VCGMesh` pointer
+  (`geometryBytes`);
+- the selection, color and scalar layers kept beside them are de-duplicated the same way
+  and counted apart (`attributeBytes`, the dialog's *Attribute layers* row);
 - raster and texture images are de-duplicated, and image storage still shared with the
   live document is excluded because clearing history cannot release it;
 - resources unique to a currently open undo operation are reported as pending memory.
 
-Current-path rows in the dialog are explicitly marked **not additive**. Full states can
-reference geometry shared with many other nodes, while selection-delta rows own their
-small packed vectors directly.
+Current-path rows in the dialog are explicitly marked **not additive**: a state can
+reference geometry and layers shared with many other nodes.
 
 ## Automatic Pruning
 
@@ -68,9 +69,8 @@ Two preferences control automatic history release:
 - `document.purgeUndoOnMemoryPressure`: opts into OS pressure handling. Warning pressure
   prunes only relative to the configured budget; critical pressure may clear all history.
 
-Pruning first removes alternate branches, then advances the root through the oldest full
-snapshots while preserving at least one transition when possible. Selection-delta nodes
-never become roots because they do not contain a complete document state. If the newest
+Pruning first removes alternate branches, then advances the root through the oldest
+states while preserving at least one transition when possible. If the newest
 complete checkpoint alone exceeds an explicitly enabled budget, the history is cleared
 rather than claiming that the limit was enforced. Pressure received during a filter or
 other undo transaction is deferred until that operation closes. Every automatic purge is

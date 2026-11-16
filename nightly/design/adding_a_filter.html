@@ -581,17 +581,15 @@ up front, or with a <code class="docutils literal notranslate"><span class="pre"
 <ul class="simple">
 <li><p><strong>Undo</strong>: <code class="docutils literal notranslate"><span class="pre">runFilter</span></code> for a non-<code class="docutils literal notranslate"><span class="pre">Information</span></code> filter is automatically wrapped in
 one undo step, and the Python call is recorded. <strong>Never touch the undo stack.</strong>
-A <code class="docutils literal notranslate"><span class="pre">SingleMesh</span></code> filter whose <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> is non-empty and contains only
-selection codes (<code class="docutils literal notranslate"><span class="pre">VS</span></code>/<code class="docutils literal notranslate"><span class="pre">FS</span></code>/<code class="docutils literal notranslate"><span class="pre">ES</span></code>), only color codes (<code class="docutils literal notranslate"><span class="pre">VC</span></code>/<code class="docutils literal notranslate"><span class="pre">FC</span></code>/<code class="docutils literal notranslate"><span class="pre">EC</span></code>) or only
-scalar codes (<code class="docutils literal notranslate"><span class="pre">VQ</span></code>/<code class="docutils literal notranslate"><span class="pre">FQ</span></code>/<code class="docutils literal notranslate"><span class="pre">EQ</span></code>) — or a mix of those three classes — automatically
-uses the cheap attribute-delta undo, which stores just those attributes
-instead of a full snapshot. That matters on large meshes, where snapshotting is
-seconds of deep copy. <strong>This makes <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> load-bearing:</strong> the delta
-does not capture geometry, so a filter that declares <code class="docutils literal notranslate"><span class="pre">VC</span></code> but also moves a
-vertex will not have the movement undone. Declare everything you change.
-That includes custom attributes: a filter that leaves a named attribute declares <code class="docutils literal notranslate"><span class="pre">VA</span></code>
-or <code class="docutils literal notranslate"><span class="pre">FA</span></code>, and documents its name, type and meaning in the long description, since
-expressions and scripts read it by name. Remove scratch attributes before returning,
+What the step costs is decided by the change markers the filter calls (below), not by
+its descriptor: a filter that changes only the selection, the per-element colors or the
+scalars and says so with <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code>, <code class="docutils literal notranslate"><span class="pre">markMeshColorChanged</span></code> or
+<code class="docutils literal notranslate"><span class="pre">markMeshScalarChanged</span></code> costs the undo history that layer alone, beside the shared copy
+of the mesh; anything announced with <code class="docutils literal notranslate"><span class="pre">markMeshGeometryChanged</span></code> costs a copy. On a large
+mesh that is the difference between a few MB and seconds of deep copy.
+A filter that leaves a named custom attribute declares <code class="docutils literal notranslate"><span class="pre">VA</span></code> or <code class="docutils literal notranslate"><span class="pre">FA</span></code>, calls
+<code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code>, and documents the attribute’s name, type and meaning in the
+long description, since expressions and scripts read it by name. Remove scratch attributes before returning,
 including the named ones vcglib leaves behind (see
 <a class="reference internal" href="data_model.html#undoredo-model"><span class="std std-ref">Data Model</span></a>).</p></li>
 <li><p><strong>Input preparation</strong>: declare <code class="docutils literal notranslate"><span class="pre">inputPrepare</span></code> codes instead of computing
@@ -617,15 +615,18 @@ point with a null normal – it <strong>leaves out of what it reads</strong> (a 
 and says in the log how many it left out. <em>Screened Poisson</em> is the model: its point stream
 skips the points without a normal, with no option to ask for it, and the layer is left exactly as it was.</p></li>
 <li><p><strong>Notify changes</strong>: after mutating a mesh, call the matching
-<code class="docutils literal notranslate"><span class="pre">doc.markMeshGeometryChanged</span></code> / <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code> /
-<code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code> so the render/layer views refresh.</p></li>
+<code class="docutils literal notranslate"><span class="pre">doc.markMeshGeometryChanged</span></code> / <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code> / <code class="docutils literal notranslate"><span class="pre">markMeshColorChanged</span></code> /
+<code class="docutils literal notranslate"><span class="pre">markMeshScalarChanged</span></code> / <code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code>. Each moves a revision, which is how
+the views refresh and how undo knows what changed: a change no marker announces is
+invisible to undo, and a later undo or refused filter can restore the old values over it.
+Call the narrowest marker that covers everything you changed; when in doubt, geometry.</p></li>
 </ul>
 </section>
 <section id="best-practices-what-s-expected">
 <h2>Best practices / what’s expected<a class="headerlink" href="#best-practices-what-s-expected" title="Link to this heading">¶</a></h2>
 <ul>
-<li><p><strong>Declare <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> accurately</strong> — the framework keys undo storage,
-compaction, and cache invalidation off it. The codes, as the UI spells them
+<li><p><strong>Declare <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> accurately</strong> — the framework keys compaction, the selection
+report and the polygon count off it, and the UI shows it. The codes, as the UI spells them
 out (<code class="docutils literal notranslate"><span class="pre">FilterPresentation::modifiedDataLabels</span></code>):</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">

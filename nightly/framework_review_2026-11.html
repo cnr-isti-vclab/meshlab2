@@ -1487,6 +1487,40 @@ prune.</p></li>
 revision follows at once; fold it into <code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code> while there.</p></li>
 </ul>
 <p>Size: about +120 / −330.</p>
+<p><strong>U1, first commit, done (2026-11-16):</strong> rows U1.1 and U1.3–U1.9. <code class="docutils literal notranslate"><span class="pre">src</span></code> and <code class="docutils literal notranslate"><span class="pre">plugins</span></code> +269 / −488, tests +95 / −56.</p>
+<ul>
+<li><p><strong>New revisions and markers.</strong> <code class="docutils literal notranslate"><span class="pre">colorRevision</span></code>, <code class="docutils literal notranslate"><span class="pre">scalarRevision</span></code>, <code class="docutils literal notranslate"><span class="pre">markMeshColorChanged</span></code> and <code class="docutils literal notranslate"><span class="pre">markMeshScalarChanged</span></code> are in. The three attribute markers share one private <code class="docutils literal notranslate"><span class="pre">markMeshAttributeChanged</span></code>.</p></li>
+<li><p><strong>Attribute layers.</strong> <code class="docutils literal notranslate"><span class="pre">MeshAttributeDelta</span></code> became <code class="docutils literal notranslate"><span class="pre">MeshAttributeLayer</span></code>, interned in one cache by <code class="docutils literal notranslate"><span class="pre">(meshId,</span> <span class="pre">kind,</span> <span class="pre">revision)</span></code>. A geometry copy remembers the attribute revisions it was taken at, so a state keeps a layer only where its revision differs from the copy’s. Restore writes, per kind, the state’s layer, or the copy’s values when the state has none.</p></li>
+<li><p><strong>The delta node kind is gone,</strong> with every delta branch:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">jumpToNode</span></code> is one restore;</p></li>
+<li><p>Make Root, pruning and the undo limit can root anywhere;</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> table is removed.</p></li>
+</ul>
+</li>
+<li><p><strong>GPU and render keys.</strong> Fill, point and edge variants key on the revision of what they color with. The histogram, the quality range cache and the UV layout key on the new revisions too.</p></li>
+<li><p><strong>Memory dialog (D6-2).</strong> It has an <em>Attribute layers</em> row (<code class="docutils literal notranslate"><span class="pre">attributeBytes</span></code>); a step lists the geometry and layers it references.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">filter_texture</span></code></strong> calls <code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code> instead of incrementing the revision by hand.</p></li>
+<li><p><strong>The 63 filters are unmigrated,</strong> so for now color and scalar steps cost a copy. The second commit migrates them.</p></li>
+<li><p><strong>The cache-miss risk listed above does not occur.</strong></p>
+<ul>
+<li><p>The current node always holds the copy of the live revisions, so the next capture always finds it.</p></li>
+<li><p>With no history at all, the old delta path made the same copy: it captured the root state with <code class="docutils literal notranslate"><span class="pre">captureUndoState</span></code>.</p></li>
+<li><p>What does change is that undo now relies on the markers alone. A change made without one is invisible to the next capture. Before, the delta path read the selection and color bits directly.</p>
+<p>Two tests edited a mesh by hand without announcing it, and a refused filter then rolled back over their edits; they now call the markers. A third held a reference to a mesh across a refused run, which replaces the layer’s entry, as rolling back a full step always has.</p>
+<p>Nothing in-process writes without a marker that I found. The Python API only reads mesh data or adds whole meshes.</p>
+</li>
+</ul>
+</li>
+<li><p><strong>Not measured on ESTE.</strong> Selection steps now store one bit set instead of two, and color steps keep costing a copy until the migration. The measurement belongs after the second commit.</p></li>
+<li><p><strong>Tests.</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">colorAndScalarChangesShareTheGeometryCopy</span></code>: color and scalar steps share the copy, and undo onto a copy made before them, onto a kept layer, and a jump to the tip each restore the right values.</p></li>
+<li><p>The delta-storage assertions now check for a single geometry copy.</p></li>
+<li><p>A selection step can be made the root.</p></li>
+</ul>
+</li>
+</ul>
 <p><strong>Totals:</strong> 19 rows.</p>
 <ul class="simple">
 <li><p>R6, 6 rows: 3 change, 1 delete, 1 merge, 1 keep.</p></li>

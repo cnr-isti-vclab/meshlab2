@@ -110,6 +110,21 @@ void writeQualitySlots(float *color, float quality, bool faceQuality)
     color[2] = 0.0f;
     color[3] = finite ? (faceQuality ? -2.0f : -1.0f) : 0.0f;
 }
+
+// The revision of what a fill or point variant colors with: the per-element colors, the
+// scalars, or nothing that changes apart from the geometry.
+std::uint64_t colorSourceRevision(const MeshGpuResourceCache::MeshSource &source, int variantIndex,
+                                  bool points)
+{
+    using Fill = MeshGpuResourceCache::FillVariant;
+    using Point = MeshGpuResourceCache::PointVariant;
+    if (points)
+        return variantIndex == int(Point::PerVertex) ? source.colorRevision
+             : variantIndex == int(Point::PerVertexQuality) ? source.scalarRevision : 0;
+    return variantIndex == int(Fill::PerVertex) || variantIndex == int(Fill::PerFace) ? source.colorRevision
+         : variantIndex == int(Fill::PerVertexQuality) || variantIndex == int(Fill::PerFaceQuality)
+             ? source.scalarRevision : 0;
+}
 }
 
 struct MeshGpuResourceCache::CacheState
@@ -136,6 +151,7 @@ struct MeshGpuResourceCache::CacheState
     struct FillVariantGpu {
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
+        std::uint64_t colorSourceRevision = 0; // colorSourceRevision()
         bool valid = false;
         std::vector<FillBatchGpu> batches;
         mutable std::vector<FillBatchView> viewBatches;
@@ -151,6 +167,7 @@ struct MeshGpuResourceCache::CacheState
 
     struct EdgeGpu {
         std::uint64_t geometryRevision = 0;
+        std::uint64_t colorRevision = 0;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -160,6 +177,7 @@ struct MeshGpuResourceCache::CacheState
 
     struct PointsVariantGpu {
         std::uint64_t geometryRevision = 0;
+        std::uint64_t colorSourceRevision = 0;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -278,14 +296,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         [&](CacheState::FillVariantGpu &dst, FillVariant variant) -> bool {
             // Quality goes in raw; the shader maps it through the range uniform, so a range
             // change rebuilds nothing.
+            const std::uint64_t colorRevision = colorSourceRevision(source, fillVariantIndex(variant), false);
             if (dst.valid
                 && dst.geometryRevision == source.geometryRevision
-                && dst.materialRevision == source.materialRevision)
+                && dst.materialRevision == source.materialRevision
+                && dst.colorSourceRevision == colorRevision)
                 return false;
 
             dst.valid = true;
             dst.geometryRevision = source.geometryRevision;
             dst.materialRevision = source.materialRevision;
+            dst.colorSourceRevision = colorRevision;
             dst.batches.clear();
             dst.viewBatches.clear();
 
@@ -970,11 +991,14 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
     auto rebuildPointsVariant =
         [&](CacheState::PointsVariantGpu &dst, PointVariant variant) -> bool {
-            if (dst.valid && dst.geometryRevision == source.geometryRevision)
+            const std::uint64_t colorRevision = colorSourceRevision(source, pointVariantIndex(variant), true);
+            if (dst.valid && dst.geometryRevision == source.geometryRevision
+                && dst.colorSourceRevision == colorRevision)
                 return false;
 
             dst.valid = true;
             dst.geometryRevision = source.geometryRevision;
+            dst.colorSourceRevision = colorRevision;
             dst.vbuf.reset();
             dst.vertexCount = 0;
 
@@ -1048,11 +1072,13 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         };
 
     auto rebuildEdges = [&](CacheState::EdgeGpu &dst) -> bool {
-        if (dst.valid && dst.geometryRevision == source.geometryRevision)
+        if (dst.valid && dst.geometryRevision == source.geometryRevision
+            && dst.colorRevision == source.colorRevision)
             return false;
 
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
+        dst.colorRevision = source.colorRevision;
         dst.vbuf.reset();
         dst.vertexCount = 0;
         dst.fatVbuf.reset();
@@ -1803,13 +1829,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     // A variant of an older revision is rebuilt before it is drawn again, so its buffers
     // only hold memory: release them. One at the current revision stays, since another
     // view may be drawing the mesh with that color source.
-    for (auto &fill : meshCache.fill) {
+    for (size_t i = 0; i < meshCache.fill.size(); ++i) {
+        auto &fill = meshCache.fill[i];
         if (fill.valid && (fill.geometryRevision != source.geometryRevision
-                           || fill.materialRevision != source.materialRevision))
+                           || fill.materialRevision != source.materialRevision
+                           || fill.colorSourceRevision != colorSourceRevision(source, int(i), false)))
             fill = CacheState::FillVariantGpu{};
     }
-    for (auto &points : meshCache.points) {
-        if (points.valid && points.geometryRevision != source.geometryRevision)
+    for (size_t i = 0; i < meshCache.points.size(); ++i) {
+        auto &points = meshCache.points[i];
+        if (points.valid && (points.geometryRevision != source.geometryRevision
+                             || points.colorSourceRevision != colorSourceRevision(source, int(i), true)))
             points = CacheState::PointsVariantGpu{};
     }
     if (needs.boundingBox)

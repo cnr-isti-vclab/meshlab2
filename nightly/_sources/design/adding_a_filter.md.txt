@@ -359,17 +359,15 @@ up front, or with a `success = false` result that says why.
 
 - **Undo**: `runFilter` for a non-`Information` filter is automatically wrapped in
   one undo step, and the Python call is recorded. **Never touch the undo stack.**
-  A `SingleMesh` filter whose `outputModifies` is non-empty and contains only
-  selection codes (`VS`/`FS`/`ES`), only color codes (`VC`/`FC`/`EC`) or only
-  scalar codes (`VQ`/`FQ`/`EQ`) — or a mix of those three classes — automatically
-  uses the cheap attribute-delta undo, which stores just those attributes
-  instead of a full snapshot. That matters on large meshes, where snapshotting is
-  seconds of deep copy. **This makes `outputModifies` load-bearing:** the delta
-  does not capture geometry, so a filter that declares `VC` but also moves a
-  vertex will not have the movement undone. Declare everything you change.
-  That includes custom attributes: a filter that leaves a named attribute declares `VA`
-  or `FA`, and documents its name, type and meaning in the long description, since
-  expressions and scripts read it by name. Remove scratch attributes before returning,
+  What the step costs is decided by the change markers the filter calls (below), not by
+  its descriptor: a filter that changes only the selection, the per-element colors or the
+  scalars and says so with `markMeshSelectionChanged`, `markMeshColorChanged` or
+  `markMeshScalarChanged` costs the undo history that layer alone, beside the shared copy
+  of the mesh; anything announced with `markMeshGeometryChanged` costs a copy. On a large
+  mesh that is the difference between a few MB and seconds of deep copy.
+  A filter that leaves a named custom attribute declares `VA` or `FA`, calls
+  `markMeshMaterialChanged`, and documents the attribute's name, type and meaning in the
+  long description, since expressions and scripts read it by name. Remove scratch attributes before returning,
   including the named ones vcglib leaves behind (see
   [Data Model](data_model.md#undoredo-model)).
 - **Input preparation**: declare `inputPrepare` codes instead of computing
@@ -395,13 +393,16 @@ up front, or with a `success = false` result that says why.
   and says in the log how many it left out. *Screened Poisson* is the model: its point stream
   skips the points without a normal, with no option to ask for it, and the layer is left exactly as it was.
 - **Notify changes**: after mutating a mesh, call the matching
-  `doc.markMeshGeometryChanged` / `markMeshSelectionChanged` /
-  `markMeshMaterialChanged` so the render/layer views refresh.
+  `doc.markMeshGeometryChanged` / `markMeshSelectionChanged` / `markMeshColorChanged` /
+  `markMeshScalarChanged` / `markMeshMaterialChanged`. Each moves a revision, which is how
+  the views refresh and how undo knows what changed: a change no marker announces is
+  invisible to undo, and a later undo or refused filter can restore the old values over it.
+  Call the narrowest marker that covers everything you changed; when in doubt, geometry.
 
 ## Best practices / what's expected
 
-- **Declare `outputModifies` accurately** — the framework keys undo storage,
-  compaction, and cache invalidation off it. The codes, as the UI spells them
+- **Declare `outputModifies` accurately** — the framework keys compaction, the selection
+  report and the polygon count off it, and the UI shows it. The codes, as the UI spells them
   out (`FilterPresentation::modifiedDataLabels`):
 
   | | vertex | face | edge |
