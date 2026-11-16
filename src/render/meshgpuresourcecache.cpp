@@ -1556,6 +1556,10 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         struct EdgeAccum {
             std::array<float, 3> p0 { 0.0f, 0.0f, 0.0f };
             std::array<float, 3> p1 { 0.0f, 0.0f, 0.0f };
+            // The vertices p0 and p1 came from, and the segments of later faces whose own
+            // vertices differ: only a mesh with a vertexIdentity has any.
+            std::array<int, 2> firstVertices { -1, -1 };
+            std::vector<std::array<float, 6>> otherSides;
             int incidentCount = 0;
             // For the first two faces on the edge, their corners at p0 and at p1.
             std::array<std::array<int, 2>, 2> corners {};
@@ -1601,6 +1605,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         std::unordered_map<std::uint64_t, EdgeAccum> edges;
         edges.reserve(static_cast<size_t>(meshData.FN()) * 3);
 
+        // Edges are keyed by vertex identity: the vertex index, or the source vertex a
+        // UV-layout vertex stands for.
+        const std::vector<int> *identity = source.vertexIdentity;
+        const int keyCount = identity && !identity->empty()
+            ? *std::max_element(identity->begin(), identity->end()) + 1
+            : meshData.VN();
+        const auto vertexKey = [&](const VCGVertex *v) {
+            const int index = int(vcg::tri::Index(meshData, v));
+            return identity ? (*identity)[size_t(index)] : index;
+        };
+
         for (int fi = 0; fi < meshData.FN(); ++fi) {
             const auto &f = meshData.face[fi];
             if (f.IsD())
@@ -1612,19 +1627,22 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 if (!v0 || !v1)
                     continue;
 
-                int a = vcg::tri::Index(meshData, v0);
-                int b = vcg::tri::Index(meshData, v1);
+                int a = vertexKey(v0);
+                int b = vertexKey(v1);
                 if (a < 0 || b < 0 || a == b)
                     continue;
 
                 bool swapped = false;
                 std::array<float, 3> p0 = { v0->cP()[0], v0->cP()[1], v0->cP()[2] };
                 std::array<float, 3> p1 = { v1->cP()[0], v1->cP()[1], v1->cP()[2] };
+                std::array<int, 2> vertices = { int(vcg::tri::Index(meshData, v0)),
+                                                int(vcg::tri::Index(meshData, v1)) };
                 int c0 = 3 * fi + i;
                 int c1 = 3 * fi + next;
                 if (a > b) {
                     std::swap(a, b);
                     std::swap(p0, p1);
+                    std::swap(vertices[0], vertices[1]);
                     std::swap(c0, c1);
                     swapped = true;
                 }
@@ -1633,6 +1651,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 if (acc.incidentCount == 0) {
                     acc.p0 = p0;
                     acc.p1 = p1;
+                    acc.firstVertices = vertices;
+                } else if (vertices != acc.firstVertices) {
+                    acc.otherSides.push_back({ p0[0], p0[1], p0[2], p1[0], p1[1], p1[2] });
                 }
                 if (acc.incidentCount < 2)
                     acc.corners[size_t(acc.incidentCount)] = { c0, c1 };
@@ -1674,18 +1695,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             }
             return c;
         };
-        std::vector<bool> onNonManifoldEdge(static_cast<size_t>(meshData.VN()), false);
+        std::vector<bool> onNonManifoldEdge(static_cast<size_t>(keyCount), false);
+        const auto appendSides = [](std::vector<float> &lines, const EdgeAccum &acc) {
+            lines.insert(lines.end(), { acc.p0[0], acc.p0[1], acc.p0[2], acc.p1[0], acc.p1[1], acc.p1[2] });
+            for (const auto &side : acc.otherSides)
+                lines.insert(lines.end(), side.begin(), side.end());
+        };
 
         for (const auto &kv : edges) {
             const EdgeAccum &acc = kv.second;
-            if (acc.incidentCount == 1) {
-                boundaryEdgeLines.push_back(acc.p0[0]);
-                boundaryEdgeLines.push_back(acc.p0[1]);
-                boundaryEdgeLines.push_back(acc.p0[2]);
-                boundaryEdgeLines.push_back(acc.p1[0]);
-                boundaryEdgeLines.push_back(acc.p1[1]);
-                boundaryEdgeLines.push_back(acc.p1[2]);
-            }
+            if (acc.incidentCount == 1)
+                appendSides(boundaryEdgeLines, acc);
 
             if (acc.incidentCount == 2) {
                 fan[size_t(fanOf(acc.corners[0][0]))] = fanOf(acc.corners[1][0]);
@@ -1694,12 +1714,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
             // Non-manifold edges: more than 2 incident faces.
             if (acc.incidentCount > 2) {
-                nonManifoldEdgeLines.push_back(acc.p0[0]);
-                nonManifoldEdgeLines.push_back(acc.p0[1]);
-                nonManifoldEdgeLines.push_back(acc.p0[2]);
-                nonManifoldEdgeLines.push_back(acc.p1[0]);
-                nonManifoldEdgeLines.push_back(acc.p1[1]);
-                nonManifoldEdgeLines.push_back(acc.p1[2]);
+                appendSides(nonManifoldEdgeLines, acc);
                 onNonManifoldEdge[size_t(kv.first >> 32)] = true;
                 onNonManifoldEdge[size_t(kv.first & 0xffffffffu)] = true;
             }
@@ -1725,19 +1740,13 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 }
             }
 
-            if (!isTextureBorder)
-                continue;
-
-            textureSeamLines.push_back(acc.p0[0]);
-            textureSeamLines.push_back(acc.p0[1]);
-            textureSeamLines.push_back(acc.p0[2]);
-            textureSeamLines.push_back(acc.p1[0]);
-            textureSeamLines.push_back(acc.p1[1]);
-            textureSeamLines.push_back(acc.p1[2]);
+            if (isTextureBorder)
+                appendSides(textureSeamLines, acc);
         }
 
-        std::vector<int> firstFan(static_cast<size_t>(meshData.VN()), -1);
-        std::vector<bool> manyFans(static_cast<size_t>(meshData.VN()), false);
+        std::vector<int> firstFan(static_cast<size_t>(keyCount), -1);
+        std::vector<bool> manyFans(static_cast<size_t>(keyCount), false);
+        std::vector<const VCGVertex *> keyVertex(static_cast<size_t>(keyCount), nullptr);
         for (int fi = 0; fi < meshData.FN(); ++fi) {
             const auto &f = meshData.face[fi];
             if (f.IsD())
@@ -1745,7 +1754,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             for (int k = 0; k < 3; ++k) {
                 if (!f.cV(k))
                     continue;
-                const size_t vi = size_t(vcg::tri::Index(meshData, f.cV(k)));
+                const size_t vi = size_t(vertexKey(f.cV(k)));
+                keyVertex[vi] = f.cV(k);
                 const int group = fanOf(3 * fi + k);
                 if (firstFan[vi] < 0)
                     firstFan[vi] = group;
@@ -1757,7 +1767,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         for (size_t vi = 0; vi < manyFans.size(); ++vi) {
             if (!manyFans[vi] || onNonManifoldEdge[vi])
                 continue;
-            const auto &p = meshData.vert[vi].cP();
+            const auto &p = keyVertex[vi]->cP();
             nonManifoldVertexPoints.insert(nonManifoldVertexPoints.end(), { p[0], p[1], p[2] });
         }
 

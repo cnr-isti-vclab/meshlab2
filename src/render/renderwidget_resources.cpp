@@ -717,7 +717,6 @@ void RenderWidget::ensureRenderResources()
         for (auto &srb : m_uvLineSrbs)
             srb.reset();
         m_uvLinePipelinesByKey.clear();
-        m_uvMeshGpu.clear();
     }
 
     if (!m_rhi || !renderTarget())

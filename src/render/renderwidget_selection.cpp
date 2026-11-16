@@ -802,9 +802,12 @@ void RenderWidget::ensureMeshGpu(
     MeshGpuResourceCache::FillVariant fillVariant,
     MeshGpuResourceCache::PointVariant pointVariant,
     const MeshGpuResourceCache::Needs &needs,
-    bool wireRespectFaux)
+    bool wireRespectFaux,
+    bool uvLayout)
 {
     if (!m_doc || !m_rhi || !cb || meshIndex < 0 || meshIndex >= m_doc->meshCount())
+        return;
+    if (uvLayout && !m_uvLayout)
         return;
     const Document::MeshEntry &entry = m_doc->mesh(meshIndex);
     MeshGpuResourceCache::MeshSource source;
@@ -818,6 +821,16 @@ void RenderWidget::ensureMeshGpu(
     source.textureFilePaths = &entry.textureFilePaths;
     source.textureAssets = &entry.textureAssets;
     source.materialSet = &entry.materialSet;
+    if (uvLayout) {
+        // Same revisions: the layout is rebuilt whenever the layer's move.
+        source.meshId = m_uvLayout->cacheId;
+        source.ioMask = m_uvLayout->ioMask;
+        source.mesh = &m_uvLayout->mesh;
+        source.vertexIdentity = &m_uvLayout->sourceVertex;
+        source.textureFilePaths = nullptr;
+        source.textureAssets = nullptr;
+        source.materialSet = nullptr;
+    }
 
     const MeshGpuResourceCache::EnsureStats stats = m_doc->gpuCache().ensureMeshResources(
         m_rhi, cb, source, fillVariant, pointVariant, needs);

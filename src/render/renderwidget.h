@@ -513,13 +513,16 @@ struct SceneRasterProjectedDrawItem {
     void ensureDepthPickResources(const QSize &pixelSize);
     void ensureRsGradResources(const QSize &pixelSize);
     void prepareDirtyBuffers(QRhiCommandBuffer *cb);
+    void updateQualityColorMapLut(QRhiResourceUpdateBatch *&batch);
     void ensureMeshGpu(
         QRhiCommandBuffer *cb,
         int meshIndex,
         MeshGpuResourceCache::FillVariant fillVariant,
         MeshGpuResourceCache::PointVariant pointVariant,
         const MeshGpuResourceCache::Needs &needs,
-        bool wireRespectFaux);
+        bool wireRespectFaux,
+        // Build from m_uvLayout, the layer's texture group in UV space, instead of the layer.
+        bool uvLayout = false);
     void prepareDirtyBuffers(
         QRhiCommandBuffer *cb,
         const RenderFramePassRequests &requests,
@@ -739,7 +742,7 @@ struct SceneRasterProjectedDrawItem {
     void layoutUvTextureGroupUi();
     int activeUvTextureGroup() const;
     bool meshHasParametrization(int meshIndex) const;
-    bool ensureUvMeshResources(int meshIndex, QRhiCommandBuffer *cb);
+    bool ensureUvLayout(int meshIndex);
     void fitUvViewToCurrentMesh(const QSize &pixelSize);
     void renderParametrization(QRhiCommandBuffer *cb);
 
@@ -1121,50 +1124,24 @@ struct SceneRasterProjectedDrawItem {
     bool m_currentMaskFromPoints = false;
     ViewTrackball m_trackball;
     ViewMode m_viewMode = ViewMode::Scene3D;
-    struct UvMeshGpu {
-        struct DrawRange {
-            quint32 byteOffset = 0;
-            int vertexCount = 0;
-        };
-        struct UvFillVariantGpu {
-            std::unique_ptr<QRhiBuffer> vbuf;
-            int vertexCount = 0;
-            std::vector<DrawRange> groups;
-        };
-        struct UvPointsVariantGpu {
-            std::unique_ptr<QRhiBuffer> vbuf;
-            int vertexCount = 0;
-            std::vector<DrawRange> groups;
-        };
-        bool valid = false;
+    // The current layer's active texture group laid out in UV space (ensureUvLayout): one
+    // vertex per vertex and UV pair at (u, v, 0). The UV view hands it to the shared GPU cache
+    // in place of the layer, under its own cache id, so every UV product is a cache product.
+    struct UvLayout {
+        std::uint64_t cacheId = 0;
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
         std::uint64_t selectionRevision = 0;
-        QString qualityColorMapId = QStringLiteral("rainbow");
-        bool qualityColorMapInverted = false;
-        RenderQualityRange vertexQualityRange;
-        RenderQualityRange faceQualityRange;
-        std::unique_ptr<QRhiBuffer> wireVbuf;
-        int wireVertexCount = 0;
-        std::vector<DrawRange> wireGroups;
-        std::unique_ptr<QRhiBuffer> boundaryEdgesVbuf;
-        int boundaryEdgesVertexCount = 0;
-        std::vector<DrawRange> boundaryEdgeGroups;
-        std::unique_ptr<QRhiBuffer> textureSeamsVbuf;
-        int textureSeamsVertexCount = 0;
-        std::vector<DrawRange> textureSeamGroups;
-        std::array<UvFillVariantGpu, 5> fillVariants;
-        std::array<UvPointsVariantGpu, 3> pointsVariants;
-        // Selection overlay in UV space (position-only triangles / points).
-        std::unique_ptr<QRhiBuffer> selectedFacesVbuf;
-        int selectedFacesVertexCount = 0;
-        std::vector<DrawRange> selectedFaceGroups;
-        std::unique_ptr<QRhiBuffer> selectedVerticesVbuf;
-        int selectedVerticesVertexCount = 0;
-        std::vector<DrawRange> selectedVertexGroups;
+        int ioMask = 0;
+        VCGMesh mesh;
+        std::vector<int> sourceVertex; // the layer's vertex each vertex stands for
+        std::vector<int> sourceFace;
         QVector2D minUv = QVector2D(0.0f, 0.0f);
         QVector2D maxUv = QVector2D(1.0f, 1.0f);
     };
+    std::unique_ptr<UvLayout> m_uvLayout;
+    // Every layout cache id this view has built, released with its layer.
+    std::vector<std::uint64_t> m_uvLayoutCacheIds;
     std::unique_ptr<QRhiBuffer> m_uvBackgroundUbuf;
     std::unique_ptr<QRhiShaderResourceBindings> m_uvBackgroundSrb;
     std::unique_ptr<QRhiGraphicsPipeline> m_uvBackgroundPipeline;
@@ -1178,7 +1155,6 @@ struct SceneRasterProjectedDrawItem {
     std::array<std::unique_ptr<QRhiBuffer>, 12> m_uvLineUbufs;
     std::array<std::unique_ptr<QRhiShaderResourceBindings>, 12> m_uvLineSrbs;
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_uvLinePipelinesByKey;
-    std::unordered_map<std::uint64_t, UvMeshGpu> m_uvMeshGpu;
     QListWidget *m_uvTextureGroupList = nullptr;
     std::unordered_map<std::uint64_t, int> m_uvTextureGroupByMesh;
     std::uint64_t m_uvTextureGroupUiMeshId = 0;

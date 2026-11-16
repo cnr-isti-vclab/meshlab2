@@ -48,6 +48,10 @@ public:
         const QStringList *textureFilePaths = nullptr;
         const std::vector<MeshIOTextureAsset> *textureAssets = nullptr;
         const MeshIOMaterialSet *materialSet = nullptr;
+        // For a mesh laid out in UV space, where a vertex is split once per UV it has: the
+        // source vertex each vertex stands for. The boundary and seam pass keys edges by it,
+        // so the two sides of a seam meet, and draws such an edge on each of its sides.
+        const std::vector<int> *vertexIdentity = nullptr;
     };
 
     struct FillBatchView {

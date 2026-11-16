@@ -263,6 +263,70 @@ quint32 RenderWidget::uploadMainUbufForMesh(
         qualityMapping(meshIndex, meshSettings));
 }
 
+// Rebuilds the scalar color map LUT when its map, inversion or isolines change, adding the
+// upload to `batch` (allocated when null). Both the 3D and the UV view sample it.
+void RenderWidget::updateQualityColorMapLut(QRhiResourceUpdateBatch *&batch)
+{
+    if (!m_qualityColorMapTexture || !m_rhi)
+        return;
+    const ColorMapRegistry &registry = ColorMapRegistry::instance();
+    QString mapId = m_renderSettings.qualityHistogramColorMapId.trimmed().toLower();
+    const bool isConstant = (mapId == QStringLiteral("constant"));
+    if (!isConstant && (mapId.isEmpty() || !registry.hasMap(mapId)))
+        mapId = registry.fallbackMapId();
+    const bool invert = m_renderSettings.qualityHistogramInvertColorMap;
+    const bool isolinesEnabled = m_renderSettings.qualityIsolinesEnabled;
+    const int isolineCount = m_renderSettings.qualityIsolineCount;
+    if (m_qualityColorMapTextureMapId != mapId || m_qualityColorMapTextureInverted != invert
+        || m_qualityColorMapTextureIsolinesEnabled != isolinesEnabled
+        || m_qualityColorMapTextureIsolineCount != isolineCount) {
+        m_qualityColorMapTextureMapId = mapId;
+        m_qualityColorMapTextureInverted = invert;
+        m_qualityColorMapTextureIsolinesEnabled = isolinesEnabled;
+        m_qualityColorMapTextureIsolineCount = isolineCount;
+        m_qualityColorMapTextureUploadPending = true;
+    }
+    if (!m_qualityColorMapTextureUploadPending)
+        return;
+
+    constexpr int kLutSize = 1024;
+    QImage lut(kLutSize, 1, QImage::Format_RGBA8888);
+    uchar *bits = lut.bits();
+    for (int i = 0; i < kLutSize; ++i) {
+        float t = float(i) / float(kLutSize - 1);
+        if (invert)
+            t = 1.0f - t;
+        QColor c;
+        if (isConstant) {
+            c = QColor(255, 255, 255);
+        } else {
+            c = registry.sampleQColor(mapId, t, 1.0f);
+        }
+        bits[i * 4 + 0] = uchar(c.red());
+        bits[i * 4 + 1] = uchar(c.green());
+        bits[i * 4 + 2] = uchar(c.blue());
+        bits[i * 4 + 3] = 255u;
+    }
+    // Apply isolines: pairs of black pixels at regular intervals
+    if (isolinesEnabled && isolineCount > 0) {
+        for (int k = 1; k <= isolineCount; ++k) {
+            const int center = int(std::round(float(k) / float(isolineCount + 1) * float(kLutSize - 1)));
+            for (int offset = -1; offset <= 0; ++offset) {
+                const int idx = std::clamp(center + offset, 0, kLutSize - 1);
+                bits[idx * 4 + 0] = 0;
+                bits[idx * 4 + 1] = 0;
+                bits[idx * 4 + 2] = 0;
+                bits[idx * 4 + 3] = 255u;
+            }
+        }
+    }
+    if (!batch)
+        batch = m_rhi->nextResourceUpdateBatch();
+    QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(lut));
+    batch->uploadTexture(m_qualityColorMapTexture.get(), QRhiTextureUploadDescription({ entry }));
+    m_qualityColorMapTextureUploadPending = false;
+}
+
 void RenderWidget::render(QRhiCommandBuffer *cb)
 {
     ensureRenderResources();
@@ -335,66 +399,6 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     m_frameTimer.start();
 
     QRhiResourceUpdateBatch *u = nullptr;
-    auto updateQualityColorMapLut = [&](QRhiResourceUpdateBatch *&batch) {
-        if (!m_qualityColorMapTexture || !m_rhi)
-            return;
-        const ColorMapRegistry &registry = ColorMapRegistry::instance();
-        QString mapId = m_renderSettings.qualityHistogramColorMapId.trimmed().toLower();
-        const bool isConstant = (mapId == QStringLiteral("constant"));
-        if (!isConstant && (mapId.isEmpty() || !registry.hasMap(mapId)))
-            mapId = registry.fallbackMapId();
-        const bool invert = m_renderSettings.qualityHistogramInvertColorMap;
-        const bool isolinesEnabled = m_renderSettings.qualityIsolinesEnabled;
-        const int isolineCount = m_renderSettings.qualityIsolineCount;
-        if (m_qualityColorMapTextureMapId != mapId || m_qualityColorMapTextureInverted != invert
-            || m_qualityColorMapTextureIsolinesEnabled != isolinesEnabled
-            || m_qualityColorMapTextureIsolineCount != isolineCount) {
-            m_qualityColorMapTextureMapId = mapId;
-            m_qualityColorMapTextureInverted = invert;
-            m_qualityColorMapTextureIsolinesEnabled = isolinesEnabled;
-            m_qualityColorMapTextureIsolineCount = isolineCount;
-            m_qualityColorMapTextureUploadPending = true;
-        }
-        if (!m_qualityColorMapTextureUploadPending)
-            return;
-
-        constexpr int kLutSize = 1024;
-        QImage lut(kLutSize, 1, QImage::Format_RGBA8888);
-        uchar *bits = lut.bits();
-        for (int i = 0; i < kLutSize; ++i) {
-            float t = float(i) / float(kLutSize - 1);
-            if (invert)
-                t = 1.0f - t;
-            QColor c;
-            if (isConstant) {
-                c = QColor(255, 255, 255);
-            } else {
-                c = registry.sampleQColor(mapId, t, 1.0f);
-            }
-            bits[i * 4 + 0] = uchar(c.red());
-            bits[i * 4 + 1] = uchar(c.green());
-            bits[i * 4 + 2] = uchar(c.blue());
-            bits[i * 4 + 3] = 255u;
-        }
-        // Apply isolines: pairs of black pixels at regular intervals
-        if (isolinesEnabled && isolineCount > 0) {
-            for (int k = 1; k <= isolineCount; ++k) {
-                const int center = int(std::round(float(k) / float(isolineCount + 1) * float(kLutSize - 1)));
-                for (int offset = -1; offset <= 0; ++offset) {
-                    const int idx = std::clamp(center + offset, 0, kLutSize - 1);
-                    bits[idx * 4 + 0] = 0;
-                    bits[idx * 4 + 1] = 0;
-                    bits[idx * 4 + 2] = 0;
-                    bits[idx * 4 + 3] = 255u;
-                }
-            }
-        }
-        if (!batch)
-            batch = m_rhi->nextResourceUpdateBatch();
-        QRhiTextureUploadEntry entry(0, 0, QRhiTextureSubresourceUploadDescription(lut));
-        batch->uploadTexture(m_qualityColorMapTexture.get(), QRhiTextureUploadDescription({ entry }));
-        m_qualityColorMapTextureUploadPending = false;
-    };
     updateQualityColorMapLut(u);
 
     QMatrix4x4 proj;
