@@ -202,7 +202,8 @@ enum class TransferAttributeMode
     VertexColor,
     VertexNormal,
     VertexQuality,
-    TextureColor
+    TextureColor,
+    SignedDistance
 };
 
 std::optional<TransferAttributeMode> transferModeFromId(const QString &id)
@@ -215,6 +216,8 @@ std::optional<TransferAttributeMode> transferModeFromId(const QString &id)
         return TransferAttributeMode::VertexQuality;
     if (id == QStringLiteral("texture_color"))
         return TransferAttributeMode::TextureColor;
+    if (id == QStringLiteral("signed_distance"))
+        return TransferAttributeMode::SignedDistance;
     return std::nullopt;
 }
 
@@ -554,6 +557,12 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             doc.finishFilterProgress(false, message);
             return fail(message);
         }
+        // Into the unit square, as texture tools read UVs: the long side of the rectangle becomes 1,
+        // both axes scaled alike, so lengths stay proportional; uv_scale converts them back.
+        const float uvScale = std::max(2 * par.halfWidth, st.length);
+        for (VCGVertex &v : patch.vert)
+            v.T().P() = vcg::Point2f((v.T().U() + par.halfWidth) / uvScale, v.T().V() / uvScale);
+        vcg::tri::UpdateTexture<VCGMesh>::WedgeTexFromVertexTex(patch);
         patch.face.DisableCurvatureDir();  // the cross field is scaffolding, not a result
         patch.face.DisableMark();
         patch.face.DisableFFAdjacency();
@@ -573,10 +582,12 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         result.infoMessages = {
             QObject::tr("Flattened a %1 by %2 patch along '%3' (%4 faces).")
                 .arg(2 * par.halfWidth).arg(st.length).arg(polyEntry.name).arg(patch.FN()),
+            QObject::tr("UVs fill the unit square along the longer side: one UV unit is %1 on the surface.").arg(uvScale),
             QObject::tr("Length distortion: ratios of surface to UV edge lengths %1 to %2, "
                         "average deviation %3%.")
                 .arg(st.minRatio, 0, 'f', 4).arg(st.maxRatio, 0, 'f', 4).arg(100 * st.avgError, 0, 'f', 2)
         };
+        result.outputValues["uv_scale"] = uvScale;
         result.outputValues["width"] = 2 * par.halfWidth;
         result.outputValues["length"] = st.length;
         result.outputValues["min_length_ratio"] = st.minRatio;
@@ -1267,6 +1278,10 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             if ((sourceEntry.ioMask & Mask::IOM_VERTQUALITY) == 0)
                 return fail(QObject::tr("Source mesh doesn't have per-vertex quality."));
             break;
+        case TransferAttributeMode::SignedDistance:
+            if (sourceEntry.mesh.FN() <= 0)
+                return fail(QObject::tr("Source mesh needs faces to measure a distance to."));
+            break;
         case TransferAttributeMode::TextureColor:
             samplingFromTexture = true;
             if (sourceEntry.mesh.FN() <= 0)
@@ -1339,6 +1354,15 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(*sourceWorldMesh);
 
         VCGMeshMarkScope _markSource(*sourceWorldMesh);
+        const bool signedDistance = *mode == TransferAttributeMode::SignedDistance;
+        const bool alongNormal = params.getEnum(QStringLiteral("correspondence")) == QStringLiteral("along_normal");
+        std::vector<std::vector<float>> distances;
+        if (signedDistance || alongNormal)
+            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(*targetWorldMesh);
+        if (signedDistance) {
+            distances.assign(size_t(targetSlotCount),
+                             std::vector<float>(size_t(textW) * size_t(textH), std::numeric_limits<float>::quiet_NaN()));
+        }
         if (!samplingFromTexture) {
             int vertexMode = 0;
             if (*mode == TransferAttributeMode::VertexNormal)
@@ -1347,6 +1371,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 vertexMode = 2;
 
             TransferColorSampler sampler(*sourceWorldMesh, targetImages, float(params.getDouble(QStringLiteral("upperBound"))), vertexMode);
+            if (signedDistance)
+                sampler.SetDistanceTarget(&distances);
+            sampler.SetAlongNormal(alongNormal);
             sampler.InitCallback(doc.progressCallback(), targetWorldMesh->FN(), 0, 80);
             vcg::tri::SurfaceSampling<VCGMesh, TransferColorSampler>::Texture(
                 *targetWorldMesh,
@@ -1356,6 +1383,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 false);
         } else {
             TransferColorSampler sampler(*sourceWorldMesh, targetImages, &sourceImages, float(params.getDouble(QStringLiteral("upperBound"))));
+            sampler.SetAlongNormal(alongNormal);
             sampler.InitCallback(doc.progressCallback(), targetWorldMesh->FN(), 0, 80);
             vcg::tri::SurfaceSampling<VCGMesh, TransferColorSampler>::Texture(
                 *targetWorldMesh,
@@ -1368,7 +1396,31 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(*targetWorldMesh);
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(*targetWorldMesh);
 
-        for (int texIndex = 0; texIndex < targetSlotCount; ++texIndex) {
+        // Distances go into 16-bit grayscale: 0 where nothing was found, 1 to 65535 across their
+        // range, which the output values give so they can be read back. No filling: a texel with
+        // no distance is not one of zero.
+        float distMin = std::numeric_limits<float>::max(), distMax = std::numeric_limits<float>::lowest();
+        if (signedDistance) {
+            for (const std::vector<float> &buffer : distances)
+                for (float d : buffer)
+                    if (!std::isnan(d)) { distMin = std::min(distMin, d); distMax = std::max(distMax, d); }
+            if (distMin > distMax)
+                return fail(QObject::tr("No texel found the source mesh within the search distance."));
+            const double range = double(distMax) - double(distMin);
+            for (int texIndex = 0; texIndex < targetSlotCount; ++texIndex) {
+                QImage img(QSize(textW, textH), QImage::Format_Grayscale16);
+                for (int y = 0; y < textH; ++y) {
+                    quint16 *row = reinterpret_cast<quint16 *>(img.scanLine(y));
+                    for (int x = 0; x < textW; ++x) {
+                        const float d = distances[size_t(texIndex)][size_t(y) * size_t(textW) + size_t(x)];
+                        row[x] = std::isnan(d) ? 0
+                            : quint16(1 + std::lround(range > 0 ? (double(d) - distMin) / range * 65534.0 : 32767.0));
+                    }
+                }
+                targetImages[size_t(texIndex)] = std::move(img);
+            }
+        }
+        for (int texIndex = 0; texIndex < targetSlotCount && !signedDistance; ++texIndex) {
             for (int y = 0; y < textH; ++y) {
                 for (int x = 0; x < textW; ++x) {
                     const QRgb px = targetImages[size_t(texIndex)].pixel(x, y);
@@ -1421,6 +1473,12 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                       .arg(targetSlotCount)
                       .arg(targetEntry.name)
         };
+        if (signedDistance) {
+            result.infoMessages << QObject::tr("Signed distances from %1 to %2: texel value v > 0 is %1 + (v - 1) * %3.")
+                                       .arg(distMin).arg(distMax).arg((double(distMax) - distMin) / 65534.0);
+            result.outputValues["distance_min"] = distMin;
+            result.outputValues["distance_max"] = distMax;
+        }
         result.visualizationHints.push_back({ targetMeshIndex, MeshFilterVisualizationAttribute::Texture });
         return result;
     }

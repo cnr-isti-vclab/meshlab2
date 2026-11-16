@@ -17,6 +17,19 @@
       "DOI": "10.1080/10586458.1993.10504266"
     },
     {
+      "id": "tarini2003detailrecovery",
+      "type": "paper-conference",
+      "title": "Visibility Based Methods and Assessment for Detail-Recovery",
+      "author": [
+        { "family": "Tarini", "given": "Marco" },
+        { "family": "Cignoni", "given": "Paolo" },
+        { "family": "Scopigno", "given": "Roberto" }
+      ],
+      "container-title": "IEEE Visualization 2003",
+      "page": "457-464",
+      "issued": { "date-parts": [[2003]] }
+    },
+    {
       "id": "pietroni2011localflattening",
       "type": "article-journal",
       "title": "An Interactive Local Flattening Operator to Support Digital Investigations on Artwork Surfaces",
@@ -91,8 +104,8 @@
       "referenceIds": ["pietroni2011localflattening"],
       "name": "Parametrize Surface along Polyline (Local Flattening)",
       "pythonName": "parametrize_surface_along_polyline_local_flattening",
-      "shortDescription": "Create a rectangular patch of the surface around a polyline, flattened with UVs in the surface's own units.",
-      "longDescriptionMarkdown": "Flatten a strip of the current surface that runs along a polyline drawn on it, into a rectangle: the local flattening operator of Pietroni et al., which turns a portion of a scanned artwork into an image in which lengths can be measured, carved marks compared and photographs laid side by side.\n\nThe faces within a geodesic distance of the polyline a little over the half-width are taken, and must form a disk. A conformal map that pulls the polyline onto a straight line gives a cross field that follows it, and the strip is then parametrized aligned to that field. The result is cropped exactly to the rectangle $|U| \\le w$, $0 \\le V \\le L$: the polyline runs along $V$, from its end with the lower index, and $w$ is the half-width.\n\nThe patch is a **new layer** with per-vertex and per-wedge texture coordinates in the surface's units, so that one unit of UV is one unit on the surface; the current mesh is left unchanged. *Sample Height Map from Surface* then makes a height image of it. The log and the output values report the distortion as the paper does: the smallest and largest ratio between an edge's length on the surface and in UV, and their average deviation from 1.\n\nThe paper's equation 1 pulls only the U coordinate of the polyline to a constant. Here V is also pulled to the arc length along the polyline, which on a developable surface cuts the length distortion by an order of magnitude; the polyline need not be a geodesic, and is straightened. The polyline must be a single open curve lying on the surface; one made with *Create Polyline from Geodesic Path* is.",
+      "shortDescription": "Create a rectangular patch of the surface around a polyline, flattened with proportional UVs in the unit square.",
+      "longDescriptionMarkdown": "Flatten a strip of the current surface that runs along a polyline drawn on it, into a rectangle: the local flattening operator of Pietroni et al., which turns a portion of a scanned artwork into an image in which lengths can be measured, carved marks compared and photographs laid side by side.\n\nThe faces within a geodesic distance of the polyline a little over the half-width are taken, and must form a disk. A conformal map that pulls the polyline onto a straight line gives a cross field that follows it, and the strip is then parametrized aligned to that field. The result is cropped exactly to the rectangle $2w \\times L$, the polyline running along its middle in the $V$ direction from its end with the lower index, where $w$ is the half-width and $L$ the polyline's straightened length.\n\nThe patch is a **new layer** with per-vertex and per-wedge texture coordinates scaled uniformly into the unit square, its longer side spanning 0 to 1, so texture tools can use it at once: lengths in UV are lengths on the surface divided by `uv_scale`, an output value. The current mesh is left unchanged. To make a height map of the residual marks, flatten a smoothed or simplified copy, then bake the full model onto the patch with *Transfer Vertex Attributes to Texture by Closest Point* and *Signed Distance*; photographs go onto it with *Transfer Color from Visible Rasters to Texture*. The log and the output values report the distortion as the paper does: the smallest and largest ratio between an edge's length on the surface and in UV, and their average deviation from 1.\n\nThe paper's equation 1 pulls only the U coordinate of the polyline to a constant. Here V is also pulled to the arc length along the polyline, which on a developable surface cuts the length distortion by an order of magnitude; the polyline need not be a geodesic, and is straightened. The polyline must be a single open curve lying on the surface; one made with *Create Polyline from Geodesic Path* is.",
       "tags": [
         "parametrization",
         "uv",
@@ -647,10 +660,11 @@
     {
       "id": "transfer_vertex_attributes_to_texture_by_closest_point",
       "categories": ["Transfer/Between Layers", "Texture"],
+      "referenceIds": ["tarini2003detailrecovery", "pietroni2011localflattening"],
       "name": "Transfer Vertex Attributes to Texture by Closest Point",
       "pythonName": "transfer_vertex_attributes_to_texture_by_closest_point",
-      "shortDescription": "Bake vertex color, normals or scalar of a source mesh into a texture of the current mesh, by closest point.",
-      "longDescriptionMarkdown": "For each texel of the current mesh, finds its point on the surface and the closest point of the **Source Mesh**, and writes there the interpolated vertex attribute chosen in **Data Source**. This may be useful to restore detail lost in simplification. To resample a texture onto another parametrization, use *Transfer Texture to Texture by Closest Point*.",
+      "shortDescription": "Bake vertex color, normals, scalar or the signed distance of a source mesh into a texture of the current mesh, by closest point.",
+      "longDescriptionMarkdown": "For each texel of the current mesh, finds its point on the surface and the closest point of the **Source Mesh**, and writes there the interpolated vertex attribute chosen in **Data Source**. This may be useful to restore detail lost in simplification. To resample a texture onto another parametrization, use *Transfer Texture to Texture by Closest Point*.\n\n*Signed Distance* bakes a displacement map: the distance from each texel's point to the closest point of the source, positive on the side the current mesh's normals point to, into a **16-bit grayscale** texture. 0 marks the texels that found nothing within the search distance, and 1 to 65535 span the distances linearly, from `distance_min` to `distance_max` in the output values, so they can be read back; the texture is not filled around the charts. With a smoothed or simplified copy as the current mesh and the full model as the source, it is the height map of the residual marks of Pietroni et al.: the small relief of the surface, without its shape.",
       "tags": [
         "texture",
         "transfer",
@@ -691,7 +705,20 @@
             {
               "id": "vertex_quality",
               "label": "Vertex Scalar"
-            }
+            },
+            {"id": "signed_distance", "label": "Signed Distance", "help": "The distance to the closest point of the source, signed by the current mesh's normals, as a 16-bit grayscale texture (a displacement map)."}
+          ]
+        },
+        {
+          "id": "correspondence",
+          "label": "Correspondence",
+          "help": "How each texel finds its point on the source.",
+          "group": "main",
+          "type": "enum",
+          "default": "closest_point",
+          "enumOptions": [
+            {"id": "closest_point", "label": "Closest point", "help": "The point of the source closest to the texel's point. Robust, never misses, but bunches samples where the source bends towards the current mesh."},
+            {"id": "along_normal", "label": "Along the normal", "help": "Where a ray along the current mesh's normal, either way, meets the source, the outward hit first; the closest point where both rays miss. Samples the source more evenly (Tarini et al. 2003), and makes Signed Distance a height along the normal."}
           ]
         },
         {
@@ -747,6 +774,7 @@
     {
       "id": "transfer_texture_to_texture_by_closest_point",
       "categories": ["Transfer/Between Layers", "Texture"],
+      "referenceIds": ["tarini2003detailrecovery"],
       "name": "Transfer Texture to Texture by Closest Point",
       "pythonName": "transfer_texture_to_texture_by_closest_point",
       "shortDescription": "Resample the texture of a source mesh into a texture of the current mesh, by closest point.",
@@ -783,6 +811,18 @@
           "default": 0,
           "sourceMeshParameter": "sourceMesh",
           "allowAutomatic": true
+        },
+        {
+          "id": "correspondence",
+          "label": "Correspondence",
+          "help": "How each texel finds its point on the source.",
+          "group": "main",
+          "type": "enum",
+          "default": "closest_point",
+          "enumOptions": [
+            {"id": "closest_point", "label": "Closest point", "help": "The point of the source closest to the texel's point. Robust, never misses, but bunches samples where the source bends towards the current mesh."},
+            {"id": "along_normal", "label": "Along the normal", "help": "Where a ray along the current mesh's normal, either way, meets the source, the outward hit first; the closest point where both rays miss. Samples the source more evenly (Tarini et al. 2003), and makes Signed Distance a height along the normal."}
+          ]
         },
         {
           "id": "upperBound",

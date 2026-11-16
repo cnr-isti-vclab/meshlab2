@@ -654,6 +654,7 @@ private slots:
     void embedPolylineThenCutSplitsTheSurface();
     void embedPolylineRefusesWhatItCannotEmbed();
     void localFlatteningUnrollsACylinderIsometrically();
+    void signedDistanceTransferBakesABump();
     void smoothPolylineOnSurfaceStaysOnItAndShortens();
     void smoothPolylineOnCylinderKeepsTheHelixWinding();
     void smoothPolylineWithoutControlPointsFindsTheClosedGeodesic();
@@ -16031,6 +16032,69 @@ double curveLength(const VCGMesh &m)
 
 } // namespace
 
+// The signed distance from a flat sheet to the same sheet with a bump on it is the bump: a
+// displacement map, in 16 bits, that reads back through the range in the output values.
+void FilterTests::signedDistanceTransferBakesABump()
+{
+    const float A = 0.2f, s = 0.5f;
+    VCGMesh flat, bumpy;
+    makeGridMesh(flat, 100);
+    for (VCGVertex &v : flat.vert) v.P() *= 0.1f;  // a 10 by 10 sheet, normals up
+    vcg::tri::UpdateBounding<VCGMesh>::Box(flat);
+    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(bumpy, flat);
+    for (VCGVertex &v : bumpy.vert) {
+        const float x = v.P()[0] - 5, y = v.P()[1] - 5;
+        v.P()[2] = A * std::exp(-(x * x + y * y) / (2 * s * s));
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(bumpy);
+    flat.face.EnableWedgeTexCoord();
+    for (VCGFace &f : flat.face)
+        for (int k = 0; k < 3; ++k) {
+            f.WT(k).P() = vcg::Point2f(f.P(k)[0], f.P(k)[1]) / 10.0f;
+            f.WT(k).N() = 0;
+        }
+
+    // On the flank of the bump the height along the normal is the bump's own; the closest point
+    // is nearer, by the cosine of the slope.
+    const float r = 0.5f;  // the flank texel's centre is (5.51, 5.01), the bump's peak (5, 5)
+    const double flankHeight = A * std::exp(-(0.51 * 0.51 + 0.01 * 0.01) / (2 * s * s));
+    for (const QString correspondence : { QStringLiteral("closest_point"), QStringLiteral("along_normal") }) {
+        Document doc;
+        const int target = doc.addMesh(flat, QStringLiteral("flat"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+        const int source = doc.addMesh(bumpy, QStringLiteral("bumpy"), 0);
+        doc.setCurrentMeshIndex(target);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), source);
+        p.insert(QStringLiteral("AttributeEnum"), QStringLiteral("signed_distance"));
+        p.insert(QStringLiteral("correspondence"), correspondence);
+        p.insert(QStringLiteral("upperBound"), 1.0);
+        p.insert(QStringLiteral("textureSize"), 500);
+        const MeshFilterRunResult res =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("transfer_vertex_attributes_to_texture_by_closest_point")), p);
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+
+        QImage img;
+        QString error;
+        QVERIFY2(TextureAssociationUtils::loadAssociatedTextureImage(doc.mesh(target), 0, img, error), qPrintable(error));
+        QCOMPARE(img.format(), QImage::Format_Grayscale16);
+        const double lo = res.outputValues.value(QStringLiteral("distance_min")).toDouble();
+        const double hi = res.outputValues.value(QStringLiteral("distance_max")).toDouble();
+        auto distanceAt = [&](float x, float y) {  // sheet coordinates; rows run from the highest V down
+            const int i = int(x / 10 * img.width()), j = img.height() - 1 - int(y / 10 * img.height());
+            const quint16 value = reinterpret_cast<const quint16 *>(img.constScanLine(j))[i];
+            return value == 0 ? std::nan("") : lo + (value - 1) * (hi - lo) / 65534.0;
+        };
+        QVERIFY2(std::abs(distanceAt(5.01f, 5.01f) - A) < 0.002, qPrintable(QString::number(distanceAt(5.01f, 5.01f))));
+        QVERIFY(std::abs(distanceAt(1.0f, 1.0f)) < 1e-4);
+        QVERIFY(std::abs(distanceAt(9.0f, 2.0f)) < 1e-4);
+        const double flank = distanceAt(5.01f + r, 5.01f);
+        if (correspondence == QStringLiteral("along_normal"))
+            QVERIFY2(std::abs(flank - flankHeight) < 0.002, qPrintable(QString::number(flank)));
+        else
+            QVERIFY2(flank < flankHeight - 0.002, qPrintable(QString::number(flank)));
+    }
+}
+
 // A helix on a cylinder is a geodesic, and the cylinder is developable: the flattened strip
 // around it must be an exact rectangle, with every edge keeping its length.
 void FilterTests::localFlatteningUnrollsACylinderIsometrically()
@@ -16091,8 +16155,11 @@ void FilterTests::localFlatteningUnrollsACylinderIsometrically()
         folded += (e1 ^ e2) <= 0 ? 1 : 0;
     }
     QCOMPARE(folded, 0);
-    QVERIFY(std::abs(box.min[0] + 1) < 1e-4f && std::abs(box.max[0] - 1) < 1e-4f);  // cropped exactly
-    QVERIFY(std::abs(box.min[1]) < 1e-4f && std::abs(box.max[1] - float(length)) < 1e-4f);
+    // cropped exactly to 2 by length, then scaled into the unit square by the longer side
+    const float scale = res.outputValues.value(QStringLiteral("uv_scale")).toFloat();
+    QCOMPARE(scale, float(length));
+    QVERIFY(std::abs(box.min[0]) < 1e-5f && std::abs(box.max[0] - 2 / scale) < 1e-5f);
+    QVERIFY(std::abs(box.min[1]) < 1e-5f && std::abs(box.max[1] - 1) < 1e-5f);
 
     // a closed polyline has no ends to run along
     helix.push_back(helix.front());

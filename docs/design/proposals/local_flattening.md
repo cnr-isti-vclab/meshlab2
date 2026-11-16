@@ -3,7 +3,7 @@
 This document plans a reimplementation, as MeshLab filters, of Pietroni, Corsini, Cignoni and
 Scopigno, *An Interactive Local Flattening Operator to Support Digital Investigations on Artwork
 Surfaces* (IEEE TVCG 17(12), Visualization 2011; `.reference/papers/IEEEViz_local_flattening_final_v2.pdf`).
-**Stages 0 and 1 implemented** 2026-11-15; drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.
+**Stages 0 to 2 implemented** 2026-11-15; drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.
 
 See also: [Texture Signal Processing](texture_signal_processing.md) (per-face principal directions
 in `VCGFace`, stage 4), [Directional](directional_port.md), [TexMetro](texmetro.md),
@@ -41,10 +41,13 @@ work with *Transfer Color from Visible Rasters to Texture* once the patch has UV
   rather than replaced (stage 0).
 - **Step 2 is conformal** (confirmed by Paolo): `PoissonSolver`'s LSCM mode with the least-squares
   term of eq. 1, as reasoned below.
-- **The patch keeps the surface's scale**: one UV unit is one unit on the surface, with no
-  rescaling after the field-aligned solve.
-- **Names**: *Parametrize Surface along Polyline (Local Flattening)* and *Sample Height Map from
-  Surface*.
+- **The patch keeps the surface's proportions**: the field-aligned solve is at the surface's scale
+  (vcglib's `LocalFlattening` returns UVs in surface units), and the filter then scales both axes
+  alike into the unit square, its longer side 0 to 1, reporting the factor as `uv_scale`. Revised
+  the same day (Paolo): texture tools read UVs in [0,1], so surface units left the patch unusable
+  by the transfer and photo-projection filters.
+- **Names**: *Parametrize Surface along Polyline (Local Flattening)*; the height map became a data
+  source of an existing filter rather than *Sample Height Map from Surface* (stage 2).
 - **Step 2 constrains V too** (Paolo, after measurement): the polyline's points are pulled to
   U = 0 *and* to V equal to their arc length, with no stiff pins at its ends. Eq. 1's U alone
   leaves nearly conformal deformations free, and they rotate the field: on a developable cylinder
@@ -132,7 +135,8 @@ as the method, and the propagation only if the first proves fragile.
    (`parametrization/local_flattening.h`) and `ClipMeshWithUVLine` (`clip.h`, the texture-space
    sibling of `ClipMeshWithPlane`). Inputs: the current mesh, the guidance polyline (a `mesh`
    parameter), the half-width (`absperc`), the stiffness k_st (advanced, default 10). Output: a
-   new layer, the rectangle, with per-vertex and per-wedge UVs in the surface's units, and the
+   new layer, the rectangle, with per-vertex and per-wedge UVs in proportion (see the scale
+   decision above), and the
    paper's distortion figures as output values. Refuses a polyline that is not one open curve and
    a region that is not a disk. **Implemented 2026-11-15**, with what the measurements forced:
    - the cotangent weights in double (float rounding excited the near-null conformal modes:
@@ -151,10 +155,33 @@ as the method, and the propagation only if the first proves fragile.
    which zigzag and run 20 to 60% longer than the curve they stand for, 5 to 20%, U only or U and
    V alike. A few strips still collapse locally at a corner (one face pair with a ratio in the
    thousands); not yet understood.
-2. **The height map.** *Sample Height Map from Surface*, a filter from the patch layer to a raster layer holding a 16-bit height
-   image, at a resolution in pixels per unit and with the smoothing scale σ; the height range as
-   output values, to read heights back. Rays are cast from the smoothed geometry image onto the
-   patch itself (single resolution). Tests: a known bump added to a smooth surface must come back.
+2. **The height map**, decided 2026-11-15 after a first version was withdrawn: not a filter of
+   its own but a **Signed Distance** data source of *Transfer Vertex Attributes to Texture by
+   Closest Point*, which already samples a source mesh at every texel of the current mesh's UV
+   layout. It writes the distance from each texel's point to the closest point of the source,
+   signed by the current mesh's normals, into a 16-bit grayscale texture: 0 where nothing is
+   found, 1 to 65535 across the range, given as `distance_min` and `distance_max`. That restores
+   the paper's two resolutions: flatten a smoothed or simplified copy, then bake the full model
+   onto the patch. The withdrawn version (`HeightMap` in vcglib, *Sample Height Map from
+   Surface*) re-implemented the texel sampling, smoothed a geometry image of the patch itself and
+   measured from it: single resolution, about 240 lines, and a duplicate. **Implemented
+   2026-11-15**: a bump of 0.2 reads 0.2 to within 0.002, the flat part 0 to within 1e-4
+   (`FilterTests::signedDistanceTransferBakesABump`). On a Ruth strip flattened from a copy
+   smoothed by 3 Laplacian iterations, at 0.25 mm per texel, the carved grooves stand out over
+   the facets of the 1M-face scan; flattening the smoothed copy also brought that strip's
+   distortion into the paper's range (2.4% average, ratios 0.93 to 1.08, against 4.5% on the
+   raw scan).
+   **Along the normal** (added 2026-11-16, Paolo): both transfer-to-texture filters take a
+   *Correspondence*, closest point (the default, unchanged) or along the current mesh's
+   interpolated normal, both ways, outward hit first, falling back to the closest point on a
+   miss, as Tarini, Cignoni and Scopigno, "Visibility based methods and assessment for
+   detail-recovery" (Vis 2003) describe; their measurements found it samples the detailed model
+   far more evenly than closest point. Along the normal, the signed distance is a height along
+   the normal, as a displacement map means, and as the flattening paper casts its rays. On the
+   Ruth strip, with the paper's sampling-uniformity measure (the mean change of distance between
+   neighbouring samples): 1.4% by closest point against 0.4% along the normal over a base
+   smoothed 3 times, 3.6% against 0.9% over one smoothed 10 times, no ray missing; the grooves
+   read deeper (-5.5 against -3.9 mm), closest point cutting across their flanks.
 3. **The sketch tool**, later and only if wanted: drawing the guidance polyline on the surface as a
    front end that runs stage 1's filter, one gesture to one undo step.
 
