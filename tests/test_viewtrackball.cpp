@@ -32,6 +32,7 @@ private slots:
     void turningTheFieldOfViewWheelBackLeavesOrthographic();
     void theFieldOfViewWheelKeepsTheVisibleHeightThroughTheSwitch();
     void theOrdinaryWheelStillZoomsInOrthographic();
+    void theWheelZoomsFarCloserThanAHundredthOfTheScene();
     void theProjectionSurvivesStateRoundTripAndJson();
     void aBadProjectionNamesTheKey();
     void shiftDragRollsTheViewAboutItsOwnAxis();
@@ -350,6 +351,27 @@ void ViewTrackballTests::theOrdinaryWheelStillZoomsInOrthographic()
     QVERIFY(ortho.wheel(&wheel));
     // Zooming in shrinks the view volume: H follows distance.
     QVERIFY(visibleHeight(ortho) < heightBefore);
+}
+
+// The zoom used to stop at 1% of the scene radius, whatever the surface's detail. Now only
+// float precision stops it: at 1e-5 of |center| + radius, with the near plane following
+// the distance in, so what is in front of the eye is still drawn.
+void ViewTrackballTests::theWheelZoomsFarCloserThanAHundredthOfTheScene()
+{
+    ViewTrackball tb = makeTrackball(Projection::Perspective);
+    const ViewTrackball::State start = tb.state();
+    const QPointF pos(100, 100);
+    const QWheelEvent wheel(pos, pos, QPoint(), QPoint(0, 120), Qt::NoButton, Qt::NoModifier,
+                            Qt::NoScrollPhase, false);
+    for (int i = 0; i < 200; ++i)
+        tb.wheel(&wheel);
+    const float floor = 1e-5f * (start.center.length() + start.radius);
+    const float distance = tb.state().distance;
+    QVERIFY2(distance < 1e-3f * start.radius,
+             qPrintable(QStringLiteral("stopped at %1 of the radius").arg(distance / start.radius)));
+    QVERIFY(distance >= floor * 0.999f);
+    QVERIFY(tb.nearClipPlaneDistance() > 0.0f);
+    QVERIFY(tb.nearClipPlaneDistance() < distance);
 }
 
 void ViewTrackballTests::theProjectionSurvivesStateRoundTripAndJson()

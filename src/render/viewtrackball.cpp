@@ -177,6 +177,17 @@ constexpr float kMinNearClipRatio = 1e-5f;
 constexpr float kMaxNearClipRatio = 2.0f;
 constexpr float kTrackballHyperbolaCutAngleDeg = 45.0f;
 const QQuaternion kIdentityRotation;
+
+// The closest the eye may come to the point it orbits. It used to be 1% of the scene's
+// radius, which stopped the zoom at the same size whatever the detail of the surface and
+// wherever the view was centered. The limit that means something is float precision:
+// a coordinate is held to about 1e-7 of its distance from the origin, so at 1e-5 of
+// |center| + radius those steps are still around a hundredth of the view, and closer in
+// the zoom would show rounding rather than the surface.
+float distanceFloor(const QVector3D &center, float radius)
+{
+    return 1e-5f * (center.length() + radius);
+}
 QQuaternion defaultTrackballRotation()
 {
     return kIdentityRotation;
@@ -214,7 +225,7 @@ void ViewTrackball::setState(const State &state)
 {
     m_center = state.center;
     m_radius = qMax(1e-4f, state.radius);
-    m_distance = qMax(0.01f * m_radius, state.distance);
+    m_distance = qMax(distanceFloor(m_center, m_radius), state.distance);
     m_fovYDeg = std::clamp(state.fovYDeg, kMinTrackballFovYDeg, kMaxTrackballFovYDeg);
     m_projection = state.projection;
     m_nearClipRatio = std::clamp(state.nearClipRatio, kMinNearClipRatio, kMaxNearClipRatio);
@@ -240,7 +251,7 @@ void ViewTrackball::setFrame(const QVector3D &center, float radius, float distan
 {
     m_center = center;
     m_radius = qMax(1e-4f, radius);
-    m_distance = qMax(0.01f * m_radius, distance);
+    m_distance = qMax(distanceFloor(m_center, m_radius), distance);
     // Keep gizmo screen size stable under dolly zoom, using this frame as reference.
     m_gizmoBaseRadius = m_radius * 1.02f;
     m_gizmoReferenceDistance = m_distance;
@@ -368,8 +379,9 @@ ViewTrackball::EyeFraming ViewTrackball::frameFromEye(const std::vector<QVector3
         return EyeFraming::TooNarrow;
     // The near plane as nearClipPlaneDistance() will put it for the new distance and radius.
     const float distance = std::max(QVector3D::dotProduct(middle - eye, dir), minDepth);
-    const float nearPlane = std::clamp(distance * m_nearClipRatio, 1e-5f * radius, 1000.0f * radius);
-    if (distance < 0.01f * radius || minDepth < nearPlane)
+    const float floor = distanceFloor(eye + distance * dir, radius);
+    const float nearPlane = std::clamp(distance * m_nearClipRatio, floor * m_nearClipRatio, 1000.0f * radius);
+    if (distance < floor || minDepth < nearPlane)
         return EyeFraming::TooClose;
 
     // Rows are the camera axes in world space, as in setFromLookAt; the camera looks down -z.
@@ -479,8 +491,8 @@ float ViewTrackball::nearClipPlaneDistance() const
         return m_distance - depthHalfSpan();
     }
     const float r = qMax(1e-4f, m_radius);
-    const float dist = qMax(1e-4f, m_distance);
-    return std::clamp(dist * m_nearClipRatio, 1e-5f * r, 1000.0f * r);
+    const float dist = qMax(distanceFloor(m_center, r), m_distance);
+    return std::min(dist * m_nearClipRatio, 1000.0f * r);
 }
 
 void ViewTrackball::mousePress(const QMouseEvent *e, const QSize &viewportSize)
@@ -681,7 +693,7 @@ bool ViewTrackball::wheel(const QWheelEvent *e)
         m_distance *= std::pow(0.85f, steps);
     }
 
-    const float minDist = qMax(1e-4f, 0.01f * m_radius);
+    const float minDist = distanceFloor(m_center, m_radius);
     const float maxDist = qMax(minDist * 2.0f, 1000.0f * m_radius);
     m_distance = std::clamp(m_distance, minDist, maxDist);
     return true;
