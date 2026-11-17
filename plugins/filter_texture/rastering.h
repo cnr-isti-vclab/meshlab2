@@ -27,7 +27,7 @@
 #include "vcgmesh.h"
 #include <vcg/complex/algorithms/point_sampling.h>
 #include <vcg/complex/algorithms/stat.h>
-#include <vcg/space/intersection3.h>
+#include <vcg/complex/algorithms/closest.h>
 #include <vcg/space/triangle2.h>
 #include <QImage>
 
@@ -56,10 +56,15 @@ class VertexSampler
     // Callback stuff
     vcg::CallBackPos *cb;
     int vertexNo, vertexCnt, start, offset;
+    VCGMesh *srcMesh;
 
 public:
+    // Match each vertex to the source along its own normal rather than by closest point
+    // (vcg::tri::GetClosestFaceAlongNormal); the target needs per-vertex normals.
+    bool alongNormal = false;
+
 	VertexSampler(VCGMesh &_srcMesh, std::vector <QImage> &_srcImg, float upperBound) :
-	srcImgs(_srcImg), dist_upper_bound(upperBound)
+	srcImgs(_srcImg), dist_upper_bound(upperBound), srcMesh(&_srcMesh)
     {
         unifGridFace.Set(_srcMesh.face.begin(),_srcMesh.face.end());
         markerFunctor.SetMesh(&_srcMesh);
@@ -83,7 +88,9 @@ public:
         VCGMesh::CoordType closestPt;
         VCGMesh::ScalarType dist=dist_upper_bound;
         VCGFace *nearestF;
-        nearestF =  unifGridFace.GetClosest(PDistFunct, markerFunctor, v.cP(), dist_upper_bound, dist, closestPt);
+        nearestF = alongNormal
+            ? vcg::tri::GetClosestFaceAlongNormal(*srcMesh, unifGridFace, v.cP(), v.cN(), dist_upper_bound, dist, closestPt)
+            : unifGridFace.GetClosest(PDistFunct, markerFunctor, v.cP(), dist_upper_bound, dist, closestPt);
         if (dist == dist_upper_bound) return;
 
         // Convert point to barycentric coords
@@ -271,11 +278,8 @@ public:
     void SetDistanceTarget(std::vector<std::vector<float>> *buffers) { distImgs = buffers; vertexMode = 3; }
 
     // Match each texel to the source along the target's normal, interpolated across the face so
-    // the mapping stays continuous, rather than by closest point: the strategy that keeps the
-    // sampling of the source most uniform in Tarini, Cignoni and Scopigno, "Visibility based
-    // methods and assessment for detail-recovery" (IEEE Visualization 2003). Rays go both ways,
-    // the outward hit wins, and a texel whose rays miss falls back to its closest point, as
-    // Sander et al. 2000 suggest. The target needs per-vertex normals.
+    // the mapping stays continuous, rather than by closest point (vcg::tri::GetClosestFaceAlongNormal).
+    // The target needs per-vertex normals.
     void SetAlongNormal(bool on) { alongNormal = on; }
 
     void InitCallback(vcg::CallBackPos *_cb, int _faceNo, int _start=0, int _offset=100)
@@ -362,28 +366,12 @@ public:
         else // sampling from a mesh
         {
             VCGMesh::CoordType closestPt;
-            VCGFace *nearestF = nullptr;
-            if (alongNormal)
-            {
-                VCGMesh::CoordType n = f.cV(0)->cN()*bary[0] + f.cV(1)->cN()*bary[1] + f.cV(2)->cN()*bary[2];
-                n.Normalize();
-                vcg::RayTriangleIntersectionFunctor<true> hitFace;
-                for (const float side : { 1.0f, -1.0f })
-                {
-                    if (nearestF || n.Norm() == 0) break;  // outward first; inward only if it missed
-                    VCGMesh::ScalarType t = 0;
-                    const vcg::Ray3<VCGMesh::ScalarType> ray(startPt, n * side);
-                    nearestF = unifGridFace.DoRay(hitFace, markerFunctor, ray, dist_upper_bound, t);
-                    if (nearestF) closestPt = startPt + n * (side * t);
-                }
-            }
-            if (!nearestF)
-            {
-                vcg::face::PointDistanceBaseFunctor<VCGMesh::ScalarType> PDistFunct;
-                VCGMesh::ScalarType dist=dist_upper_bound;
-                nearestF =  unifGridFace.GetClosest(PDistFunct, markerFunctor, startPt, dist_upper_bound, dist, closestPt);
-                if (dist == dist_upper_bound) return;
-            }
+            VCGMesh::ScalarType dist = dist_upper_bound;
+            VCGFace *nearestF = alongNormal
+                ? vcg::tri::GetClosestFaceAlongNormal(*srcMesh, unifGridFace, startPt,
+                      f.cV(0)->cN()*bary[0] + f.cV(1)->cN()*bary[1] + f.cV(2)->cN()*bary[2], dist_upper_bound, dist, closestPt)
+                : vcg::tri::GetClosestFaceBase(*srcMesh, unifGridFace, startPt, dist_upper_bound, dist, closestPt);
+            if (dist == dist_upper_bound) return;
 
             // Convert point to barycentric coords
             VCGMesh::CoordType interp;

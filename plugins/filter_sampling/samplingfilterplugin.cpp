@@ -36,7 +36,7 @@ constexpr QLatin1StringView kFilterPoissonDiskSampling("sample_surface_by_poisso
 constexpr QLatin1StringView kFilterHausdorffDistance("measure_hausdorff_distance");
 constexpr QLatin1StringView kFilterDistanceFromReference("compute_distance_from_reference_mesh");
 constexpr QLatin1StringView kFilterTexelSampling("sample_texels");
-constexpr QLatin1StringView kFilterVertexResampling("transfer_vertex_attributes_by_closest_point");
+constexpr QLatin1StringView kFilterVertexResampling("transfer_vertex_attributes_from_another_layer");
 constexpr QLatin1StringView kFilterUniformMeshResampling("remesh_uniformly_by_volumetric_resampling");
 constexpr QLatin1StringView kFilterVoronoiColoring("colorize_vertices_by_voronoi_regions");
 constexpr QLatin1StringView kFilterDiskColoring("colorize_vertices_by_disk_distance");
@@ -180,6 +180,9 @@ public:
     FaceMeshGrid unifGridFace;
     VertexMeshGrid unifGridVert;
     bool useVertexSampling = false;
+    // Match each vertex to the source along its own normal rather than by closest point
+    // (vcg::tri::GetClosestFaceAlongNormal); needs a source with faces and target vertex normals.
+    bool alongNormal = false;
     vcg::tri::FaceTmark<VCGMesh> markerFunctor;
 
     bool coordFlag = false;
@@ -272,13 +275,9 @@ public:
         dist = Scalar(distUpperBound);
         if (cb && sampleNum > 0)
             (*cb)(sampleCnt++ * 100 / sampleNum, "Resampling Vertex attributes");
-        nearestFace = unifGridFace.GetClosest(
-            pointDistanceFunctor,
-            markerFunctor,
-            startPoint,
-            distUpperBound,
-            dist,
-            closestPoint);
+        nearestFace = alongNormal
+            ? vcg::tri::GetClosestFaceAlongNormal(*m, unifGridFace, startPoint, vertex.cN(), Scalar(distUpperBound), dist, closestPoint)
+            : unifGridFace.GetClosest(pointDistanceFunctor, markerFunctor, startPoint, distUpperBound, dist, closestPoint);
 
         if (!nearestFace && storeBarycentricCoordsAsAttributesFlag) {
             perVertBarycentricCoordsHandle[vertex] = Point(0, 0, 0);
@@ -1216,6 +1215,12 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
 
         LocalRedetailSampler sampler;
         sampler.useVertexSampling = vertexSampling;
+        sampler.alongNormal = params.getEnum(QStringLiteral("correspondence")) == QStringLiteral("along_normal");
+        if (sampler.alongNormal && (vertexSampling || sourceMesh->FN() == 0))
+            return failResult(QObject::tr("Along the normal needs a source with faces, sampled on its surface: "
+                                          "rays meet faces, not points."));
+        if (sampler.alongNormal)
+            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(*targetWorldMesh);
         sampler.distUpperBound = float(params.getDouble(QStringLiteral("UpperBound")));
         sampler.colorFlag = transferColor;
         sampler.coordFlag = transferGeometry;

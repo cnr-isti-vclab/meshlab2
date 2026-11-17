@@ -424,8 +424,8 @@ with no alias. The helps now say the unit, texels.
 | Filter | Current id · label | Target id · label | Evidence | Verdict |
 |---|---|---|---|---|
 | *Transfer Color from Vertex to Texture* | `textW`, `textH` · `Texture width (px)`, `Texture height (px)` | `textureSize` · `Texture Size` | `filter_texture/filters.json`; `texturefilterplugin.cpp` built `QImage(QSize(textW, textH))` | id and label |
-| *Transfer Vertex Attributes to Texture by Closest Point* | same | same | same file and code path | id and label |
-| *Transfer Texture to Texture by Closest Point* | same | same | same file and code path | id and label |
+| *Transfer Vertex Attributes from Another Layer to Texture* | same | same | same file and code path | id and label |
+| *Transfer Texture from Another Layer* | same | same | same file and code path | id and label |
 | *Transfer Color from Visible Rasters to Texture* | `texsize` · `Texture size (px)` | `textureSize` · `Texture Size` | `filter_color_projection`, `colorprojectionfilterplugin.cpp:306`; also set by the test fixture `makePhotoTexturedGargoyle` | id and label |
 | *Parametrize from Registered Rasters with Texture* | `textureSize` · `Texture size` | `textureSize` · `Texture Size` | `filter_img_patch_param`, `imgpatchparamfilterplugin.cpp:1240` | label |
 | *Transfer Color from Visible Rasters to Texture (Texture Consolidation)* | `textureSize` · `Texture Size (px)` | `textureSize` · `Texture Size` | `filter_texture_consolidation/filters.json` | label |

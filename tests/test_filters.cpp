@@ -655,6 +655,7 @@ private slots:
     void embedPolylineRefusesWhatItCannotEmbed();
     void localFlatteningUnrollsACylinderIsometrically();
     void signedDistanceTransferBakesABump();
+    void vertexTransferAlongTheNormalKeepsVerticesAbove();
     void smoothPolylineOnSurfaceStaysOnItAndShortens();
     void smoothPolylineOnCylinderKeepsTheHelixWinding();
     void smoothPolylineWithoutControlPointsFindsTheClosedGeodesic();
@@ -11218,7 +11219,7 @@ void FilterTests::closestPointTransfersWriteTheCurrentLayer()
     };
 
     // Texture to vertex color: the current layer's vertices turn blue.
-    MeshFilterRunResult r = run(QStringLiteral("transfer_color_from_texture_to_vertex_by_closest_point"), {});
+    MeshFilterRunResult r = run(QStringLiteral("transfer_texture_color_from_another_layer_to_vertex"), {});
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QCOMPARE(doc.mesh(to).mesh.vert[4].C(), vcg::Color4b(0, 0, 255, 255));
 
@@ -11226,12 +11227,12 @@ void FilterTests::closestPointTransfersWriteTheCurrentLayer()
     MeshFilterParameterValues small{ { QStringLiteral("textureSize"), 32 } };
     MeshFilterParameterValues attributes = small;
     attributes.insert(QStringLiteral("AttributeEnum"), QStringLiteral("vertex_color"));
-    r = run(QStringLiteral("transfer_vertex_attributes_to_texture_by_closest_point"), attributes);
+    r = run(QStringLiteral("transfer_vertex_attributes_from_another_layer_to_texture"), attributes);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QVERIFY(share(doc, to, 0, 0) > 0.9);
 
     // Texture to texture: the source's blue, into a second texture of the current layer.
-    r = run(QStringLiteral("transfer_texture_to_texture_by_closest_point"), small);
+    r = run(QStringLiteral("transfer_texture_from_another_layer"), small);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QCOMPARE(int(doc.mesh(to).textureAssets.size()), 2);
     QVERIFY(share(doc, to, 1, 2) > 0.9);
@@ -16070,7 +16071,7 @@ void FilterTests::signedDistanceTransferBakesABump()
         p.insert(QStringLiteral("upperBound"), 1.0);
         p.insert(QStringLiteral("textureSize"), 500);
         const MeshFilterRunResult res =
-            doc.runFilter(filterKeyForId(doc, QStringLiteral("transfer_vertex_attributes_to_texture_by_closest_point")), p);
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("transfer_vertex_attributes_from_another_layer_to_texture")), p);
         QVERIFY2(res.success, qPrintable(res.errorMessage));
 
         QImage img;
@@ -16092,6 +16093,49 @@ void FilterTests::signedDistanceTransferBakesABump()
             QVERIFY2(std::abs(flank - flankHeight) < 0.002, qPrintable(QString::number(flank)));
         else
             QVERIFY2(flank < flankHeight - 0.002, qPrintable(QString::number(flank)));
+    }
+}
+
+// Projecting a flat sheet's vertices onto a bumpy copy: along the normal each vertex rises
+// straight up onto the bump; by closest point the ones on its flank slide sideways too.
+void FilterTests::vertexTransferAlongTheNormalKeepsVerticesAbove()
+{
+    const float A = 0.2f, s = 0.5f;
+    VCGMesh flat, bumpy;
+    makeGridMesh(flat, 100);
+    for (VCGVertex &v : flat.vert) v.P() *= 0.1f;  // a 10 by 10 sheet, normals up
+    vcg::tri::UpdateBounding<VCGMesh>::Box(flat);
+    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(bumpy, flat);
+    for (VCGVertex &v : bumpy.vert) {
+        const float x = v.P()[0] - 5, y = v.P()[1] - 5;
+        v.P()[2] = A * std::exp(-(x * x + y * y) / (2 * s * s));
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(bumpy);
+    for (const QString correspondence : { QStringLiteral("closest_point"), QStringLiteral("along_normal") }) {
+        Document doc;
+        const int target = doc.addMesh(flat, QStringLiteral("flat"), 0);
+        const int source = doc.addMesh(bumpy, QStringLiteral("bumpy"), 0);
+        doc.setCurrentMeshIndex(target);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), source);
+        p.insert(QStringLiteral("GeomTransfer"), true);
+        p.insert(QStringLiteral("ColorTransfer"), false);
+        p.insert(QStringLiteral("correspondence"), correspondence);
+        p.insert(QStringLiteral("UpperBound"), 1.0);
+        const MeshFilterRunResult res =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("transfer_vertex_attributes_from_another_layer")), p);
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        // the vertex on the flank at (5.5, 5): its height, and how far it moved sideways
+        const VCGVertex &v = doc.mesh(target).mesh.vert[size_t(50 * 101 + 55)];
+        QVERIFY(std::abs(flat.vert[size_t(50 * 101 + 55)].cP()[0] - 5.5f) < 1e-5f);
+        const float sideways = std::hypot(v.cP()[0] - 5.5f, v.cP()[1] - 5.0f);
+        const float bump = A * std::exp(-0.25f / (2 * s * s));
+        if (correspondence == QStringLiteral("along_normal")) {
+            QVERIFY2(sideways < 1e-5f, qPrintable(QString::number(sideways)));
+            QVERIFY2(std::abs(v.cP()[2] - bump) < 0.002f, qPrintable(QString::number(v.cP()[2])));
+        } else {
+            QVERIFY2(sideways > 0.01f, qPrintable(QString::number(sideways)));
+        }
     }
 }
 
@@ -18829,7 +18873,7 @@ void FilterTests::scopedFiltersConfineThemselvesToTheSelection()
             makeScopeSurface(mesh);
         if (selected)
             selectWestHalf(mesh, selectKind);
-        const bool transfer = filterId == QLatin1String("transfer_vertex_attributes_by_closest_point");
+        const bool transfer = filterId == QLatin1String("transfer_vertex_attributes_from_another_layer");
         int source = -1;
         if (transfer) {
             VCGMesh from;

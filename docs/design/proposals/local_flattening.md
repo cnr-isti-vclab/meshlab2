@@ -172,8 +172,7 @@ as the method, and the propagation only if the first proves fragile.
    grooves as the two-copy workflow, in one step, sampling the scan evenly (0.5% against 1.4% by
    closest point).
 2. **The height map**, decided 2026-11-15 after a first version was withdrawn: not a filter of
-   its own but a **Signed Distance** data source of *Transfer Vertex Attributes to Texture by
-   Closest Point*, which already samples a source mesh at every texel of the current mesh's UV
+   its own but a **Signed Distance** data source of *Transfer Vertex Attributes from Another Layer to Texture*, which already samples a source mesh at every texel of the current mesh's UV
    layout. It writes the distance from each texel's point to the closest point of the source,
    signed by the current mesh's normals, into a 16-bit grayscale texture: 0 where nothing is
    found, 1 to 65535 across the range, given as `distance_min` and `distance_max`. That restores

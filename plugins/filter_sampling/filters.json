@@ -2,6 +2,19 @@
   "pluginId": "meshlab2.filter.sampling",
   "references": [
     {
+      "id": "tarini2003detailrecovery",
+      "type": "paper-conference",
+      "title": "Visibility Based Methods and Assessment for Detail-Recovery",
+      "author": [
+        { "family": "Tarini", "given": "Marco" },
+        { "family": "Cignoni", "given": "Paolo" },
+        { "family": "Scopigno", "given": "Roberto" }
+      ],
+      "container-title": "IEEE Visualization 2003",
+      "page": "457-464",
+      "issued": { "date-parts": [[2003]] }
+    },
+    {
       "id": "corsini2012blue",
       "type": "article-journal",
       "title": "Efficient and Flexible Sampling with Blue Noise Properties of Triangular Meshes",
@@ -690,11 +703,12 @@
       ]
     },
     {
-      "id": "transfer_vertex_attributes_by_closest_point",
+      "id": "transfer_vertex_attributes_from_another_layer",
       "categories": ["Transfer/Between Layers"],
-      "name": "Transfer Vertex Attributes by Closest Point",
-      "pythonName": "transfer_vertex_attributes_by_closest_point",
-      "shortDescription": "Transfer attributes from one mesh to another by closest-point projection.",
+      "referenceIds": ["tarini2003detailrecovery"],
+      "name": "Transfer Vertex Attributes from Another Layer",
+      "pythonName": "transfer_vertex_attributes_from_another_layer",
+      "shortDescription": "Transfer attributes from one mesh to another, matching each vertex to the closest point of the source or along its normal.",
       "longDescriptionMarkdown": "Transfer the chosen per-vertex attributes from the **Source mesh** to the current mesh. Useful to transfer attributes to different representations of a same object.\\\nFor each vertex of the current mesh the closest point (not vertex!) on the source mesh is computed, and the requested interpolated attributes from that source point are copied into the vertex.\\\nThe algorithm assumes that the two meshes are reasonably similar and aligned.",
       "tags": [
         "sampling",
@@ -781,6 +795,18 @@
           "group": "advanced",
           "type": "bool",
           "default": false
+        },
+        {
+          "id": "correspondence",
+          "label": "Correspondence",
+          "help": "How each vertex finds its point on the source.",
+          "group": "main",
+          "type": "enum",
+          "default": "closest_point",
+          "enumOptions": [
+            {"id": "closest_point", "label": "Closest point", "help": "The point of the source closest to the vertex. Robust, never misses, but bunches samples where the source bends towards the current mesh."},
+            {"id": "along_normal", "label": "Along the normal", "help": "Where a ray along the vertex normal, either way, meets the source, the outward hit first; the closest point where both rays miss. Samples the source more evenly (Tarini et al. 2003); needs a source with faces."}
+          ]
         },
         {
           "id": "UpperBound",

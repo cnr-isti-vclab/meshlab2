@@ -43,9 +43,9 @@ constexpr QLatin1StringView kFilterSetTextureFromFile("set_texture_from_file");
 constexpr QLatin1StringView kFilterRemoveTextures("remove_textures");
 constexpr QLatin1StringView kFilterRenameTexture("rename_texture");
 constexpr QLatin1StringView kFilterColorToTexture("transfer_color_from_vertex_to_texture");
-constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_color_from_texture_to_vertex_by_closest_point");
-constexpr QLatin1StringView kFilterTransferToTexture("transfer_vertex_attributes_to_texture_by_closest_point");
-constexpr QLatin1StringView kFilterTextureToTexture("transfer_texture_to_texture_by_closest_point");
+constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_texture_color_from_another_layer_to_vertex");
+constexpr QLatin1StringView kFilterTransferToTexture("transfer_vertex_attributes_from_another_layer_to_texture");
+constexpr QLatin1StringView kFilterTextureToTexture("transfer_texture_from_another_layer");
 constexpr QLatin1StringView kFilterObjectToTangentNormal("convert_object_space_normal_map_to_tangent_space");
 constexpr QLatin1StringView kFilterPackTextures("pack_texture_images");
 
@@ -1204,6 +1204,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
 
         VCGMeshMarkScope _markSource(*sourceWorldMesh);
         VertexSampler sampler(*sourceWorldMesh, sourceImages, float(params.getDouble(QStringLiteral("upperBound"))));
+        sampler.alongNormal = params.getEnum(QStringLiteral("correspondence")) == QStringLiteral("along_normal");
+        if (sampler.alongNormal)
+            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(*targetWorldMesh);
         sampler.InitCallback(doc.progressCallback(), targetWorldMesh->VN(), 0, 100);
         vcg::tri::SurfaceSampling<VCGMesh, VertexSampler>::VertexUniform(
             *targetWorldMesh,

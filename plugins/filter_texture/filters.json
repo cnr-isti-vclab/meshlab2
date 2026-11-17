@@ -105,7 +105,7 @@
       "name": "Parametrize Surface along Polyline (Local Flattening)",
       "pythonName": "parametrize_surface_along_polyline_local_flattening",
       "shortDescription": "Create a rectangular patch of the surface around a polyline, flattened with proportional UVs in the unit square.",
-      "longDescriptionMarkdown": "Flatten a strip of the current surface that runs along a polyline drawn on it, into a rectangle: the local flattening operator of Pietroni et al., which turns a portion of a scanned artwork into an image in which lengths can be measured, carved marks compared and photographs laid side by side.\n\nThe faces within a geodesic distance of the polyline a little over the half-width are taken, and must form a disk. A conformal map that pulls the polyline onto a straight line gives a cross field that follows it, and the strip is then parametrized aligned to that field. The result is cropped exactly to the rectangle $2w \\times L$, the polyline running along its middle in the $V$ direction from its end with the lower index, where $w$ is the half-width and $L$ the polyline's straightened length.\n\nThe patch is a **new layer** with per-vertex and per-wedge texture coordinates scaled uniformly into the unit square, its longer side spanning 0 to 1, so texture tools can use it at once: lengths in UV are lengths on the surface divided by `uv_scale`, an output value. The current mesh is left unchanged. *Remesh as a grid* replaces the surface's own triangles with a regular grid over the rectangle, meshed in parametric space; *Smoothing* keeps only the patch's overall shape, moving each point along the normal, as the paper does with its geometry image. To make a height map of the residual marks, smooth the patch, then bake the original surface onto it with *Transfer Vertex Attributes to Texture by Closest Point*, *Signed Distance* and *Along the normal*; photographs go onto it with *Transfer Color from Visible Rasters to Texture*. The log and the output values report the distortion as the paper does: the smallest and largest ratio between an edge's length on the surface and in UV, and their average deviation from 1.\n\nThe paper's equation 1 pulls only the U coordinate of the polyline to a constant. Here V is also pulled to the arc length along the polyline, which on a developable surface cuts the length distortion by an order of magnitude; the polyline need not be a geodesic, and is straightened. The polyline must be a single open curve lying on the surface; one made with *Create Polyline from Geodesic Path* is.",
+      "longDescriptionMarkdown": "Flatten a strip of the current surface that runs along a polyline drawn on it, into a rectangle: the local flattening operator of Pietroni et al., which turns a portion of a scanned artwork into an image in which lengths can be measured, carved marks compared and photographs laid side by side.\n\nThe faces within a geodesic distance of the polyline a little over the half-width are taken, and must form a disk. A conformal map that pulls the polyline onto a straight line gives a cross field that follows it, and the strip is then parametrized aligned to that field. The result is cropped exactly to the rectangle $2w \\times L$, the polyline running along its middle in the $V$ direction from its end with the lower index, where $w$ is the half-width and $L$ the polyline's straightened length.\n\nThe patch is a **new layer** with per-vertex and per-wedge texture coordinates scaled uniformly into the unit square, its longer side spanning 0 to 1, so texture tools can use it at once: lengths in UV are lengths on the surface divided by `uv_scale`, an output value. The current mesh is left unchanged. *Remesh as a grid* replaces the surface's own triangles with a regular grid over the rectangle, meshed in parametric space; *Smoothing* keeps only the patch's overall shape, moving each point along the normal, as the paper does with its geometry image. To make a height map of the residual marks, smooth the patch, then bake the original surface onto it with *Transfer Vertex Attributes from Another Layer to Texture*, *Signed Distance* and *Along the normal*; photographs go onto it with *Transfer Color from Visible Rasters to Texture*. The log and the output values report the distortion as the paper does: the smallest and largest ratio between an edge's length on the surface and in UV, and their average deviation from 1.\n\nThe paper's equation 1 pulls only the U coordinate of the polyline to a constant. Here V is also pulled to the arc length along the polyline, which on a developable surface cuts the length distortion by an order of magnitude; the polyline need not be a geodesic, and is straightened. The polyline must be a single open curve lying on the surface; one made with *Create Polyline from Geodesic Path* is.",
       "tags": [
         "parametrization",
         "uv",
@@ -624,11 +624,12 @@
       ]
     },
     {
-      "id": "transfer_color_from_texture_to_vertex_by_closest_point",
+      "id": "transfer_texture_color_from_another_layer_to_vertex",
       "categories": ["Transfer/Between Layers", "Attribute/Color"],
-      "name": "Transfer Color from Texture to Vertex by Closest Point",
-      "pythonName": "transfer_color_from_texture_to_vertex_by_closest_point",
-      "shortDescription": "Color the vertices of the current mesh by sampling the texture of a source mesh at the closest point.",
+      "referenceIds": ["tarini2003detailrecovery"],
+      "name": "Transfer Texture Color from Another Layer to Vertex",
+      "pythonName": "transfer_texture_color_from_another_layer_to_vertex",
+      "shortDescription": "Color the vertices of the current mesh by sampling the texture of a source mesh, at the closest point or along the normal.",
       "longDescriptionMarkdown": "Gives each vertex of the current mesh the texture color of the closest point of the **Source Mesh**. The source may be the current mesh itself, to turn its own texture into vertex colors.",
       "tags": [
         "texture",
@@ -652,6 +653,18 @@
             "requirePerWedgeTexCoords": true,
             "requireTextures": true
           }
+        },
+        {
+          "id": "correspondence",
+          "label": "Correspondence",
+          "help": "How each vertex finds its point on the source.",
+          "group": "main",
+          "type": "enum",
+          "default": "closest_point",
+          "enumOptions": [
+            {"id": "closest_point", "label": "Closest point", "help": "The point of the source closest to the vertex. Robust, never misses, but bunches samples where the source bends towards the current mesh."},
+            {"id": "along_normal", "label": "Along the normal", "help": "Where a ray along the vertex normal, either way, meets the source, the outward hit first; the closest point where both rays miss. Samples the source more evenly (Tarini et al. 2003); needs a source with faces."}
+          ]
         },
         {
           "id": "upperBound",
@@ -680,13 +693,13 @@
       ]
     },
     {
-      "id": "transfer_vertex_attributes_to_texture_by_closest_point",
+      "id": "transfer_vertex_attributes_from_another_layer_to_texture",
       "categories": ["Transfer/Between Layers", "Texture"],
       "referenceIds": ["tarini2003detailrecovery", "pietroni2011localflattening"],
-      "name": "Transfer Vertex Attributes to Texture by Closest Point",
-      "pythonName": "transfer_vertex_attributes_to_texture_by_closest_point",
-      "shortDescription": "Bake vertex color, normals, scalar or the signed distance of a source mesh into a texture of the current mesh, by closest point.",
-      "longDescriptionMarkdown": "For each texel of the current mesh, finds its point on the surface and the closest point of the **Source Mesh**, and writes there the interpolated vertex attribute chosen in **Data Source**. This may be useful to restore detail lost in simplification. To resample a texture onto another parametrization, use *Transfer Texture to Texture by Closest Point*.\n\n*Signed Distance* bakes a displacement map: the distance from each texel's point to the closest point of the source, positive on the side the current mesh's normals point to, into a **16-bit grayscale** texture. 0 marks the texels that found nothing within the search distance, and 1 to 65535 span the distances linearly, from `distance_min` to `distance_max` in the output values, so they can be read back; the texture is not filled around the charts. With a smoothed or simplified copy as the current mesh and the full model as the source, it is the height map of the residual marks of Pietroni et al.: the small relief of the surface, without its shape.",
+      "name": "Transfer Vertex Attributes from Another Layer to Texture",
+      "pythonName": "transfer_vertex_attributes_from_another_layer_to_texture",
+      "shortDescription": "Bake vertex color, normals, scalar or the signed distance of a source mesh into a texture of the current mesh, by closest point or along the normal.",
+      "longDescriptionMarkdown": "For each texel of the current mesh, finds its point on the surface and the closest point of the **Source Mesh**, and writes there the interpolated vertex attribute chosen in **Data Source**. This may be useful to restore detail lost in simplification. To resample a texture onto another parametrization, use *Transfer Texture from Another Layer*.\n\n*Signed Distance* bakes a displacement map: the distance from each texel's point to the closest point of the source, positive on the side the current mesh's normals point to, into a **16-bit grayscale** texture. 0 marks the texels that found nothing within the search distance, and 1 to 65535 span the distances linearly, from `distance_min` to `distance_max` in the output values, so they can be read back; the texture is not filled around the charts. With a smoothed or simplified copy as the current mesh and the full model as the source, it is the height map of the residual marks of Pietroni et al.: the small relief of the surface, without its shape.",
       "tags": [
         "texture",
         "transfer",
@@ -794,12 +807,12 @@
       ]
     },
     {
-      "id": "transfer_texture_to_texture_by_closest_point",
+      "id": "transfer_texture_from_another_layer",
       "categories": ["Transfer/Between Layers", "Texture"],
       "referenceIds": ["tarini2003detailrecovery"],
-      "name": "Transfer Texture to Texture by Closest Point",
-      "pythonName": "transfer_texture_to_texture_by_closest_point",
-      "shortDescription": "Resample the texture of a source mesh into a texture of the current mesh, by closest point.",
+      "name": "Transfer Texture from Another Layer",
+      "pythonName": "transfer_texture_from_another_layer",
+      "shortDescription": "Resample the texture of a source mesh into a texture of the current mesh, by closest point or along the normal.",
       "longDescriptionMarkdown": "For each texel of the current mesh, finds its point on the surface and the closest point of the **Source Mesh**, and writes there the source's texture color. This re-textures a mesh after remeshing, simplification or a new parametrization: give the new mesh its UVs, make it current, and pick the textured original as the source.",
       "tags": [
         "texture",
