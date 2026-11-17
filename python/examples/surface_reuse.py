@@ -147,13 +147,14 @@ def _choose(candidates, sample_count, max_overlap, min_new_samples):
 def surface_reuse(meshset, source_index=0, target_index=1, *, pieces=24,
                   tolerance=None, trials=2, samples=2000, seed=17,
                   max_overlap=0.15, min_new_samples=5, output_dir=None):
-    """Append accepted rigid panels and return a JSON-compatible report.
+    """Append source pieces and accepted rigid panels; return a report.
 
     tolerance is an absolute distance in the shared input units; None uses 0.5%
     of the target diagonal. trials counts FPFH/RANSAC restarts per source piece;
     an ICP-only trial from the input pose is also tried. No scaling is allowed.
     max_overlap bounds overlap on a common target sample set, not exact area.
     Each source piece is used at most once. Output files are retained for review.
+    Source pieces are added as hidden layers; accepted placements are visible.
     """
     if source_index == target_index:
         raise ValueError("Source and target must be different layers.")
@@ -196,6 +197,14 @@ def surface_reuse(meshset, source_index=0, target_index=1, *, pieces=24,
     target_samples = _sample(work, 0, samples, seed)  # common area-uniform probes
     sample_count = work.mesh(target_samples).vertex_number()
     patches = _partition(source, directory, pieces, seed)
+    # Retain the complete partition in the live document, even if no fit succeeds.
+    # Hide it initially to avoid drawing coincident faces over the original source.
+    current = meshset.current_mesh_index()
+    for patch in patches:
+        meshset.load_new_mesh(str(patch))
+        _run(meshset, "rename_current_mesh_layer", newName=f"Source {patch.stem}")
+        meshset.set_current_mesh_visibility(False)
+    meshset.set_current_mesh(current)
     candidates, attempts = [], []
     print(f"Surface reuse: {len(patches)} pieces; tolerance {tolerance:g}; {directory}")
 

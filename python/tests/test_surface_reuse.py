@@ -28,17 +28,17 @@ def test_identical_surfaces_recover_panels_without_changing_inputs(reuse, tmp_pa
                                  samples=500, output_dir=tmp_path / "result")
     assert report["accepted"]
     assert report["target_sample_coverage"] > 0.5
-    assert ms.mesh_number() == 2 + len(report["accepted"])
+    source_end = 2 + report["source_pieces"]
+    assert ms.mesh_number() == source_end + len(report["accepted"])
+    assert all(not ms.is_mesh_visible(i) for i in range(2, source_end))
+    assert all(ms.mesh(i).label().startswith("Source piece_") for i in range(2, source_end))
+    assert all(ms.is_mesh_visible(i) for i in range(source_end, ms.mesh_number()))
     assert len({item["piece"] for item in report["accepted"]}) == len(report["accepted"])
     assert all(item["max_distance"] <= report["tolerance"] for item in report["accepted"])
     for i in range(2):
         np.testing.assert_array_equal(ms.mesh(i).vertex_matrix(), before[i])
     # Every source triangle belongs to exactly one output piece, including slivers.
-    directory = Path(report["output_directory"])
-    pieces = pymeshlab2.MeshSet()
-    for path in directory.glob("piece_*.off"):
-        pieces.load_new_mesh(str(path))
-    assert sum(pieces.mesh(i).face_number() for i in range(pieces.mesh_number())) == ms.mesh(0).face_number()
+    assert sum(ms.mesh(i).face_number() for i in range(2, source_end)) == ms.mesh(0).face_number()
 
 
 def test_failed_distance_queries_are_not_good_fits(reuse):
