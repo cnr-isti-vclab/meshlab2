@@ -1377,19 +1377,19 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
         std::unique_ptr<VCGMesh> coloredMesh = makeWorldMesh(coloredEntry, true);
         std::unique_ptr<VCGMesh> vertexMesh = makeWorldMesh(vertexEntry, false);
 
+        // Unreferenced vertices would be seeds of regions with no faces. Removing them shifts
+        // the vertices after them, so the remap is kept to copy the result back.
         vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(*coloredMesh);
-        vcg::tri::Allocator<VCGMesh>::CompactVertexVector(*coloredMesh);
-        vcg::tri::Allocator<VCGMesh>::CompactFaceVector(*coloredMesh);
+        vcg::tri::Allocator<VCGMesh>::PointerUpdater<VCGMesh::VertexPointer> remap;
+        vcg::tri::Allocator<VCGMesh>::CompactVertexVector(*coloredMesh, remap);
         coloredMesh->vert.EnableVFAdjacency();
         coloredMesh->face.EnableVFAdjacency();
         vcg::tri::UpdateTopology<VCGMesh>::VertexFace(*coloredMesh);
 
         std::vector<Point> pointVector;
         pointVector.reserve(vertexMesh->VN());
-        for (const VCGVertex &vertex : vertexMesh->vert) {
-            
-                pointVector.push_back(vertex.cP());
-        }
+        for (const VCGVertex &vertex : vertexMesh->vert)
+            pointVector.push_back(vertex.cP());
 
         std::vector<VCGMesh::VertexPointer> seedVertices;
         vcg::tri::VoronoiProcessing<VCGMesh>::SeedToVertexConversion(*coloredMesh, pointVector, seedVertices);
@@ -1404,7 +1404,15 @@ MeshFilterRunResult SamplingFilterPlugin::runFilter(
             *coloredMesh,
             params.getBool(QStringLiteral("backward")));
 
-        copyPerVertexAppearance(*coloredMesh, coloredEntry.mesh, true, true, false, false);
+        // Through the remap (empty when nothing was removed): an unreferenced vertex keeps
+        // its color and scalar.
+        for (size_t i = 0; i < coloredEntry.mesh.vert.size(); ++i) {
+            const size_t j = remap.remap.empty() ? i : remap.remap[i];
+            if (j >= coloredMesh->vert.size())
+                continue;
+            coloredEntry.mesh.vert[i].C() = coloredMesh->vert[j].cC();
+            coloredEntry.mesh.vert[i].Q() = coloredMesh->vert[j].cQ();
+        }
         coloredEntry.ioMask |= (Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY);
         doc.markMeshScalarChanged(coloredMeshIndex);
         doc.markMeshColorChanged(

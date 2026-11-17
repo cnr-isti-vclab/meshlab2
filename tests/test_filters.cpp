@@ -585,6 +585,7 @@ private slots:
     void textureFiltersWriteNoFile();
     void closestPointTransfersWriteTheCurrentLayer();
     void samplingTwoLayerFiltersWriteTheCurrentLayer();
+    void voronoiColoringKeepsColorsOnTheirVerticesPastAnUnreferencedOne();
     void faceScalarFromRastersMeasuresTheViews();
     void aThinFoldedUvTriangleIsFoundWhereFloatArithmeticMissesIt();
     void measureUvMappingAgreesWithTexMetroOnARealAtlas();
@@ -11560,6 +11561,55 @@ void FilterTests::samplingTwoLayerFiltersWriteTheCurrentLayer()
     QVERIFY(qualities() != before);
 
     QCOMPARE(doc.meshStoredState(other), Document::StoredState::Stored);
+}
+
+// Colorize Vertices by Voronoi Regions works on a copy with the unreferenced vertices
+// removed, and copied the result back by index: every vertex after an unreferenced one got
+// its successor's color. The same disk with an unreferenced vertex in front must get the
+// same colors, shifted by one, and the unreferenced vertex keeps its own.
+void FilterTests::voronoiColoringKeepsColorsOnTheirVerticesPastAnUnreferencedOne()
+{
+    VCGMesh disk;
+    makeOpenDiskMesh(disk);
+    VCGMesh shifted;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(shifted, VCGMesh::CoordType(5.0f, 5.0f, 5.0f));
+    vcg::tri::Append<VCGMesh, VCGMesh>::MeshAppendConst(shifted, disk);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(shifted);
+    VCGMesh seeds;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(seeds, VCGMesh::CoordType(0.1f, 0.1f, 0.2f));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(seeds, VCGMesh::CoordType(0.9f, 0.9f, 0.2f));
+    vcg::tri::UpdateBounding<VCGMesh>::Box(seeds);
+
+    const auto colorize = [&](const VCGMesh &surface) {
+        Document doc;
+        const int mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR
+                       | vcg::tri::io::Mask::IOM_VERTQUALITY;
+        const int receiver = doc.addMesh(surface, QStringLiteral("surface"), mask);
+        const int other = doc.addMesh(seeds, QStringLiteral("seeds"), vcg::tri::io::Mask::IOM_VERTCOORD);
+        doc.setCurrentMeshIndex(receiver);
+        for (VCGVertex &v : doc.mesh(receiver).mesh.vert) {
+            v.C() = vcg::Color4b::White;
+            v.Q() = -1.0f;
+        }
+        const MeshFilterRunResult r =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("colorize_vertices_by_voronoi_regions")),
+                          { { QStringLiteral("sourceMesh"), other } });
+        if (!r.success)
+            qWarning("%s", qPrintable(r.errorMessage));
+        std::vector<std::pair<vcg::Color4b, float>> values;
+        for (const VCGVertex &v : doc.mesh(receiver).mesh.vert)
+            values.emplace_back(v.cC(), v.cQ());
+        return values;
+    };
+    const auto expected = colorize(disk);
+    const auto actual = colorize(shifted);
+    QCOMPARE(actual.size(), expected.size() + 1);
+    QCOMPARE(actual[0].first, vcg::Color4b(vcg::Color4b::White));
+    QCOMPARE(actual[0].second, -1.0f);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        QCOMPARE(actual[i + 1].first, expected[i].first);
+        QCOMPARE(actual[i + 1].second, expected[i].second);
+    }
 }
 
 void FilterTests::foldedUvFacesAreFoundAgainstTheirIslandInBothUvKinds()
