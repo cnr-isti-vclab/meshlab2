@@ -1038,7 +1038,7 @@ QWidget *textureInfoWidget(
     sizeLabel->setTextFormat(Qt::PlainText);
     sizeLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     sizeLabel->setFixedHeight(lineH);
-    sizeLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    sizeLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
 
     v->addWidget(nameLabel);
     v->addWidget(sizeLabel);
@@ -1102,7 +1102,7 @@ QWidget *rasterPlaneInfoWidget(
     metaLabel->setTextFormat(Qt::PlainText);
     metaLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     metaLabel->setFixedHeight(lineH);
-    metaLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    metaLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
 
     v->addWidget(nameLabel);
     v->addWidget(metaLabel);
