@@ -204,7 +204,13 @@ private:
     QVector3D projectOnArcball(const QPointF &pos, const QSize &viewportSize) const;
     QMatrix4x4 viewMatrixForRotation(const QQuaternion &rotation) const;
     QVector3D viewPointForRotation(const QQuaternion &rotation) const;
-    bool viewRayFromWindow(const QPointF &pos, const QSize &viewportSize, const QQuaternion &rotation, QVector3D &rayOrigin, QVector3D &rayDir) const;
+    // The eye relative to the orbit centre.
+    QVector3D localViewPoint(const QQuaternion &rotation) const;
+    // relativeToCenter gives the ray origin relative to the orbit centre, as the trackball
+    // hits below use it: at a deep zoom the trackball sphere is far smaller than the float
+    // spacing of world coordinates around a centre away from the origin.
+    bool viewRayFromWindow(const QPointF &pos, const QSize &viewportSize, const QQuaternion &rotation, QVector3D &rayOrigin, QVector3D &rayDir, bool relativeToCenter = false) const;
+    // Trackball hits, relative to the orbit centre.
     bool hitViewPlane(const QPointF &pos, const QSize &viewportSize, const QQuaternion &rotation, QVector3D &hit) const;
     bool hitHyper(const QPointF &pos, const QSize &viewportSize, const QQuaternion &rotation, QVector3D &hit) const;
     bool hitSphereLikeVcg(const QPointF &pos, const QSize &viewportSize, const QQuaternion &rotation, QVector3D &hit) const;
@@ -212,7 +218,7 @@ private:
     NavigationMode m_navigationMode = NavigationMode::None;
     QPointF m_lastMousePos;
     QVector3D m_lastArcballVec = QVector3D(0.0f, 0.0f, 1.0f);
-    QVector3D m_dragStartHit;
+    QVector3D m_dragStartHit; // relative to the orbit centre
     bool m_dragStartHitValid = false;
     QQuaternion m_dragStartRotation;
     QVector3D m_dragLastAxis = QVector3D(0.0f, 1.0f, 0.0f);

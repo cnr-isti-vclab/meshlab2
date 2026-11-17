@@ -33,6 +33,7 @@ private slots:
     void theFieldOfViewWheelKeepsTheVisibleHeightThroughTheSwitch();
     void theOrdinaryWheelStillZoomsInOrthographic();
     void theWheelZoomsFarCloserThanAHundredthOfTheScene();
+    void aSmallDragTurnsTheSameAtADeepZoom();
     void theProjectionSurvivesStateRoundTripAndJson();
     void aBadProjectionNamesTheKey();
     void shiftDragRollsTheViewAboutItsOwnAxis();
@@ -622,6 +623,37 @@ void ViewTrackballTests::theCameraStateDocumentRoundTripsWithItsViewport()
     QVERIFY(ViewTrackball::stateFromCameraStateJson(ViewTrackball::cameraStateJson(written), read, &error, &viewport));
     QVERIFY(!viewport.isValid());
     QVERIFY(!ViewTrackball::stateFromCameraStateJson(QStringLiteral("{\"kind\": \"MeshLab.RenderState\"}"), read, &error));
+}
+
+// The trackball sphere keeps its size on screen through a zoom, so a drag of a few pixels
+// turns the view by the same angle close in as far out. At a deep zoom it used to turn
+// nothing at all until the drag was a good part of the screen: the sphere stopped
+// shrinking at 1e-4 units, and the rotation axis was rejected under a world-unit threshold.
+void ViewTrackballTests::aSmallDragTurnsTheSameAtADeepZoom()
+{
+    const QSize size(800, 600);
+    const auto turnOfSmallDrag = [&size](ViewTrackball tb) {
+        const QMouseEvent press = mouseEvent(QEvent::MouseButtonPress, QPointF(400, 300), Qt::LeftButton, Qt::NoModifier);
+        tb.mousePress(&press, size);
+        const QQuaternion start = tb.state().rotation;
+        const QMouseEvent move = mouseEvent(QEvent::MouseMove, QPointF(410, 300), Qt::LeftButton, Qt::NoModifier);
+        tb.mouseMove(&move, size);
+        const QQuaternion turn = tb.state().rotation * start.conjugated();
+        return 2.0f * qRadiansToDegrees(std::acos(std::min(1.0f, std::abs(turn.scalar()))));
+    };
+    ViewTrackball tb = makeTrackball(Projection::Perspective);
+    tb.setFrame(tb.state().center, tb.state().radius, tb.state().distance);
+    const float far = turnOfSmallDrag(tb);
+    const QPointF pos(100, 100);
+    const QWheelEvent wheel(pos, pos, QPoint(), QPoint(0, 120), Qt::NoButton, Qt::NoModifier,
+                            Qt::NoScrollPhase, false);
+    for (int i = 0; i < 200; ++i)
+        tb.wheel(&wheel);
+    QVERIFY(tb.state().distance < 1e-3f * tb.state().radius);
+    const float close = turnOfSmallDrag(tb);
+    QVERIFY2(far > 0.5f, qPrintable(QStringLiteral("%1 degrees far out").arg(far)));
+    QVERIFY2(std::abs(close - far) < 0.05f * far,
+             qPrintable(QStringLiteral("%1 degrees close in, %2 far out").arg(close).arg(far)));
 }
 
 QTEST_APPLESS_MAIN(ViewTrackballTests)

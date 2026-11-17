@@ -441,7 +441,10 @@ float ViewTrackball::gizmoWorldRadius() const
     const float tanHalfFov = qMax(1e-6f, std::tan(0.5f * fovRad));
     const float tanHalfFovRef = qMax(1e-6f, std::tan(0.5f * refFovRad));
     const float scale = (m_distance / refDist) * (tanHalfFov / tanHalfFovRef);
-    return qMax(1e-4f, m_gizmoBaseRadius * scale);
+    // No absolute floor: the sphere has to keep its size on screen however close the zoom
+    // goes. A 1e-4 floor made it many times the view at a deep zoom, so a drag across a good
+    // part of the screen turned the view by almost nothing.
+    return m_gizmoBaseRadius * scale;
 }
 
 bool ViewTrackball::orthographicDepthRange(float &nearDist, float &farDist) const
@@ -565,8 +568,13 @@ bool ViewTrackball::mouseMove(const QMouseEvent *e, const QSize &viewportSize)
         const bool hitNewValid =
             hitSphereLikeVcg(currentPos, viewportSize, kIdentityRotation, hitNew);
         if (m_dragStartHitValid && hitNewValid) {
-            const QVector3D from = m_dragStartHit - m_center;
-            const QVector3D to = hitNew - m_center;
+            // The hits are relative to the orbit centre, and are scaled here to units of the
+            // sphere radius, so that the thresholds below mean the same at any zoom: in world
+            // units the cross product shrinks with the square of the radius, and at a deep
+            // zoom fell under 1e-12 for all but large drags.
+            const float radius = gizmoWorldRadius();
+            const QVector3D from = m_dragStartHit / radius;
+            const QVector3D to = hitNew / radius;
             QVector3D axis = QVector3D::crossProduct(to, from);
             const float axisLen2 = axis.lengthSquared();
             QVector3D fromN = from;
@@ -607,8 +615,7 @@ bool ViewTrackball::mouseMove(const QMouseEvent *e, const QSize &viewportSize)
                 return true;
             }
 
-            const float radius = qMax(1e-6f, gizmoWorldRadius());
-            const float chordOverR = (hitNew - m_dragStartHit).length() / radius;
+            const float chordOverR = (to - from).length();
             const float phi = qMax(angleRad, chordOverR);
 
             const QQuaternion deltaRot =
@@ -756,14 +763,16 @@ QMatrix4x4 ViewTrackball::projectionMatrix(float aspect, float minFarDistance,
     return proj;
 }
 
+// The eye of viewMatrixForRotation, in closed form rather than through a matrix inverse:
+// the view is translate(0, 0, -distance) * rotate(rotation) * translate(-center).
 QVector3D ViewTrackball::viewPointForRotation(const QQuaternion &rotation) const
 {
-    bool ok = false;
-    const QMatrix4x4 invView = viewMatrixForRotation(rotation).inverted(&ok);
-    if (!ok)
-        return QVector3D(0.0f, 0.0f, 0.0f);
-    const QVector4D vp = invView * QVector4D(0.0f, 0.0f, 0.0f, 1.0f);
-    return vp.toVector3D();
+    return m_center + localViewPoint(rotation);
+}
+
+QVector3D ViewTrackball::localViewPoint(const QQuaternion &rotation) const
+{
+    return rotation.conjugated().rotatedVector(QVector3D(0.0f, 0.0f, m_distance));
 }
 
 bool ViewTrackball::viewRay(const QPointF &pos, const QSize &viewportSize, ViewRay &ray) const
@@ -776,41 +785,36 @@ bool ViewTrackball::viewRayFromWindow(
     const QSize &viewportSize,
     const QQuaternion &rotation,
     QVector3D &rayOrigin,
-    QVector3D &rayDir) const
+    QVector3D &rayDir,
+    bool relativeToCenter) const
 {
     if (viewportSize.width() <= 1 || viewportSize.height() <= 1)
         return false;
 
+    // Built from the camera axes and the field of view, not by unprojecting through the
+    // inverse of projection * view: at a deep zoom near and far are some 1e7 apart, and that
+    // inverse in float bent the rays enough to make a trackball drag turn the wrong amount.
     const float aspect = float(viewportSize.width()) / float(viewportSize.height());
-    const QMatrix4x4 mvp = projectionMatrix(aspect) * viewMatrixForRotation(rotation);
-    bool okInv = false;
-    const QMatrix4x4 invMvp = mvp.inverted(&okInv);
-    if (!okInv)
-        return false;
-
     const float xNdc = (2.0f * float(pos.x()) / float(viewportSize.width())) - 1.0f;
     const float yNdc = 1.0f - (2.0f * float(pos.y()) / float(viewportSize.height()));
-
-    QVector4D pFar = invMvp * QVector4D(xNdc, yNdc, 1.0f, 1.0f);
-    if (qFuzzyIsNull(pFar.w()))
-        return false;
-    pFar /= pFar.w();
+    const QQuaternion toWorld = rotation.conjugated();
+    const QVector3D right = toWorld.rotatedVector(QVector3D(1.0f, 0.0f, 0.0f));
+    const QVector3D up = toWorld.rotatedVector(QVector3D(0.0f, 1.0f, 0.0f));
+    const QVector3D back = toWorld.rotatedVector(QVector3D(0.0f, 0.0f, 1.0f));
+    const QVector3D eye = (relativeToCenter ? QVector3D() : m_center) + back * m_distance;
+    const float tanHalfFov = std::tan(0.5f * qDegreesToRadians(m_fovYDeg));
+    const QVector3D offset = right * (xNdc * tanHalfFov * aspect) + up * (yNdc * tanHalfFov);
 
     // Every ray leaves the eye in perspective; in orthographic the rays are parallel and
-    // the pixel decides where each one starts, on the near plane.
+    // the pixel decides where each one starts, on the near plane, over a view H tall.
     if (m_projection == Projection::Orthographic) {
-        QVector4D pNear = invMvp * QVector4D(xNdc, yNdc, -1.0f, 1.0f);
-        if (qFuzzyIsNull(pNear.w()))
-            return false;
-        pNear /= pNear.w();
-        rayOrigin = pNear.toVector3D();
-    } else {
-        rayOrigin = viewPointForRotation(rotation);
+        rayOrigin = eye + offset * m_distance - back * nearClipPlaneDistance();
+        rayDir = -back;
+        return true;
     }
-    rayDir = pFar.toVector3D() - rayOrigin;
+    rayOrigin = eye;
+    rayDir = offset - back;
     const float d2 = rayDir.lengthSquared();
-    if (d2 < 1e-12f)
-        return false;
     rayDir /= std::sqrt(d2);
     return true;
 }
@@ -822,10 +826,10 @@ bool ViewTrackball::hitViewPlane(
     QVector3D &hit) const
 {
     QVector3D rayOrigin, rayDir;
-    if (!viewRayFromWindow(pos, viewportSize, rotation, rayOrigin, rayDir))
+    if (!viewRayFromWindow(pos, viewportSize, rotation, rayOrigin, rayDir, true))
         return false;
 
-    QVector3D plNorm = viewPointForRotation(rotation) - m_center;
+    QVector3D plNorm = localViewPoint(rotation);
     const float nLen = plNorm.length();
     if (nLen < 1e-12f)
         return false;
@@ -834,7 +838,7 @@ bool ViewTrackball::hitViewPlane(
     const float den = QVector3D::dotProduct(plNorm, rayDir);
     if (std::abs(den) < 1e-12f)
         return false;
-    const float t = QVector3D::dotProduct(plNorm, (m_center - rayOrigin)) / den;
+    const float t = QVector3D::dotProduct(plNorm, (-rayOrigin)) / den;
     hit = rayOrigin + rayDir * t;
     return true;
 }
@@ -849,21 +853,21 @@ bool ViewTrackball::hitHyper(
     if (!hitViewPlane(pos, viewportSize, rotation, hitPlane))
         return false;
 
-    const QVector3D vp = viewPointForRotation(rotation);
-    const float hitPlaneY = (hitPlane - m_center).length();
-    const float viewPointX = (vp - m_center).length();
+    const QVector3D vp = localViewPoint(rotation);
+    const float hitPlaneY = hitPlane.length();
+    const float viewPointX = vp.length();
     if (hitPlaneY < 1e-12f || viewPointX < 1e-12f)
         return false;
 
-    const float r = qMax(1e-6f, gizmoWorldRadius());
-    const QVector3D dirRadial = (hitPlane - m_center) / hitPlaneY;
-    const QVector3D dirView = (vp - m_center) / viewPointX;
+    const float r = gizmoWorldRadius();
+    const QVector3D dirRadial = hitPlane / hitPlaneY;
+    const QVector3D dirView = vp / viewPointX;
     if (m_projection == Projection::Orthographic) {
         // vcglib's HitHyperOrtho: the rays are parallel, so the hit lies straight above the
         // view-plane point, on y = r^2 / (2x). The perspective construction below intersects
         // the ray from the eye instead, which an orthographic ray is not: the hit then jumped
         // where the sphere hands over to the hyperbola, and the drag snapped back.
-        hit = m_center + dirRadial * hitPlaneY + dirView * (0.5f * r * r / hitPlaneY);
+        hit = dirRadial * hitPlaneY + dirView * (0.5f * r * r / hitPlaneY);
         return true;
     }
     const float a = hitPlaneY / viewPointX;
@@ -879,7 +883,7 @@ bool ViewTrackball::hitHyper(
     if (std::abs(xval) < 1e-12f)
         return false;
     const float yval = c / xval;
-    hit = m_center + dirRadial * yval + dirView * xval;
+    hit = dirRadial * yval + dirView * xval;
     return true;
 }
 
@@ -890,11 +894,11 @@ bool ViewTrackball::hitSphereLikeVcg(
     QVector3D &hit) const
 {
     QVector3D rayOrigin, rayDir;
-    if (!viewRayFromWindow(pos, viewportSize, rotation, rayOrigin, rayDir))
+    if (!viewRayFromWindow(pos, viewportSize, rotation, rayOrigin, rayDir, true))
         return false;
 
-    const float r = qMax(1e-6f, gizmoWorldRadius());
-    const QVector3D oc = rayOrigin - m_center;
+    const float r = gizmoWorldRadius();
+    const QVector3D oc = rayOrigin;
     const float a = QVector3D::dotProduct(rayDir, rayDir);
     const float b = 2.0f * QVector3D::dotProduct(oc, rayDir);
     const float c = QVector3D::dotProduct(oc, oc) - r * r;
@@ -908,9 +912,10 @@ bool ViewTrackball::hitSphereLikeVcg(
         const float t1 = (-b - sqrtDisc) * inv2a;
         const float t2 = (-b + sqrtDisc) * inv2a;
         float t = std::numeric_limits<float>::max();
-        if (t1 > 1e-6f)
+        const float tMin = 1e-6f * r; // relative, as the sphere can be any size
+        if (t1 > tMin)
             t = t1;
-        if (t2 > 1e-6f && t2 < t)
+        if (t2 > tMin && t2 < t)
             t = t2;
         if (t < std::numeric_limits<float>::max()) {
             hitSphere = rayOrigin + rayDir * t;
@@ -923,7 +928,7 @@ bool ViewTrackball::hitSphereLikeVcg(
 
     if (!resSp && !resHp) {
         // Degenerate fallback: closest point on ray to center.
-        const float t = QVector3D::dotProduct((m_center - rayOrigin), rayDir);
+        const float t = QVector3D::dotProduct((-rayOrigin), rayDir);
         hit = rayOrigin + rayDir * t;
         return true;
     }
@@ -936,9 +941,9 @@ bool ViewTrackball::hitSphereLikeVcg(
         return true;
     }
 
-    const QVector3D vp = viewPointForRotation(rotation);
-    QVector3D aVec = vp - m_center;
-    QVector3D bVec = hitSphere - m_center;
+    const QVector3D vp = localViewPoint(rotation);
+    QVector3D aVec = vp;
+    QVector3D bVec = hitSphere;
     const float aLen = aVec.length();
     const float bLen = bVec.length();
     if (aLen < 1e-12f || bLen < 1e-12f) {
