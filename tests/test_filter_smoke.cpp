@@ -348,6 +348,7 @@ const QHash<QString, QString> &expectedRefusals()
         {QStringLiteral("set_texture_from_file"),                          QStringLiteral("needs an image file to load (FilterTests::setTextureAcceptsPerVertexTexCoords writes one and drives it)")},
         {QStringLiteral("smooth_polyline_on_surface"),                     QStringLiteral("needs a surface layer beside the polyline; every rung is one layer (FilterTests::smoothPolylineOnSurfaceStaysOnItAndShortens drives it)")},
         {QStringLiteral("create_surface_from_polyline_loop_hrbf"),         QStringLiteral("needs a surface layer beside the polyline loop; every rung is one layer (FilterTests::surfaceFromPolylineLoopSpansIt drives it)")},
+        {QStringLiteral("parametrize_surface_along_polyline_local_flattening"), QStringLiteral("needs a polyline layer beside the surface; every rung is one layer (FilterTests::localFlatteningUnrollsACylinderIsometrically drives it)")},
         {QStringLiteral("embed_polyline_in_surface"),                      QStringLiteral("needs a polyline layer beside the surface; every rung is one layer (FilterTests::embedPolylineThenCutSplitsTheSurface drives it)")},
         {QStringLiteral("create_handle_and_tunnel_loops"),                 QStringLiteral("needs a surface of nonzero genus; every rung has genus 0 (FilterTests::torusHasOneHandleAndOneTunnelLoop drives it)")},
 

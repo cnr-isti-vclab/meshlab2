@@ -656,6 +656,9 @@ private slots:
     void cutAlongSelectedEdgesMatchesCutAlongCreaseEdges();
     void embedPolylineThenCutSplitsTheSurface();
     void embedPolylineRefusesWhatItCannotEmbed();
+    void localFlatteningUnrollsACylinderIsometrically();
+    void signedDistanceTransferBakesABump();
+    void vertexTransferAlongTheNormalKeepsVerticesAbove();
     void smoothPolylineOnSurfaceStaysOnItAndShortens();
     void smoothPolylineOnCylinderKeepsTheHelixWinding();
     void smoothPolylineWithoutControlPointsFindsTheClosedGeodesic();
@@ -11358,7 +11361,7 @@ void FilterTests::closestPointTransfersWriteTheCurrentLayer()
     };
 
     // Texture to vertex color: the current layer's vertices turn blue.
-    MeshFilterRunResult r = run(QStringLiteral("transfer_color_from_texture_to_vertex_by_closest_point"), {});
+    MeshFilterRunResult r = run(QStringLiteral("transfer_texture_color_from_another_layer_to_vertex"), {});
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QCOMPARE(doc.mesh(to).mesh.vert[4].C(), vcg::Color4b(0, 0, 255, 255));
 
@@ -11366,12 +11369,12 @@ void FilterTests::closestPointTransfersWriteTheCurrentLayer()
     MeshFilterParameterValues small{ { QStringLiteral("textureSize"), 32 } };
     MeshFilterParameterValues attributes = small;
     attributes.insert(QStringLiteral("AttributeEnum"), QStringLiteral("vertex_color"));
-    r = run(QStringLiteral("transfer_vertex_attributes_to_texture_by_closest_point"), attributes);
+    r = run(QStringLiteral("transfer_vertex_attributes_from_another_layer_to_texture"), attributes);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QVERIFY(share(doc, to, 0, 0) > 0.9);
 
     // Texture to texture: the source's blue, into a second texture of the current layer.
-    r = run(QStringLiteral("transfer_texture_to_texture_by_closest_point"), small);
+    r = run(QStringLiteral("transfer_texture_from_another_layer"), small);
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QCOMPARE(int(doc.mesh(to).textureAssets.size()), 2);
     QVERIFY(share(doc, to, 1, 2) > 0.9);
@@ -16214,6 +16217,206 @@ double curveLength(const VCGMesh &m)
 
 } // namespace
 
+// The signed distance from a flat sheet to the same sheet with a bump on it is the bump: a
+// displacement map, in 16 bits, that reads back through the range in the output values.
+void FilterTests::signedDistanceTransferBakesABump()
+{
+    const float A = 0.2f, s = 0.5f;
+    VCGMesh flat, bumpy;
+    makeGridMesh(flat, 100);
+    for (VCGVertex &v : flat.vert) v.P() *= 0.1f;  // a 10 by 10 sheet, normals up
+    vcg::tri::UpdateBounding<VCGMesh>::Box(flat);
+    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(bumpy, flat);
+    for (VCGVertex &v : bumpy.vert) {
+        const float x = v.P()[0] - 5, y = v.P()[1] - 5;
+        v.P()[2] = A * std::exp(-(x * x + y * y) / (2 * s * s));
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(bumpy);
+    flat.face.EnableWedgeTexCoord();
+    for (VCGFace &f : flat.face)
+        for (int k = 0; k < 3; ++k) {
+            f.WT(k).P() = vcg::Point2f(f.P(k)[0], f.P(k)[1]) / 10.0f;
+            f.WT(k).N() = 0;
+        }
+
+    // On the flank of the bump the height along the normal is the bump's own; the closest point
+    // is nearer, by the cosine of the slope.
+    const float r = 0.5f;  // the flank texel's centre is (5.51, 5.01), the bump's peak (5, 5)
+    const double flankHeight = A * std::exp(-(0.51 * 0.51 + 0.01 * 0.01) / (2 * s * s));
+    for (const QString correspondence : { QStringLiteral("closest_point"), QStringLiteral("along_normal") }) {
+        Document doc;
+        const int target = doc.addMesh(flat, QStringLiteral("flat"), vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+        const int source = doc.addMesh(bumpy, QStringLiteral("bumpy"), 0);
+        doc.setCurrentMeshIndex(target);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), source);
+        p.insert(QStringLiteral("AttributeEnum"), QStringLiteral("signed_distance"));
+        p.insert(QStringLiteral("correspondence"), correspondence);
+        p.insert(QStringLiteral("upperBound"), 1.0);
+        p.insert(QStringLiteral("textureSize"), 500);
+        const MeshFilterRunResult res =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("transfer_vertex_attributes_from_another_layer_to_texture")), p);
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+
+        QImage img;
+        QString error;
+        QVERIFY2(TextureAssociationUtils::loadAssociatedTextureImage(doc.mesh(target), 0, img, error), qPrintable(error));
+        QCOMPARE(img.format(), QImage::Format_Grayscale16);
+        const double lo = res.outputValues.value(QStringLiteral("distance_min")).toDouble();
+        const double hi = res.outputValues.value(QStringLiteral("distance_max")).toDouble();
+        auto distanceAt = [&](float x, float y) {  // sheet coordinates; rows run from the highest V down
+            const int i = int(x / 10 * img.width()), j = img.height() - 1 - int(y / 10 * img.height());
+            const quint16 value = reinterpret_cast<const quint16 *>(img.constScanLine(j))[i];
+            return value == 0 ? std::nan("") : lo + (value - 1) * (hi - lo) / 65534.0;
+        };
+        QVERIFY2(std::abs(distanceAt(5.01f, 5.01f) - A) < 0.002, qPrintable(QString::number(distanceAt(5.01f, 5.01f))));
+        QVERIFY(std::abs(distanceAt(1.0f, 1.0f)) < 1e-4);
+        QVERIFY(std::abs(distanceAt(9.0f, 2.0f)) < 1e-4);
+        const double flank = distanceAt(5.01f + r, 5.01f);
+        if (correspondence == QStringLiteral("along_normal"))
+            QVERIFY2(std::abs(flank - flankHeight) < 0.002, qPrintable(QString::number(flank)));
+        else
+            QVERIFY2(flank < flankHeight - 0.002, qPrintable(QString::number(flank)));
+    }
+}
+
+// Projecting a flat sheet's vertices onto a bumpy copy: along the normal each vertex rises
+// straight up onto the bump; by closest point the ones on its flank slide sideways too.
+void FilterTests::vertexTransferAlongTheNormalKeepsVerticesAbove()
+{
+    const float A = 0.2f, s = 0.5f;
+    VCGMesh flat, bumpy;
+    makeGridMesh(flat, 100);
+    for (VCGVertex &v : flat.vert) v.P() *= 0.1f;  // a 10 by 10 sheet, normals up
+    vcg::tri::UpdateBounding<VCGMesh>::Box(flat);
+    vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(bumpy, flat);
+    for (VCGVertex &v : bumpy.vert) {
+        const float x = v.P()[0] - 5, y = v.P()[1] - 5;
+        v.P()[2] = A * std::exp(-(x * x + y * y) / (2 * s * s));
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(bumpy);
+    for (const QString correspondence : { QStringLiteral("closest_point"), QStringLiteral("along_normal") }) {
+        Document doc;
+        const int target = doc.addMesh(flat, QStringLiteral("flat"), 0);
+        const int source = doc.addMesh(bumpy, QStringLiteral("bumpy"), 0);
+        doc.setCurrentMeshIndex(target);
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("sourceMesh"), source);
+        p.insert(QStringLiteral("GeomTransfer"), true);
+        p.insert(QStringLiteral("ColorTransfer"), false);
+        p.insert(QStringLiteral("correspondence"), correspondence);
+        p.insert(QStringLiteral("UpperBound"), 1.0);
+        const MeshFilterRunResult res =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("transfer_vertex_attributes_from_another_layer")), p);
+        QVERIFY2(res.success, qPrintable(res.errorMessage));
+        // the vertex on the flank at (5.5, 5): its height, and how far it moved sideways
+        const VCGVertex &v = doc.mesh(target).mesh.vert[size_t(50 * 101 + 55)];
+        QVERIFY(std::abs(flat.vert[size_t(50 * 101 + 55)].cP()[0] - 5.5f) < 1e-5f);
+        const float sideways = std::hypot(v.cP()[0] - 5.5f, v.cP()[1] - 5.0f);
+        const float bump = A * std::exp(-0.25f / (2 * s * s));
+        if (correspondence == QStringLiteral("along_normal")) {
+            QVERIFY2(sideways < 1e-5f, qPrintable(QString::number(sideways)));
+            QVERIFY2(std::abs(v.cP()[2] - bump) < 0.002f, qPrintable(QString::number(v.cP()[2])));
+        } else {
+            QVERIFY2(sideways > 0.01f, qPrintable(QString::number(sideways)));
+        }
+    }
+}
+
+// A helix on a cylinder is a geodesic, and the cylinder is developable: the flattened strip
+// around it must be an exact rectangle, with every edge keeping its length.
+void FilterTests::localFlatteningUnrollsACylinderIsometrically()
+{
+    const int na = 120, nh = 80;  // around and along a cylinder of radius 2 and height 8
+    const float r = 2.0f, h = 8.0f;
+    VCGMesh cyl;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(cyl, size_t(na * (nh + 1)));
+    for (int j = 0; j <= nh; ++j)
+        for (int i = 0; i < na; ++i) {
+            const float t = float(2 * M_PI * i / na);
+            cyl.vert[size_t(j * na + i)].P() = vcg::Point3f(r * std::cos(t), r * std::sin(t), h * j / nh);
+        }
+    for (int j = 0; j < nh; ++j)
+        for (int i = 0; i < na; ++i) {
+            VCGVertex *a = &cyl.vert[size_t(j * na + i)], *b = &cyl.vert[size_t(j * na + (i + 1) % na)];
+            VCGVertex *c = &cyl.vert[size_t((j + 1) * na + (i + 1) % na)], *d = &cyl.vert[size_t((j + 1) * na + i)];
+            vcg::tri::Allocator<VCGMesh>::AddFace(cyl, a, b, c);
+            vcg::tri::Allocator<VCGMesh>::AddFace(cyl, a, c, d);
+        }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(cyl);
+
+    Document doc;
+    const int surface = doc.addMesh(cyl, QStringLiteral("cylinder"), 0);
+    std::vector<vcg::Point3f> helix;  // a quarter turn while rising by 4
+    for (int k = 0; k <= 40; ++k) {
+        const float t = 1.0f + float(M_PI / 2) * k / 40;
+        helix.push_back(vcg::Point3f(r * std::cos(t), r * std::sin(t), 2.0f + 4.0f * k / 40));
+    }
+    VCGMesh line;
+    makePolyline(line, helix);
+    const int polyline = doc.addMesh(line, QStringLiteral("helix"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc.setCurrentMeshIndex(surface);
+
+    MeshFilterParameterValues p;
+    p.insert(QStringLiteral("polyline"), polyline);
+    p.insert(QStringLiteral("halfWidth"), 1.0);
+    const QString key = filterKeyForId(doc, QStringLiteral("parametrize_surface_along_polyline_local_flattening"));
+    MeshFilterRunResult res = doc.runFilter(key, p);
+    QVERIFY2(res.success, qPrintable(res.errorMessage));
+    QCOMPARE(res.newMeshIndices.size(), 1);
+    QCOMPARE(doc.mesh(surface).mesh.FN(), 2 * na * nh);  // the surface is untouched
+
+    const double helixLength = std::sqrt(16.0 + std::pow(2.0 * M_PI / 2, 2));
+    const double length = res.outputValues.value(QStringLiteral("length")).toDouble();
+    QVERIFY2(std::abs(length - helixLength) < 0.005 * helixLength, qPrintable(QString::number(length)));
+    QVERIFY(res.outputValues.value(QStringLiteral("min_length_ratio")).toDouble() > 0.98);
+    QVERIFY(res.outputValues.value(QStringLiteral("max_length_ratio")).toDouble() < 1.02);
+    QVERIFY(res.outputValues.value(QStringLiteral("average_length_error")).toDouble() < 0.002);
+
+    const VCGMesh &patch = doc.mesh(res.newMeshIndices.front()).mesh;
+    QVERIFY(patch.FN() > 0);
+    vcg::Box2f box;
+    int folded = 0;
+    for (const VCGFace &f : patch.face) {
+        for (int k = 0; k < 3; ++k) box.Add(f.cWT(k).P());
+        const vcg::Point2f e1 = f.cWT(1).P() - f.cWT(0).P(), e2 = f.cWT(2).P() - f.cWT(0).P();
+        folded += (e1 ^ e2) <= 0 ? 1 : 0;
+    }
+    QCOMPARE(folded, 0);
+    QCOMPARE(res.outputValues.value(QStringLiteral("folded_faces")).toInt(), 0);
+    // cropped exactly to 2 by length, then scaled into the unit square by the longer side
+    const float scale = res.outputValues.value(QStringLiteral("uv_scale")).toFloat();
+    QCOMPARE(scale, float(length));
+    QVERIFY(std::abs(box.min[0]) < 1e-5f && std::abs(box.max[0] - 2 / scale) < 1e-5f);
+    QVERIFY(std::abs(box.min[1]) < 1e-5f && std::abs(box.max[1] - 1) < 1e-5f);
+
+    // remeshed as a grid in parametric space and smoothed: a complete grid on the same rectangle,
+    // still near-isometric, pulled inside the cylinder by about sigma^2 / 2r
+    p.insert(QStringLiteral("gridStep"), 0.1);
+    p.insert(QStringLiteral("smoothSigma"), 0.3);
+    res = doc.runFilter(key, p);
+    QVERIFY2(res.success, qPrintable(res.errorMessage));
+    const VCGMesh &grid = doc.mesh(res.newMeshIndices.front()).mesh;
+    const int nu = 21, nv = int(std::lround(res.outputValues.value(QStringLiteral("length")).toDouble() / 0.1)) + 1;
+    QCOMPARE(grid.VN(), nu * nv);
+    QCOMPARE(grid.FN(), 2 * (nu - 1) * (nv - 1));
+    QVERIFY(res.outputValues.value(QStringLiteral("min_length_ratio")).toDouble() > 0.98);
+    QVERIFY(res.outputValues.value(QStringLiteral("max_length_ratio")).toDouble() < 1.02);
+    double meanRadius = 0;
+    for (const VCGVertex &v : grid.vert) meanRadius += std::hypot(v.cP()[0], v.cP()[1]) / grid.VN();
+    QVERIFY2(std::abs(meanRadius - (r - 0.09 / (2 * r))) < 0.01, qPrintable(QString::number(meanRadius)));
+
+    // a closed polyline has no ends to run along
+    helix.push_back(helix.front());
+    makePolyline(line, helix);
+    const int loop = doc.addMesh(line, QStringLiteral("loop"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc.setCurrentMeshIndex(surface);
+    p.insert(QStringLiteral("polyline"), loop);
+    res = doc.runFilter(key, p);
+    QVERIFY(!res.success);
+    QVERIFY2(res.errorMessage.contains(QStringLiteral("open curve")), qPrintable(res.errorMessage));
+}
+
 // A zigzag hovering just above a flat grid ends up on it, much shorter, with its two ends
 // (the control points) only projected; the grid is untouched. The same holds for a polyline
 // layer whose matrix differs from the surface's.
@@ -18855,7 +19058,7 @@ void FilterTests::scopedFiltersConfineThemselvesToTheSelection()
             makeScopeSurface(mesh);
         if (selected)
             selectWestHalf(mesh, selectKind);
-        const bool transfer = filterId == QLatin1String("transfer_vertex_attributes_by_closest_point");
+        const bool transfer = filterId == QLatin1String("transfer_vertex_attributes_from_another_layer");
         int source = -1;
         if (transfer) {
             VCGMesh from;

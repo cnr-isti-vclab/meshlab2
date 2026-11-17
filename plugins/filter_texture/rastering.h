@@ -27,6 +27,7 @@
 #include "vcgmesh.h"
 #include <vcg/complex/algorithms/point_sampling.h>
 #include <vcg/complex/algorithms/stat.h>
+#include <vcg/complex/algorithms/closest.h>
 #include <vcg/space/triangle2.h>
 #include <QImage>
 
@@ -55,10 +56,15 @@ class VertexSampler
     // Callback stuff
     vcg::CallBackPos *cb;
     int vertexNo, vertexCnt, start, offset;
+    VCGMesh *srcMesh;
 
 public:
+    // Match each vertex to the source along its own normal rather than by closest point
+    // (vcg::tri::GetClosestFaceAlongNormal); the target needs per-vertex normals.
+    bool alongNormal = false;
+
 	VertexSampler(VCGMesh &_srcMesh, std::vector <QImage> &_srcImg, float upperBound) :
-	srcImgs(_srcImg), dist_upper_bound(upperBound)
+	srcImgs(_srcImg), dist_upper_bound(upperBound), srcMesh(&_srcMesh)
     {
         unifGridFace.Set(_srcMesh.face.begin(),_srcMesh.face.end());
         markerFunctor.SetMesh(&_srcMesh);
@@ -82,7 +88,9 @@ public:
         VCGMesh::CoordType closestPt;
         VCGMesh::ScalarType dist=dist_upper_bound;
         VCGFace *nearestF;
-        nearestF =  unifGridFace.GetClosest(PDistFunct, markerFunctor, v.cP(), dist_upper_bound, dist, closestPt);
+        nearestF = alongNormal
+            ? vcg::tri::GetClosestFaceAlongNormal(*srcMesh, unifGridFace, v.cP(), v.cN(), dist_upper_bound, dist, closestPt)
+            : unifGridFace.GetClosest(PDistFunct, markerFunctor, v.cP(), dist_upper_bound, dist, closestPt);
         if (dist == dist_upper_bound) return;
 
         // Convert point to barycentric coords
@@ -197,6 +205,10 @@ class TransferColorSampler
     int faceNo, faceCnt, start, offset;
     int vertexMode;
     float minQ,maxQ;
+    // vertexMode 3: the signed distance to the source, per texel, one buffer per target image
+    std::vector<std::vector<float>> *distImgs = nullptr;
+    // Find the source point along the target's normal instead of as the closest point
+    bool alongNormal = false;
     typedef vcg::tri::FaceTmark<VCGMesh> MarkerFace;
     MarkerFace markerFunctor;
 
@@ -259,6 +271,17 @@ public:
         usePointCloudSampling=false;
         vertexMode=-1;
     }
+
+    // Write signed distances instead of colors: the length from each texel's point to the closest
+    // point of the source, positive where it lies on the side the target's normals point to. The
+    // buffers are the size of the target images, row 0 at the top, NaN where nothing was found.
+    void SetDistanceTarget(std::vector<std::vector<float>> *buffers) { distImgs = buffers; vertexMode = 3; }
+
+    // Match each texel to the source along the target's normal, interpolated across the face so
+    // the mapping stays continuous, rather than by closest point (vcg::tri::GetClosestFaceAlongNormal).
+    // The target needs per-vertex normals.
+    void SetAlongNormal(bool on) { alongNormal = on; }
+
     void InitCallback(vcg::CallBackPos *_cb, int _faceNo, int _start=0, int _offset=100)
     {
         assert(_faceNo > 0);
@@ -343,10 +366,11 @@ public:
         else // sampling from a mesh
         {
             VCGMesh::CoordType closestPt;
-            vcg::face::PointDistanceBaseFunctor<VCGMesh::ScalarType> PDistFunct;
-            VCGMesh::ScalarType dist=dist_upper_bound;
-            VCGFace *nearestF;
-            nearestF =  unifGridFace.GetClosest(PDistFunct, markerFunctor, startPt, dist_upper_bound, dist, closestPt);
+            VCGMesh::ScalarType dist = dist_upper_bound;
+            VCGFace *nearestF = alongNormal
+                ? vcg::tri::GetClosestFaceAlongNormal(*srcMesh, unifGridFace, startPt,
+                      f.cV(0)->cN()*bary[0] + f.cV(1)->cN()*bary[1] + f.cV(2)->cN()*bary[2], dist_upper_bound, dist, closestPt)
+                : vcg::tri::GetClosestFaceBase(*srcMesh, unifGridFace, startPt, dist_upper_bound, dist, closestPt);
             if (dist == dist_upper_bound) return;
 
             // Convert point to barycentric coords
@@ -378,6 +402,17 @@ public:
         const int ty = targetImage.height() - 1 - tp.Y();
         if (!validPixelCoord(targetImage, tx, ty))
             return;
+
+        if (vertexMode == 3)
+        {
+            const VCGMesh::CoordType n = f.cV(0)->cN()*bary[0] + f.cV(1)->cN()*bary[1] + f.cV(2)->cN()*bary[2];
+            const VCGMesh::CoordType d = closestPt - startPt;
+            float &cell = (*distImgs)[size_t(targetIndex)][size_t(ty) * size_t(targetImage.width()) + size_t(tx)];
+            // a texel inside the face wins over one sampled just outside it, from a neighbour
+            if (alpha == 255 || std::isnan(cell))
+                cell = (d * n >= 0 ? 1.0f : -1.0f) * d.Norm();
+            return;
+        }
 
 		if (alpha == 255 || qAlpha(targetImage.pixel(tx, ty)) < alpha)
         {

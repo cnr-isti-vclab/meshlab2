@@ -10,6 +10,7 @@
 #include <vcg/complex/append.h>
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/attribute_seam.h>
+#include <vcg/complex/algorithms/parametrization/local_flattening.h>
 #include <vcg/complex/algorithms/parametrization/voronoi_atlas.h>
 #include <vcg/complex/algorithms/point_sampling.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -32,6 +33,7 @@
 
 namespace {
 constexpr QLatin1StringView kFilterVoronoiAtlas("parametrize_by_voronoi_atlas_vcglib");
+constexpr QLatin1StringView kFilterLocalFlattening("parametrize_surface_along_polyline_local_flattening");
 constexpr QLatin1StringView kFilterWedgeToVertex("convert_per_wedge_uv_to_per_vertex_uv");
 constexpr QLatin1StringView kFilterVertexToWedge("convert_per_vertex_uv_to_per_wedge_uv");
 constexpr QLatin1StringView kFilterPlanarMapping("parametrize_by_flat_plane");
@@ -41,9 +43,9 @@ constexpr QLatin1StringView kFilterSetTextureFromFile("set_texture_from_file");
 constexpr QLatin1StringView kFilterRemoveTextures("remove_textures");
 constexpr QLatin1StringView kFilterRenameTexture("rename_texture");
 constexpr QLatin1StringView kFilterColorToTexture("transfer_color_from_vertex_to_texture");
-constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_color_from_texture_to_vertex_by_closest_point");
-constexpr QLatin1StringView kFilterTransferToTexture("transfer_vertex_attributes_to_texture_by_closest_point");
-constexpr QLatin1StringView kFilterTextureToTexture("transfer_texture_to_texture_by_closest_point");
+constexpr QLatin1StringView kFilterTextureToVertexColor("transfer_texture_color_from_another_layer_to_vertex");
+constexpr QLatin1StringView kFilterTransferToTexture("transfer_vertex_attributes_from_another_layer_to_texture");
+constexpr QLatin1StringView kFilterTextureToTexture("transfer_texture_from_another_layer");
 constexpr QLatin1StringView kFilterObjectToTangentNormal("convert_object_space_normal_map_to_tangent_space");
 constexpr QLatin1StringView kFilterPackTextures("pack_texture_images");
 
@@ -200,7 +202,8 @@ enum class TransferAttributeMode
     VertexColor,
     VertexNormal,
     VertexQuality,
-    TextureColor
+    TextureColor,
+    SignedDistance
 };
 
 std::optional<TransferAttributeMode> transferModeFromId(const QString &id)
@@ -213,6 +216,8 @@ std::optional<TransferAttributeMode> transferModeFromId(const QString &id)
         return TransferAttributeMode::VertexQuality;
     if (id == QStringLiteral("texture_color"))
         return TransferAttributeMode::TextureColor;
+    if (id == QStringLiteral("signed_distance"))
+        return TransferAttributeMode::SignedDistance;
     return std::nullopt;
 }
 
@@ -496,6 +501,110 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 .arg(pp.vas.iterNum),
             seed.message()
         };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterLocalFlattening)) {
+        if (mesh.FN() <= 0)
+            return fail(QObject::tr("Current mesh must have faces."));
+        const int pi = params.getMesh(QStringLiteral("polyline"));
+        if (pi < 0 || pi >= doc.meshCount() || pi == meshIndex)
+            return fail(QObject::tr("Choose a polyline layer other than the surface."));
+        const auto &polyEntry = doc.mesh(pi);
+        if (polyEntry.mesh.EN() == 0)
+            return fail(QObject::tr("Layer '%1' has no edges.").arg(polyEntry.name));
+
+        // Work on copies, both in the surface's own frame: the two layers stay as they are.
+        VCGMesh poly;
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(poly, polyEntry.mesh);
+        bool invertible = true;
+        const QMatrix4x4 toSurface = entry.transform.inverted(&invertible) * polyEntry.transform;
+        if (!invertible)
+            return fail(QObject::tr("The surface's matrix cannot be inverted."));
+        for (VCGVertex &v : poly.vert) {
+            const QVector3D q = toSurface.map(QVector3D(v.P()[0], v.P()[1], v.P()[2]));
+            v.P() = vcg::Point3f(q.x(), q.y(), q.z());
+        }
+        // a curve drawn as separate pieces, or closed by repeating its first point, shares
+        // nothing until coincident vertices are merged
+        vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(poly);
+        VCGMesh work;
+        vcg::tri::Append<VCGMesh, VCGMesh>::MeshCopyConst(work, mesh);
+        work.face.EnableFFAdjacency();
+        work.vert.EnableVFAdjacency();
+        work.face.EnableVFAdjacency();
+        work.face.EnableMark();
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(work);
+        vcg::tri::UpdateTopology<VCGMesh>::VertexFace(work);
+        vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(work);
+
+        VCGMesh patch;
+        patch.vert.EnableTexCoord();
+        patch.face.EnableWedgeTexCoord();
+        patch.face.EnableCurvatureDir();
+        patch.face.EnableFFAdjacency();
+        patch.face.EnableMark();
+        vcg::tri::LocalFlattening<VCGMesh>::Param par;
+        par.halfWidth = float(params.getDouble(QStringLiteral("halfWidth")));
+        par.stiffness = float(params.getDouble(QStringLiteral("stiffness")));
+        par.gridStep = float(params.getDouble(QStringLiteral("gridStep")));
+        par.smoothSigma = float(params.getDouble(QStringLiteral("smoothSigma")));
+        par.cb = doc.progressCallback();
+        doc.beginFilterProgress(QObject::tr("Parametrize Surface along Polyline (Local Flattening)"));
+        vcg::tri::LocalFlattening<VCGMesh>::Stats st;
+        try {
+            st = vcg::tri::LocalFlattening<VCGMesh>::Flatten(work, poly, patch, par);
+        } catch (const std::exception &e) {
+            const QString message = QString::fromUtf8(e.what()).remove(QStringLiteral("LocalFlattening: "));
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+        // Into the unit square, as texture tools read UVs: the long side of the rectangle becomes 1,
+        // both axes scaled alike, so lengths stay proportional; uv_scale converts them back.
+        const float uvScale = std::max(2 * par.halfWidth, st.length);
+        for (VCGVertex &v : patch.vert)
+            v.T().P() = vcg::Point2f((v.T().U() + par.halfWidth) / uvScale, v.T().V() / uvScale);
+        vcg::tri::UpdateTexture<VCGMesh>::WedgeTexFromVertexTex(patch);
+        patch.face.DisableCurvatureDir();  // the cross field is scaffolding, not a result
+        patch.face.DisableMark();
+        patch.face.DisableFFAdjacency();
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(patch);
+
+        const int ioMask = Mask::IOM_VERTTEXCOORD | Mask::IOM_WEDGTEXCOORD | Mask::IOM_VERTNORMAL
+            | Mask::IOM_FACENORMAL | (entry.ioMask & (Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY))
+            | (par.gridStep > 0 ? Mask::IOM_BITPOLYGONAL : 0);  // the grid's quads, as faux diagonals
+        const int newIndex = doc.addMesh(patch, {}, ioMask);
+        if (newIndex >= 0)
+            doc.mesh(newIndex).transform = entry.transform;  // a piece of the same surface, in its frame
+        doc.finishFilterProgress(true, QObject::tr("Flattened the patch."));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.newMeshIndices = { newIndex };
+        result.infoMessages = {
+            QObject::tr("Flattened a %1 by %2 patch along '%3' (%4 faces).")
+                .arg(2 * par.halfWidth).arg(st.length).arg(polyEntry.name).arg(patch.FN()),
+            QObject::tr("UVs fill the unit square along the longer side: one UV unit is %1 on the surface.").arg(uvScale),
+            QObject::tr("Length distortion: ratios of surface to UV edge lengths %1 to %2, "
+                        "average deviation %3%.")
+                .arg(st.minRatio, 0, 'f', 4).arg(st.maxRatio, 0, 'f', 4).arg(100 * st.avgError, 0, 'f', 2)
+        };
+        // A face folded in UV marks a fold of the surface itself (a triangle turned back onto its
+        // neighbour, as scans have) or a region too curved for its width: say so, and where to look.
+        const int folded = vcg::tri::Distortion<VCGMesh, true>::FoldedNum(patch);
+        if (folded > 0)
+            result.infoMessages << QObject::tr(
+                "Warning: %1 faces are folded in UV. A face folded onto its neighbour in the surface "
+                "cannot be flattened (Select Ill-Shaped Faces finds them); in a strongly curved region a "
+                "smaller half-width helps.").arg(folded);
+        result.outputValues["folded_faces"] = folded;
+        result.outputValues["uv_scale"] = uvScale;
+        result.outputValues["width"] = 2 * par.halfWidth;
+        result.outputValues["length"] = st.length;
+        result.outputValues["min_length_ratio"] = st.minRatio;
+        result.outputValues["max_length_ratio"] = st.maxRatio;
+        result.outputValues["average_length_error"] = st.avgError;
         return result;
     }
 
@@ -1104,6 +1213,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
 
         VCGMeshMarkScope _markSource(*sourceWorldMesh);
         VertexSampler sampler(*sourceWorldMesh, sourceImages, float(params.getDouble(QStringLiteral("upperBound"))));
+        sampler.alongNormal = params.getEnum(QStringLiteral("correspondence")) == QStringLiteral("along_normal");
+        if (sampler.alongNormal)
+            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(*targetWorldMesh);
         sampler.InitCallback(doc.progressCallback(), targetWorldMesh->VN(), 0, 100);
         vcg::tri::SurfaceSampling<VCGMesh, VertexSampler>::VertexUniform(
             *targetWorldMesh,
@@ -1181,6 +1293,10 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             if ((sourceEntry.ioMask & Mask::IOM_VERTQUALITY) == 0)
                 return fail(QObject::tr("Source mesh doesn't have per-vertex quality."));
             break;
+        case TransferAttributeMode::SignedDistance:
+            if (sourceEntry.mesh.FN() <= 0)
+                return fail(QObject::tr("Source mesh needs faces to measure a distance to."));
+            break;
         case TransferAttributeMode::TextureColor:
             samplingFromTexture = true;
             if (sourceEntry.mesh.FN() <= 0)
@@ -1253,6 +1369,15 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(*sourceWorldMesh);
 
         VCGMeshMarkScope _markSource(*sourceWorldMesh);
+        const bool signedDistance = *mode == TransferAttributeMode::SignedDistance;
+        const bool alongNormal = params.getEnum(QStringLiteral("correspondence")) == QStringLiteral("along_normal");
+        std::vector<std::vector<float>> distances;
+        if (signedDistance || alongNormal)
+            vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(*targetWorldMesh);
+        if (signedDistance) {
+            distances.assign(size_t(targetSlotCount),
+                             std::vector<float>(size_t(textW) * size_t(textH), std::numeric_limits<float>::quiet_NaN()));
+        }
         if (!samplingFromTexture) {
             int vertexMode = 0;
             if (*mode == TransferAttributeMode::VertexNormal)
@@ -1261,6 +1386,9 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 vertexMode = 2;
 
             TransferColorSampler sampler(*sourceWorldMesh, targetImages, float(params.getDouble(QStringLiteral("upperBound"))), vertexMode);
+            if (signedDistance)
+                sampler.SetDistanceTarget(&distances);
+            sampler.SetAlongNormal(alongNormal);
             sampler.InitCallback(doc.progressCallback(), targetWorldMesh->FN(), 0, 80);
             vcg::tri::SurfaceSampling<VCGMesh, TransferColorSampler>::Texture(
                 *targetWorldMesh,
@@ -1270,6 +1398,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                 false);
         } else {
             TransferColorSampler sampler(*sourceWorldMesh, targetImages, &sourceImages, float(params.getDouble(QStringLiteral("upperBound"))));
+            sampler.SetAlongNormal(alongNormal);
             sampler.InitCallback(doc.progressCallback(), targetWorldMesh->FN(), 0, 80);
             vcg::tri::SurfaceSampling<VCGMesh, TransferColorSampler>::Texture(
                 *targetWorldMesh,
@@ -1282,7 +1411,31 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         vcg::tri::UpdateTopology<VCGMesh>::FaceFace(*targetWorldMesh);
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromFF(*targetWorldMesh);
 
-        for (int texIndex = 0; texIndex < targetSlotCount; ++texIndex) {
+        // Distances go into 16-bit grayscale: 0 where nothing was found, 1 to 65535 across their
+        // range, which the output values give so they can be read back. No filling: a texel with
+        // no distance is not one of zero.
+        float distMin = std::numeric_limits<float>::max(), distMax = std::numeric_limits<float>::lowest();
+        if (signedDistance) {
+            for (const std::vector<float> &buffer : distances)
+                for (float d : buffer)
+                    if (!std::isnan(d)) { distMin = std::min(distMin, d); distMax = std::max(distMax, d); }
+            if (distMin > distMax)
+                return fail(QObject::tr("No texel found the source mesh within the search distance."));
+            const double range = double(distMax) - double(distMin);
+            for (int texIndex = 0; texIndex < targetSlotCount; ++texIndex) {
+                QImage img(QSize(textW, textH), QImage::Format_Grayscale16);
+                for (int y = 0; y < textH; ++y) {
+                    quint16 *row = reinterpret_cast<quint16 *>(img.scanLine(y));
+                    for (int x = 0; x < textW; ++x) {
+                        const float d = distances[size_t(texIndex)][size_t(y) * size_t(textW) + size_t(x)];
+                        row[x] = std::isnan(d) ? 0
+                            : quint16(1 + std::lround(range > 0 ? (double(d) - distMin) / range * 65534.0 : 32767.0));
+                    }
+                }
+                targetImages[size_t(texIndex)] = std::move(img);
+            }
+        }
+        for (int texIndex = 0; texIndex < targetSlotCount && !signedDistance; ++texIndex) {
             for (int y = 0; y < textH; ++y) {
                 for (int x = 0; x < textW; ++x) {
                     const QRgb px = targetImages[size_t(texIndex)].pixel(x, y);
@@ -1335,6 +1488,12 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                       .arg(targetSlotCount)
                       .arg(targetEntry.name)
         };
+        if (signedDistance) {
+            result.infoMessages << QObject::tr("Signed distances from %1 to %2: texel value v > 0 is %1 + (v - 1) * %3.")
+                                       .arg(distMin).arg(distMax).arg((double(distMax) - distMin) / 65534.0);
+            result.outputValues["distance_min"] = distMin;
+            result.outputValues["distance_max"] = distMax;
+        }
         result.visualizationHints.push_back({ targetMeshIndex, MeshFilterVisualizationAttribute::Texture });
         return result;
     }
