@@ -122,10 +122,11 @@ void compactMeshStorageInvariant(VCGMesh &mesh);
 void computeMissingNormals(VCGMesh &mesh, int loadMask);
 void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst);
 void deepCopyMesh(const VCGMesh &src, VCGMesh &dst);
-// The attribute values of `m` of the classes in `kinds` (MeshAttributeKind), and writing
-// them back; no revision moves, no signal.
-MeshAttributeLayer captureAttributeValues(const VCGMesh &m, std::uint32_t kinds);
-void applyAttributeValues(VCGMesh &m, const MeshAttributeLayer &layer);
+// The attribute values of `m` of the classes in `kinds` (MeshAttributeKind) that differ from
+// those of `copy`, an undo geometry copy with the same elements, and writing them back, the
+// elements left out from `copy`; no revision moves, no signal.
+MeshAttributeLayer captureAttributeValues(const VCGMesh &m, std::uint32_t kinds, const VCGMesh &copy);
+void applyAttributeValues(VCGMesh &m, const MeshAttributeLayer &layer, const VCGMesh &copy);
 // The revision of the attribute class meshAttributeKinds[k] of a MeshEntry or MeshSnapshot.
 template <typename T>
 auto &attributeRevision(T &owner, size_t k)

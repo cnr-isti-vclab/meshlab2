@@ -1061,37 +1061,70 @@ void Document::markMeshAttributeChanged(int index, std::uint64_t MeshEntry::*rev
 
 namespace {
 
-// Pack one bit per element, LSB-first within each word.
-template <typename Container, typename IsSelected>
-void packSelectionBits(std::vector<std::uint32_t> &bits, const Container &elements,
-                       int count, IsSelected isSelected)
+// A layer stores an element class only where its values differ from the undo geometry
+// copy's, so a vertex-only color step does not also store every face color. An empty
+// vector means "the copy's values". The copy has the live mesh's elements: a layer is
+// captured and applied only against a copy with the same geometry revision, and live
+// meshes are compact, so [0, n) covers every element.
+template <typename Elements, typename Get>
+bool sameAsCopy(const Elements &live, const Elements &copy, size_t n, Get get)
 {
-    if (count <= 0)
+    if (live.size() != copy.size())
+        return false;
+    for (size_t i = 0; i < n; ++i) {
+        if (!(get(live, i) == get(copy, i)))
+            return false;
+    }
+    return true;
+}
+
+template <typename T, typename Elements, typename Get>
+void captureValues(std::vector<T> &values, const Elements &live, const Elements &copy, size_t n, Get get)
+{
+    if (sameAsCopy(live, copy, n, get))
         return;
-    bits.assign(size_t((count + 31) / 32), 0);
-    for (int i = 0; i < count; ++i) {
-        if (isSelected(elements[size_t(i)]))
-            bits[size_t(i / 32)] |= (1u << (unsigned(i % 32)));
+    values.resize(n);
+    for (size_t i = 0; i < n; ++i)
+        values[i] = get(live, i);
+}
+
+// Selection: one bit per element, LSB-first within each word.
+template <typename Elements, typename Get>
+void captureBits(std::vector<std::uint32_t> &bits, const Elements &live, const Elements &copy, size_t n, Get get)
+{
+    if (sameAsCopy(live, copy, n, get))
+        return;
+    bits.assign((n + 31) / 32, 0);
+    for (size_t i = 0; i < n; ++i) {
+        if (get(live, i))
+            bits[i / 32] |= 1u << unsigned(i % 32);
     }
 }
 
-template <typename Container, typename Clear, typename Set>
-void unpackSelectionBits(const std::vector<std::uint32_t> &bits, Container &elements,
-                         int count, Clear clear, Set set)
+template <typename T, typename Elements, typename Get, typename Set>
+void applyValues(const std::vector<T> &values, Elements &live, const Elements &copy, size_t n, Get get, Set set)
 {
-    for (int i = 0; i < count; ++i)
-        clear(elements[size_t(i)]);
-    for (size_t wi = 0; wi < bits.size(); ++wi) {
-        const std::uint32_t word = bits[wi];
-        if (!word)
-            continue;
-        const int base = int(wi * 32);
-        const int limit = std::min(base + 32, count);
-        for (int i = base; i < limit; ++i) {
-            if (word & (1u << (unsigned(i - base))))
-                set(elements[size_t(i)]);
+    if (values.empty()) {
+        if (live.size() == copy.size()) {
+            for (size_t i = 0; i < n; ++i)
+                set(live, i, get(copy, i));
         }
+        return;
     }
+    // Clamp, so a count mismatch would corrupt values rather than memory.
+    for (size_t i = 0; i < std::min(n, values.size()); ++i)
+        set(live, i, values[i]);
+}
+
+template <typename Elements, typename Get, typename Set>
+void applyBits(const std::vector<std::uint32_t> &bits, Elements &live, const Elements &copy, size_t n, Get get, Set set)
+{
+    if (bits.empty()) {
+        applyValues(std::vector<bool>(), live, copy, n, get, set);
+        return;
+    }
+    for (size_t i = 0; i < n; ++i)
+        set(live, i, i / 32 < bits.size() && (bits[i / 32] & (1u << unsigned(i % 32))));
 }
 
 std::uint32_t packColor(const vcg::Color4b &c)
@@ -1107,107 +1140,71 @@ vcg::Color4b unpackColor(std::uint32_t v)
         (unsigned char)((v >> 8) & 0xFF),  (unsigned char)(v & 0xFF));
 }
 
+// How each class is read and written, shared by vertices, faces and polyline edges. The
+// per-face edge flags of a triangle mesh are three bits per face, indexed 3 * face + edge.
+const auto isSelected = [](const auto &e, size_t i) { return e[i].IsS(); };
+const auto setSelected = [](auto &e, size_t i, bool s) { s ? e[i].SetS() : e[i].ClearS(); };
+const auto isEdgeSelected = [](const auto &f, size_t i) { return f[i / 3].IsFaceEdgeS(int(i % 3)); };
+const auto setEdgeSelected = [](auto &f, size_t i, bool s) {
+    s ? f[i / 3].SetFaceEdgeS(int(i % 3)) : f[i / 3].ClearFaceEdgeS(int(i % 3));
+};
+const auto color = [](const auto &e, size_t i) { return packColor(e[i].cC()); };
+const auto setColor = [](auto &e, size_t i, std::uint32_t c) { e[i].C() = unpackColor(c); };
+const auto scalar = [](const auto &e, size_t i) { return e[i].cQ(); };
+const auto setScalar = [](auto &e, size_t i, float q) { e[i].Q() = q; };
+
 } // namespace
 
-MeshAttributeLayer DocumentInternal::captureAttributeValues(const VCGMesh &m, std::uint32_t kinds)
+MeshAttributeLayer DocumentInternal::captureAttributeValues(const VCGMesh &m, std::uint32_t kinds,
+                                                            const VCGMesh &copy)
 {
-    MeshAttributeLayer delta;
-    delta.kinds = kinds;
-    const int vn = m.VN();
-    const int fn = m.FN();
-    const int en = m.EN();
+    MeshAttributeLayer layer;
+    layer.kinds = kinds;
+    const size_t vn = size_t(std::max(0, m.VN()));
+    const size_t fn = size_t(std::max(0, m.FN()));
+    const size_t en = size_t(std::max(0, m.EN()));
 
     if (kinds & MeshAttributeSelection) {
-        packSelectionBits(delta.vertexSelectionBits, m.vert, vn,
-                          [](const VCGVertex &v) { return v.IsS(); });
-        packSelectionBits(delta.faceSelectionBits, m.face, fn,
-                          [](const VCGFace &f) { return f.IsS(); });
-        packSelectionBits(delta.edgeSelectionBits, m.edge, en,
-                          [](const VCGEdge &e) { return e.IsS(); });
-        if (std::any_of(m.face.begin(), m.face.end(), [](const VCGFace &f) {
-                return f.IsFaceEdgeS(0) || f.IsFaceEdgeS(1) || f.IsFaceEdgeS(2); })) {
-            delta.faceEdgeSelectionBits.assign(size_t((3 * fn + 31) / 32), 0);
-            for (int i = 0; i < 3 * fn; ++i) {
-                if (m.face[size_t(i / 3)].IsFaceEdgeS(i % 3))
-                    delta.faceEdgeSelectionBits[size_t(i / 32)] |= 1u << unsigned(i % 32);
-            }
-        }
+        captureBits(layer.vertexSelectionBits, m.vert, copy.vert, vn, isSelected);
+        captureBits(layer.faceSelectionBits, m.face, copy.face, fn, isSelected);
+        captureBits(layer.edgeSelectionBits, m.edge, copy.edge, en, isSelected);
+        captureBits(layer.faceEdgeSelectionBits, m.face, copy.face, 3 * fn, isEdgeSelected);
     }
     if (kinds & MeshAttributeColor) {
-        delta.vertexColors.resize(size_t(std::max(0, vn)));
-        for (int i = 0; i < vn; ++i)
-            delta.vertexColors[size_t(i)] = packColor(m.vert[size_t(i)].cC());
-        delta.faceColors.resize(size_t(std::max(0, fn)));
-        for (int i = 0; i < fn; ++i)
-            delta.faceColors[size_t(i)] = packColor(m.face[size_t(i)].cC());
-        delta.edgeColors.resize(size_t(std::max(0, en)));
-        for (int i = 0; i < en; ++i)
-            delta.edgeColors[size_t(i)] = packColor(m.edge[size_t(i)].cC());
+        captureValues(layer.vertexColors, m.vert, copy.vert, vn, color);
+        captureValues(layer.faceColors, m.face, copy.face, fn, color);
+        captureValues(layer.edgeColors, m.edge, copy.edge, en, color);
     }
     if (kinds & MeshAttributeScalar) {
-        delta.vertexScalars.resize(size_t(std::max(0, vn)));
-        for (int i = 0; i < vn; ++i)
-            delta.vertexScalars[size_t(i)] = m.vert[size_t(i)].cQ();
-        delta.faceScalars.resize(size_t(std::max(0, fn)));
-        for (int i = 0; i < fn; ++i)
-            delta.faceScalars[size_t(i)] = m.face[size_t(i)].cQ();
-        delta.edgeScalars.resize(size_t(std::max(0, en)));
-        for (int i = 0; i < en; ++i)
-            delta.edgeScalars[size_t(i)] = m.edge[size_t(i)].cQ();
+        captureValues(layer.vertexScalars, m.vert, copy.vert, vn, scalar);
+        captureValues(layer.faceScalars, m.face, copy.face, fn, scalar);
+        captureValues(layer.edgeScalars, m.edge, copy.edge, en, scalar);
     }
-    return delta;
+    return layer;
 }
 
-void DocumentInternal::applyAttributeValues(VCGMesh &m, const MeshAttributeLayer &delta)
+void DocumentInternal::applyAttributeValues(VCGMesh &m, const MeshAttributeLayer &layer,
+                                            const VCGMesh &copy)
 {
-    const int vn = m.VN();
-    const int fn = m.FN();
-    const int en = m.EN();
+    const size_t vn = size_t(std::max(0, m.VN()));
+    const size_t fn = size_t(std::max(0, m.FN()));
+    const size_t en = size_t(std::max(0, m.EN()));
 
-    if (delta.kinds & MeshAttributeSelection) {
-        unpackSelectionBits(delta.vertexSelectionBits, m.vert, vn,
-                            [](VCGVertex &v) { v.ClearS(); },
-                            [](VCGVertex &v) { v.SetS(); });
-        unpackSelectionBits(delta.faceSelectionBits, m.face, fn,
-                            [](VCGFace &f) { f.ClearS(); },
-                            [](VCGFace &f) { f.SetS(); });
-        unpackSelectionBits(delta.edgeSelectionBits, m.edge, en,
-                            [](VCGEdge &e) { e.ClearS(); },
-                            [](VCGEdge &e) { e.SetS(); });
-        const auto &edgeBits = delta.faceEdgeSelectionBits;
-        for (int i = 0; i < fn; ++i) {
-            for (int k = 0; k < 3; ++k) {
-                const size_t bit = size_t(3 * i + k);
-                if (bit / 32 < edgeBits.size() && (edgeBits[bit / 32] & (1u << unsigned(bit % 32))))
-                    m.face[size_t(i)].SetFaceEdgeS(k);
-                else
-                    m.face[size_t(i)].ClearFaceEdgeS(k);
-            }
-        }
+    if (layer.kinds & MeshAttributeSelection) {
+        applyBits(layer.vertexSelectionBits, m.vert, copy.vert, vn, isSelected, setSelected);
+        applyBits(layer.faceSelectionBits, m.face, copy.face, fn, isSelected, setSelected);
+        applyBits(layer.edgeSelectionBits, m.edge, copy.edge, en, isSelected, setSelected);
+        applyBits(layer.faceEdgeSelectionBits, m.face, copy.face, 3 * fn, isEdgeSelected, setEdgeSelected);
     }
-    // A layer is only applied to a mesh with the same geometry revision, so the element
-    // counts match; clamp anyway, so a mismatch would corrupt colors rather than memory.
-    if (delta.kinds & MeshAttributeColor) {
-        const int nv = std::min(vn, int(delta.vertexColors.size()));
-        for (int k = 0; k < nv; ++k)
-            m.vert[size_t(k)].C() = unpackColor(delta.vertexColors[size_t(k)]);
-        const int nf = std::min(fn, int(delta.faceColors.size()));
-        for (int k = 0; k < nf; ++k)
-            m.face[size_t(k)].C() = unpackColor(delta.faceColors[size_t(k)]);
-        const int ne = std::min(en, int(delta.edgeColors.size()));
-        for (int k = 0; k < ne; ++k)
-            m.edge[size_t(k)].C() = unpackColor(delta.edgeColors[size_t(k)]);
+    if (layer.kinds & MeshAttributeColor) {
+        applyValues(layer.vertexColors, m.vert, copy.vert, vn, color, setColor);
+        applyValues(layer.faceColors, m.face, copy.face, fn, color, setColor);
+        applyValues(layer.edgeColors, m.edge, copy.edge, en, color, setColor);
     }
-    if (delta.kinds & MeshAttributeScalar) {
-        const int nv = std::min(vn, int(delta.vertexScalars.size()));
-        for (int k = 0; k < nv; ++k)
-            m.vert[size_t(k)].Q() = delta.vertexScalars[size_t(k)];
-        const int nf = std::min(fn, int(delta.faceScalars.size()));
-        for (int k = 0; k < nf; ++k)
-            m.face[size_t(k)].Q() = delta.faceScalars[size_t(k)];
-        const int ne = std::min(en, int(delta.edgeScalars.size()));
-        for (int k = 0; k < ne; ++k)
-            m.edge[size_t(k)].Q() = delta.edgeScalars[size_t(k)];
+    if (layer.kinds & MeshAttributeScalar) {
+        applyValues(layer.vertexScalars, m.vert, copy.vert, vn, scalar, setScalar);
+        applyValues(layer.faceScalars, m.face, copy.face, fn, scalar, setScalar);
+        applyValues(layer.edgeScalars, m.edge, copy.edge, en, scalar, setScalar);
     }
 }
 

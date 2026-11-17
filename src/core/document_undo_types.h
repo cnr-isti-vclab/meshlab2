@@ -194,6 +194,9 @@ inline constexpr std::array<std::uint32_t, 3> meshAttributeKinds {
 struct MeshAttributeLayer {
     // Bitwise OR of MeshAttributeKind: says which vectors below were captured.
     std::uint32_t kinds = MeshAttributeNone;
+    // Each vector below is relative to the geometry copy of the state that holds the layer:
+    // an element class whose values equal the copy's is left empty, and restored from it.
+    // A vertex-only color step thus stores no face colors.
 
     // Selection: one bit per element, LSB-first within each word. A VCGLib element's
     // flags carry many unrelated bits -- deleted, visited, border, faux -- and only the
@@ -204,8 +207,8 @@ struct MeshAttributeLayer {
     std::vector<std::uint32_t> vertexSelectionBits;
     std::vector<std::uint32_t> faceSelectionBits;
     std::vector<std::uint32_t> edgeSelectionBits;
-    // The per-face edge bits of a triangle mesh (FaceEdgeS), three per face, packed the
-    // same way; empty when none is set.
+    // The per-face edge bits of a triangle mesh (FaceEdgeS), three per face (index
+    // 3 * face + edge), packed the same way.
     std::vector<std::uint32_t> faceEdgeSelectionBits;
 
     // Colour: one packed RGBA word per element.

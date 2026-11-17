@@ -21,7 +21,11 @@ availability first. `trials=0` skips Open3D and only refines the input pose,
 which is useful for already aligned data but cannot discover remote placements.
 In standalone pymeshlab2, import the file and call `surface_reuse(meshset, ...)`.
 
-Accepted panels are appended to the document. Originals retain their geometry
+Every source piece is appended to the document as a `Source piece_...` layer
+immediately after partitioning, including pieces that later find no acceptable
+fit. These layers start hidden to avoid coincident faces over the original bottle;
+toggle their visibility in the Layers panel to inspect them. Accepted placements
+are appended as visible `Reuse ...` layers. Originals retain their geometry
 and transforms. Taking world-space snapshots temporarily duplicates and freezes
 each input in the document, so these operations appear in its action history.
 The inputs' colors, scalar fields, materials and textures are not transferred.

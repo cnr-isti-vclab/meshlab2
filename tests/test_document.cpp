@@ -123,6 +123,7 @@ private slots:
     void polylineLayerWalksItsEdgeGraph();
     void memoryStatsDeduplicateImagesAndTrackUndoOwnership();
     void memoryStatsIncludeSelectionAndPendingSnapshots();
+    void attributeLayersStoreOnlyTheElementsThatDifferFromTheCopy();
     void aSelectionChangeCostsTheNextStateNoCopyOfTheMesh();
     void aFullStepUndoesAFaceEdgeSelection();
     void colorAndScalarChangesShareTheGeometryCopy();
@@ -3259,6 +3260,55 @@ void DocumentTests::selectionDeltaUndoCoversEdges()
     QVERIFY(doc.redo());
     QCOMPARE(edgeSelection(), QVector<int>({ 0, 2, 3 }));
     QVERIFY(doc.mesh(index).mesh.vert[0].IsS());
+}
+
+void DocumentTests::attributeLayersStoreOnlyTheElementsThatDifferFromTheCopy()
+{
+    Document doc;
+    VCGMesh mesh;
+    auto vi = vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, 4);
+    vi->P() = { 0, 0, 0 }; (vi + 1)->P() = { 1, 0, 0 };
+    (vi + 2)->P() = { 0, 1, 0 }; (vi + 3)->P() = { 0, 0, 1 };
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, &mesh.vert[0], &mesh.vert[1], &mesh.vert[2]);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, &mesh.vert[0], &mesh.vert[1], &mesh.vert[3]);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, &mesh.vert[0], &mesh.vert[2], &mesh.vert[3]);
+    for (auto &v : mesh.vert)
+        v.C() = vcg::Color4b::White;
+    for (auto &f : mesh.face)
+        f.C() = vcg::Color4b::Red;
+    doc.setSuppressUndo(true);
+    QCOMPARE(doc.addMesh(mesh, QStringLiteral("Colors")), 0);
+    doc.setSuppressUndo(false);
+    doc.clearUndoHistory();
+    VCGMesh &m = doc.mesh(0).mesh;
+
+    // A vertex-only step stores the vertex colors and none of the face colors.
+    doc.beginUndoStep(QStringLiteral("Vertex colors"));
+    for (auto &v : m.vert)
+        v.C() = vcg::Color4b::Blue;
+    doc.markMeshColorChanged(0);
+    doc.endUndoStep(true);
+    QCOMPARE(doc.undoMemoryStats().uniqueGeometryCount, 1);
+    QCOMPARE(doc.undoMemoryStats().attributeBytes, qint64(4 * sizeof(std::uint32_t)));
+
+    // Then one face: this state's layer holds both classes, as both now differ.
+    doc.beginUndoStep(QStringLiteral("Face color"));
+    m.face[0].C() = vcg::Color4b::Green;
+    doc.markMeshColorChanged(0);
+    doc.endUndoStep(true);
+    QCOMPARE(doc.undoMemoryStats().attributeBytes, qint64((4 + 4 + 3) * sizeof(std::uint32_t)));
+
+    // Undo over the kept layer: the face colors the layer left out come back from the copy.
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.mesh(0).mesh.face[0].cC(), vcg::Color4b(vcg::Color4b::Red));
+    QCOMPARE(doc.mesh(0).mesh.vert[0].cC(), vcg::Color4b(vcg::Color4b::Blue));
+    QVERIFY(doc.undo());
+    QCOMPARE(doc.mesh(0).mesh.vert[0].cC(), vcg::Color4b(vcg::Color4b::White));
+    QVERIFY(doc.redo());
+    QVERIFY(doc.redo());
+    QCOMPARE(doc.mesh(0).mesh.face[0].cC(), vcg::Color4b(vcg::Color4b::Green));
+    QCOMPARE(doc.mesh(0).mesh.face[1].cC(), vcg::Color4b(vcg::Color4b::Red));
+    QCOMPARE(doc.mesh(0).mesh.vert[3].cC(), vcg::Color4b(vcg::Color4b::Blue));
 }
 
 void DocumentTests::memoryStatsIncludeSelectionAndPendingSnapshots()

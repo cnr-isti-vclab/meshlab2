@@ -71,8 +71,9 @@ public:
         std::array<std::uint64_t, 3> layerRevisions {};
     };
     std::map<GeometryKey, GeometryCopy> &geometryCache() { return m_undoGeometryCache; }
-    // Key: (meshId, MeshAttributeKind, that kind's revision).
-    using AttributeKey = std::tuple<std::uint64_t, std::uint32_t, std::uint64_t>;
+    // Key: (meshId, geometryRevision, MeshAttributeKind, that kind's revision). A layer
+    // holds only the values that differ from its geometry copy, hence the geometry revision.
+    using AttributeKey = std::tuple<std::uint64_t, std::uint64_t, std::uint32_t, std::uint64_t>;
     std::map<AttributeKey, std::weak_ptr<const MeshAttributeLayer>> &attributeCache()
     {
         return m_undoAttributeCache;

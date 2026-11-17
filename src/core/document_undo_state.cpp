@@ -65,12 +65,14 @@ UndoState Document::captureUndoState() const
             const std::uint64_t revision = attributeRevision(*entry, k);
             if (revision == snap.geometryLayerRevisions[k])
                 continue;
-            const DocumentUndoManager::AttributeKey key(entry->meshId, meshAttributeKinds[k], revision);
+            // A layer is relative to the copy, so the key names the copy's geometry too.
+            const DocumentUndoManager::AttributeKey key(entry->meshId, entry->geometryRevision,
+                                                        meshAttributeKinds[k], revision);
             auto &layer = m_undoManager->attributeCache()[key];
             snap.layers[k] = layer.lock();
             if (!snap.layers[k]) {
                 snap.layers[k] = std::make_shared<const MeshAttributeLayer>(
-                    captureAttributeValues(entry->mesh, meshAttributeKinds[k]));
+                    captureAttributeValues(entry->mesh, meshAttributeKinds[k], *snap.geometry));
                 layer = snap.layers[k];
             }
         }
@@ -161,7 +163,7 @@ void Document::restoreUndoState(const UndoState &state, bool keepUnchangedMeshes
                     if (held != attributeRevision(snap, k))
                         applyAttributeValues(entry->mesh, snap.layers[k]
                             ? *snap.layers[k]
-                            : captureAttributeValues(*snap.geometry, meshAttributeKinds[k]));
+                            : MeshAttributeLayer { meshAttributeKinds[k] }, *snap.geometry);
                     attributeRevision(*entry, k) = attributeRevision(snap, k);
                 }
                 entry->meshId           = snap.meshId;
