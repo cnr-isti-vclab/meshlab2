@@ -590,6 +590,15 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
                         "average deviation %3%.")
                 .arg(st.minRatio, 0, 'f', 4).arg(st.maxRatio, 0, 'f', 4).arg(100 * st.avgError, 0, 'f', 2)
         };
+        // A face folded in UV marks a fold of the surface itself (a triangle turned back onto its
+        // neighbour, as scans have) or a region too curved for its width: say so, and where to look.
+        const int folded = vcg::tri::Distortion<VCGMesh, true>::FoldedNum(patch);
+        if (folded > 0)
+            result.infoMessages << QObject::tr(
+                "Warning: %1 faces are folded in UV. A face folded onto its neighbour in the surface "
+                "cannot be flattened (Select Ill-Shaped Faces finds them); in a strongly curved region a "
+                "smaller half-width helps.").arg(folded);
+        result.outputValues["folded_faces"] = folded;
         result.outputValues["uv_scale"] = uvScale;
         result.outputValues["width"] = 2 * par.halfWidth;
         result.outputValues["length"] = st.length;

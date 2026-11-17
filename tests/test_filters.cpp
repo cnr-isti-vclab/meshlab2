@@ -16199,6 +16199,7 @@ void FilterTests::localFlatteningUnrollsACylinderIsometrically()
         folded += (e1 ^ e2) <= 0 ? 1 : 0;
     }
     QCOMPARE(folded, 0);
+    QCOMPARE(res.outputValues.value(QStringLiteral("folded_faces")).toInt(), 0);
     // cropped exactly to 2 by length, then scaled into the unit square by the longer side
     const float scale = res.outputValues.value(QStringLiteral("uv_scale")).toFloat();
     QCOMPARE(scale, float(length));

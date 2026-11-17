@@ -3,7 +3,7 @@
 This document plans a reimplementation, as MeshLab filters, of Pietroni, Corsini, Cignoni and
 Scopigno, *An Interactive Local Flattening Operator to Support Digital Investigations on Artwork
 Surfaces* (IEEE TVCG 17(12), Visualization 2011; `.reference/papers/IEEEViz_local_flattening_final_v2.pdf`).
-**Stages 0 to 2 implemented** 2026-11-15; drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.
+**Implemented** (stages 0 to 2, 2026-11-15 to 17; stage 3, the sketch tool, left to the annotation work); drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.
 
 See also: [Texture Signal Processing](texture_signal_processing.md) (per-face principal directions
 in `VCGFace`, stage 4), [Directional](directional_port.md), [TexMetro](texmetro.md),
@@ -197,8 +197,9 @@ as the method, and the propagation only if the first proves fragile.
    neighbouring samples): 1.4% by closest point against 0.4% along the normal over a base
    smoothed 3 times, 3.6% against 0.9% over one smoothed 10 times, no ray missing; the grooves
    read deeper (-5.5 against -3.9 mm), closest point cutting across their flanks.
-3. **The sketch tool**, later and only if wanted: drawing the guidance polyline on the surface as a
-   front end that runs stage 1's filter, one gesture to one undo step.
+3. **The sketch tool**: left out (Paolo, 2026-11-17). Tracing and editing lines on 3D surfaces
+   belongs to the annotation work, which will treat them coherently for every use; the
+   flattening filter takes whatever polyline layer that produces.
 
 ## Possible later extension
 
@@ -207,9 +208,22 @@ and ∇V to `PD2` separately, each normalized on its own, so it does not require
 orthogonal: a patch whose two axes follow two different polylines, a non-orthogonal frame, would
 need only a second field.
 
-## Open questions
+## Answered questions (2026-11-17)
 
-- **Zigzag polylines.** Should the filter smooth the polyline on the surface first (vcglib
-  `CoM::SmoothProject`, what *Smooth Polyline on Surface* runs), or leave it to the user?
-- **The local collapses** on some scan strips: where they come from (a ragged selection border,
-  a flap folded in UV) is still to be found.
+- **Zigzag polylines**: the filter assumes a smooth polyline, and its description says so,
+  pointing the edge paths of *Create Polyline from Geodesic Path* to *Smooth Polyline on
+  Surface* first.
+- **The local collapses** on scan strips, replicated on `Shepard_1M` (a ratio of 6467, one fold),
+  have two causes, neither in the flattening:
+  1. folds of the scan itself, a triangle turned back by 170 to 180 degrees onto its neighbour,
+     sometimes next to needles: no flat map can lay them out, so they collapse in UV. *Remove
+     Duplicate Faces* does not catch them (it removed 29 duplicates elsewhere on that model,
+     changing nothing), nor the edge-flip repair of isolated folds (these come in pairs);
+     *Select Ill-Shaped Faces* finds them.
+  2. regions too curved for the half-width, where the conformal map of step 2 nearly collapses
+     (|grad U| down to 0.03 against about 1) and its direction is unreliable: a few faces fold
+     there, on strips whose distortion is about 16% anyway.
+
+  The filter now reports the faces folded in UV (`folded_faces`, and a warning naming *Select
+  Ill-Shaped Faces*). Weighting step 3's fit by the strength of step 2's gradient might remove
+  the second kind; not done.
