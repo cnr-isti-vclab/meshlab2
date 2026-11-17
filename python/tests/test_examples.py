@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ def _example(name: str):
     # find the source package, which has no compiled module, instead of the wheel.
     spec = importlib.util.spec_from_file_location(name, EXAMPLES / f"{name}.py")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module  # dataclasses look their module up while it executes
     spec.loader.exec_module(module)
     return module
 
@@ -70,3 +72,22 @@ def test_wavy_box_example(tmp_path: Path):
     assert written == output
     assert output.exists()
     assert output.stat().st_size > 0
+
+
+def test_inventory_example(tmp_path: Path):
+    data = Path(__file__).resolve().parents[2] / "tests/data"
+    report = tmp_path / "inventory.md"
+    module = _example("inventory")
+
+    listed = module.main([str(data), "-o", str(report)])
+    assert len(listed) == 5
+    assert all(not entry.values for entry in listed)  # list mode never opens a mesh
+
+    measured = module.main([str(data), "-o", str(report), "--geometry", "--topology"])
+    assert all(not entry.error for entry in measured)
+    simple = next(entry for entry in measured if entry.path == "simple.off")
+    assert (simple.values["V"], simple.values["F"], simple.values["holes"]) == (3, 1, 1)
+    assert "## Files" in report.read_text()
+
+    with pytest.raises(SystemExit):  # the report may not land inside the scanned folder
+        module.main([str(data), "-o", str(data / "inventory.md")])

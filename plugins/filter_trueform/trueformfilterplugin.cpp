@@ -1599,7 +1599,7 @@ MeshFilterRunResult runSignedDistance(const FilterParams &params, Document &doc)
         return fail(message);
     }
 
-    doc.markMeshGeometryChanged(
+    doc.markMeshScalarChanged(
         targetIndex,
         QObject::tr("Computed distance from '%1' to '%2'")
             .arg(doc.mesh(targetIndex).name, doc.mesh(referenceIndex).name));
@@ -1894,7 +1894,7 @@ MeshFilterRunResult runCurvature(const FilterParams &params, Document &doc)
             entry.mesh.vert[live[i]].Q() = values[i];
         entry.ioMask |= Mask::IOM_VERTQUALITY;
 
-        doc.markMeshGeometryChanged(
+        doc.markMeshScalarChanged(
             index, QObject::tr("Computed curvature on '%1'").arg(entry.name));
         doc.finishFilterProgress(true, QObject::tr("Computed curvature."));
 
@@ -1961,7 +1961,7 @@ MeshFilterRunResult runFaceQuality(const FilterParams &params, Document &doc)
         }
         entry.ioMask |= Mask::IOM_FACEQUALITY;
 
-        doc.markMeshGeometryChanged(
+        doc.markMeshScalarChanged(
             index, QObject::tr("Computed face quality on '%1'").arg(entry.name));
         doc.finishFilterProgress(true, QObject::tr("Computed face quality."));
 

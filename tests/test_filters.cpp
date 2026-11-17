@@ -14828,6 +14828,9 @@ void FilterTests::colorAndScalarFiltersUndo()
         QVERIFY2(r.success, qPrintable(r.errorMessage));
     }
     QCOMPARE(doc.undoMemoryStats().steps.size(), std::size_t(1));
+    // The step announced only colors: it keeps a color layer and shares the copy.
+    QCOMPARE(doc.undoMemoryStats().uniqueGeometryCount, 1);
+    QVERIFY(doc.undoMemoryStats().attributeBytes > 0);
 
     QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[0]), 255);
     QCOMPARE(int(doc.mesh(index).mesh.vert[0].cC()[1]), 128);
@@ -14857,6 +14860,8 @@ void FilterTests::colorAndScalarFiltersUndo()
         QVERIFY2(r.success, qPrintable(r.errorMessage));
     }
     QCOMPARE(doc.undoMemoryStats().steps.size(), std::size_t(1));
+    QCOMPARE(doc.undoMemoryStats().uniqueGeometryCount, 1);
+    QVERIFY(doc.undoMemoryStats().attributeBytes > 0);
 
     QVERIFY(doc.mesh(index).mesh.face[0].cQ() != -1.0f);
     QVERIFY(doc.undo());

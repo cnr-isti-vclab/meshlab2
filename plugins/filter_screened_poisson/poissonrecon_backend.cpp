@@ -1357,7 +1357,7 @@ MeshFilterRunResult runScalarTransferFilter(Document &doc, int targetIndex, int 
         return { false, false, QObject::tr("No vertex of '%1' lies within the region the fit spans, around '%2'.")
                                    .arg(target.name, source.name) };
     target.ioMask |= Mask::IOM_VERTQUALITY;
-    doc.markMeshGeometryChanged(targetIndex, QObject::tr("Transferred the scalar of '%1' to '%2'").arg(source.name, target.name));
+    doc.markMeshScalarChanged(targetIndex, QObject::tr("Transferred the scalar of '%1' to '%2'").arg(source.name, target.name));
     MeshFilterRunResult result;
     result.success = true;
     result.documentModified = true;

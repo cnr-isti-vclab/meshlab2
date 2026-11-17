@@ -244,12 +244,6 @@ vcg::Color4b toColor4b(const QColor &color)
     return vcg::Color4b(color.red(), color.green(), color.blue(), color.alpha());
 }
 
-void markGeometry(Document &doc, int meshIndex, const QString &message)
-{
-    if (meshIndex >= 0 && meshIndex < doc.meshCount())
-        doc.markMeshGeometryChanged(meshIndex, message);
-}
-
 void ensureVertexColor(Document::MeshEntry &entry)
 {
     entry.ioMask |= Mask::IOM_VERTCOLOR;
@@ -407,7 +401,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             toColor4b(colorParam(params, QStringLiteral("color1"))),
             params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Filled vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Filled vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -420,7 +414,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             toColor4b(colorParam(params, QStringLiteral("color2"))),
             params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Applied vertex color thresholding to '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Applied vertex color thresholding to '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -432,14 +426,14 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         vcg::tri::UpdateColor<VCGMesh>::PerVertexGamma(mesh, gamma, selected);
         vcg::tri::UpdateColor<VCGMesh>::PerVertexBrightnessContrast(mesh, brightness / 256.0f, contrast / 256.0f, selected);
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Adjusted vertex color brightness/contrast/gamma on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Adjusted vertex color brightness/contrast/gamma on '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
     if (filterId == QString::fromLatin1(kFilterInvert)) {
         vcg::tri::UpdateColor<VCGMesh>::PerVertexInvert(mesh, params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Inverted vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Inverted vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -454,7 +448,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             rgbMaskFromParams(params),
             params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Adjusted vertex color levels on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Adjusted vertex color levels on '%1'").arg(meshLabel(entry, meshIndex)));
         return success({ QObject::tr("Adjusted color levels on current mesh.") });
     }
 
@@ -471,7 +465,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             intensity,
             params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Colourised vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Colourised vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -482,14 +476,14 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         else if (methodId == QStringLiteral("average")) method = 2;
         vcg::tri::UpdateColor<VCGMesh>::PerVertexDesaturation(mesh, method, params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Desaturated vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Desaturated vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
     if (filterId == QString::fromLatin1(kFilterEqualize)) {
         vcg::tri::UpdateColor<VCGMesh>::PerVertexEqualize(mesh, rgbMaskFromParams(params), params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Equalized vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Equalized vertex colors of '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -499,7 +493,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             toColor4b(colorParam(params, QStringLiteral("color"))),
             params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Applied white balance to '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Applied white balance to '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -515,7 +509,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             toColor4b(colorParam(params, QStringLiteral("color2"))),
             params.getBool(QStringLiteral("selectedOnly"), false));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Colorized '%1' by Perlin noise").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Colorized '%1' by Perlin noise").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -527,7 +521,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             params.getBool(QStringLiteral("selectedOnly"), false),
             int(seed.value));
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Added color noise to '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Added color noise to '%1'").arg(meshLabel(entry, meshIndex)));
         return success({ seed.message() });
     }
 
@@ -540,9 +534,10 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityHistogram(mesh, hist);
             vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh, hist.Percentile(0.1f), hist.Percentile(0.9f));
             ensureVertexColor(entry);
+            doc.markMeshColorChanged(meshIndex);
             info << QObject::tr("Updated vertex color ramp from saturated quality values.");
         }
-        markGeometry(doc, meshIndex, QObject::tr("Saturated vertex quality of '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshScalarChanged(meshIndex, QObject::tr("Saturated vertex quality of '%1'").arg(meshLabel(entry, meshIndex)));
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality, info);
     }
 
@@ -583,7 +578,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             applyMeshLab2VertexQualityColorMap(mesh, range, colorMapId, invert);
         }
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Mapped vertex quality into color on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Mapped vertex quality into color on '%1'").arg(meshLabel(entry, meshIndex)));
         return success({
             QObject::tr("Quality Range: %1 %2").arg(range.minV).arg(range.maxV)
         });
@@ -608,7 +603,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         else
             vcg::tri::UpdateQuality<VCGMesh>::VertexClamp(mesh, rangeMin, rangeMax);
         ensureVertexQuality(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Clamped vertex quality of '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshScalarChanged(meshIndex, QObject::tr("Clamped vertex quality of '%1'").arg(meshLabel(entry, meshIndex)));
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality);
     }
 
@@ -637,7 +632,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         const vcg::ColorMap cmap = colorMapFromId(params.getEnum(QStringLiteral("colorMap"), QStringLiteral("rgb")));
         vcg::tri::UpdateColor<VCGMesh>::PerEdgeQualityRamp(mesh, rangeMin, rangeMax, false, cmap);
         ensureEdgeColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Mapped edge scalar into color on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Mapped edge scalar into color on '%1'").arg(meshLabel(entry, meshIndex)));
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::EdgeColor, {
             QObject::tr("Mapped scalar range %1 .. %2 onto %3 edges.")
                 .arg(rangeMin).arg(rangeMax).arg(mesh.EN())
@@ -664,7 +659,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         else
             vcg::tri::UpdateColor<VCGMesh>::PerFaceQualityRamp(mesh, rangeMin, rangeMax, false, cmap);
         ensureFaceColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Mapped face quality into color on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Mapped face quality into color on '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -686,7 +681,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         ensureVertexQuality(entry);
         Histogramf hist;
         vcg::tri::Stat<VCGMesh>::ComputePerVertexQualityHistogram(mesh, hist);
-        markGeometry(doc, meshIndex, QObject::tr("Computed discrete curvature on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshGeometryChanged(meshIndex, QObject::tr("Computed discrete curvature on '%1'").arg(meshLabel(entry, meshIndex)));
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality, {
             QObject::tr("Curvature Range: %1 %2 (Used 10/90 percentiles %3 %4)")
                 .arg(hist.MinV())
@@ -805,8 +800,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             }
         }
 
-        markGeometry(
-            doc,
+        doc.markMeshScalarChanged(
             meshIndex,
             geometricQuality
                 ? QObject::tr("Computed per-face geometric quality on '%1'").arg(meshLabel(entry, meshIndex))
@@ -831,49 +825,49 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterRandomConnected)) {
         vcg::tri::UpdateColor<VCGMesh>::PerFaceRandomConnectedComponent(mesh);
         ensureFaceColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Assigned random connected-component colors on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Assigned random connected-component colors on '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
     if (filterId == QString::fromLatin1(kFilterRandomFace)) {
         vcg::tri::UpdateColor<VCGMesh>::PerFaceRandom(mesh);
         ensureFaceColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Assigned random face colors on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Assigned random face colors on '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
     if (filterId == QString::fromLatin1(kFilterVertexSmooth)) {
         vcg::tri::Smooth<VCGMesh>::VertexColorLaplacian(mesh, params.getInt(QStringLiteral("iteration"), 1), false, cb);
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Smoothed vertex colors on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Smoothed vertex colors on '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceSmooth)) {
         vcg::tri::Smooth<VCGMesh>::FaceColorLaplacian(mesh, params.getInt(QStringLiteral("iteration"), 1), false, cb);
         ensureFaceColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Smoothed face colors on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Smoothed face colors on '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceToVertex)) {
         vcg::tri::UpdateColor<VCGMesh>::PerVertexFromFace(mesh);
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Transferred face colors to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Transferred face colors to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
     if (filterId == QString::fromLatin1(kFilterMeshToFace)) {
         vcg::tri::UpdateColor<VCGMesh>::PerFaceConstant(mesh, mesh.C());
         ensureFaceColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Transferred mesh color to faces on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Transferred mesh color to faces on '%1'").arg(meshLabel(entry, meshIndex)));
         return success({ QObject::tr("Transferred mesh color to faces on current mesh.") });
     }
 
     if (filterId == QString::fromLatin1(kFilterVertexToFace)) {
         vcg::tri::UpdateColor<VCGMesh>::PerFaceFromVertex(mesh);
         ensureFaceColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Transferred vertex colors to faces on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Transferred vertex colors to faces on '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 
@@ -915,7 +909,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
             }
         }
         ensureVertexColor(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Transferred texture colors to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Transferred texture colors to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
         if (requestedTextureSlot > 0) {
             return success({
                 QObject::tr("Transferred texture slot %1 to vertex colors.").arg(requestedTextureSlot)
@@ -929,14 +923,14 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
     if (filterId == QString::fromLatin1(kFilterVertexToFaceQuality)) {
         vcg::tri::UpdateQuality<VCGMesh>::FaceFromVertex(mesh);
         ensureFaceQuality(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Transferred vertex quality to faces on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshScalarChanged(meshIndex, QObject::tr("Transferred vertex quality to faces on '%1'").arg(meshLabel(entry, meshIndex)));
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::FaceQuality);
     }
 
     if (filterId == QString::fromLatin1(kFilterFaceToVertexQuality)) {
         vcg::tri::UpdateQuality<VCGMesh>::VertexFromFace(mesh, params.getBool(QStringLiteral("areaWeight"), true));
         ensureVertexQuality(entry);
-        markGeometry(doc, meshIndex, QObject::tr("Transferred face quality to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshScalarChanged(meshIndex, QObject::tr("Transferred face quality to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
         return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::VertexQuality);
     }
 
@@ -952,7 +946,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         for (VCGFace &f : mesh.face)
             if (!f.IsD())
                 orderPrincipalCurvature(f);
-        markGeometry(doc, meshIndex, QObject::tr("Transferred curvature directions from vertices to faces on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshGeometryChanged(meshIndex, QObject::tr("Transferred curvature directions from vertices to faces on '%1'").arg(meshLabel(entry, meshIndex)));
         return success({ QObject::tr("Transferred the principal curvature directions of '%1' from its vertices to its faces.").arg(meshLabel(entry, meshIndex)) });
     }
 
@@ -965,7 +959,7 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         for (VCGVertex &v : mesh.vert)
             if (!v.IsD())
                 orderPrincipalCurvature(v);
-        markGeometry(doc, meshIndex, QObject::tr("Transferred curvature directions from faces to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
+        doc.markMeshGeometryChanged(meshIndex, QObject::tr("Transferred curvature directions from faces to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
         return success({ QObject::tr("Transferred the principal curvature directions of '%1' from its faces to its vertices.").arg(meshLabel(entry, meshIndex)) });
     }
 

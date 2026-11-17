@@ -1267,7 +1267,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             ++processed;
         }
         entry.ioMask |= Mask::IOM_EDGECOLOR;
-        doc.markMeshGeometryChanged(
+        doc.markMeshColorChanged(
             meshIndex,
             QObject::tr("Applied per-edge color function to '%1'.").arg(entry.name));
 
@@ -1334,12 +1334,13 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             else
                 vcg::tri::UpdateColor<VCGMesh>::PerEdgeQualityRamp(mesh);
             entry.ioMask |= Mask::IOM_EDGECOLOR;
+            doc.markMeshColorChanged(meshIndex);
             result.visualizationHints.push_back({
                 meshIndex,
                 MeshFilterVisualizationAttribute::EdgeColor
             });
         }
-        doc.markMeshGeometryChanged(
+        doc.markMeshScalarChanged(
             meshIndex,
             QObject::tr("Applied per-edge scalar function to '%1'.").arg(entry.name));
         return result;
@@ -1490,7 +1491,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
                 QObject::tr("Applied per-vertex normal function to '%1'.").arg(entry.name));
         } else {
             entry.ioMask |= Mask::IOM_VERTCOLOR;
-            doc.markMeshGeometryChanged(
+            doc.markMeshColorChanged(
                 meshIndex,
                 QObject::tr("Applied per-vertex color function to '%1'.").arg(entry.name));
         }
@@ -1533,9 +1534,10 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             else
                 vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(mesh);
             entry.ioMask |= Mask::IOM_VERTCOLOR;
+            doc.markMeshColorChanged(meshIndex);
         }
         entry.ioMask |= Mask::IOM_VERTQUALITY;
-        doc.markMeshGeometryChanged(
+        doc.markMeshScalarChanged(
             meshIndex,
             QObject::tr("Applied per-vertex quality function to '%1'.").arg(entry.name));
 
@@ -1745,7 +1747,7 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             ++processed;
         }
         entry.ioMask |= Mask::IOM_FACECOLOR;
-        doc.markMeshGeometryChanged(
+        doc.markMeshColorChanged(
             meshIndex,
             QObject::tr("Applied per-face color function to '%1'.").arg(entry.name));
 
@@ -1792,9 +1794,10 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
             else
                 vcg::tri::UpdateColor<VCGMesh>::PerFaceQualityRamp(mesh);
             entry.ioMask |= Mask::IOM_FACECOLOR;
+            doc.markMeshColorChanged(meshIndex);
         }
         entry.ioMask |= Mask::IOM_FACEQUALITY;
-        doc.markMeshGeometryChanged(
+        doc.markMeshScalarChanged(
             meshIndex,
             QObject::tr("Applied per-face quality function to '%1'.").arg(entry.name));
 

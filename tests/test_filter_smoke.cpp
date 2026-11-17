@@ -12,6 +12,7 @@
 
 #include <wrap/io_trimesh/io_mask.h>
 
+#include <array>
 #include <cstdint>
 #include <cmath>
 
@@ -426,7 +427,7 @@ private:
         bool success = false;
         bool refused = false; // the filter itself declined, and said why
         QString error;
-        QString undoError;    // it ran, but undo or redo lost a custom attribute
+        QString undoError;    // it ran, but undo did not restore it or lost a custom attribute
     };
     Attempt attempt(Fixture f, const QString &filterId);
 
@@ -491,8 +492,8 @@ FilterSmokeTests::Attempt FilterSmokeTests::attempt(Fixture f, const QString &fi
         m_outputDomainById.value(filterId, MeshFilterOutputDomain::Information);
 
     std::unique_ptr<Document> doc = buildDocument(f);
-    // Custom attributes live in the mesh but outside its elements, so neither the attribute
-    // delta nor a snapshot whose cache key did not move sees them: undo has to take them
+    // Custom attributes live in the mesh but outside its elements, so neither an attribute
+    // layer nor a snapshot whose cache key did not move sees them: undo has to take them
     // away and redo bring them back, which needs VA/FA declared and a type deepCopyMesh carries.
     doc->setSuppressUndo(false);
     const auto attributeNames = [&doc] {
@@ -511,6 +512,46 @@ FilterSmokeTests::Attempt FilterSmokeTests::attempt(Fixture f, const QString &fi
         return names.join(QLatin1Char(' '));
     };
     const QString attributesBefore = attributeNames();
+    // What undo must put back: every layer's elements and the values they carry, hashed
+    // apart per kind so a failure names it. Undo learns what a filter changed only from the
+    // markers it calls, so a filter that rewrites normals and announces only scalars keeps
+    // them rewritten after undo; this is where that shows.
+    enum Part { Flags, Positions, Normals, Colors, Scalars, Topology, TexCoords, PartCount };
+    const auto contents = [&doc] {
+        std::array<std::uint64_t, PartCount> h;
+        h.fill(1469598103934665603ull);
+        // By value and field by field: TexCoord2 has padding bytes, which are not content.
+        const auto mix = [&h](Part part, auto value) {
+            const auto *bytes = reinterpret_cast<const unsigned char *>(&value);
+            for (size_t i = 0; i < sizeof value; ++i)
+                h[part] = (h[part] ^ bytes[i]) * 1099511628211ull;
+        };
+        const auto mixUv = [&mix](const vcg::TexCoord2f &t) {
+            mix(TexCoords, t.U()); mix(TexCoords, t.V()); mix(TexCoords, t.N());
+        };
+        for (int i = 0; i < doc->meshCount(); ++i) {
+            const VCGMesh &m = doc->mesh(i).mesh;
+            const bool vt = m.vert.IsTexCoordEnabled(), wt = m.face.IsWedgeTexCoordEnabled();
+            for (const VCGVertex &v : m.vert) {
+                mix(Flags, v.IsD()); mix(Flags, v.IsS());
+                mix(Positions, v.cP()); mix(Normals, v.cN()); mix(Colors, v.cC()); mix(Scalars, v.cQ());
+                if (vt) mixUv(v.cT());
+            }
+            for (const VCGFace &f : m.face) {
+                mix(Flags, f.IsD()); mix(Flags, f.IsS());
+                mix(Normals, f.cN()); mix(Colors, f.cC()); mix(Scalars, f.cQ());
+                for (int k = 0; k < 3 && !f.IsD(); ++k) {
+                    mix(Topology, vcg::tri::Index(m, f.cV(k)));
+                    if (wt) mixUv(f.cWT(k));
+                }
+            }
+            for (const VCGEdge &e : m.edge) {
+                mix(Colors, e.cC()); mix(Scalars, e.cQ());
+            }
+        }
+        return h;
+    };
+    const auto contentsBefore = contents();
     const int currentBefore = doc->currentMeshIndex();
     const int verticesBefore = (currentBefore >= 0 && currentBefore < doc->meshCount())
         ? doc->mesh(currentBefore).mesh.VN()
@@ -561,6 +602,21 @@ FilterSmokeTests::Attempt FilterSmokeTests::attempt(Fixture f, const QString &fi
     }
 
     out.success = true;
+    if (doc->canUndo()) {
+        doc->undo();
+        const auto undone = contents();
+        static const char *names[PartCount] = {"selection or deletion", "positions", "normals",
+                                               "colors", "scalars", "topology", "texture coordinates"};
+        QStringList differ;
+        for (size_t k = 0; k < undone.size(); ++k)
+            if (undone[k] != contentsBefore[k])
+                differ << QLatin1String(names[k]);
+        if (!differ.isEmpty())
+            out.undoError = QStringLiteral("undo did not restore the %1: the filter changed "
+                                           "them without a marker that says so")
+                                .arg(differ.join(QStringLiteral(", ")));
+        doc->redo();
+    }
     const QString attributesAfter = attributeNames();
     if (attributesAfter != attributesBefore) {
         doc->undo();

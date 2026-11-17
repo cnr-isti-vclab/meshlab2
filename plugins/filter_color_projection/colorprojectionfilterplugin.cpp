@@ -187,7 +187,7 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
             }
         }
         ent.ioMask |= Mask::IOM_VERTCOLOR;
-        doc.markMeshGeometryChanged(mi, QObject::tr("Projected raster color onto '%1'.").arg(ent.name));
+        doc.markMeshColorChanged(mi, QObject::tr("Projected raster color onto '%1'.").arg(ent.name));
         return success();
     }
 
@@ -296,7 +296,12 @@ MeshFilterRunResult ColorProjectionFilterPlugin::runFilter(
             ++bi;
         }
         ent.ioMask |= Mask::IOM_VERTCOLOR;
-        doc.markMeshGeometryChanged(mi, QObject::tr("Projected rasters onto '%1'.").arg(ent.name));
+        // Weighting by angle recomputed the vertex normals, which only a geometry step captures.
+        const QString message = QObject::tr("Projected rasters onto '%1'.").arg(ent.name);
+        if (ua)
+            doc.markMeshGeometryChanged(mi, message);
+        else
+            doc.markMeshColorChanged(mi, message);
         return success();
     }
 

@@ -370,9 +370,10 @@ MeshFilterRunResult CameraFilterPlugin::runFilter(
         if (map) {
             vcg::tri::UpdateColor<VCGMesh>::PerVertexQualityRamp(m);
             ent.ioMask |= Mask::IOM_VERTCOLOR;
+            doc.markMeshColorChanged(mi);
         }
 
-        doc.markMeshGeometryChanged(mi, QObject::tr("Computed vertex quality from camera on '%1'.").arg(ent.name));
+        doc.markMeshScalarChanged(mi, QObject::tr("Computed vertex quality from camera on '%1'.").arg(ent.name));
         return ok({QObject::tr("Quality computed for %1 vertices.").arg(m.VN())});
     }
 

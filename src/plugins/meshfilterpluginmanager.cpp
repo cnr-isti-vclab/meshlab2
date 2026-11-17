@@ -644,6 +644,12 @@ MeshPreparationScope prepareMeshForPrepList(
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexFromCurrentFaceNormal(mesh);
         vcg::tri::UpdateNormal<VCGMesh>::NormalizePerVertex(mesh);
     }
+    // Normals read from a file are data, and the filter's undo step has to put them back:
+    // undo learns of the change only from a marker, and a filter that announces colors,
+    // scalars or nothing on this layer would otherwise keep the recomputed ones.
+    if (doFNorm || doVNorm)
+        doc.markMeshGeometryChanged(meshIndex,
+            QObject::tr("Recomputed the normals of '%1'").arg(doc.mesh(meshIndex).name));
     if (doBBox) vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
     if (doFaceMark) {
         mesh.face.EnableMark();

@@ -222,9 +222,6 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
     auto markGeometry = [&](const QString &action) {
         doc.markMeshGeometryChanged(meshIndex, action);
     };
-    auto markMaterial = [&](const QString &action) {
-        doc.markMeshMaterialChanged(meshIndex, action);
-    };
 
     if (filterId == QString::fromLatin1(kFilterCreaseCut)) {
         if (vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(mesh, false) > 0 ||
@@ -257,7 +254,7 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         vcg::tri::UpdateFlags<VCGMesh>::FaceBorderFromNone(mesh);
         vcg::tri::Smooth<VCGMesh>::VertexQualityLaplacian(mesh, 1, params.getBool(QStringLiteral("selectedOnly")));
         entry.ioMask |= Mask::IOM_VERTQUALITY;
-        markGeometry(QObject::tr("Smoothed vertex quality of '%1'.").arg(meshName(entry, meshIndex)));
+        doc.markMeshScalarChanged(meshIndex, QObject::tr("Smoothed vertex quality of '%1'.").arg(meshName(entry, meshIndex)));
         return successResult();
     }
 
@@ -506,7 +503,7 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
             mesh.vert[size_t(i)].C().Import(newColor);
         }
         entry.ioMask |= Mask::IOM_VERTCOLOR;
-        markMaterial(QObject::tr("Applied unsharp masking to vertex colors of '%1'.").arg(meshName(entry, meshIndex)));
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Applied unsharp masking to vertex colors of '%1'.").arg(meshName(entry, meshIndex)));
         return successResult();
     }
 
@@ -527,7 +524,7 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
             mesh.vert[size_t(i)].Q() = qualityOrig[size_t(i)] * alphaOrig + qualityDelta * alpha;
         }
         entry.ioMask |= Mask::IOM_VERTQUALITY;
-        markGeometry(QObject::tr("Applied unsharp masking to vertex quality of '%1'.").arg(meshName(entry, meshIndex)));
+        doc.markMeshScalarChanged(meshIndex, QObject::tr("Applied unsharp masking to vertex quality of '%1'.").arg(meshName(entry, meshIndex)));
         return successResult();
     }
 

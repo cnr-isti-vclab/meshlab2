@@ -94,7 +94,7 @@ MeshFilterRunResult runIglQueryFilter(
         return fail(error);
     }
     queryEntry.ioMask |= vcg::tri::io::Mask::IOM_VERTQUALITY;
-    doc.markMeshGeometryChanged(
+    doc.markMeshScalarChanged(
         queryIndex,
         QObject::tr("Computed %1 for '%2'").arg(label, queryEntry.name));
     doc.finishFilterProgress(true, QObject::tr("Computed winding numbers."));

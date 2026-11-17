@@ -1059,7 +1059,7 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         }
 
         doc.mesh(mi).ioMask |= Mask::IOM_VERTQUALITY;
-        doc.markMeshGeometryChanged(mi,
+        doc.markMeshScalarChanged(mi,
             QObject::tr("Computed raster coverage per vertex on '%1'.").arg(doc.mesh(mi).name));
         return ok({QObject::tr("Processed %1 vertices across %2 rasters.")
                      .arg(m.VN()).arg(activeRasters.size())});
@@ -1157,7 +1157,7 @@ MeshFilterRunResult ImgPatchParamFilterPlugin::runFilter(
         auto at = [&](double t) { return double(values[size_t(t * double(values.size() - 1) + 0.5)]); };
 
         doc.mesh(mi).ioMask |= Mask::IOM_FACEQUALITY;
-        doc.markMeshGeometryChanged(mi,
+        doc.markMeshScalarChanged(mi,
             QObject::tr("Computed face scalar from rasters on '%1'.").arg(doc.mesh(mi).name));
 
         const QString unit = LengthUnits::symbol(doc.unit());

@@ -157,7 +157,6 @@ MeshFilterRunResult runSegmentation(
     }
 
     VCGMesh &mesh = entry.mesh;
-    mesh.face.EnableQuality();
     for (size_t f = 0; f < charts.size() && f < input.faceToSourceIndex.size(); ++f) {
         const int sourceFaceIndex = input.faceToSourceIndex[f];
         if (sourceFaceIndex < 0 || size_t(sourceFaceIndex) >= mesh.face.size())
@@ -168,7 +167,7 @@ MeshFilterRunResult runSegmentation(
     }
     entry.ioMask |= Mask::IOM_FACEQUALITY;
 
-    doc.markMeshGeometryChanged(
+    doc.markMeshScalarChanged(
         meshIndex,
         QObject::tr("Computed chart segmentation for '%1'").arg(entry.name));
     doc.finishFilterProgress(true, QObject::tr("Computed chart segmentation."));

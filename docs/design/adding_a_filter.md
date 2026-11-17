@@ -383,6 +383,11 @@ up front, or with a `success = false` result that says why.
   Preparation reaches only the current mesh: a filter reading normals of another layer
   (a mesh parameter) computes them itself; the load-time guarantee keeps them from
   being garbage, not from being stale.
+  `FNorm` and `VNorm` overwrite the layer's normals, which may be the ones a file
+  carried, so the framework announces them as a geometry change: a color or scalar
+  filter that declares them costs a copy all the same. The same holds for a vcglib
+  routine that recomputes normals on the mesh it is given (`GeodesicHeat`, the
+  `EmbreeAdaptor` scene load): a filter calling one announces geometry.
 - **Cleanup/compaction**: after a successful filter the framework compacts the
   affected meshes; don't leave deleted elements around expecting them to persist.
 - **Read-only inputs stay read-only**: a filter that makes a new layer (`NewMeshes`) or only

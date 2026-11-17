@@ -262,9 +262,13 @@ MeshFilterRunResult runIglQuantityFilter(
     }
 
     entry.ioMask |= Mask::IOM_VERTQUALITY;
-    doc.markMeshGeometryChanged(
-        meshIndex,
-        QObject::tr("Computed %1 for '%2'").arg(label, entry.name));
+    // Principal curvature also writes the per-vertex curvature directions, which only a
+    // geometry step captures.
+    const QString message = QObject::tr("Computed %1 for '%2'").arg(label, entry.name);
+    if (filterId == QString::fromLatin1(kPrincipal))
+        doc.markMeshGeometryChanged(meshIndex, message);
+    else
+        doc.markMeshScalarChanged(meshIndex, message);
     doc.finishFilterProgress(true, QObject::tr("Computed %1.").arg(label));
 
     QStringList messages = {

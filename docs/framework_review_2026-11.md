@@ -961,12 +961,35 @@ Size: about +120 / −330.
 
     Two tests edited a mesh by hand without announcing it, and a refused filter then rolled back over their edits; they now call the markers. A third held a reference to a mesh across a refused run, which replaces the layer's entry, as rolling back a full step always has.
 
-    Nothing in-process writes without a marker that I found. The Python API only reads mesh data or adds whole meshes.
+    Nothing in-process writes without a marker that I found. The Python API only reads mesh data or adds whole meshes. (The second commit found one: input preparation recomputing normals.)
 - **Not measured on ESTE.** Selection steps now store one bit set instead of two, and color steps keep costing a copy until the migration. The measurement belongs after the second commit.
 - **Tests.**
   - `colorAndScalarChangesShareTheGeometryCopy`: color and scalar steps share the copy, and undo onto a copy made before them, onto a kept layer, and a jump to the tip each restore the right values.
   - The delta-storage assertions now check for a single geometry copy.
   - A selection step can be made the root.
+
+**U1, second commit, done (2026-11-16):** row U1.2. `src` and `plugins` +82 / −71, tests +67 / −4.
+
+Each call site was read before it changed: what the code writes decides the marker, not the descriptor. Of the 64 filters the sweep lists (`filter_screened_poisson`'s scalar transfer is the 64th, missed in the table's count):
+
+| Outcome | Filters |
+|---|---|
+| color or scalar markers only, no copy | 57: colorproc 28, expression 6, igl 5, geodesic 3, unsharp 3, sampling 3, trueform 3, img_patch_param 2, color_projection 1, texture 1, geogram 1, poisson 1 |
+| color marker, unless an option rewrites normals | 1: *Transfer Color from Visible Rasters to Vertex*. Its angle weighting, on by default, recomputes the vertex normals first |
+| scalar marker, but its preparation recomputes normals | 1: *Compute Vertex Scalar from Camera* (see below) |
+| stays a geometry change | 5: Heat Geodesic (vcglib), because `GeodesicHeat` recomputes face normals; Obscurance and SDF (embree), because `EmbreeAdaptor` recomputes vertex and face normals on load; both MLS curvatures, which rebuild the mesh and enable curvature directions |
+
+- **Several filters color and scale at once** and call both markers. This affects Clamp Vertex Scalar Gradient, the expression scalar filters with *map to color*, the camera filter with *map*, and the two sampling colorizers. Each logs two lines.
+- **Unsharp Mask Vertex Color called `markMeshMaterialChanged`.** It now calls the color marker. Nothing else used the plugin's `markMaterial` lambda, so the lambda is removed.
+- **colorproc's `markGeometry` helper is removed.** Its call sites now call the markers themselves. The three filters that stay geometry changes are Discrete Curvature, which adds per-vertex attributes, and the two curvature-direction transfers, which enable optional components.
+- **The geogram chart segmenter called `mesh.face.EnableQuality()`.** Face quality is not an optional component of `VCGFace`, so the call only allocated an unused buffer. It is removed.
+- **The marker contract had a framework hole.** A descriptor's `FNorm`/`VNorm` preparation recomputes normals on the live mesh inside the undo step, with no marker. That is harmless for a filter that then calls the geometry marker, because undo copies the old mesh back. A filter that announces only colors, scalars or selection, or that only adds new layers, kept the recomputed normals after undo. The same was true of the old delta path.
+  - Affected: the camera filter, *Select Faces by View Angle*, and the Voronoi and texture-defragmentation filters on their input layer.
+  - Fix: `prepareMeshForPrepList` calls `markMeshGeometryChanged` when it recomputes normals. Normals read from a file are data.
+- **The smoke sweep now checks what undo restores.** After every successful run it undoes and compares a per-part hash of every layer: selection and deletion, positions, normals, colors, scalars, topology and texture coordinates. Then it redoes. Every filter's undo therefore has to give back what it changed. Before the preparation fix the check flagged the filters listed above. It also exposed a trap for anyone hashing texture coordinates: `TexCoord2` has padding bytes, so they are hashed field by field.
+- **`colorAndScalarFiltersUndo`** asserts again that a color step and a scalar step each keep one geometry copy and add an attribute layer.
+- **Seen in passing, not changed.** *Colorize Vertices by Voronoi Regions* compacts a world-space copy of the mesh and then copies colors back by index, so a layer with unreferenced or deleted vertices gets shifted colors. `filter_open3d` and `geogrambooleans` also enable color or quality on `vector_ocf`, where they are not optional.
+- **Not measured on ESTE yet.**
 
 **Totals:** 19 rows.
 

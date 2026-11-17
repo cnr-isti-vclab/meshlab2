@@ -1118,7 +1118,7 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
         }
 
         targetEntry.ioMask |= Mask::IOM_VERTCOLOR;
-        doc.markMeshGeometryChanged(
+        doc.markMeshColorChanged(
             targetMeshIndex,
             QObject::tr("Transferred texture colors from '%1' to vertex colors of '%2'.")
                 .arg(sourceEntry.name, targetEntry.name));

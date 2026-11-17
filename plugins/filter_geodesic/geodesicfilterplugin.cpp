@@ -86,7 +86,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
             if (v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
 
         doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY;
-        doc.markMeshGeometryChanged(meshIndex,
+        doc.markMeshScalarChanged(meshIndex,
             QObject::tr("Geodesic distance from border on '%1'").arg(meshName));
 
         QString msg = QObject::tr("Geodesic distance from border computed on '%1'.").arg(meshName);
@@ -122,7 +122,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
             if (v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
 
         doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY;
-        doc.markMeshGeometryChanged(meshIndex,
+        doc.markMeshScalarChanged(meshIndex,
             QObject::tr("Geodesic distance from point on '%1'").arg(meshName));
 
         QString msg = QObject::tr("Geodesic distance from point computed on '%1'.").arg(meshName);
@@ -153,7 +153,7 @@ MeshFilterRunResult GeodesicFilterPlugin::runFilter(
             if (v.Q() == unreached) { v.Q() = 0.f; ++unreachedCnt; }
 
         doc.mesh(meshIndex).ioMask |= Mask::IOM_VERTQUALITY;
-        doc.markMeshGeometryChanged(meshIndex,
+        doc.markMeshScalarChanged(meshIndex,
             QObject::tr("Geodesic distance from selection on '%1'").arg(meshName));
 
         QString msg = QObject::tr("Geodesic distance from %1 selected vertices computed on '%2'.")
