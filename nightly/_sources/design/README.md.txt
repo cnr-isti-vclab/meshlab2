@@ -29,6 +29,7 @@ Three kinds of document live here, and the distinction is worth keeping:
 | [Vocabulary](vocabulary.md) | The controlled vocabulary: categories, verb lexicon, naming grammar, layer naming. |
 | [Filter Organization](filter_organization.md) | Settled naming and organization principles, plus parameter conventions. |
 | [Raster Alignment](raster_alignment.md) | Aligning a raster's camera to the mesh: by point pairs, by mutual information on a CPU rendering, both at once, and globally over a set; what changes and what does not, the pixel convention, the parametrization, the renderings. |
+| [Surface Reuse Experiment](surface_reuse.md) | Python baseline for Voronoi panels, rigid alignment, distance rejection and sampled target coverage; differences from the SGP 2025 method. |
 | [Test Data](test_data.md) | Where test inputs live by size, the fetched-dataset manifest, and the skip-when-absent rule. |
 | [TrueForm Plugin](trueform_plugin.md) | How the TrueForm-backed plugins relate to the rest of the tree. |
 | [Branches and Releases](release_process.md) | The `devel`/`main` model, version tags, the release workflow and what is still open. |

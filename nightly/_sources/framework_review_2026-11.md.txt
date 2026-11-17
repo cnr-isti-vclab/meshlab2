@@ -961,12 +961,48 @@ Size: about +120 / −330.
 
     Two tests edited a mesh by hand without announcing it, and a refused filter then rolled back over their edits; they now call the markers. A third held a reference to a mesh across a refused run, which replaces the layer's entry, as rolling back a full step always has.
 
-    Nothing in-process writes without a marker that I found. The Python API only reads mesh data or adds whole meshes.
+    Nothing in-process writes without a marker that I found. The Python API only reads mesh data or adds whole meshes. (The second commit found one: input preparation recomputing normals.)
 - **Not measured on ESTE.** Selection steps now store one bit set instead of two, and color steps keep costing a copy until the migration. The measurement belongs after the second commit.
 - **Tests.**
   - `colorAndScalarChangesShareTheGeometryCopy`: color and scalar steps share the copy, and undo onto a copy made before them, onto a kept layer, and a jump to the tip each restore the right values.
   - The delta-storage assertions now check for a single geometry copy.
   - A selection step can be made the root.
+
+**U1, second commit, done (2026-11-16):** row U1.2. `src` and `plugins` +82 / −71, tests +67 / −4.
+
+Each call site was read before it changed: what the code writes decides the marker, not the descriptor. Of the 64 filters the sweep lists (`filter_screened_poisson`'s scalar transfer is the 64th, missed in the table's count):
+
+| Outcome | Filters |
+|---|---|
+| color or scalar markers only, no copy | 57: colorproc 28, expression 6, igl 5, geodesic 3, unsharp 3, sampling 3, trueform 3, img_patch_param 2, color_projection 1, texture 1, geogram 1, poisson 1 |
+| color marker, unless an option rewrites normals | 1: *Transfer Color from Visible Rasters to Vertex*. Its angle weighting, on by default, recomputes the vertex normals first |
+| scalar marker, but its preparation recomputes normals | 1: *Compute Vertex Scalar from Camera* (see below) |
+| stays a geometry change | 5: Heat Geodesic (vcglib), because `GeodesicHeat` recomputes face normals; Obscurance and SDF (embree), because `EmbreeAdaptor` recomputes vertex and face normals on load; both MLS curvatures, which rebuild the mesh and enable curvature directions |
+
+- **Several filters color and scale at once** and call both markers. This affects Clamp Vertex Scalar Gradient, the expression scalar filters with *map to color*, the camera filter with *map*, and the two sampling colorizers. Each logs two lines.
+- **Unsharp Mask Vertex Color called `markMeshMaterialChanged`.** It now calls the color marker. Nothing else used the plugin's `markMaterial` lambda, so the lambda is removed.
+- **colorproc's `markGeometry` helper is removed.** Its call sites now call the markers themselves. The three filters that stay geometry changes are Discrete Curvature, which adds per-vertex attributes, and the two curvature-direction transfers, which enable optional components.
+- **The geogram chart segmenter called `mesh.face.EnableQuality()`.** Face quality is not an optional component of `VCGFace`, so the call only allocated an unused buffer. It is removed.
+- **The marker contract had a framework hole.** A descriptor's `FNorm`/`VNorm` preparation recomputes normals on the live mesh inside the undo step, with no marker. That is harmless for a filter that then calls the geometry marker, because undo copies the old mesh back. A filter that announces only colors, scalars or selection, or that only adds new layers, kept the recomputed normals after undo. The same was true of the old delta path.
+  - Affected: the camera filter, *Select Faces by View Angle*, and the Voronoi and texture-defragmentation filters on their input layer.
+  - Fix: `prepareMeshForPrepList` calls `markMeshGeometryChanged` when it recomputes normals. Normals read from a file are data.
+- **The smoke sweep now checks what undo restores.** After every successful run it undoes and compares a per-part hash of every layer: selection and deletion, positions, normals, colors, scalars, topology and texture coordinates. Then it redoes. Every filter's undo therefore has to give back what it changed. Before the preparation fix the check flagged the filters listed above. It also exposed a trap for anyone hashing texture coordinates: `TexCoord2` has padding bytes, so they are hashed field by field.
+- **`colorAndScalarFiltersUndo`** asserts again that a color step and a scalar step each keep one geometry copy and add an attribute layer.
+- **Seen in passing, not changed.** *Colorize Vertices by Voronoi Regions* compacts a world-space copy of the mesh and then copies colors back by index, so a layer with unreferenced vertices gets shifted colors (fixed 2026-11-17: the copy-back goes through the compaction's remap, and an unreferenced vertex keeps its own color and scalar; live layers are compact, so deleted vertices never arise). `filter_open3d` and `geogrambooleans` also enable color or quality on `vector_ocf`, where they are not optional.
+- **Measured on ESTE (2026-11-17)** with a temporary benchmark in the filter tests, since removed: `build-release`, `Document::runFilter`, resident memory from the kernel, undo bytes from `undoMemoryStats`. ESTE_PRINT is 4.97M vertices and 9.94M faces. The history starts empty after the load.
+
+  | Step | Time | Undo afterwards |
+  |---|---|---|
+  | `set_vertex_color`, perlin noise, `smooth_vertex_color` | 140-160 ms each | 1 copy (758 MiB, the starting state); +57 MiB layer each |
+  | `compute_face_scalar_from_geometry`, face → vertex transfer, `smooth_vertex_scalar`, `colorize_vertices_by_scalar` | 70-1800 ms | still 1 copy; +57 MiB layer each |
+  | `set_mesh_color`, `translate` | 16-35 ms | still 1 copy, +0 |
+  | `select_all` | 105 ms | +1.8 MiB |
+  | `measure_geometric_properties` | 11 s | still 1 copy, +0 |
+  | undo of all 10 steps, then redo of all 10 | 160 ms / 132 ms | still 1 copy |
+
+  Before U1, `set_mesh_color` cost +762 MiB and a `translate` after a selection +533 MiB (section 0). A step that changes only colors or scalars now never copies the mesh, and a walk through the whole history copies nothing.
+  - **A layer holds both elements of its kind.** A color layer is the vertex and face colors together (19 + 38 MiB on ESTE), and a scalar layer likewise, so a vertex-only step also stores the unchanged face values. Splitting layers per element would halve them for vertex-only filters, but needs per-element revisions.
+  - **The resident jumps are the filters' own working memory, not undo.** `measure_geometric_properties` adds 2.4 GiB the first time and nothing the second; `smooth_vertex_scalar` adds 0.9 GiB. The undo copy count does not move in either case.
 
 **Totals:** 19 rows.
 
@@ -988,6 +1024,58 @@ Estimated about +270 / −930, a net −660 (the review's estimate was about −
   per-vertex quality the gap reaches about halfway to the neighbors. Bake to Vertex Color and
   Colorize by Scalar keep painting the LUT's middle (`normalizedRenderQuality`); they are filters,
   outside this change.
+
+#### Follow-up: per-element attribute layers (2026-11-17, approved and done)
+
+On ESTE a color layer holds the vertex and the face colors together (19 + 38 MiB), and a scalar
+layer likewise, so a vertex-only step also stores 38 MiB of face values nobody touched. Two ways
+to fix it:
+
+- **By marker:** split each kind's revision per element (nine revisions instead of three) and give
+  `markMeshColorChanged` / `markMeshScalarChanged` an element argument. That touches the 60-odd
+  call sites just migrated, the GPU cache keys and the UV layout key, and trusts each filter to
+  name the right elements. **Rejected.**
+- **By comparison (proposed):** keep the three revisions, and let capture leave out an element
+  whose values equal those of the geometry copy the state already holds. The copy is right there
+  in the snapshot, and restore falls back to it. No call site, render key or signal changes, and it
+  holds whatever a filter announced.
+
+Line numbers are from the tree at `f7428ff6`.
+
+| # | Current | Target | Measured evidence | Verdict |
+|---|---|---|---|---|
+| L1 | `MeshAttributeLayer` (`document_undo_types.h:194-219`): each captured kind fills all its element vectors | an element vector left empty means "the copy's values"; a captured element that equals the copy is left empty | the vectors are read only in `document_layers.cpp` (capture, apply) and `layerBytes` (`documentundomanager.cpp:23-35`), which already counts capacity, so empty costs 0 | change (comment only) |
+| L2 | `captureAttributeValues(m, kinds)` (`document_layers.cpp:1112-1159`) | `captureAttributeValues(m, kinds, const VCGMesh *copy = nullptr)`: with a copy, each element is compared and dropped when equal | 2 callers: `document_undo_state.cpp:73` (capture, passes `snap.geometry`) and `:164` (restore without a layer, passes none) | change |
+| L3 | `applyAttributeValues(m, layer)` (`document_layers.cpp:1161-1215`): an empty vector writes nothing | `applyAttributeValues(m, layer, const VCGMesh &copy)`: an empty element vector writes the copy's values | 1 caller, `document_undo_state.cpp:162`. Today an empty vector would leave the kept layer's live values, which is wrong once L2 drops elements | change |
+| L4 | Layer key `(meshId, kind, revision)` (`documentundomanager.h:75`, used at `document_undo_state.cpp:68`) | `(meshId, geometryRevision, kind, revision)` | a layer is now relative to one copy. Revisions are fresh per change, so one key should never meet two copies, but the key then says so instead of relying on it | change |
+| L5 | `faceEdgeSelectionBits` empty = "no face edge selected" (`document_layers.cpp:1128-1134`) | empty = the copy's; "none selected" where the copy has some is stored as zeros | the only vector whose empty already meant something | change |
+| L6 | Tests | `test_document`: on a mesh with faces, a vertex-color step stores exactly `VN * 4` bytes; undo over a kept layer whose face colors differ from the copy puts back the copy's | the smoke sweep's undo-contents check already covers every filter's restore | new |
+| L7 | `data_model.md` undo paragraph | one sentence: a layer leaves out the elements equal to the copy | | change |
+
+**Totals:** 7 rows: 6 change, 1 new. Estimated +45 / −10 in `src/core`.
+
+**Expected on ESTE** (the same ten steps): vertex-only color steps 19 MiB instead of 57; the face
+scalar step 38. Steps after it that change vertex scalars still carry the face scalars, because
+those now differ from the copy: about 230 MiB of layers instead of 398.
+
+**Option, not in the table:** also share an element vector with the state before the step when it
+is unchanged (the vectors become `shared_ptr`, `captureUndoState` takes the before state from
+`endStep`, `accountGeometry` counts vectors by pointer). It would bring ESTE to about 170 MiB, for
+about +50 more lines. It helps only when one kind keeps changing on one element while another
+element of that kind stays different from the copy.
+
+**Done (2026-11-17)** as the 7 rows. `src/core` +127 / −123: the capture and apply code
+became four small templates (`captureValues`/`captureBits`, `applyValues`/`applyBits`) driven by
+one getter and setter per class, so the line count is flat rather than the +45 estimated. A
+restore without a layer now applies an empty layer against the copy instead of capturing the
+copy's values first. Measured with the same ten ESTE steps (temporary benchmark, since removed):
+layers 229 MiB instead of 398; the three vertex color steps 19 MiB each instead of 57; step,
+undo-all and redo-all times unchanged (149 ms / 142 ms). All 23 suites pass, the smoke sweep's
+undo-contents check included.
+
+**Checked, not a bug:** capture and apply walk `[0, VN())`, not `vert.size()`. That is only right
+for compact meshes, and it is: `compactMeshStorageInvariant` (`meshfilterpluginmanager.cpp:416`)
+compacts every layer after a filter.
 
 ### Decisions needed before phase 1
 
