@@ -21,6 +21,7 @@ extern "C" PyObject *PyInit__meshlab();
 #include <QSettings>
 #include <QStringList>
 #include <QTimer>
+#include <clocale>
 
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
@@ -93,6 +94,7 @@ int main(int argc, char *argv[])
         PyImport_AppendInittab("_meshlab", &PyInit__meshlab);
 
         QApplication app(argc, argv);
+        std::setlocale(LC_NUMERIC, "C"); // see the main QApplication below
 
         Document doc;
         // Initialize interpreter + import _meshlab.  Pass nullptr for view —
@@ -134,6 +136,12 @@ int main(int argc, char *argv[])
 #endif
 
     QApplication app(argc, argv);
+    // On Unix the constructor sets the C locale from the environment (setlocale(LC_ALL, "")),
+    // so in an Italian or German session atof, sscanf and printf would read and write a
+    // comma as the decimal separator, and every library parsing text files with them would
+    // misread "0.5" as 0 and write files no one can read. Qt's documented remedy; the
+    // interface is unaffected, since QLocale formats numbers for display on its own.
+    std::setlocale(LC_NUMERIC, "C");
     // Last resort: whatever route the application takes out, no helper it started is
     // left behind holding a temporary directory and a CPU.
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &HelperProcess::terminateAll);

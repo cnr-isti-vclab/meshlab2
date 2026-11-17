@@ -9,6 +9,7 @@
 #include <QSettings>
 #include <QTemporaryDir>
 #include <cmath>
+#include <clocale>
 
 #include "document.h"
 #include "document_internal.h"
@@ -134,6 +135,7 @@ private slots:
     void processMemoryInfoReportsCurrentProcess();
     void openDialogFilterContainsKnownFormats();
     void saveAndLoad3MFRoundTrip();
+    void textFormatsIgnoreTheNumericLocale();
     void trueFormRoundTripsObjAndStl();
     void stlOpensWithDuplicateVerticesMerged();
     void stlFaceColorsLoadInBothConventions();
@@ -3627,6 +3629,95 @@ void DocumentTests::openDialogFilterContainsKnownFormats()
     QVERIFY(filter.contains(QStringLiteral("MeshLab Project (*.mlp)")));
     QVERIFY(filter.contains(QStringLiteral("All Files (*)")));
     QVERIFY(filter.contains(QStringLiteral("3MF Files (*.3mf)")));
+}
+
+// Qt sets the C locale from the environment at start-up (setlocale(LC_ALL, "") on Unix), so
+// in an Italian or German session strtod, sscanf and printf read and write a comma as the
+// decimal separator. A text format must not care: every pair of writer and reader is run
+// with one side in a comma locale and the other in "C", which tells a reader that misreads
+// from a writer that miswrites.
+void DocumentTests::textFormatsIgnoreTheNumericLocale()
+{
+    const char *commaLocale = nullptr;
+    for (const char *name : { "it_IT.UTF-8", "it_IT.utf8", "de_DE.UTF-8", "de_DE.utf8", "it_IT", "de_DE" })
+        if (std::setlocale(LC_NUMERIC, name)) { commaLocale = name; break; }
+    std::setlocale(LC_NUMERIC, "C");
+    if (!commaLocale)
+        QSKIP("No locale with a decimal comma is installed.");
+    const auto restoreLocale = qScopeGuard([] { std::setlocale(LC_NUMERIC, "C"); });
+
+    VCGMesh mesh;
+    const float coords[4][3] = { { 0.5f, 0.25f, -1.75f }, { 2.125f, 0.5f, 0.0f },
+                                 { 0.75f, 3.5f, 1.5f }, { 2.25f, 3.0625f, -0.5f } };
+    for (const auto &c : coords)
+        vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(c[0], c[1], c[2]));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(1), size_t(3), size_t(2));
+
+    Document probe;
+    QStringList previous;
+    const QStringList extensions = { "ply", "obj", "stl", "off", "gltf", "3mf", "e57" };
+    for (const QString &ext : extensions)
+        previous << probe.preferredImportPluginForExtension(ext);
+    const auto restorePreferences = qScopeGuard([&] {
+        for (int i = 0; i < extensions.size(); ++i)
+            probe.setPreferredImportPluginForExtension(extensions[i], previous[i]);
+    });
+
+    // canWrite is false where the save would not reach the plugin under test: rapidobj has
+    // no writer (the save falls back to io_vcg), and TrueForm's OBJ writer formats with
+    // snprintf on Apple clang, which lacks floating-point std::to_chars.
+#if defined(__apple_build_version__)
+    const bool trueFormObjWrites = false;
+#else
+    const bool trueFormObjWrites = true;
+#endif
+    struct Case { QString ext; QString plugin; bool canWrite; };
+    const QList<Case> cases = {
+        { "ply", "io_vcg", true }, { "obj", "io_vcg", true }, { "obj", "io_obj_rapidobj", false },
+        { "obj", "meshlab2.io.trueform", trueFormObjWrites }, { "stl", "io_vcg", true },
+        { "stl", "meshlab2.io.trueform", true }, { "off", "io_vcg", true }, { "gltf", "io_gltf", true },
+        { "3mf", "io_3mf", true }, { "e57", "io_e57", true },
+    };
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QStringList failures;
+    for (const Case &c : cases) {
+        for (const bool commaWrites : { false, true }) {
+            if (commaWrites && !c.canWrite)
+                continue;
+            const QString path = dir.filePath(QStringLiteral("%1_%2.%3")
+                                                  .arg(c.plugin, commaWrites ? "w" : "r", c.ext));
+            MeshIOSaveOptions options;
+            options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX;
+            options.binary = false;
+            Document source;
+            source.setPreferredImportPluginForExtension(c.ext, c.plugin);
+            source.addMesh(mesh, QStringLiteral("quad"), options.mask);
+            std::setlocale(LC_NUMERIC, commaWrites ? commaLocale : "C");
+            const int saved = source.saveMesh(0, path, options);
+            std::setlocale(LC_NUMERIC, commaWrites ? "C" : commaLocale);
+            Document loaded;
+            loaded.setPreferredImportPluginForExtension(c.ext, c.plugin);
+            QString error;
+            const int read = saved == 0 ? loaded.loadMesh(path, &error) : -1;
+            std::setlocale(LC_NUMERIC, "C");
+            const QString side = commaWrites ? QStringLiteral("writer") : QStringLiteral("reader");
+            const QString label = QStringLiteral("%1 %2 (%3)").arg(c.plugin, c.ext, side);
+            if (saved != 0) { failures << label + QStringLiteral(": save failed"); continue; }
+            if (read != 0 || loaded.meshCount() != 1) { failures << label + QStringLiteral(": load failed: ") + error; continue; }
+            vcg::Box3f box;
+            for (const VCGVertex &v : loaded.mesh(0).mesh.vert)
+                if (!v.IsD())
+                    box.Add(v.cP());
+            const bool ok = std::abs(box.min.X() - 0.5f) < 1e-4f && std::abs(box.max.X() - 2.25f) < 1e-4f
+                && std::abs(box.min.Y() - 0.25f) < 1e-4f && std::abs(box.max.Y() - 3.5f) < 1e-4f
+                && std::abs(box.min.Z() + 1.75f) < 1e-4f && std::abs(box.max.Z() - 1.5f) < 1e-4f;
+            if (!ok)
+                failures << label;
+        }
+    }
+    QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QStringLiteral("; "))));
 }
 
 void DocumentTests::saveAndLoad3MFRoundTrip()

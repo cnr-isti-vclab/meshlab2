@@ -15,8 +15,10 @@
 #include <QVariant>
 #include <QVector3D>
 
+#include <clocale>
 #include <memory>
 #include <stdexcept>
+#include <string>
 
 namespace nb = nanobind;
 
@@ -69,8 +71,14 @@ void ensureQCoreApplication()
     static int argc = 1;
     static char arg0[] = "meshlab_python";
     static char *argv[] = { arg0, nullptr };
+    // On Unix the constructor sets the C locale from the environment (setlocale(LC_ALL, "")).
+    // This is the user's Python process, not ours: put back whatever it had, which keeps
+    // other extensions undisturbed and LC_NUMERIC at Python's default "C".
+    const char *current = std::setlocale(LC_ALL, nullptr);
+    const std::string previous = current ? current : "C";
     static QCoreApplication app(argc, argv);
     (void) app;
+    std::setlocale(LC_ALL, previous.c_str());
 }
 
 QVariant pythonValueToQVariant(const nb::handle &value)
