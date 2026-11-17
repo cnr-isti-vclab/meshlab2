@@ -233,7 +233,7 @@ void MeshFilterPanel::buildUi()
 
     m_filterDescriptionLabel = new QLabel(m_parametersPage);
     m_filterDescriptionLabel->setWordWrap(true);
-    m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
     paramsPageLayout->addWidget(m_filterDescriptionLabel);
 
     m_filterModifiesLabel = new QLabel(m_parametersPage);
@@ -262,7 +262,7 @@ void MeshFilterPanel::buildUi()
     m_parametersLayout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     m_parametersLayout->setContentsMargins(0, 0, 0, 0);
     m_noParametersLabel = new QLabel(tr("This filter has no parameters."), m_parametersWidget);
-    m_noParametersLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    m_noParametersLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
     m_parametersLayout->addRow(m_noParametersLabel);
 
     m_paramForm = new ParameterFormBuilder(m_parametersLayout, m_parametersWidget, this);
@@ -538,7 +538,7 @@ void MeshFilterPanel::rebuildResultsList()
             if (!tip.isEmpty())
                 tip += QStringLiteral("\n");
             tip += tr("Unavailable: %1").arg(info.applicabilityError);
-            item->setForeground(palette().brush(QPalette::Mid));
+            item->setForeground(palette().brush(QPalette::PlaceholderText));
         }
         if (!tip.isEmpty())
             item->setToolTip(tip);
@@ -640,14 +640,14 @@ void MeshFilterPanel::openFilterAtIndex(int filterIndex)
     }
     showDetails(detailsOpen);
     if (info.applicable) {
-        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
         m_applyButton->setToolTip(QString());
         m_currentFilterUnavailableReason.clear();
     } else {
         const QString reason = info.applicabilityError.trimmed().isEmpty()
             ? tr("This filter is not available in the current context.")
             : info.applicabilityError.trimmed();
-        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: #a13a3a;"));
+        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: #d64541;"));
         m_applyButton->setToolTip(tr("Unavailable: %1").arg(reason));
         m_currentFilterUnavailableReason = reason;
     }
@@ -754,7 +754,7 @@ void MeshFilterPanel::clearParameterEditors()
 {
     m_paramForm->clear();
     m_noParametersLabel = new QLabel(tr("This filter has no parameters."), m_parametersWidget);
-    m_noParametersLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    m_noParametersLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
     m_parametersLayout->addRow(m_noParametersLabel);
 }
 
@@ -808,7 +808,7 @@ void MeshFilterPanel::refreshCurrentFilterApplicability()
     const bool applicable = m_doc->validateFilterInvocation(m_currentFilterKey, parameters, errorMessage);
 
     if (applicable) {
-        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
         m_applyButton->setToolTip(QString());
     } else {
         const QString reason = errorMessage.trimmed().isEmpty()
@@ -816,7 +816,7 @@ void MeshFilterPanel::refreshCurrentFilterApplicability()
                    ? m_currentFilterUnavailableReason
                    : tr("This filter is not available in the current context."))
             : errorMessage.trimmed();
-        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: #a13a3a;"));
+        m_filterDescriptionLabel->setStyleSheet(QStringLiteral("color: #d64541;"));
         m_applyButton->setToolTip(tr("Unavailable: %1").arg(reason));
     }
     m_applyButton->setEnabled(applicable);

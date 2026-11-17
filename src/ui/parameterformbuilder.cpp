@@ -82,7 +82,7 @@ public:
             m_absSpin->setSingleStep(std::max(span / 100.0, 1e-12));
 
         m_absLabel = new QLabel(this);
-        m_absLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        m_absLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
         setUnit(LengthUnit::Unknown);
 
         m_percentSpin = new QDoubleSpinBox(this);
@@ -93,7 +93,7 @@ public:
         m_percentSpin->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
         auto *percentLabel = new QLabel(tr("%"), this);
-        percentLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        percentLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
 
         layout->addWidget(m_absSpin, 1);
         layout->addWidget(m_absLabel);
@@ -682,7 +682,7 @@ public:
         const QString labels[3] = { QStringLiteral("X"), QStringLiteral("Y"), QStringLiteral("Z") };
         for (int i = 0; i < 3; ++i) {
             auto *lbl = new QLabel(labels[i], this);
-            lbl->setStyleSheet(QStringLiteral("color: palette(mid); padding: 0 1px;"));
+            lbl->setStyleSheet(QStringLiteral("color: palette(placeholder-text); padding: 0 1px;"));
             spinRow->addWidget(lbl, 0);
             m_spin[i] = new QDoubleSpinBox(this);
             m_spin[i]->setRange(-1e9, 1e9);
@@ -771,7 +771,7 @@ private:
             m_spin[i]->setReadOnly(ro);
             m_spin[i]->setButtonSymbols(ro ? QAbstractSpinBox::NoButtons
                                            : QAbstractSpinBox::UpDownArrows);
-            m_spin[i]->setStyleSheet(ro ? QStringLiteral("color: palette(mid);") : QString());
+            m_spin[i]->setStyleSheet(ro ? QStringLiteral("color: palette(placeholder-text);") : QString());
         }
     }
 

@@ -38,12 +38,12 @@ PreferencesDialog::PreferencesDialog(QWidget *parent)
     auto *intro = new QLabel(
         tr("Changes apply immediately and are remembered between sessions."),
         this);
-    intro->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    intro->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
     intro->setWordWrap(true);
     rootLayout->addWidget(intro);
 
     auto *noMatch = new QLabel(this);
-    noMatch->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    noMatch->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
     noMatch->hide();
     rootLayout->addWidget(noMatch);
 

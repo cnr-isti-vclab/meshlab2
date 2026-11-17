@@ -382,13 +382,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     m_settingsContainer = new QFrame(this);
     m_settingsContainer->setVisible(false);
     m_settingsContainer->setObjectName(QStringLiteral("settingsContainer"));
-    m_settingsContainer->setStyleSheet(QStringLiteral(
-        "#settingsContainer { background: rgba(250,250,250,170); border: 1px solid rgba(40,40,40,110); border-radius: 4px; }"
-        "#settingsContainer QLabel { border: none; background: transparent; }"
-        "#settingsContainer, #settingsContainer QLabel, #settingsContainer QCheckBox, #settingsContainer QComboBox, #settingsContainer QDoubleSpinBox { font-size: 11px; }"
-        "#settingsContainer QLabel#settingsTitle { font-size: 10px; font-weight: bold; color: rgba(60,60,68,215); }"
-        "#settingsContainer QPushButton[panelAction=\"true\"] { font-size: 10px; padding: 1px 6px; background: rgba(250,250,250,200); border: 1px solid rgba(40,40,40,115); border-radius: 3px; }"
-        "#settingsContainer QPushButton[panelAction=\"true\"]:pressed { background: rgba(36,132,210,195); color: white; }"));
+    applySettingsContainerStyle();
 
     auto *settingsContainerLayout = new QVBoxLayout(m_settingsContainer);
     settingsContainerLayout->setContentsMargins(4, 4, 4, 4);
@@ -1984,6 +1978,33 @@ int RenderOverlayPanel::renderPassPageIndex(RenderPass pass) const
     case RenderPass::ClipPlane: return 11;   // 10 is the UV fill page
     }
     return 0;
+}
+
+// The panel's controls take the application palette, so its surface must follow it too: a
+// fixed light surface under the white text of a dark palette left every label unreadable.
+// Window and WindowText at the alphas the light design used give the same look there.
+void RenderOverlayPanel::applySettingsContainerStyle()
+{
+    const QColor surface = palette().color(QPalette::Window);
+    const QColor ink = palette().color(QPalette::WindowText);
+    const auto rgba = [](const QColor &c, int alpha) {
+        return QStringLiteral("rgba(%1,%2,%3,%4)").arg(c.red()).arg(c.green()).arg(c.blue()).arg(alpha);
+    };
+    m_settingsContainer->setStyleSheet(QStringLiteral(
+        "#settingsContainer { background: %1; border: 1px solid %2; border-radius: 4px; }"
+        "#settingsContainer QLabel { border: none; background: transparent; }"
+        "#settingsContainer, #settingsContainer QLabel, #settingsContainer QCheckBox, #settingsContainer QComboBox, #settingsContainer QDoubleSpinBox { font-size: 11px; }"
+        "#settingsContainer QLabel#settingsTitle { font-size: 10px; font-weight: bold; color: %3; }"
+        "#settingsContainer QPushButton[panelAction=\"true\"] { font-size: 10px; padding: 1px 6px; background: %4; color: %5; border: 1px solid %2; border-radius: 3px; }"
+        "#settingsContainer QPushButton[panelAction=\"true\"]:pressed { background: rgba(36,132,210,195); color: white; }")
+        .arg(rgba(surface, 185), rgba(ink, 100), rgba(ink, 200), rgba(surface, 220), rgba(ink, 255)));
+}
+
+void RenderOverlayPanel::changeEvent(QEvent *event)
+{
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange && m_settingsContainer)
+        applySettingsContainerStyle();
 }
 
 void RenderOverlayPanel::setCurrentRenderPass(RenderPass pass)

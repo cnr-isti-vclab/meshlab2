@@ -54,7 +54,11 @@ signals:
     void applyToAllMeshesRequested(const PerMeshRenderSettings &settings, RenderPass pass);
     void bakeQualityMappingToVertexColorRequested();
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
+    void applySettingsContainerStyle();
     void setCurrentRenderPass(RenderPass pass);
     void setSettingsVisible(bool visible);
     void updateSettingsPanelGeometry();

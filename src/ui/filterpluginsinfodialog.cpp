@@ -38,7 +38,7 @@ QString row(const QString &label, const QString &value)
 {
     if (value.trimmed().isEmpty())
         return {};
-    return QStringLiteral("<tr><td style=\"padding-right:10px; color:palette(mid);"
+    return QStringLiteral("<tr><td style=\"padding-right:10px; color: palette(placeholder-text);"
                           " vertical-align:top; white-space:nowrap;\">%1</td>"
                           "<td style=\"vertical-align:top;\">%2</td></tr>")
         .arg(esc(label), value);
@@ -49,7 +49,7 @@ QString heading(const QString &title, const QString &sub = QString())
     QString h = QStringLiteral("<div style=\"font-size:13px; font-weight:bold;\">%1</div>")
                     .arg(esc(title));
     if (!sub.trimmed().isEmpty())
-        h += QStringLiteral("<div style=\"color:palette(mid); margin-bottom:6px;\">%1</div>")
+        h += QStringLiteral("<div style=\"color: palette(placeholder-text); margin-bottom:6px;\">%1</div>")
                  .arg(esc(sub));
     return h;
 }
@@ -184,15 +184,15 @@ QString formatFilterParameterDetails(const MeshFilterDescriptor &descriptor)
         }
         html += QStringLiteral(
                     "<div style=\"margin-bottom:6px; padding:4px 6px;"
-                    " background:#f0f4f8; border-left:3px solid #5a8fc8;\">")
-                + QStringLiteral("<span style=\"font-size:11px; color:#335;\">")
+                    " background:rgba(90,143,200,0.15); border-left:3px solid #5a8fc8;\">")
+                + QStringLiteral("<span style=\"font-size:11px;\">")
                 + QObject::tr("<b>Modifies:</b> %1").arg(labels.join(QStringLiteral(", ")))
                 + QStringLiteral("</span></div>");
     }
 
     if (descriptor.parameters.empty()) {
         html += QObject::tr(
-            "<p style=\"margin:0; color: palette(mid);\">This filter declares no parameters.</p>");
+            "<p style=\"margin:0; color: palette(placeholder-text);\">This filter declares no parameters.</p>");
         html += QStringLiteral("</body></html>");
         return html;
     }
@@ -227,9 +227,9 @@ QString formatFilterParameterDetails(const MeshFilterDescriptor &descriptor)
 
         html += QStringLiteral("<div style=\"margin-bottom:5px;\">");
         html += QStringLiteral(
-                    "<div style=\"font-size:12px;\"><b>%1</b> <span style=\"color:#666;\">(%2)</span></div>")
+                    "<div style=\"font-size:12px;\"><b>%1</b> <span style=\"color:palette(placeholder-text);\">(%2)</span></div>")
                     .arg(param.label.toHtmlEscaped(), param.id.toHtmlEscaped());
-        html += QStringLiteral("<div style=\"margin-top:1px; color:#444;\">%1</div>")
+        html += QStringLiteral("<div style=\"margin-top:1px;\">%1</div>")
                     .arg(summaryParts.join(QStringLiteral(" &nbsp;&middot;&nbsp; ")));
 
         if (param.type == MeshFilterParameterType::Enum && !param.enumOptions.empty()) {
@@ -238,13 +238,13 @@ QString formatFilterParameterDetails(const MeshFilterDescriptor &descriptor)
             for (const MeshFilterEnumOption &option : param.enumOptions) {
                 options.push_back(option.label.trimmed().isEmpty() ? option.id : option.label);
             }
-            html += QStringLiteral("<div style=\"margin-top:2px; color:#444;\">%1</div>")
+            html += QStringLiteral("<div style=\"margin-top:2px;\">%1</div>")
                         .arg(QObject::tr("Options: %1").arg(options.join(QStringLiteral(", "))).toHtmlEscaped());
         }
 
         if (!param.helpMarkdown.trimmed().isEmpty()) {
             html += QStringLiteral(
-                        "<div style=\"margin-top:2px; font-size:10px; color:#555; white-space:pre-wrap;\">%1</div>")
+                        "<div style=\"margin-top:2px; font-size:10px; color:palette(placeholder-text); white-space:pre-wrap;\">%1</div>")
                         .arg(param.helpMarkdown.toHtmlEscaped());
         }
 
@@ -368,7 +368,7 @@ void FilterPluginsInfoDialog::buildUi()
     root->addWidget(splitter, 1);
 
     m_summary = new QLabel(this);
-    m_summary->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    m_summary->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
     root->addWidget(m_summary);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, Qt::Horizontal, this);
@@ -402,7 +402,7 @@ void FilterPluginsInfoDialog::rebuildTree()
         item->setData(0, kRoleKind, QStringLiteral("filter"));
         item->setData(0, kRoleValue, info.key);
         if (!info.applicable) {
-            item->setForeground(0, QBrush(QColor(160, 90, 90)));
+            item->setForeground(0, QBrush(QColor(214, 69, 65)));
             item->setToolTip(0, QObject::tr("Unavailable: %1").arg(info.applicabilityError));
         }
         return item;
@@ -457,7 +457,7 @@ void FilterPluginsInfoDialog::rebuildTree()
             it.value()->setText(1, n > 0 ? QString::number(n) : QString());
             it.value()->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
             if (n == 0)
-                it.value()->setForeground(0, palette().brush(QPalette::Mid));
+                it.value()->setForeground(0, palette().brush(QPalette::PlaceholderText));
         }
     } else {
         QHash<QString, QTreeWidgetItem *> byPlugin;
@@ -562,13 +562,13 @@ void FilterPluginsInfoDialog::updateDetail()
 {
     // The description pane only ever holds a filter's own text.
     auto clearDescription = [this](const QString &note) {
-        m_description->setHtml(QStringLiteral("<p style=\"margin:0; color:palette(mid);\">%1</p>")
+        m_description->setHtml(QStringLiteral("<p style=\"margin:0; color: palette(placeholder-text);\">%1</p>")
                                    .arg(note.toHtmlEscaped()));
     };
 
     QTreeWidgetItem *item = m_tree->currentItem();
     if (!item) {
-        m_detail->setHtml(QStringLiteral("<p style=\"color:palette(mid);\">%1</p>")
+        m_detail->setHtml(QStringLiteral("<p style=\"color: palette(placeholder-text);\">%1</p>")
                               .arg(tr("Select a plugin, category or filter.")));
         clearDescription(tr("No filter selected."));
         return;
@@ -611,10 +611,10 @@ QString FilterPluginsInfoDialog::filterDetailHtml(const Document::FilterInfo &in
 
     // Availability first: it is the question this dialog most often answers.
     if (info.applicable) {
-        html += QStringLiteral("<p style=\"margin:2px 0; color:#2e7d32;\">%1</p>")
+        html += QStringLiteral("<p style=\"margin:2px 0; color:#3d9a46;\">%1</p>")
                     .arg(tr("Available"));
     } else {
-        html += QStringLiteral("<p style=\"margin:2px 0;\"><b style=\"color:#b71c1c;\">%1</b> %2</p>")
+        html += QStringLiteral("<p style=\"margin:2px 0;\"><b style=\"color:#d64541;\">%1</b> %2</p>")
                     .arg(tr("Unavailable —"), esc(info.applicabilityError));
     }
 
@@ -624,7 +624,7 @@ QString FilterPluginsInfoDialog::filterDetailHtml(const Document::FilterInfo &in
         cats += QStringLiteral("<div>%1%2</div>")
                     .arg(esc(c),
                          primary && d.categories.size() > 1
-                             ? QStringLiteral(" <span style=\"color:palette(mid);\">(%1)</span>")
+                             ? QStringLiteral(" <span style=\"color: palette(placeholder-text);\">(%1)</span>")
                                    .arg(tr("primary"))
                              : QString());
     }
@@ -704,7 +704,7 @@ QString FilterPluginsInfoDialog::pluginDetailHtml(const QString &pluginId) const
         html += QStringLiteral("<p style=\"margin:8px 0 2px; font-weight:bold;\">%1</p>")
                     .arg(tr("Unavailable here (%1)").arg(unavailable.size()));
         for (const QString &n : unavailable)
-            html += QStringLiteral("<div style=\"color:palette(mid);\">%1</div>").arg(esc(n));
+            html += QStringLiteral("<div style=\"color: palette(placeholder-text);\">%1</div>").arg(esc(n));
     }
     html += QStringLiteral("</body></html>");
     return html;
@@ -740,7 +740,7 @@ QString FilterPluginsInfoDialog::categoryDetailHtml(const QString &category) con
     html += row(tr("Provided by"), pluginHtml);
     html += QStringLiteral("</table>");
     if (members.isEmpty())
-        html += QStringLiteral("<p style=\"color:palette(mid);\">%1</p>")
+        html += QStringLiteral("<p style=\"color: palette(placeholder-text);\">%1</p>")
                     .arg(tr("Declared in the ontology but no filter uses it yet."));
     html += QStringLiteral("</body></html>");
     return html;

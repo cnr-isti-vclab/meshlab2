@@ -71,7 +71,7 @@ MeshSaveOptionsDialog::MeshSaveOptionsDialog(
         auto *geometryLabel = new QLabel(
             tr("Geometry is always saved."),
             this);
-        geometryLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        geometryLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
         layout->addWidget(geometryLabel);
     }
 
@@ -104,7 +104,7 @@ MeshSaveOptionsDialog::MeshSaveOptionsDialog(
 
     if (!hasOptionalItems) {
         auto *noneLabel = new QLabel(tr("No optional attributes for this format."), this);
-        noneLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        noneLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
         layout->addWidget(noneLabel);
     }
 

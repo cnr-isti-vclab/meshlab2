@@ -232,7 +232,7 @@ void UndoGraphWidget::paintStrip(QPainter &p, int ri) const
     const QFontMetrics fm(font);
     const QColor lane = laneColor(row.lane, palette());
     const QColor muted = palette().color(QPalette::PlaceholderText);
-    const QColor offPath = palette().color(QPalette::Mid);
+    const QColor offPath = palette().color(QPalette::PlaceholderText);
     const auto memberIndex = [&row](int nodeId) {
         int mi = 0;
         while (row.members[mi].nodeId != nodeId)
@@ -385,7 +385,7 @@ void UndoGraphWidget::paintEvent(QPaintEvent * /*event*/)
     p.fillRect(viewport()->rect(), palette().color(QPalette::Base));
 
     if (rows.isEmpty()) {
-        p.setPen(palette().color(QPalette::Mid));
+        p.setPen(palette().color(QPalette::PlaceholderText));
         p.drawText(viewport()->rect(), Qt::AlignCenter, tr("No undo history"));
         return;
     }
@@ -402,12 +402,15 @@ void UndoGraphWidget::paintEvent(QPaintEvent * /*event*/)
         // Hovering a state that rows left from lights those rows up too.
         const bool leftHoveredState = m_hoveredMember >= 0 && row.parentId == m_hoveredMember
             && row.parentRow >= 0 && rows[row.parentRow].nodeId != m_hoveredMember;
+        // Both from the palette's highlight, so they read in a dark palette too: a fixed
+        // light blue under the dark palette's white text, and its gray AlternateBase for
+        // hover, left the rows unreadable.
+        QColor hover = palette().color(QPalette::Highlight);
+        hover.setAlpha(90);
         if (row.isCurrent)
-            p.fillRect(QRect(0, top, vw, kRowHeight),
-                       QColor(173, 216, 230)); // light blue
+            p.fillRect(QRect(0, top, vw, kRowHeight), palette().color(QPalette::Highlight));
         else if (ri == m_hoveredRow || leftHoveredState)
-            p.fillRect(QRect(0, top, vw, kRowHeight),
-                       palette().color(QPalette::AlternateBase));
+            p.fillRect(QRect(0, top, vw, kRowHeight), hover);
     }
 
     // ── pass 2: connector lines ───────────────────────────────────────────
@@ -496,7 +499,7 @@ void UndoGraphWidget::paintEvent(QPaintEvent * /*event*/)
 
         QColor textColor = palette().color(QPalette::Text);
         if (!row.isOnCurrentPath)
-            textColor = palette().color(QPalette::Mid);
+            textColor = palette().color(QPalette::PlaceholderText);
         p.setPen(textColor);
         const QString label = row.label.isEmpty() ? tr("Initial state") : row.label;
         p.drawText(textRect, Qt::AlignVCenter | Qt::TextSingleLine,

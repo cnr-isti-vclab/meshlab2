@@ -277,7 +277,7 @@ QColor logLevelColor(Document::LogLevel level)
 {
     switch (level) {
     case Document::LogLevel::Error:
-        return QColor(200, 30, 30);
+        return QColor(214, 69, 65);
     case Document::LogLevel::Warning:
         return QColor(170, 110, 0);
     case Document::LogLevel::Debug:
@@ -285,7 +285,9 @@ QColor logLevelColor(Document::LogLevel level)
     case Document::LogLevel::Info:
         break;
     }
-    return QColor(50, 50, 50);
+    // Plain text color, so that information reads in a dark palette as well; the other
+    // three are mid tones that hold up on either background.
+    return QApplication::palette().color(QPalette::Text);
 }
 
 QString logEntryTag(Document::LogSource source, Document::LogLevel level)
@@ -861,7 +863,7 @@ MainWindow::MainWindow(QWidget *parent)
     historyLayout->setContentsMargins(0, 0, 0, 0);
     historyLayout->setSpacing(4);
     auto *historyTitle = new QLabel(tr("Action History"), historyPanel);
-    historyTitle->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    historyTitle->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
     historyLayout->addWidget(historyTitle, 0);
     historyLayout->addWidget(m_undoHistoryLaneWidget, 1);
 
@@ -2905,7 +2907,7 @@ void MainWindow::showMemoryInfo()
            "Logical GPU resources use backend resource sizes and are not added to the CPU subtotal."),
         &dialog);
     explanation->setWordWrap(true);
-    explanation->setStyleSheet(QStringLiteral("color: palette(mid);"));
+    explanation->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
     layout->addWidget(explanation);
 
     auto *tree = new QTreeWidget(&dialog);
@@ -3238,7 +3240,7 @@ void MainWindow::showImportPlugins()
     const auto explanation = [&dialog](const QString &text) {
         auto *label = new QLabel(text, &dialog);
         label->setWordWrap(true);
-        label->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        label->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
         return label;
     };
 
@@ -3326,7 +3328,7 @@ void MainWindow::showImportPlugins()
         layout->addWidget(importTable, 0);
     } else {
         auto *label = new QLabel(tr("No import plugins are available."), &dialog);
-        label->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        label->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
         layout->addWidget(label);
     }
 
@@ -3386,7 +3388,7 @@ void MainWindow::showImportPlugins()
         layout->addWidget(exportTable, 0);
     } else {
         auto *label = new QLabel(tr("No export plugins are available."), &dialog);
-        label->setStyleSheet(QStringLiteral("color: palette(mid);"));
+        label->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
         layout->addWidget(label);
     }
 
