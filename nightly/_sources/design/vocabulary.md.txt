@@ -381,6 +381,7 @@ display name leads with a word that is not here.
 | Size of a pattern a filter grows on the surface (UI label and id, 2026-11-14) | `Pattern Size`, id `patternSize`, a length on the surface (`absperc`): the period, the distance from one stripe or dot to the next. The texture's size then only sets how many texels draw it. See [Reaction-diffusion's scale as a length](proposals/texture_signal_processing.md#reaction-diffusions-scale-as-a-length-approved-and-applied-2026-11-14) | `Diffusion Scale` (the solver's factor, which with the program's scaling made the pattern a number of texels), `Stripe Width` (half the period, and no word for dots) |
 | Normal vector | `normal` | `normals direction` |
 | Layer matrix | `matrix` | `transformation matrix` (verbose), `xform` |
+| Layer/file stored state (2026-11-18) | **Saved** (the file holds this state), **Modified** (changes since saving), **Not saved** (no file holds it yet); table heading **Status**. The same labels apply to textures and raster planes | Filled/hollow dots, `D`/`G`, or `New` (does not say whether a file holds it) |
 | 1D abstraction of a shape | `curve skeleton` | `skeleton` alone, `morphological skeleton`, `medial axis`, `centerline` |
 | Graph of the level-set components of a scalar field | `Reeb graph` | `contour tree` (the special case of a simply connected domain, which has no cycles) |
 | Loops around a handle / around a tunnel of a closed surface | `handle loop`, `tunnel loop` | `meridian`, `longitude` (torus-only), `generator` (any basis loop, not classified) |

@@ -93,17 +93,16 @@ struct LayerTextureInfo {
 
 std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &entry);
 
-// Whether a file holds a layer, a texture or a plane, the same way for all three: no mark
-// when it does, a filled dot when it did and the document has changed since, a hollow one
-// when no file holds it.
+// Use words for stored state so no dot convention has to be remembered, including
+// when the current row is highlighted. Shared by meshes, textures and raster planes.
 QString storedMark(Document::StoredState state)
 {
     switch (state) {
-    case Document::StoredState::Stored: return QString();
-    case Document::StoredState::Changed: return QStringLiteral("\u25CF");
+    case Document::StoredState::Stored: return QObject::tr("Saved");
+    case Document::StoredState::Changed: return QObject::tr("Modified");
     case Document::StoredState::NotStored: break;
     }
-    return QStringLiteral("\u25CB");
+    return QObject::tr("Not saved");
 }
 
 QString storedTip(Document::StoredState state, const QString &path)
@@ -117,11 +116,6 @@ QString storedTip(Document::StoredState state, const QString &path)
     case Document::StoredState::NotStored: break;
     }
     return QObject::tr("Not saved yet");
-}
-
-QString withMark(const QString &mark, const QString &text)
-{
-    return mark.isEmpty() ? text : mark + QLatin1Char(' ') + text;
 }
 
 // A rebuild empties a tree and fills it again, which sends it to the top, and then makes the
@@ -216,8 +210,32 @@ public:
         // A layer's visibility is the style's own small check mark; the eye is above the list.
         QStyleOptionViewItem opt = option;
         initStyleOption(&opt, index);
+        const QString status = index.data(Qt::AccessibleDescriptionRole).toString();
+        if (!status.isEmpty()) {
+            // Mesh names span the tree's detail columns. Reserve a separate, aligned
+            // status area instead of adding the label to the name or changing those columns.
+            const QWidget *widget = opt.widget;
+            QStyle *style = widget ? widget->style() : QApplication::style();
+            style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, widget);
+            QFont statusFont = opt.font;
+            statusFont.setBold(false);
+            const QFontMetrics fm(statusFont);
+            const int width = std::max({fm.horizontalAdvance(QObject::tr("Saved")),
+                                        fm.horizontalAdvance(QObject::tr("Modified")),
+                                        fm.horizontalAdvance(QObject::tr("Not saved"))});
+            const QRect statusRect(opt.rect.right() - width - 8, opt.rect.top(),
+                                   width, opt.rect.height());
+            painter->save();
+            painter->setFont(statusFont);
+            style->drawItemText(painter, statusRect, Qt::AlignLeft | Qt::AlignVCenter,
+                                opt.palette, opt.state & QStyle::State_Enabled, status,
+                                opt.state & QStyle::State_Selected ? QPalette::HighlightedText
+                                                                  : QPalette::Text);
+            painter->restore();
+            opt.rect.setRight(statusRect.left() - 8);
+        }
         if (!(opt.features & QStyleOptionViewItem::HasCheckIndicator)) {
-            QStyledItemDelegate::paint(painter, option, index);
+            QStyledItemDelegate::paint(painter, opt, index);
             return;
         }
         // Qt 6.12.0's macOS style draws a check box only once per paint into a widget: the first
@@ -1002,6 +1020,7 @@ private:
 QWidget *textureInfoWidget(
     QTreeWidget *owner,
     const LayerTextureInfo &textureInfo,
+    Document::StoredState stored,
     const QFontMetrics &fm)
 {
     const QString path = textureInfo.path;
@@ -1034,11 +1053,10 @@ QWidget *textureInfoWidget(
     if (!usageText.isEmpty())
         metaLine = QObject::tr("%1  %2").arg(size, usageText);
 
-    auto *sizeLabel = new QLabel(metaLine, textCol);
+    auto *sizeLabel = new QLabel(QObject::tr("%1 · %2").arg(storedMark(stored), metaLine), textCol);
     sizeLabel->setTextFormat(Qt::PlainText);
     sizeLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     sizeLabel->setFixedHeight(lineH);
-    sizeLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
 
     v->addWidget(nameLabel);
     v->addWidget(sizeLabel);
@@ -1067,6 +1085,7 @@ QWidget *rasterPlaneInfoWidget(
     QTreeWidget *owner,
     const RasterPlane &plane,
     int planeIndex,
+    Document::StoredState stored,
     const QFontMetrics &fm)
 {
     const QString path = Document::rasterPlaneSourcePath(plane);
@@ -1098,11 +1117,11 @@ QWidget *rasterPlaneInfoWidget(
     nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     nameLabel->setFixedHeight(lineH);
 
-    auto *metaLabel = new QLabel(rasterPlaneSummary(plane), textCol);
+    auto *metaLabel = new QLabel(
+        QObject::tr("%1 · %2").arg(storedMark(stored), rasterPlaneSummary(plane)), textCol);
     metaLabel->setTextFormat(Qt::PlainText);
     metaLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     metaLabel->setFixedHeight(lineH);
-    metaLabel->setStyleSheet(QStringLiteral("color: palette(placeholder-text);"));
 
     v->addWidget(nameLabel);
     v->addWidget(metaLabel);
@@ -1393,11 +1412,11 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     auto *tableSplitter = new QSplitter(Qt::Vertical, this);
     m_stack->addWidget(tableSplitter); // page 1
 
-    // Mesh table -- columns: Eye(0) | Name(1) | Src(2) | V(3) | E(4) | F(5) | Data(6) | #(7) | ID(8)
+    // Mesh table -- columns: Eye(0) | Name(1) | Status(2) | V(3) | E(4) | F(5) | Data(6) | #(7) | ID(8)
     // The last two are off until asked for (see makeColumnsOptional) and sit after Name.
     m_meshTable = new QTableWidget(0, 9, this);
     m_meshTable->setHorizontalHeaderLabels(
-        {QString(), tr("Name"), tr("Src"), tr("V"), tr("E"), tr("F"), tr("Data"), tr("#"), tr("ID")});
+        {QString(), tr("Name"), tr("Status"), tr("V"), tr("E"), tr("F"), tr("Data"), tr("#"), tr("ID")});
     m_meshTable->horizontalHeaderItem(7)->setToolTip(
         tr("Position of the layer in the document, counting from 0: the order of the tree view, "
            "and the index a script gives to set_current_mesh. Sort by it to get that order back."));
@@ -1405,15 +1424,15 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
         tr("The layer's id: given when it is created, never reused, and what stays with the "
            "layer when others come and go (a script asks mesh_id_exists for it)."));
     m_meshTable->horizontalHeaderItem(2)->setToolTip(
-        tr("Where the layer comes from: D loaded from a file, G generated in memory (no file). "
-           "A * means it has changed since."));
+        tr("Saved: matches its file. Modified: changes have not been saved. "
+           "Not saved: no file holds this layer yet."));
     m_meshTable->setSelectionMode(QAbstractItemView::SingleSelection);
     m_meshTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_meshTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
     m_meshTable->setColumnWidth(0, 24);
     makeColumnsResizable(m_meshTable, 1);
     makeColumnsOptional(m_meshTable, QStringLiteral("layers/meshTableColumns"),
-                        {{2, tr("Source")}, {3, tr("Vertices")}, {4, tr("Edges")}, {5, tr("Faces")},
+                        {{2, tr("Status")}, {3, tr("Vertices")}, {4, tr("Edges")}, {5, tr("Faces")},
                          {6, tr("Data")}, {7, tr("Position (#)")}, {8, tr("Id")}},
                         {7, 8}, {7, 8});
     m_meshTable->verticalHeader()->setVisible(false);
@@ -1960,8 +1979,8 @@ void LayerWidget::rebuildTree()
             const Document::StoredState stored = m_doc->meshStoredState(i);
             m_shownStoredStates[entry.meshId] = int(stored);
             const QString storedLine = storedTip(stored, m_doc->displayPath(entry.sourcePath));
-            const QString displayName = withMark(storedMark(stored), entry.name);
-            auto *item = new QTreeWidgetItem(m_meshTree, {displayName, QString()});
+            auto *item = new QTreeWidgetItem(m_meshTree, {entry.name, QString()});
+            item->setData(0, Qt::AccessibleDescriptionRole, storedMark(stored));
             const QString itemKey = layerItemKey(kLayerKindMesh, qulonglong(entry.meshId));
             item->setData(0, kRoleLayerKind, kLayerKindMesh);
             item->setData(0, kRoleMeshIndex, i);
@@ -2053,7 +2072,7 @@ void LayerWidget::rebuildTree()
             for (int texIdx = 0; texIdx < int(textures.size()); ++texIdx) {
                 const LayerTextureInfo &tex = textures[size_t(texIdx)];
                 const Document::StoredState texStored = m_doc->meshTextureStoredState(i, tex.assetIndex);
-                auto *tItem = new QTreeWidgetItem({storedMark(texStored), tr("Tex %1").arg(texIdx), QString()});
+                auto *tItem = new QTreeWidgetItem({QString(), tr("Tex %1").arg(texIdx), QString()});
                 tItem->setFlags(tItem->flags() & ~Qt::ItemIsSelectable);
                 tItem->setData(0, kRoleTextureIndex, tex.assetIndex);
                 QString texTip = storedTip(texStored, m_doc->displayPath(tex.path));
@@ -2067,7 +2086,7 @@ void LayerWidget::rebuildTree()
                     tItem->setToolTip(2, texTip);
                 }
                 item->addChild(tItem);
-                m_meshTree->setItemWidget(tItem, 2, textureInfoWidget(m_meshTree, tex, fm));
+                m_meshTree->setItemWidget(tItem, 2, textureInfoWidget(m_meshTree, tex, texStored, fm));
             }
 
             const QString dataTip = storedLine + QLatin1Char('\n') + meshDataTooltip(entry, faceCount);
@@ -2139,7 +2158,7 @@ void LayerWidget::rebuildTree()
             for (int planeIndex = 0; planeIndex < int(entry.planes.size()); ++planeIndex) {
                 const RasterPlane &plane = entry.planes[size_t(planeIndex)];
                 const Document::StoredState planeStored = m_doc->rasterPlaneStoredState(i, planeIndex);
-                auto *planeItem = new QTreeWidgetItem({storedMark(planeStored), tr("Plane %1").arg(planeIndex), QString()});
+                auto *planeItem = new QTreeWidgetItem({QString(), tr("Plane %1").arg(planeIndex), QString()});
                 planeItem->setData(0, kRolePlaneIndex, planeIndex);
                 planeItem->setFlags((planeItem->flags() | Qt::ItemIsSelectable | Qt::ItemIsEnabled)
                     & ~Qt::ItemIsUserCheckable);
@@ -2154,7 +2173,7 @@ void LayerWidget::rebuildTree()
                 planeItem->setToolTip(1, planeTip);
                 planeItem->setToolTip(2, planeTip);
                 item->addChild(planeItem);
-                m_rasterTree->setItemWidget(planeItem, 2, rasterPlaneInfoWidget(m_rasterTree, plane, planeIndex, fm));
+                m_rasterTree->setItemWidget(planeItem, 2, rasterPlaneInfoWidget(m_rasterTree, plane, planeIndex, planeStored, fm));
             }
 
             const QString dataTip = rasterDataTooltip(entry);
@@ -2231,7 +2250,7 @@ void LayerWidget::rebuildTable()
             nameItem->setToolTip(meshDataTooltip(entry, faceCount));
             m_meshTable->setItem(i, 1, nameItem);
 
-            // Src column (2): whether its file holds it (storedMark)
+            // Status column (2): whether its file holds it (storedMark)
             const Document::StoredState stored = m_doc->meshStoredState(i);
             m_shownStoredStates[entry.meshId] = int(stored);
             auto *provenanceItem = new QTableWidgetItem(storedMark(stored));

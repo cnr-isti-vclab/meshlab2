@@ -69,11 +69,23 @@ A mesh layer carries three separate pieces of information about where it came fr
 | File | `MeshEntry::sourcePath` | The full path of the layer's file, or empty: the file it was loaded from, or last saved to -- saving names the layer's file, as in any document application, and a label that was still the old file's name follows. Reload reads it; a project writes it (relative to the project folder) as the `MLMesh` `filename`. Undo does not take a save back: restoring a state puts back the file the document last read or wrote for that layer, not the one the state was captured with. |
 | Stored | `Document::meshStoredState`, `meshTextureStoredState` | Whether a file holds what the document holds: `NotStored` (no file), `Changed` (a file did when last read or written, and one of the layer's revisions has moved since), `Stored`. Recorded at load, reload and save, in `m_storedMeshes` (by `meshId`: file and the five revisions) and `m_storedImages` (by `QImage::cacheKey`: the file holding exactly that texture image, or the mesh file for one packed in a glb or 3mf). Neither is part of the undo state, so undoing past a save shows the layer changed and undoing back shows it stored again. That needs revisions that are never reused, so every revision draws from the document's geometry counter. |
 
-The Layers panel marks each layer, and each texture and raster plane under it, by its stored state (the row above), no mark when a file holds it, `●` when one did and it has changed since, `○` when no file holds it. A raster plane counts as held while its image is the one last read from or written to its file (`RasterPlane::sourceImageKey`, compared with `QImage::cacheKey`, which an edit changes). The tooltip says which file, or that it is inside its mesh file (a texture packed in a glb). Layers added through `Document::addMesh()` (the filters that create layers, the measure tool) and through `duplicateMesh()` have no file and are `○` until saved. A selection change rebuilds the panel only when it turns a layer's mark, so painting a selection stays cheap. These marks replaced the `[D]`, `[G]` and `*` tags, which said whether a layer had been loaded from a file, not whether the file held it.
+The Layers panel labels each mesh layer, and each texture and raster plane under it,
+by its stored state: **Saved** when a file holds it, **Modified** when it has changed
+since the file was read or written, and **Not saved** when no file holds it. Mesh rows
+show the label in a separate trailing area in the tree and in the **Status** table column.
+Texture and raster-plane metadata begin with the same label. The current-row highlight
+uses the palette's selected-text color, so status does not depend on distinguishing an
+empty dot from a filled one. A raster plane counts as held while its image is the one
+last read from or written to its file (`RasterPlane::sourceImageKey`, compared with
+`QImage::cacheKey`, which an edit changes). The tooltip says which file, or that it is
+inside its mesh file (a texture packed in a glb). Layers added through `Document::addMesh()`
+and `duplicateMesh()` have no file and are **Not saved** until saved. A selection change
+rebuilds the panel only when it changes the stored state, so painting a selection stays cheap.
 
 A texture can be saved on its own (`Document::saveMeshTexture`, *Save Texture...* on a texture row, Python `save_current_mesh_texture`), and a raster plane likewise (`saveRasterPlaneImage`, *Save Plane Image...*), in any format the installed image plugins write, picked by the suffix. The texture or plane then lives in that file; when it is not the file the layer's mesh refers to, the layer is changed (its material revision moves) until the mesh is saved too.
 
-The mark is part of the displayed text, not a field, so the panel cannot sort or filter on it. A separate provenance column (from disk / from disk and changed / generated) is the intended replacement.
+The mesh table's Status column can be sorted independently of the layer name. This is
+stored state, rather than provenance: a generated layer becomes Saved when written to a file.
 
 ## Signals and Reactivity
 
@@ -100,8 +112,8 @@ Each mesh layer is sorted by its stored state (see [Layer Provenance](#layer-pro
 
 | Layer | What the save does | Project `filename` |
 |---|---|---|
-| No file (`○`) | Always written, as PLY, to `meshes/<name>.ply` in the project folder. The name keeps to `[A-Za-z0-9_.-]` and gets `_1`, `_2` ... when the name is taken on disk or by another layer in the same save, so two layers called "scan" become `scan.ply` and `scan_1.ply`. | `meshes/<name>.ply` |
-| File in the project folder, changed (`●`), with "Re-save changed meshes" on (the default) | Written back over its own file. | its file |
+| No file (**Not saved**) | Always written, as PLY, to `meshes/<name>.ply` in the project folder. The name keeps to `[A-Za-z0-9_.-]` and gets `_1`, `_2` ... when the name is taken on disk or by another layer in the same save, so two layers called "scan" become `scan.ply` and `scan_1.ply`. | `meshes/<name>.ply` |
+| File in the project folder, changed (**Modified**), with "Re-save changed meshes" on (the default) | Written back over its own file. | its file |
 | File outside the project folder | Refused unless "Copy files to project folder" is on; then saved into `meshes/` under a unique name in its own format (PLY when that cannot be written), with every texture copied beside it. A layer is saved rather than its file copied, because its texture references are relative to it. | the copy |
 | File in the project folder otherwise | Not written; referenced where it is. | its file |
 

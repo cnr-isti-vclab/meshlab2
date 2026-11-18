@@ -326,9 +326,21 @@ thumbnails read the files directly and show the photos as shot. See
 </tbody>
 </table>
 </div>
-<p>The Layers panel marks each layer, and each texture and raster plane under it, by its stored state (the row above), no mark when a file holds it, <code class="docutils literal notranslate"><span class="pre">●</span></code> when one did and it has changed since, <code class="docutils literal notranslate"><span class="pre">○</span></code> when no file holds it. A raster plane counts as held while its image is the one last read from or written to its file (<code class="docutils literal notranslate"><span class="pre">RasterPlane::sourceImageKey</span></code>, compared with <code class="docutils literal notranslate"><span class="pre">QImage::cacheKey</span></code>, which an edit changes). The tooltip says which file, or that it is inside its mesh file (a texture packed in a glb). Layers added through <code class="docutils literal notranslate"><span class="pre">Document::addMesh()</span></code> (the filters that create layers, the measure tool) and through <code class="docutils literal notranslate"><span class="pre">duplicateMesh()</span></code> have no file and are <code class="docutils literal notranslate"><span class="pre">○</span></code> until saved. A selection change rebuilds the panel only when it turns a layer’s mark, so painting a selection stays cheap. These marks replaced the <code class="docutils literal notranslate"><span class="pre">[D]</span></code>, <code class="docutils literal notranslate"><span class="pre">[G]</span></code> and <code class="docutils literal notranslate"><span class="pre">*</span></code> tags, which said whether a layer had been loaded from a file, not whether the file held it.</p>
+<p>The Layers panel labels each mesh layer, and each texture and raster plane under it,
+by its stored state: <strong>Saved</strong> when a file holds it, <strong>Modified</strong> when it has changed
+since the file was read or written, and <strong>Not saved</strong> when no file holds it. Mesh rows
+show the label in a separate trailing area in the tree and in the <strong>Status</strong> table column.
+Texture and raster-plane metadata begin with the same label. The current-row highlight
+uses the palette’s selected-text color, so status does not depend on distinguishing an
+empty dot from a filled one. A raster plane counts as held while its image is the one
+last read from or written to its file (<code class="docutils literal notranslate"><span class="pre">RasterPlane::sourceImageKey</span></code>, compared with
+<code class="docutils literal notranslate"><span class="pre">QImage::cacheKey</span></code>, which an edit changes). The tooltip says which file, or that it is
+inside its mesh file (a texture packed in a glb). Layers added through <code class="docutils literal notranslate"><span class="pre">Document::addMesh()</span></code>
+and <code class="docutils literal notranslate"><span class="pre">duplicateMesh()</span></code> have no file and are <strong>Not saved</strong> until saved. A selection change
+rebuilds the panel only when it changes the stored state, so painting a selection stays cheap.</p>
 <p>A texture can be saved on its own (<code class="docutils literal notranslate"><span class="pre">Document::saveMeshTexture</span></code>, <em>Save Texture…</em> on a texture row, Python <code class="docutils literal notranslate"><span class="pre">save_current_mesh_texture</span></code>), and a raster plane likewise (<code class="docutils literal notranslate"><span class="pre">saveRasterPlaneImage</span></code>, <em>Save Plane Image…</em>), in any format the installed image plugins write, picked by the suffix. The texture or plane then lives in that file; when it is not the file the layer’s mesh refers to, the layer is changed (its material revision moves) until the mesh is saved too.</p>
-<p>The mark is part of the displayed text, not a field, so the panel cannot sort or filter on it. A separate provenance column (from disk / from disk and changed / generated) is the intended replacement.</p>
+<p>The mesh table’s Status column can be sorted independently of the layer name. This is
+stored state, rather than provenance: a generated layer becomes Saved when written to a file.</p>
 </section>
 <section id="signals-and-reactivity">
 <h2>Signals and Reactivity<a class="headerlink" href="#signals-and-reactivity" title="Link to this heading">¶</a></h2>
@@ -358,11 +370,11 @@ thumbnails read the files directly and show the photos as shot. See
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>No file (<code class="docutils literal notranslate"><span class="pre">○</span></code>)</p></td>
+<tr class="row-even"><td><p>No file (<strong>Not saved</strong>)</p></td>
 <td><p>Always written, as PLY, to <code class="docutils literal notranslate"><span class="pre">meshes/&lt;name&gt;.ply</span></code> in the project folder. The name keeps to <code class="docutils literal notranslate"><span class="pre">[A-Za-z0-9_.-]</span></code> and gets <code class="docutils literal notranslate"><span class="pre">_1</span></code>, <code class="docutils literal notranslate"><span class="pre">_2</span></code> … when the name is taken on disk or by another layer in the same save, so two layers called “scan” become <code class="docutils literal notranslate"><span class="pre">scan.ply</span></code> and <code class="docutils literal notranslate"><span class="pre">scan_1.ply</span></code>.</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">meshes/&lt;name&gt;.ply</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>File in the project folder, changed (<code class="docutils literal notranslate"><span class="pre">●</span></code>), with “Re-save changed meshes” on (the default)</p></td>
+<tr class="row-odd"><td><p>File in the project folder, changed (<strong>Modified</strong>), with “Re-save changed meshes” on (the default)</p></td>
 <td><p>Written back over its own file.</p></td>
 <td><p>its file</p></td>
 </tr>
