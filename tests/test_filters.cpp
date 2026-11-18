@@ -9435,6 +9435,12 @@ void FilterTests::trueFormTubesSweepTheWholePolyline()
         QVERIFY(width <= float(2.0 * kRadius) + 1e-4f);
         QVERIFY(width > float(1.9 * kRadius));
     }
+    // Wound outward, so back-face culling shows the outside: every face of a tube along X
+    // faces away from the X axis. (TrueForm wound tubes inward until v0.10.10.)
+    for (const VCGFace &f : tube.face) {
+        const vcg::Point3f c = vcg::Barycenter(f);
+        QVERIFY(vcg::TriangleNormal(f).dot(vcg::Point3f(0.0f, c.Y(), c.Z())) > 0.0f);
+    }
     const vcg::Point3f origin = tube.bbox.min;
 
     // The layer matrix belongs to the sweep as well: the tube is world-space geometry.

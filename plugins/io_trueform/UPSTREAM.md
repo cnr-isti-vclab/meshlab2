@@ -9,8 +9,8 @@ git -C external/trueform fetch
 git -C external/trueform checkout <reviewed-commit>
 ```
 
-Currently pinned at **v0.10.7** (2026-10-12), which folds in the interim fix
-this file tracked ahead of the tag: a tube swept along a closed polyline
+Currently pinned at **v0.10.10** (2026-11-11). v0.10.7 folded in the interim
+fix this file tracked ahead of that tag: a tube swept along a closed polyline
 pinched at the seam, because the frame producer's wrap ran on the stored
 point count while a closed path stores its first point twice; the seam ring
 now carries the first ring's frame and *Create Tube from Polyline* is uniform
@@ -82,6 +82,29 @@ withholds it, every entrant takes the plane its name states, a face's cut never
 leaves the face, a tolerance pulls vertices through committed planes, and a
 fused wall reads its sheets off their layers — all behind the same entry
 points, so no filter changed to take it.
+
+v0.10.8 through v0.10.10 cost this build zero call sites. They are mostly
+new entry points neither plugin calls yet — geodesic distances, Dirichlet
+fields over a sparse Cholesky (`tf::linalg`), tetrahedral meshing
+(`tf::make_tet_mesh`, whose return shape v0.10.10 already changed once),
+`tf::make_csg_open_fragments`, `tf::has_holes` and `tf::has_flaps` — plus
+three changes that reach filters here:
+
+- **`tf::make_tube_mesh` winds its tubes outward** (v0.10.10). They were
+  wound inward, so *Create Tube from Polyline* produced inside-out tubes
+  that showed their far inner wall under back-face culling. The filter
+  never compensated, so it is simply right now;
+  `trueFormTubesSweepTheWholePolyline` asserts the winding.
+- **The isotropic remesher splits a boundary edge soundly** (v0.10.9). A
+  split wrote only the forward loop link, and a later boundary collapse
+  read removed slots; *Remesh Isotropically (TrueForm)* on an open surface
+  is the call that took it.
+- **The CSG tolerance band pools planes by quantization** (v0.10.8), and
+  `make_csg_graph` iterates its census to a fixed point. Every boolean, CSG
+  and domain filter here passes the default tolerance, so the band's change
+  does not reach them; the census does, behind the same entry points.
+
+`tf::fill_holes` gained a chart tier in v0.10.8; neither plugin calls it.
 
 The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
 removed outright, with no compatibility shim, and its ground redistributed to
