@@ -597,6 +597,11 @@ qt_add_resources(MeshLab2 "icons"
         img/icon_raster_align.png
         img/snapshot.png
         img/axis.png
+        img/tool_select_rect_dark.png
+        img/icon_measure_dark.png
+        img/icon_raster_align_dark.png
+        img/snapshot_dark.png
+        img/axis_dark.png
         img/cur_measure.png
         img/cur_raster_align.png
         img/cur_trackball.png

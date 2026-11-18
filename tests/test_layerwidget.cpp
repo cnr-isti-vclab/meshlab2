@@ -5,6 +5,7 @@
 #include "textureassociationutils.h"
 
 #include <QImage>
+#include <QLabel>
 #include <QScrollBar>
 #include <QScrollArea>
 #include <QTableWidget>
@@ -289,9 +290,8 @@ void LayerWidgetTests::theListStaysWhereTheUserScrolledItWhenALayerChanges()
     QCOMPARE(tableBar->value(), 0);
 }
 
-// One mark for layers and their textures, replacing D, G and *: none when a file holds it, a
-// filled dot when it did and the layer has changed since -- a selection counts -- and a hollow
-// one when no file does.
+// Stored-state labels follow the same save/edit transitions for layers and textures.
+// The label is separate from the layer name, and the table exposes the same words.
 void LayerWidgetTests::theMarkSaysWhetherAFileHoldsTheLayer()
 {
     QTemporaryDir dir;
@@ -314,28 +314,61 @@ void LayerWidgetTests::theMarkSaysWhetherAFileHoldsTheLayer()
     }
     QVERIFY(tree);
     const auto layerText = [&] { return tree->topLevelItem(0)->text(0); };
+    const auto layerStatus = [&] {
+        return tree->topLevelItem(0)->data(0, Qt::AccessibleDescriptionRole).toString();
+    };
     const auto textureMark = [&] {
         QTreeWidgetItem *layer = tree->topLevelItem(0);
         for (int c = 0; c < layer->childCount(); ++c)
-            if (layer->child(c)->text(1).startsWith(QStringLiteral("Tex")))
-                return layer->child(c)->text(0);
+            if (layer->child(c)->text(1).startsWith(QStringLiteral("Tex"))) {
+                QWidget *info = tree->itemWidget(layer->child(c), 2);
+                for (QLabel *label : info->findChildren<QLabel *>()) {
+                    if (label->text().contains(QStringLiteral(" · ")))
+                        return label->text().section(QStringLiteral(" · "), 0, 0);
+                }
+            }
         return QStringLiteral("no texture row");
     };
-    const QString notStored = QStringLiteral("\u25CB");
-    const QString changed = QStringLiteral("\u25CF");
+    QTableWidget *table = nullptr;
+    for (QTableWidget *candidate : widget.findChildren<QTableWidget *>()) {
+        if (candidate->columnCount() == 9)
+            table = candidate;
+    }
+    QVERIFY(table);
+    QCOMPARE(table->horizontalHeaderItem(2)->text(), QStringLiteral("Status"));
+    const auto tableStatus = [&] {
+        // Only the visible view is rebuilt; switch views as the user does before reading it.
+        widget.setViewMode(LayerWidget::ViewMode::Table);
+        const QTableWidgetItem *status = table->item(0, 2);
+        const QString text = status ? status->text() : QStringLiteral("missing status");
+        widget.setViewMode(LayerWidget::ViewMode::Tree);
+        return text;
+    };
+    const QString notStored = QStringLiteral("Not saved");
+    const QString changed = QStringLiteral("Modified");
 
-    QCOMPARE(layerText(), notStored + QStringLiteral(" tiny"));
+    QCOMPARE(layerText(), QStringLiteral("tiny"));
+    QCOMPARE(layerStatus(), notStored);
+    QCOMPARE(tableStatus(), notStored);
     QCOMPARE(textureMark(), notStored);
 
     QCOMPARE(doc.saveMesh(0, dir.filePath(QStringLiteral("tiny.ply"))), 0);
     QTest::qWait(50);
     QCOMPARE(layerText(), QStringLiteral("tiny"));
-    QCOMPARE(textureMark(), QString());
+    QCOMPARE(layerStatus(), QStringLiteral("Saved"));
+    QCOMPARE(tableStatus(), QStringLiteral("Saved"));
+    QCOMPARE(textureMark(), QStringLiteral("Saved"));
 
     doc.mesh(0).mesh.face[0].SetS();
     doc.markMeshSelectionChanged(0);
     QTest::qWait(50);
-    QCOMPARE(layerText(), changed + QStringLiteral(" tiny"));
+    QCOMPARE(layerText(), QStringLiteral("tiny"));
+    QCOMPARE(layerStatus(), changed);
+    QCOMPARE(tableStatus(), changed);
+
+    const QString grabDir = qEnvironmentVariable("MESHLAB2_GRAB_DIR");
+    if (!grabDir.isEmpty())
+        widget.grab().save(grabDir + QStringLiteral("/layerwidget_status.png"));
 }
 
 QTEST_MAIN(LayerWidgetTests)

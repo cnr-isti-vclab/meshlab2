@@ -122,6 +122,7 @@ private:
     void refreshFiltersMenu();
     void refreshFiltersMenu(const std::vector<Document::FilterInfo> &infos);
     void setupToolsMenu(QMenu *toolsMenu);
+    void updateToolIcons(const QPalette &palette);
     void setActiveToolIndex(int index);   // -1 clears the active tool
     void exitActiveTool();                // Esc from a view: uncheck + clear
     void executeFilter(
@@ -173,6 +174,7 @@ private:
     QMenu *m_filtersMenu = nullptr;
     std::vector<std::unique_ptr<InteractiveTool>> m_interactiveTools;
     QList<QAction *> m_toolActions;
+    QMap<QAction *, QString> m_toolIconPaths;
     int m_activeToolIndex = -1;
     RenderWidget *m_toolOwnerView = nullptr; // view that hosts the active tool
     QAction *m_openLastAction = nullptr;

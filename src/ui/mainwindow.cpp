@@ -1781,13 +1781,14 @@ void MainWindow::setupToolsMenu(QMenu *toolsMenu)
     toolBar->setObjectName(QStringLiteral("EditToolsToolBar"));
     toolBar->setAllowedAreas(Qt::LeftToolBarArea | Qt::RightToolBarArea);
     addToolBar(Qt::LeftToolBarArea, toolBar);
+    toolBar->installEventFilter(this);
 
     for (int i = 0; i < static_cast<int>(m_interactiveTools.size()); ++i) {
         const InteractiveTool &tool = *m_interactiveTools[size_t(i)];
         QAction *action = new QAction(tool.name(), this);
         action->setCheckable(true);
         if (!tool.iconPath().isEmpty())
-            action->setIcon(QIcon(tool.iconPath()));
+            m_toolIconPaths.insert(action, tool.iconPath());
         // What the tool offers is on its strip once it is engaged; the toolbar names it.
         action->setToolTip(tool.name());
         group->addAction(action);
@@ -1804,11 +1805,25 @@ void MainWindow::setupToolsMenu(QMenu *toolsMenu)
     // the tools above either -- nothing is entered or exited, so it is not checkable and
     // stays out of their exclusive group -- hence the separator.
     toolBar->addSeparator();
-    auto *snapshotAction = new QAction(QIcon(QStringLiteral(":/img/snapshot.png")),
-                                       tr("Snapshot PNG"), this);
+    auto *snapshotAction = new QAction(tr("Snapshot PNG"), this);
+    m_toolIconPaths.insert(snapshotAction, QStringLiteral(":/img/snapshot.png"));
     snapshotAction->setToolTip(tr("Save a PNG of the current view (Ctrl+Shift+S)"));
     connect(snapshotAction, &QAction::triggered, this, &MainWindow::saveSnapshotPng);
     toolBar->addAction(snapshotAction);
+    updateToolIcons(toolBar->palette());
+}
+
+void MainWindow::updateToolIcons(const QPalette &palette)
+{
+    // Preserve the artwork's fills and the cursor's black border. The dark assets
+    // brighten edges and arrowheads; Qt supplies the disabled/selected treatment.
+    const bool dark = palette.color(QPalette::Button).lightness() < 128;
+    for (auto it = m_toolIconPaths.cbegin(); it != m_toolIconPaths.cend(); ++it) {
+        QString path = it.value();
+        if (dark)
+            path.insert(path.lastIndexOf(QLatin1Char('.')), QStringLiteral("_dark"));
+        it.key()->setIcon(QIcon(path));
+    }
 }
 
 void MainWindow::exitActiveTool()
@@ -3972,6 +3987,10 @@ void MainWindow::refreshUndoHistoryPanel()
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
+    if (event->type() == QEvent::PaletteChange) {
+        if (auto *toolBar = qobject_cast<QToolBar *>(watched))
+            updateToolIcons(toolBar->palette());
+    }
     if (qobject_cast<RenderWidget *>(watched)) {
         switch (event->type()) {
         case QEvent::DragEnter:
