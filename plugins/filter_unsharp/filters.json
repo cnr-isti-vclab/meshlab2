@@ -2,6 +2,22 @@
   "pluginId": "meshlab2.filter.unsharp",
   "references": [
     {
+      "id": "herholz2017unsharp",
+      "type": "article-journal",
+      "title": "Unsharp masking geometry improves 3D prints",
+      "author": [
+        { "family": "Herholz", "given": "Philipp" },
+        { "family": "Koch", "given": "Sebastian" },
+        { "family": "Boubekeur", "given": "Tamy" },
+        { "family": "Alexa", "given": "Marc" }
+      ],
+      "container-title": "Computers & Graphics",
+      "volume": "66",
+      "page": "135-142",
+      "issued": { "date-parts": [[2017]] },
+      "DOI": "10.1016/j.cag.2017.05.018"
+    },
+    {
       "id": "vollmer1999",
       "type": "article-journal",
       "title": "Improved Laplacian Smoothing of Noisy Surface Meshes",
@@ -708,6 +724,81 @@
         "VN",
         "FN"
       ]
+    },
+    {
+      "id": "sharpen_vertices_by_adaptive_unsharp_mask",
+      "categories": ["Geometry/Smoothing"],
+      "name": "Sharpen Vertices by Adaptive Unsharp Mask",
+      "pythonName": "sharpen_vertices_by_adaptive_unsharp_mask",
+      "shortDescription": "Exaggerate the surface's mid-scale features while keeping its overall shape, as for 3D printing small copies.",
+      "longDescriptionMarkdown": "Exaggerates the features of the surface around the *Feature Size*, the way *Sharpen Vertices by Unsharp Mask* does, but with three differences that keep the shape: the smoothing is geometric (implicit cotangent flow, which moves vertices along the normal and does not depend on the tessellation), only a band of sizes is amplified rather than everything finer than the smoothing, and the effect is turned down where smoothing would shrink the shape, on thin parts and tips, which plain unsharp masking swells. Its purpose in the paper is 3D printing: a small print loses its detail, and moderately exaggerated detail brings it back.\n\nThree smoothed copies $V_1, V_2, V_3$ come from $(M + d\\,L)\\,V_i = M\\,V_0$ at $d = \\delta/2, \\delta, 10\\,\\delta$, with $\\delta = (L_f / 2\\pi)^2$ for the *Feature Size* $L_f$: a feature of wavelength $L_f$ is halved by the middle smoothing. With the bands $D_1 = V_0 - V_1$, $D_2 = V_1 - V_2$ and $D_3 = V_2 - V_3$, the result is $$V = V_2 + \\lambda\\,W\\,D_2 + \\lambda_1\\,D_1, \\qquad W = \\exp\\!\\big(-\\mu\\,|D_3|^2 / \\overline{|D_3|^2}\\big),$$ $\\lambda$ the *Exaggeration*, $\\lambda_1$ the *Fine Detail Weight* and $\\mu$ the *Shape Preservation*, relative to the mean over the vertices, so the same shape is treated alike at any resolution. With all three at 1, 1 and 0 the mesh is unchanged.\n\nThe method of Herholz, Koch, Boubekeur and Alexa, from vcglib (`ImplicitSmoother::AdaptiveUnsharpMask`). The paper normalizes $\\mu$ by the norm of the whole $D_3$ vector, which depends on the vertex count; here it is relative to the per-vertex mean. It solves three sparse systems, so it takes memory on large meshes.",
+      "tags": [
+        "smoothing",
+        "unsharp",
+        "sharpen",
+        "exaggerate",
+        "features",
+        "3D printing",
+        "geometry"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "parameters": [
+        {
+          "id": "featureSize",
+          "label": "Feature Size",
+          "help": "The size of the features exaggerated, on the surface: the band amplified lies between about half and three times this wavelength. It must be at least a few edges long to change anything; the log says how many edges it spans, and warns below 2. The default, 1% of the bounding box diagonal, is the paper's on a mesh scaled to the unit sphere, meant for dense meshes: on a coarse one, raise it.",
+          "group": "main",
+          "type": "absperc",
+          "default": "@bboxDiag01",
+          "min": 0.0,
+          "max": "@bboxDiagHalf",
+          "decimals": 6
+        },
+        {
+          "id": "exaggeration",
+          "label": "Exaggeration",
+          "help": "The factor on the band of features: 1 leaves them as they are. The paper's prints used 20, 40 and 80, the band being the small difference between two close smoothings; its subjects preferred 20 to 40 over the original and over 80.",
+          "group": "main",
+          "type": "double",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 1000.0,
+          "decimals": 2
+        },
+        {
+          "id": "shapePreservation",
+          "label": "Shape Preservation",
+          "help": "How strongly the exaggeration is turned down where smoothing moves the surface far, on thin parts and tips: 0 does not, and the larger the more.",
+          "group": "main",
+          "type": "double",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 100.0,
+          "decimals": 3
+        },
+        {
+          "id": "fineWeight",
+          "label": "Fine Detail Weight",
+          "help": "The factor on the features finer than the band: 1 keeps them, 0 removes them, as the paper does to keep scan noise out of prints.",
+          "group": "advanced",
+          "type": "double",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 10.0,
+          "decimals": 3
+        }
+      ],
+      "outputModifies": [
+        "VG",
+        "VN",
+        "FN"
+      ],
+      "referenceIds": ["herholz2017unsharp"]
     },
     {
       "id": "sharpen_vertex_scalar_by_unsharp_mask",

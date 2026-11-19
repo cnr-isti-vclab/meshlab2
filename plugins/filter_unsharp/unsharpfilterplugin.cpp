@@ -10,6 +10,7 @@
 #include <vcg/complex/algorithms/closest.h>
 #include <vcg/complex/algorithms/crease_cut.h>
 #include <vcg/complex/algorithms/harmonic.h>
+#include <vcg/complex/algorithms/implicit_smooth.h>
 #include <vcg/complex/algorithms/smooth.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/flag.h>
@@ -36,6 +37,7 @@ constexpr QLatin1StringView kFilterVertexQualitySmooth("smooth_vertex_scalar");
 constexpr QLatin1StringView kFilterFaceNormalSmooth("smooth_face_normals");
 constexpr QLatin1StringView kFilterUnsharpNormal("sharpen_face_normals_by_unsharp_mask");
 constexpr QLatin1StringView kFilterUnsharpGeometry("sharpen_vertices_by_unsharp_mask");
+constexpr QLatin1StringView kFilterAdaptiveUnsharp("sharpen_vertices_by_adaptive_unsharp_mask");
 constexpr QLatin1StringView kFilterUnsharpQuality("sharpen_vertex_scalar_by_unsharp_mask");
 constexpr QLatin1StringView kFilterUnsharpColor("sharpen_vertex_color_by_unsharp_mask");
 constexpr QLatin1StringView kFilterRecomputeVertexNormal("compute_vertex_normals");
@@ -482,6 +484,45 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
         markGeometry(QObject::tr("Applied unsharp masking to geometry of '%1'.").arg(meshName(entry, meshIndex)));
         return successResult();
+    }
+
+    if (filterId == QString::fromLatin1(kFilterAdaptiveUnsharp)) {
+        // The paper's three smoothings at delta = (featureSize / 2 pi)^2, an area: the middle one
+        // halves a feature of wavelength featureSize. Compacted first, as vcglib's solver indexes
+        // the vertex vector.
+        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
+        const double size = params.getDouble(QStringLiteral("featureSize"));
+        if (!(size > 0))
+            return { false, false, QObject::tr("The feature size must be positive.") };
+        const Scalar delta = Scalar(std::pow(size / (2 * M_PI), 2));
+        try {
+            vcg::ImplicitSmoother<VCGMesh>::AdaptiveUnsharpMask(
+                mesh, delta, Scalar(params.getDouble(QStringLiteral("exaggeration"))),
+                Scalar(params.getDouble(QStringLiteral("fineWeight"))), Scalar(params.getDouble(QStringLiteral("shapePreservation"))),
+                doc.progressCallback());
+        } catch (const std::exception &e) {
+            return { false, false, QObject::tr("Adaptive unsharp masking failed: %1").arg(QString::fromLocal8Bit(e.what())) };
+        }
+        updateBBoxAndNormals(mesh);
+        entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+        markGeometry(QObject::tr("Applied adaptive unsharp masking to '%1'.").arg(meshName(entry, meshIndex)));
+        // The band lies around the Feature Size: below a couple of edges, the mesh cannot carry it,
+        // and the result barely differs from the input (on a 10k-face bunny, 1% of the diagonal is
+        // 0.6 edges, and moved no vertex by more than 0.3% of the diagonal).
+        double edges = 0;
+        long long edgeCount = 0;
+        for (const VCGFace &f : mesh.face)
+            for (int k = 0; k < 3; ++k)
+                edges += double(vcg::Distance(f.cP(k), f.cP((k + 1) % 3))), ++edgeCount;
+        const double span = edgeCount > 0 ? size / (edges / double(edgeCount)) : 0;
+        MeshFilterRunResult result = successResult();
+        result.infoMessages << (span < 2
+            ? QObject::tr("Warning: the Feature Size, %1, is only %2 mean edge lengths, too small for this mesh to carry the "
+                          "band it exaggerates, so little changes; raise it.").arg(size, 0, 'g', 4).arg(span, 0, 'f', 1)
+            : QObject::tr("The Feature Size, %1, is %2 mean edge lengths.").arg(size, 0, 'g', 4).arg(span, 0, 'f', 1));
+        result.outputValues["feature_size"] = size;
+        result.outputValues["feature_size_in_edges"] = span;
+        return result;
     }
 
     if (filterId == QString::fromLatin1(kFilterUnsharpColor)) {
