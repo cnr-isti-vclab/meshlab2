@@ -315,7 +315,7 @@ entry point; <code class="docutils literal notranslate"><span class="pre">filter
 <td><p><code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_vertices</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Measure Mesh Health (TrueForm)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">tf::is_manifold</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::is_closed</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::has_self_intersections</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::euler_characteristic</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::make_boundary_rims</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_edges</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_vertices</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::is_manifold</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::is_closed</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::has_self_intersections</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::euler_characteristic</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::make_boundary_rims</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::topology::boundary_rim_is_flap</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_edges</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_vertices</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Split Non-Manifold Vertices (TrueForm)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tf::split_non_manifold_vertices</span></code></p></td>
@@ -326,22 +326,38 @@ entry point; <code class="docutils literal notranslate"><span class="pre">filter
 <tr class="row-odd"><td><p>Create Polyline from Boundary Rims (TrueForm)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tf::make_boundary_rims</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Repair Self-Intersections (TrueForm)</p></td>
+<tr class="row-even"><td><p>Close Holes (TrueForm)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tf::make_boundary_rims</span></code>, <code class="docutils literal notranslate"><span class="pre">tf::fill_holes</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Repair Self-Intersections (TrueForm)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tf::make_polygon_arrangements</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Extract Outer Shell (TrueForm)</p></td>
+<tr class="row-even"><td><p>Extract Outer Shell (TrueForm)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">tf::make_outer_shell</span></code></p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>Two contracts in that table are the library’s, not the plugin’s, and the help
+<p>These contracts are the library’s, not the plugin’s, and the help
 text has to state them because a caller cannot see them:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">tf::split_non_manifold_vertices</span></code> separates only the fans that come apart
 without cutting an edge. An edge three faces carry is crossed by no fan, so a
 vertex holding one is left untouched and <code class="docutils literal notranslate"><span class="pre">tf::make_non_manifold_vertices</span></code>
 still names it afterwards. The filter is a partial repair by construction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tf::fill_holes</span></code> states its result against the input’s own ids: points past
+the input’s count are minted, and a face whose rim edge it split is replaced
+by a <em>plan</em>. <em>Close Holes (TrueForm)</em> therefore stitches the result into the
+layer instead of rebuilding it with <code class="docutils literal notranslate"><span class="pre">tf::make_filled_mesh</span></code>, which would drop
+every attribute: it appends the minted points, deletes each planned face and
+adds its triangles, then the patches. Mapping a TrueForm face id back to a
+VCG face relies on <code class="docutils literal notranslate"><span class="pre">tfCarriesFace()</span></code>, the one predicate <code class="docutils literal notranslate"><span class="pre">tfMeshFromLayer()</span></code>
+keeps faces by. Only closed rims are offered; an open rim is a flap or a
+pinch and the library refuses it anyway.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tf::make_geodesic_distances</span></code> answers infinity for a point no front reaches.
+<em>Compute Geodesic Distance from Selection (TrueForm)</em> writes the cut-off (or
+the farthest reached distance) there instead, so the colour map keeps a
+finite range.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">tf::compute_face_quality</span></code>’s <code class="docutils literal notranslate"><span class="pre">quality</span></code> is a <em>triangle</em> measure. A face that is
 not a triangle reads <code class="docutils literal notranslate"><span class="pre">-1</span></code>; the angles and the aspect ratio hold at any arity.</p></li>
 </ul>

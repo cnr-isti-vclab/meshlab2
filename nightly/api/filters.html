@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 420 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 423 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="filter-add-noise-to-vertex-color">
 <span id="add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#filter-add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -1678,6 +1678,27 @@ Insert three function each one for quality of the three vertex of a face</p>
 <ul class="simple">
 <li><p><strong>startPoint</strong> (<em>point3f</em>, default: <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0]</span></code>) — The point from which geodesic distance is measured. The closest surface vertex is used as seed.</p></li>
 <li><p><strong>maxDistance</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code>) — Cut-off distance. Vertices beyond this threshold are assigned distance 0. Set to 0 to compute everywhere.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-compute-geodesic-distance-from-selection-trueform">
+<span id="compute-geodesic-distance-from-selection-trueform"></span><h2>Compute Geodesic Distance from Selection (TrueForm)<a class="headerlink" href="#filter-compute-geodesic-distance-from-selection-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.trueform</p>
+<p>Store each vertex’s distance over the surface from the nearest selected vertex in vertex scalar.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.compute_geodesic_distance_from_selection_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_geodesic_distance_from_selection_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_geodesic_distance_from_selection_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Measures, for every vertex, the shortest distance <strong>over the surface</strong> to the nearest selected vertex, and stores it in <strong>vertex scalar</strong>.</p>
+<p>The front is propagated by triangle unfolding rather than along edges, so on a planar region the distance is the straight line and on a curved one it is shorter than any edge path. It is an approximation of the exact polyhedral geodesic: where the fronts of two seeds meet, the answer along that seam is the edge path. Large fronts are split across threads, so two runs may differ by a tiny relative amount on a large mesh.</p>
+<p><strong>Max Distance</strong> stops the front early, which is much faster when only a neighbourhood is wanted; 0 measures the whole surface. A vertex the front does not reach — past the cut-off, or on a piece of the mesh with no selected vertex — holds the cut-off, or the farthest reached distance when there is none, so it reads as the top of the colour scale.</p>
+<p>The layer matrix is applied first, so distances are in world units.</p>
+<p>The result is a field to contour with <em>Create Polyline from Scalar Isocontour (TrueForm)</em> or cut into rings with <em>Cut Along Scalar Isocontour (TrueForm)</em>. Compare with the vcglib, heat-method and exact libigl versions of this filter, which trade speed against exactness differently.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maxDistance</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Stop the front at this distance; vertices beyond it hold this value. 0 measures the whole surface.</p></li>
 </ul>
 </dd></dl>
 
@@ -4973,6 +4994,32 @@ You can change x,y,z for every vertex according to the function specified.</p>
 
 <hr class="docutils" />
 </section>
+<section id="filter-sharpen-vertices-by-adaptive-unsharp-mask">
+<span id="sharpen-vertices-by-adaptive-unsharp-mask"></span><h2>Sharpen Vertices by Adaptive Unsharp Mask<a class="headerlink" href="#filter-sharpen-vertices-by-adaptive-unsharp-mask" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.unsharp</p>
+<p>Exaggerate the surface’s mid-scale features while keeping its overall shape, as for 3D printing small copies.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.sharpen_vertices_by_adaptive_unsharp_mask">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">sharpen_vertices_by_adaptive_unsharp_mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.sharpen_vertices_by_adaptive_unsharp_mask" title="Link to this definition">¶</a></dt>
+<dd><p>Exaggerates the features of the surface around the <em>Feature Size</em>, the way <em>Sharpen Vertices by Unsharp Mask</em> does, but with three differences that keep the shape: the smoothing is geometric (implicit cotangent flow, which moves vertices along the normal and does not depend on the tessellation), only a band of sizes is amplified rather than everything finer than the smoothing, and the effect is turned down where smoothing would shrink the shape, on thin parts and tips, which plain unsharp masking swells. Its purpose in the paper is 3D printing: a small print loses its detail, and moderately exaggerated detail brings it back.</p>
+<p>Three smoothed copies <span class="math notranslate nohighlight">\(V_1, V_2, V_3\)</span> come from <span class="math notranslate nohighlight">\((M + d\,L)\,V_i = M\,V_0\)</span> at <span class="math notranslate nohighlight">\(d = \delta/2, \delta, 10\,\delta\)</span>, with <span class="math notranslate nohighlight">\(\delta = (L_f / 2\pi)^2\)</span> for the <em>Feature Size</em> <span class="math notranslate nohighlight">\(L_f\)</span>: a feature of wavelength <span class="math notranslate nohighlight">\(L_f\)</span> is halved by the middle smoothing. With the bands <span class="math notranslate nohighlight">\(D_1 = V_0 - V_1\)</span>, <span class="math notranslate nohighlight">\(D_2 = V_1 - V_2\)</span> and <span class="math notranslate nohighlight">\(D_3 = V_2 - V_3\)</span>, the result is $<span class="math notranslate nohighlight">\(V = V_2 + \lambda\,W\,D_2 + \lambda_1\,D_1, \qquad W = \exp\!\big(-\mu\,|D_3|^2 / \overline{|D_3|^2}\big),\)</span><span class="math notranslate nohighlight">\( \)</span>\lambda<span class="math notranslate nohighlight">\( the *Exaggeration*, \)</span>\lambda_1<span class="math notranslate nohighlight">\( the *Fine Detail Weight* and \)</span>\mu$ the <em>Shape Preservation</em>, relative to the mean over the vertices, so the same shape is treated alike at any resolution. With all three at 1, 1 and 0 the mesh is unchanged.</p>
+<p>The method of Herholz, Koch, Boubekeur and Alexa, from vcglib (<code class="docutils literal notranslate"><span class="pre">ImplicitSmoother::AdaptiveUnsharpMask</span></code>). The paper normalizes <span class="math notranslate nohighlight">\(\mu\)</span> by the norm of the whole <span class="math notranslate nohighlight">\(D_3\)</span> vector, which depends on the vertex count; here it is relative to the per-vertex mean. It solves three sparse systems, so it takes memory on large meshes.</p>
+<p><strong>References:</strong></p>
+<ul class="simple">
+<li><p>Philipp Herholz, Sebastian Koch, Tamy Boubekeur, Marc Alexa. <strong>Unsharp masking geometry improves 3D prints</strong>. <em>Computers &amp; Graphics</em> (2017). <a class="reference external" href="https://doi.org/10.1016/j.cag.2017.05.018">DOI</a></p></li>
+</ul>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>featureSize</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag01</span></code>) — The size of the features exaggerated, on the surface: the band amplified lies between about half and three times this wavelength. It must be at least a few edges long to change anything; the log says how many edges it spans, and warns below 2. The default, 1% of the bounding box diagonal, is the paper’s on a mesh scaled to the unit sphere, meant for dense meshes: on a coarse one, raise it.</p></li>
+<li><p><strong>exaggeration</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">20.0</span></code>) — The factor on the band of features: 1 leaves them as they are. The paper’s prints used 20, 40 and 80, the band being the small difference between two close smoothings; its subjects preferred 20 to 40 over the original and over 80.</p></li>
+<li><p><strong>shapePreservation</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — How strongly the exaggeration is turned down where smoothing moves the surface far, on thin parts and tips: 0 does not, and the larger the more.</p></li>
+<li><p><strong>fineWeight</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — The factor on the features finer than the band: 1 keeps them, 0 removes them, as the paper does to keep scan noise out of prints.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="filter-sharpen-vertices-by-unsharp-mask">
 <span id="sharpen-vertices-by-unsharp-mask"></span><h2>Sharpen Vertices by Unsharp Mask<a class="headerlink" href="#filter-sharpen-vertices-by-unsharp-mask" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p>
@@ -5715,7 +5762,7 @@ You can change x,y,z for every vertex according to the function specified.</p>
 <span id="measure-mesh-health-trueform"></span><h2>Measure Mesh Health (TrueForm)<a class="headerlink" href="#filter-measure-mesh-health-trueform" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p>
 <p><strong>Plugin:</strong> meshlab2.filter.trueform</p>
-<p>Report a layer’s manifoldness, closure, self-intersections, Euler characteristic, boundary rims and non-manifold counts.</p>
+<p>Report a layer’s manifoldness, closure, self-intersections, Euler characteristic, boundary rims, holes, flaps and non-manifold counts.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.measure_mesh_health_trueform">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">measure_mesh_health_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.measure_mesh_health_trueform" title="Link to this definition">¶</a></dt>
@@ -5742,6 +5789,12 @@ You can change x,y,z for every vertex according to the function specified.</p>
 </tr>
 <tr class="row-even"><td><p>Boundary rims</p></td>
 <td><p>how many separate boundary curves there are, and how many of them close</p></td>
+</tr>
+<tr class="row-odd"><td><p>Holes</p></td>
+<td><p>boundary rims that are missing skin: every closed rim, and an open one with an end that does not hang from a non-manifold edge</p></td>
+</tr>
+<tr class="row-even"><td><p>Flaps</p></td>
+<td><p>open rims whose two ends hang from edges three or more faces share: a fin stuck on the surface, not a hole</p></td>
 </tr>
 <tr class="row-odd"><td><p>Non-manifold edges</p></td>
 <td><p>edges carried by three or more faces</p></td>
@@ -8110,6 +8163,31 @@ Insert six functions each u v for each one of the three vertex of a face</p>
 
 <hr class="docutils" />
 </section>
+<section id="filter-close-holes-trueform">
+<span id="close-holes-trueform"></span><h2>Close Holes (TrueForm)<a class="headerlink" href="#filter-close-holes-trueform" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.trueform</p>
+<p>Fill closed boundary rims up to a size with patches that continue the surrounding surface.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.close_holes_trueform">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">close_holes_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.close_holes_trueform" title="Link to this definition">¶</a></dt>
+<dd><p>Fills every <strong>closed</strong> boundary rim of at most <strong>Max Hole Size</strong> border edges, in place.</p>
+<p>Each hole goes down a ladder of methods, the first that succeeds winning: a rim of up to five vertices is triangulated exhaustively; a larger one is read as a height field over the plane its rim spans and sampled so that the patch <strong>continues the surface around it</strong>; where that refuses and the rim is planar it is lidded in its plane; and otherwise the triangulation with the best worst angle, then the least area, is chosen from a Delaunay tetrahedralization of the rim. The patch is then refined toward <strong>Min Quality</strong> and, with <strong>Fairing</strong>, smoothed against its neighbourhood; only the vertices a patch adds ever move.</p>
+<p><strong>Split Border Edges</strong> lets the fill split the original edges along the rim where a patch needs it. The faces carrying a split edge are rebuilt, so they lose per-face and wedge attributes such as texture coordinates; turn it off to leave every original face untouched, at the cost of refusing a hole that can only be filled by splitting.</p>
+<p>All other vertices and faces keep their attributes; added vertices carry position only. A hole that cannot be filled is left open and named in the log with the reason.</p>
+<p>Open rims are never filled: an open rim is either a <strong>flap</strong> hanging from an edge three faces share or a pinched boundary, and <em>Measure Mesh Health (TrueForm)</em> counts both. Compare with <em>Close Holes</em>, which uses vcglib’s ear-cutting fill.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>maxHoleSize</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">30</span></code>) — Largest hole filled, in border edges. Keeps a sheet’s own outline from being capped.</p></li>
+<li><p><strong>selectNewFaces</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Replace the face selection with the faces the fill created.</p></li>
+<li><p><strong>minQuality</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.3</span></code>) — Triangle quality the patch is refined toward, 1 being equilateral. 0 disables refinement.</p></li>
+<li><p><strong>fairing</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Smooth each refined patch against its neighbourhood.</p></li>
+<li><p><strong>splitBorderEdges</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Allow the fill to split original edges along the rim. Rebuilt faces lose their per-face and wedge attributes.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="filter-repair-mismatched-borders">
 <span id="repair-mismatched-borders"></span><h2>Repair Mismatched Borders<a class="headerlink" href="#filter-repair-mismatched-borders" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Repair/Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code></p>
@@ -10203,6 +10281,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.compute_geodesic_distance_from_point"><code class="docutils literal notranslate"><span class="pre">ms.compute_geodesic_distance_from_point()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#filter-compute-geodesic-distance-from-selection-trueform">Compute Geodesic Distance from Selection (TrueForm)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.compute_geodesic_distance_from_selection_trueform"><code class="docutils literal notranslate"><span class="pre">ms.compute_geodesic_distance_from_selection_trueform()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#filter-compute-geodesic-distance-from-selection-vcglib">Compute Geodesic Distance from Selection (vcglib)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.compute_geodesic_distance_from_selection_vcglib"><code class="docutils literal notranslate"><span class="pre">ms.compute_geodesic_distance_from_selection_vcglib()</span></code></a></li>
 </ul>
@@ -10739,6 +10821,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.project_vertices_onto_mls_surface_rimls"><code class="docutils literal notranslate"><span class="pre">ms.project_vertices_onto_mls_surface_rimls()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#filter-sharpen-vertices-by-adaptive-unsharp-mask">Sharpen Vertices by Adaptive Unsharp Mask</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.sharpen_vertices_by_adaptive_unsharp_mask"><code class="docutils literal notranslate"><span class="pre">ms.sharpen_vertices_by_adaptive_unsharp_mask()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#filter-sharpen-vertices-by-unsharp-mask">Sharpen Vertices by Unsharp Mask</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.sharpen_vertices_by_unsharp_mask"><code class="docutils literal notranslate"><span class="pre">ms.sharpen_vertices_by_unsharp_mask()</span></code></a></li>
 </ul>
@@ -11273,6 +11359,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-close-holes">Close Holes</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.close_holes"><code class="docutils literal notranslate"><span class="pre">ms.close_holes()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-close-holes-trueform">Close Holes (TrueForm)</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.close_holes_trueform"><code class="docutils literal notranslate"><span class="pre">ms.close_holes_trueform()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-repair-mismatched-borders">Repair Mismatched Borders</a><ul>

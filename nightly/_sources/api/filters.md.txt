@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 420 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 423 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -1806,6 +1806,36 @@ Store in the vertex quality field the geodesic distance from a given point on th
 
 - **startPoint** (*point3f*, default: `[0.0, 0.0, 0.0]`) — The point from which geodesic distance is measured. The closest surface vertex is used as seed.
 - **maxDistance** (*absperc*, default: `@bboxDiag`) — Cut-off distance. Vertices beyond this threshold are assigned distance 0. Set to 0 to compute everywhere.
+```
+
+---
+
+(filter-compute-geodesic-distance-from-selection-trueform)=
+
+## Compute Geodesic Distance from Selection (TrueForm)
+
+**Categories:** `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.trueform
+
+Store each vertex's distance over the surface from the nearest selected vertex in vertex scalar.
+
+```{py:function} ms.compute_geodesic_distance_from_selection_trueform(**params)
+:module: _meshlab
+
+Measures, for every vertex, the shortest distance **over the surface** to the nearest selected vertex, and stores it in **vertex scalar**.
+
+The front is propagated by triangle unfolding rather than along edges, so on a planar region the distance is the straight line and on a curved one it is shorter than any edge path. It is an approximation of the exact polyhedral geodesic: where the fronts of two seeds meet, the answer along that seam is the edge path. Large fronts are split across threads, so two runs may differ by a tiny relative amount on a large mesh.
+
+**Max Distance** stops the front early, which is much faster when only a neighbourhood is wanted; 0 measures the whole surface. A vertex the front does not reach — past the cut-off, or on a piece of the mesh with no selected vertex — holds the cut-off, or the farthest reached distance when there is none, so it reads as the top of the colour scale.
+
+The layer matrix is applied first, so distances are in world units.
+
+The result is a field to contour with *Create Polyline from Scalar Isocontour (TrueForm)* or cut into rings with *Cut Along Scalar Isocontour (TrueForm)*. Compare with the vcglib, heat-method and exact libigl versions of this filter, which trade speed against exactness differently.
+
+**Parameters:**
+
+- **maxDistance** (*absperc*, default: `0.0`) — Stop the front at this distance; vertices beyond it hold this value. 0 measures the whole surface.
 ```
 
 ---
@@ -5945,6 +5975,39 @@ This is the **robust implicit MLS** (RIMLS) variant: it extends implicit MLS wit
 
 ---
 
+(filter-sharpen-vertices-by-adaptive-unsharp-mask)=
+
+## Sharpen Vertices by Adaptive Unsharp Mask
+
+**Categories:** `Geometry/Smoothing`
+
+**Plugin:** meshlab2.filter.unsharp
+
+Exaggerate the surface's mid-scale features while keeping its overall shape, as for 3D printing small copies.
+
+```{py:function} ms.sharpen_vertices_by_adaptive_unsharp_mask(**params)
+:module: _meshlab
+
+Exaggerates the features of the surface around the *Feature Size*, the way *Sharpen Vertices by Unsharp Mask* does, but with three differences that keep the shape: the smoothing is geometric (implicit cotangent flow, which moves vertices along the normal and does not depend on the tessellation), only a band of sizes is amplified rather than everything finer than the smoothing, and the effect is turned down where smoothing would shrink the shape, on thin parts and tips, which plain unsharp masking swells. Its purpose in the paper is 3D printing: a small print loses its detail, and moderately exaggerated detail brings it back.
+
+Three smoothed copies $V_1, V_2, V_3$ come from $(M + d\,L)\,V_i = M\,V_0$ at $d = \delta/2, \delta, 10\,\delta$, with $\delta = (L_f / 2\pi)^2$ for the *Feature Size* $L_f$: a feature of wavelength $L_f$ is halved by the middle smoothing. With the bands $D_1 = V_0 - V_1$, $D_2 = V_1 - V_2$ and $D_3 = V_2 - V_3$, the result is $$V = V_2 + \lambda\,W\,D_2 + \lambda_1\,D_1, \qquad W = \exp\!\big(-\mu\,|D_3|^2 / \overline{|D_3|^2}\big),$$ $\lambda$ the *Exaggeration*, $\lambda_1$ the *Fine Detail Weight* and $\mu$ the *Shape Preservation*, relative to the mean over the vertices, so the same shape is treated alike at any resolution. With all three at 1, 1 and 0 the mesh is unchanged.
+
+The method of Herholz, Koch, Boubekeur and Alexa, from vcglib (`ImplicitSmoother::AdaptiveUnsharpMask`). The paper normalizes $\mu$ by the norm of the whole $D_3$ vector, which depends on the vertex count; here it is relative to the per-vertex mean. It solves three sparse systems, so it takes memory on large meshes.
+
+**References:**
+
+- Philipp Herholz, Sebastian Koch, Tamy Boubekeur, Marc Alexa. **Unsharp masking geometry improves 3D prints**. *Computers & Graphics* (2017). [DOI](https://doi.org/10.1016/j.cag.2017.05.018)
+
+**Parameters:**
+
+- **featureSize** (*absperc*, default: `@bboxDiag01`) — The size of the features exaggerated, on the surface: the band amplified lies between about half and three times this wavelength. It must be at least a few edges long to change anything; the log says how many edges it spans, and warns below 2. The default, 1% of the bounding box diagonal, is the paper's on a mesh scaled to the unit sphere, meant for dense meshes: on a coarse one, raise it.
+- **exaggeration** (*double*, default: `20.0`) — The factor on the band of features: 1 leaves them as they are. The paper's prints used 20, 40 and 80, the band being the small difference between two close smoothings; its subjects preferred 20 to 40 over the original and over 80.
+- **shapePreservation** (*double*, default: `0.5`) — How strongly the exaggeration is turned down where smoothing moves the surface far, on thin parts and tips: 0 does not, and the larger the more.
+- **fineWeight** (*double*, default: `1.0`) — The factor on the features finer than the band: 1 keeps them, 0 removes them, as the paper does to keep scan noise out of prints.
+```
+
+---
+
 (filter-sharpen-vertices-by-unsharp-mask)=
 
 ## Sharpen Vertices by Unsharp Mask
@@ -6903,7 +6966,7 @@ This filter has no parameters.
 
 **Plugin:** meshlab2.filter.trueform
 
-Report a layer's manifoldness, closure, self-intersections, Euler characteristic, boundary rims and non-manifold counts.
+Report a layer's manifoldness, closure, self-intersections, Euler characteristic, boundary rims, holes, flaps and non-manifold counts.
 
 ```{py:function} ms.measure_mesh_health_trueform(**params)
 :module: _meshlab
@@ -6917,6 +6980,8 @@ Reports every structural fact TrueForm can state about one layer, in one place:
 | Self-intersecting | whether the surface passes through itself anywhere |
 | Euler characteristic | V - E + F, each undirected edge counted once; 2 for a sphere, 0 for a torus |
 | Boundary rims | how many separate boundary curves there are, and how many of them close |
+| Holes | boundary rims that are missing skin: every closed rim, and an open one with an end that does not hang from a non-manifold edge |
+| Flaps | open rims whose two ends hang from edges three or more faces share: a fin stuck on the surface, not a hole |
 | Non-manifold edges | edges carried by three or more faces |
 | Non-manifold vertices | vertices whose faces are not one fan |
 
@@ -9886,6 +9951,40 @@ Close holes whose boundary is composed by a number of edges smaller than a given
 - **SelfIntersection** (*bool*, default: `True`) — Try to avoid creating self-intersecting faces.
 - **RefineHole** (*bool*, default: `False`) — Refine newly created hole triangles.
 - **RefineHoleEdgeLen** (*absperc*, default: `@bboxDiag003`) — Target edge length for hole refinement.
+```
+
+---
+
+(filter-close-holes-trueform)=
+
+## Close Holes (TrueForm)
+
+**Categories:** `Repair/Holes and Borders`
+
+**Plugin:** meshlab2.filter.trueform
+
+Fill closed boundary rims up to a size with patches that continue the surrounding surface.
+
+```{py:function} ms.close_holes_trueform(**params)
+:module: _meshlab
+
+Fills every **closed** boundary rim of at most **Max Hole Size** border edges, in place.
+
+Each hole goes down a ladder of methods, the first that succeeds winning: a rim of up to five vertices is triangulated exhaustively; a larger one is read as a height field over the plane its rim spans and sampled so that the patch **continues the surface around it**; where that refuses and the rim is planar it is lidded in its plane; and otherwise the triangulation with the best worst angle, then the least area, is chosen from a Delaunay tetrahedralization of the rim. The patch is then refined toward **Min Quality** and, with **Fairing**, smoothed against its neighbourhood; only the vertices a patch adds ever move.
+
+**Split Border Edges** lets the fill split the original edges along the rim where a patch needs it. The faces carrying a split edge are rebuilt, so they lose per-face and wedge attributes such as texture coordinates; turn it off to leave every original face untouched, at the cost of refusing a hole that can only be filled by splitting.
+
+All other vertices and faces keep their attributes; added vertices carry position only. A hole that cannot be filled is left open and named in the log with the reason.
+
+Open rims are never filled: an open rim is either a **flap** hanging from an edge three faces share or a pinched boundary, and *Measure Mesh Health (TrueForm)* counts both. Compare with *Close Holes*, which uses vcglib's ear-cutting fill.
+
+**Parameters:**
+
+- **maxHoleSize** (*int*, default: `30`) — Largest hole filled, in border edges. Keeps a sheet's own outline from being capped.
+- **selectNewFaces** (*bool*, default: `True`) — Replace the face selection with the faces the fill created.
+- **minQuality** (*double*, default: `0.3`) — Triangle quality the patch is refined toward, 1 being equilateral. 0 disables refinement.
+- **fairing** (*bool*, default: `True`) — Smooth each refined patch against its neighbourhood.
+- **splitBorderEdges** (*bool*, default: `True`) — Allow the fill to split original edges along the rim. Rebuilt faces lose their per-face and wedge attributes.
 ```
 
 ---
