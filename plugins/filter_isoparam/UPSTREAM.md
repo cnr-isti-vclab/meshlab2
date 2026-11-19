@@ -87,6 +87,14 @@ apart from reproducibility -- seeding the global generator is not something a ca
 for by building a parametrization, yet every other `rand()` user in the address space
 inherited a clock-derived seed from that line.
 
+A second source of run-to-run variation was uninitialized memory, found with valgrind
+after Linux CI intermittently failed to build a domain on `sphere_1.2kv.ply`.
+`AreaPreservingTexCoordOptimization` (`texcoord_optimization.h`) allocated `lastDir`
+without a value, and the first `Iterate` compared against it to decide whether to damp
+each vertex's speed: the outcome of every local and global optimization step followed
+whatever the heap held, and occasionally ended in a domain `IsoParametrization::Init`
+rejects. `lastDir` now starts at zero, marked `QMeshLab:` at the site.
+
 None of this changes the parametrization itself: no algorithmic decision in the tree ever
 consumed `rand()`. The one site that looks as though it might, `tangent_space.h`, is a
 self-check (see below).

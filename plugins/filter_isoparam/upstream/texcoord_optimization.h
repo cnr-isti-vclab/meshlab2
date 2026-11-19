@@ -201,7 +201,10 @@ public:
   
    
   // constructor and destructor
-  AreaPreservingTexCoordOptimization(MeshType &_m):Super(_m),data(_m.face),sum(_m.vert),lastDir(_m.vert),vSpeed(_m.vert,1){
+  // QMeshLab: lastDir was left uninitialized, and Iterate's first `lastDir[v]*sum[v]<0` read
+  // heap garbage, so each vertex's speed was damped or raised by whatever the allocator
+  // returned. Starting at zero gives "no previous direction" on every run.
+  AreaPreservingTexCoordOptimization(MeshType &_m):Super(_m),data(_m.face),sum(_m.vert),lastDir(_m.vert,Point2<ScalarType>(0,0)),vSpeed(_m.vert,1){
     speed=(ScalarType)0.00005;
     theta=3;
 	
