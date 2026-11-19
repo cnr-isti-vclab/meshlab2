@@ -144,6 +144,17 @@ bool pointInPolygon(const std::vector<QPointF> &polygon, double x, double y)
     return inside;
 }
 
+// An edge cannot outlive either endpoint: the compaction every filter run ends with would
+// leave it pointing at nothing. Faces on the doomed vertices are deleted by selecting them;
+// edges need the same, and vcglib has no edge-from-vertex selection to do it with.
+void deleteEdgesOnSelectedVertices(VCGMesh &mesh)
+{
+    for (VCGEdge &e : mesh.edge) {
+        if (!e.IsD() && (e.V(0)->IsS() || e.V(1)->IsS()))
+            vcg::tri::Allocator<VCGMesh>::DeleteEdge(mesh, e);
+    }
+}
+
 void updateGeometryAfterDeletion(VCGMesh &mesh)
 {
     vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
@@ -919,6 +930,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             if (f.IsS())
                 vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, f);
         }
+        deleteEdgesOnSelectedVertices(mesh);
         for (VCGVertex &v : mesh.vert) {
             if (v.IsS())
                 vcg::tri::Allocator<VCGMesh>::DeleteVertex(mesh, v);
@@ -1009,6 +1021,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             if (f.IsS())
                 vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, f);
         }
+        deleteEdgesOnSelectedVertices(mesh);
         for (VCGVertex &v : mesh.vert) {
             if (v.IsS())
                 vcg::tri::Allocator<VCGMesh>::DeleteVertex(mesh, v);

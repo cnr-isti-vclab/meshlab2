@@ -698,6 +698,7 @@ private slots:
     void trueFormMeshHealthTellsHolesFromFlaps();
     void trueFormGeodesicDistanceIsStraightOnAPlane();
     void trueFormCloseHolesSealsInPlace();
+    void removeSelectedVerticesTakesTheirEdges();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -19438,6 +19439,39 @@ void FilterTests::trueFormCloseHolesSealsInPlace()
     QCOMPARE(reportValue(sh, QStringLiteral("Closed")), QStringLiteral("yes"));
     QCOMPARE(reportValue(sh, QStringLiteral("Manifold")), QStringLiteral("yes"));
     QCOMPARE(reportValue(sh, QStringLiteral("Self-intersecting")), QStringLiteral("no"));
+}
+
+// Deleting a polyline vertex must delete its edges too. Left alive, they pointed at the
+// deleted vertex, the post-filter compaction nulled that pointer, and the next refresh of
+// the filter menu (which derives an edge selection from vertex flags) crashed on it.
+void FilterTests::removeSelectedVerticesTakesTheirEdges()
+{
+    Document doc;
+    VCGMesh line;
+    makePolyline(line, { vcg::Point3f(0, 0, 0), vcg::Point3f(1, 0, 0), vcg::Point3f(2, 0, 0),
+                         vcg::Point3f(3, 0, 0), vcg::Point3f(4, 0, 0) });
+    const int index = doc.addMesh(line, QStringLiteral("Line"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD
+                                      | vcg::tri::io::Mask::IOM_EDGEINDEX);
+    doc.setCurrentMeshIndex(index);
+    doc.mesh(index).mesh.vert[1].SetS();
+
+    const QString key = filterKeyForId(doc, QStringLiteral("remove_selected_vertices"));
+    QVERIFY(!key.isEmpty());
+    const MeshFilterRunResult r = doc.runFilter(key, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+
+    const VCGMesh &m = doc.mesh(index).mesh;
+    QCOMPARE(m.VN(), 4);
+    QCOMPARE(m.EN(), 2); // 2-3 and 3-4 survive; 0-1 and 1-2 went with vertex 1
+    for (const VCGEdge &e : m.edge) {
+        if (e.IsD())
+            continue;
+        QVERIFY(e.cV(0) != nullptr && e.cV(1) != nullptr);
+        QVERIFY(!e.cV(0)->IsD() && !e.cV(1)->IsD());
+    }
+    // The call that crashed: it resolves every filter's selection-scope bounds.
+    QVERIFY(!doc.filterInfos().empty());
 }
 
 QTEST_MAIN(FilterTests)
