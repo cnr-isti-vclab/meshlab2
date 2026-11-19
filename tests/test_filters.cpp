@@ -36,6 +36,7 @@
 #include "clipplane.h"
 
 #include <vcg/complex/algorithms/create/platonic.h>
+#include <vcg/complex/algorithms/implicit_smooth.h>
 #include <vcg/complex/algorithms/parametrization/texel_coverage.h>
 #include <vcg/complex/algorithms/update/quality.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -524,6 +525,7 @@ private slots:
     void textureSignalProcessingTakesUvsAlignedWithTheTexels();
     void textureSignalProcessingGrowsReactionDiffusion();
     void pointInterpolantContoursAndTransfersAScalar();
+    void adaptiveUnsharpMaskAmplifiesItsBand();
     void filtersMakingTexturesAddOneOnEachRun();
     void open3dFeatureMatchingCanUseAllVisibleLayersAsReference();
     void open3dFeatureMatchingCanEstimateItsQualityWithIcp();
@@ -693,6 +695,9 @@ private slots:
     void trueFormVertexSplitSeparatesTheFansItCan();
     void trueFormFaceQualityMeasuresTheEquilateralCase();
     void trueFormBoundaryRimsComeBackOnePerCurve();
+    void trueFormMeshHealthTellsHolesFromFlaps();
+    void trueFormGeodesicDistanceIsStraightOnAPlane();
+    void trueFormCloseHolesSealsInPlace();
 };
 
 void FilterTests::filterRegistryExposesBuiltins()
@@ -7700,6 +7705,83 @@ void FilterTests::pointInterpolantContoursAndTransfersAScalar()
     QVERIFY(error < 0.04);
     QCOMPARE(set.vert.back().cQ(), -1.f);
     QCOMPARE(transferred.outputValues.value(QStringLiteral("vertices_outside")).toLongLong(), 1);
+}
+
+// Sharpen Vertices by Adaptive Unsharp Mask on a flat 2 x 2 grid of 200 x 200 cells rippled along x.
+// With Shape Preservation 0 and the fine detail kept, a ripple of wavelength l comes out scaled by
+// g2 + λ (g1 - g2) + (1 - g1), gi = 1 / (1 + di k²) the gains of the smoothings at d = δ/2 and δ,
+// k = 2π / l, δ = (L / 2π)² for the Feature Size L: 0.833 + λ / 6 at l = L, 4.17 at λ = 20, and 1.10 at
+// l = 10 L. Measured on the middle of the grid, away from its border.
+// - With Exaggeration 1, the result is the input.
+// - A vertex no face uses keeps its position: it made the smoothing system singular, and every
+//   position came out NaN, on the bunny and the Laurana samples (1113 and 2735 such vertices).
+// Against plain unsharp masking at the same mean strength, the largest displacement came out 42-50%
+// smaller on those two samples at the default Shape Preservation, about what the paper reports.
+void FilterTests::adaptiveUnsharpMaskAmplifiesItsBand()
+{
+    Document probe;
+    const QString key = filterKeyForId(probe, QStringLiteral("sharpen_vertices_by_adaptive_unsharp_mask"));
+    if (key.isEmpty())
+        QSKIP("Unsharp plugin is not available in this build.");
+    const double L = 0.2;
+    auto run = [&](double wavelength, double exaggeration, double &gain, bool &strayKept) {
+        VCGMesh g;
+        vcg::tri::Grid<VCGMesh>(g, 201, 201, 2.0f, 2.0f);
+        for (VCGVertex &v : g.vert)
+            v.P().Z() = float(0.01 * std::sin(2 * M_PI * v.P().X() / wavelength));
+        vcg::tri::Allocator<VCGMesh>::AddVertex(g, vcg::Point3f(5, 5, 5));
+        Document doc;
+        if (doc.addMesh(g, QStringLiteral("grid"), 0) < 0)
+            return false;
+        doc.setCurrentMeshIndex(0);
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("featureSize"), L);
+        params.insert(QStringLiteral("exaggeration"), exaggeration);
+        params.insert(QStringLiteral("shapePreservation"), 0.0);
+        const MeshFilterRunResult r = doc.runFilter(key, params);
+        if (!r.success) {
+            qWarning("%s", qPrintable(r.errorMessage));
+            return false;
+        }
+        const VCGMesh &m = doc.mesh(0).mesh;
+        double num = 0, den = 0;
+        for (const VCGVertex &v : m.vert) {
+            const vcg::Point3f &p = v.cP();
+            if (p.X() < 0.5f || p.X() > 1.5f || p.Y() < 0.5f || p.Y() > 1.5f)
+                continue;
+            const double z0 = 0.01 * std::sin(2 * M_PI * p.X() / wavelength);
+            num += p.Z() * z0, den += z0 * z0;
+        }
+        gain = num / den;
+        strayKept = m.vert.back().cP() == vcg::Point3f(5, 5, 5);
+        return true;
+    };
+    double atSize = 0, atLong = 0, unchanged = 0;
+    bool kept = false;
+    QVERIFY(run(L, 1.0, unchanged, kept));
+    QVERIFY(run(L, 20.0, atSize, kept));
+    QVERIFY(kept);
+    QVERIFY(run(10 * L, 20.0, atLong, kept));
+    qDebug("adaptive unsharp mask: gain %.3f with exaggeration 1; at exaggeration 20, %.3f at the feature size (4.17 "
+           "expected), %.3f at ten times it (1.10)", unchanged, atSize, atLong);
+    QVERIFY(std::abs(unchanged - 1) < 0.01);
+    QVERIFY(std::abs(atSize / 4.17 - 1) < 0.1);
+    QVERIFY(std::abs(atLong - 1.10) < 0.05);
+
+    // The default Feature Size is 1% of the diagonal. It was once @bboxDiag001, a tenth of that, which
+    // with the smoothing going as its square left a 10k-face bunny unchanged to 1e-5 of its diagonal.
+    VCGMesh plain;
+    vcg::tri::Grid<VCGMesh>(plain, 41, 41, 2.0f, 2.0f);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(plain);
+    const double diagonal = plain.bbox.Diag();
+    Document doc;
+    QVERIFY(doc.addMesh(plain, QStringLiteral("plain"), 0) >= 0);
+    doc.setCurrentMeshIndex(0);
+    const MeshFilterRunResult byDefault = doc.runFilter(key, {});
+    QVERIFY2(byDefault.success, qPrintable(byDefault.errorMessage));
+    QVERIFY(std::abs(byDefault.outputValues.value(QStringLiteral("feature_size")).toDouble() / (0.01 * diagonal) - 1) < 1e-4);
+    // Here 1% of the diagonal is half an edge: the log says so.
+    QVERIFY(byDefault.infoMessages.join(QLatin1Char(' ')).contains(QStringLiteral("Warning: the Feature Size")));
 }
 
 // A layout whose vertices sit on the texel grid puts edges exactly through texel centers and along the
@@ -18771,7 +18853,7 @@ void FilterTests::trueFormMeshHealthReportsTheStructuralFacts()
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QVERIFY(!r.documentModified); // a measurement must not alter the document
     QVERIFY(r.newMeshIndices.isEmpty());
-    QVERIFY(r.infoMessages.size() == 8);
+    QVERIFY(r.infoMessages.size() == 10);
 
     const QString report = r.infoMessages.join(QStringLiteral("\n"));
     QCOMPARE(valueFor(r, QStringLiteral("Manifold")), QStringLiteral("yes"));
@@ -18810,6 +18892,8 @@ void FilterTests::trueFormMeshHealthReportsTheStructuralFacts()
     QVERIFY2(open.success, qPrintable(open.errorMessage));
     QCOMPARE(valueFor(open, QStringLiteral("Boundary rims")),
              QStringLiteral("2 (2 closed, 0 open)"));
+    QCOMPARE(valueFor(open, QStringLiteral("Holes")), QStringLiteral("2"));
+    QCOMPARE(valueFor(open, QStringLiteral("Flaps")), QStringLiteral("0"));
     QCOMPARE(valueFor(open, QStringLiteral("Closed")), QStringLiteral("no"));
 }
 
@@ -19169,6 +19253,191 @@ void FilterTests::scopedFiltersConfineThemselvesToTheSelection()
             }
         }
     }
+}
+
+namespace {
+
+// The value of a "Label: value" line in a filter report.
+QString reportValue(const MeshFilterRunResult &r, const QString &label)
+{
+    for (const QString &message : r.infoMessages) {
+        if (message.startsWith(label + QStringLiteral(": ")))
+            return message.mid(label.size() + 2);
+    }
+    return QString();
+}
+
+// A closed cube with one triangle hung off its bottom edge 0-1: that edge is carried by
+// three faces, and the fin's two free edges make one open rim whose ends both hang from it.
+void makeCubeWithFinMesh(VCGMesh &mesh)
+{
+    makeCubeMesh(mesh, 0.0f, 0.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, vcg::Point3f(0.5f, -1.0f, -0.5f));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, 0, 1, 8);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+}
+
+} // namespace
+
+// A hole is missing skin and a flap is a fin; the two are told apart by how a rim ends.
+void FilterTests::trueFormMeshHealthTellsHolesFromFlaps()
+{
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("measure_mesh_health_trueform"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh fin;
+    makeCubeWithFinMesh(fin);
+    doc.setCurrentMeshIndex(
+        doc.addMesh(fin, QStringLiteral("Fin"), vcg::tri::io::Mask::IOM_VERTCOORD));
+    const MeshFilterRunResult r = doc.runFilter(key, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(reportValue(r, QStringLiteral("Boundary rims")),
+             QStringLiteral("1 (0 closed, 1 open)"));
+    QCOMPARE(reportValue(r, QStringLiteral("Holes")), QStringLiteral("0"));
+    QCOMPARE(reportValue(r, QStringLiteral("Flaps")), QStringLiteral("1"));
+
+    VCGMesh open;
+    makeOpenCubeMesh(open);
+    doc.setCurrentMeshIndex(
+        doc.addMesh(open, QStringLiteral("Open"), vcg::tri::io::Mask::IOM_VERTCOORD));
+    const MeshFilterRunResult h = doc.runFilter(key, {});
+    QVERIFY2(h.success, qPrintable(h.errorMessage));
+    QCOMPARE(reportValue(h, QStringLiteral("Holes")), QStringLiteral("1"));
+    QCOMPARE(reportValue(h, QStringLiteral("Flaps")), QStringLiteral("0"));
+}
+
+// On a flat grid the unfolding front is the straight line, so every distance is the
+// Euclidean one from the seed; the cut-off clamps exactly the vertices past it.
+void FilterTests::trueFormGeodesicDistanceIsStraightOnAPlane()
+{
+    Document doc;
+    const QString key =
+        filterKeyForId(doc, QStringLiteral("compute_geodesic_distance_from_selection_trueform"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    VCGMesh grid;
+    makeGridMesh(grid, 10);
+    const int index = doc.addMesh(grid, QStringLiteral("Grid"),
+                                  vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(index);
+
+    // No seed: a refusal with a message, not a field of zeros.
+    const MeshFilterRunResult none = doc.runFilter(key, {});
+    QVERIFY(!none.success);
+    QVERIFY(!none.errorMessage.isEmpty());
+
+    doc.mesh(index).mesh.vert[0].SetS(); // the corner at the origin
+    const MeshFilterRunResult r = doc.runFilter(key, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    double worst = 0.0;
+    for (const VCGVertex &v : doc.mesh(index).mesh.vert)
+        worst = std::max(worst, std::abs(double(v.cQ()) - double(v.cP().Norm())));
+    QVERIFY2(worst < 1e-3, qPrintable(QString::number(worst)));
+
+    MeshFilterParameterValues cut;
+    cut.insert(QStringLiteral("maxDistance"), 3.0);
+    const MeshFilterRunResult c = doc.runFilter(key, cut);
+    QVERIFY2(c.success, qPrintable(c.errorMessage));
+    int clamped = 0;
+    for (const VCGVertex &v : doc.mesh(index).mesh.vert) {
+        const double euclid = double(v.cP().Norm());
+        if (euclid > 3.0 + 1e-3) {
+            QCOMPARE(double(v.cQ()), 3.0);
+            ++clamped;
+        } else if (euclid < 3.0 - 1e-3) {
+            QVERIFY(std::abs(double(v.cQ()) - euclid) < 1e-3);
+        }
+    }
+    QVERIFY(clamped > 0);
+}
+
+// The fill closes the hole and touches nothing else: the surface becomes closed and
+// manifold, the new faces are the selection, and the original vertices keep their colour.
+void FilterTests::trueFormCloseHolesSealsInPlace()
+{
+    Document doc;
+    const QString key = filterKeyForId(doc, QStringLiteral("close_holes_trueform"));
+    const QString healthKey =
+        filterKeyForId(doc, QStringLiteral("measure_mesh_health_trueform"));
+    if (key.isEmpty())
+        QSKIP("TrueForm filter plugin is not available in this build.");
+
+    const auto selectedFaces = [&doc](int layer) {
+        int n = 0;
+        for (const VCGFace &f : doc.mesh(layer).mesh.face)
+            n += (!f.IsD() && f.IsS()) ? 1 : 0;
+        return n;
+    };
+
+    // A cube missing one side: a four-edge rim, filled by two triangles.
+    VCGMesh openCube;
+    makeOpenCubeMesh(openCube);
+    const int cube = doc.addMesh(openCube, QStringLiteral("Open cube"),
+                                 vcg::tri::io::Mask::IOM_VERTCOORD);
+    doc.setCurrentMeshIndex(cube);
+    const MeshFilterRunResult r = doc.runFilter(key, {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.mesh(cube).mesh.FN(), 12);
+    QCOMPARE(doc.mesh(cube).mesh.VN(), 8);
+    QCOMPARE(selectedFaces(cube), 2);
+    const MeshFilterRunResult health = doc.runFilter(healthKey, {});
+    QCOMPARE(reportValue(health, QStringLiteral("Closed")), QStringLiteral("yes"));
+    QCOMPARE(reportValue(health, QStringLiteral("Manifold")), QStringLiteral("yes"));
+
+    // Nothing left to close is a refusal with a reason, and so is a fin's open rim.
+    QVERIFY(!doc.runFilter(key, {}).success);
+    VCGMesh fin;
+    makeCubeWithFinMesh(fin);
+    doc.setCurrentMeshIndex(
+        doc.addMesh(fin, QStringLiteral("Fin"), vcg::tri::io::Mask::IOM_VERTCOORD));
+    const MeshFilterRunResult flap = doc.runFilter(key, {});
+    QVERIFY(!flap.success);
+    QVERIFY2(flap.errorMessage.contains(QStringLiteral("1 open")),
+             qPrintable(flap.errorMessage));
+
+    // A sphere with a cap cut off: a curved hole large enough to take the chart tier.
+    VCGMesh capped;
+    vcg::tri::Sphere(capped, 3);
+    for (VCGFace &f : capped.face) {
+        if (vcg::Barycenter(f).Z() > 0.8f)
+            vcg::tri::Allocator<VCGMesh>::DeleteFace(capped, f);
+    }
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(capped);
+    vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(capped);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(capped);
+    for (VCGVertex &v : capped.vert)
+        v.C() = vcg::Color4b::Red;
+    const int beforeV = capped.VN();
+    const int sphere = doc.addMesh(capped, QStringLiteral("Capped sphere"),
+                                   vcg::tri::io::Mask::IOM_VERTCOORD
+                                       | vcg::tri::io::Mask::IOM_VERTCOLOR);
+    doc.setCurrentMeshIndex(sphere);
+
+    // Too small a bound leaves the mesh exactly as it was.
+    const int beforeF = doc.mesh(sphere).mesh.FN();
+    MeshFilterParameterValues small;
+    small.insert(QStringLiteral("maxHoleSize"), 3);
+    QVERIFY(!doc.runFilter(key, small).success);
+    QCOMPARE(doc.mesh(sphere).mesh.FN(), beforeF);
+
+    MeshFilterParameterValues big;
+    big.insert(QStringLiteral("maxHoleSize"), 1000);
+    const MeshFilterRunResult s = doc.runFilter(key, big);
+    QVERIFY2(s.success, qPrintable(s.infoMessages.join(QStringLiteral("\n"))
+                                    + s.errorMessage));
+    const VCGMesh &sealed = doc.mesh(sphere).mesh;
+    QVERIFY(sealed.FN() > beforeF);
+    int red = 0;
+    for (const VCGVertex &v : sealed.vert)
+        red += (!v.IsD() && v.cC() == vcg::Color4b(vcg::Color4b::Red)) ? 1 : 0;
+    QVERIFY2(red >= beforeV, qPrintable(QStringLiteral("%1 of %2").arg(red).arg(beforeV)));
+    const MeshFilterRunResult sh = doc.runFilter(healthKey, {});
+    QCOMPARE(reportValue(sh, QStringLiteral("Closed")), QStringLiteral("yes"));
+    QCOMPARE(reportValue(sh, QStringLiteral("Manifold")), QStringLiteral("yes"));
+    QCOMPARE(reportValue(sh, QStringLiteral("Self-intersecting")), QStringLiteral("no"));
 }
 
 QTEST_MAIN(FilterTests)

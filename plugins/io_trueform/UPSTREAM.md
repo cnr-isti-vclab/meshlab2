@@ -104,7 +104,13 @@ three changes that reach filters here:
   and domain filter here passes the default tolerance, so the band's change
   does not reach them; the census does, behind the same entry points.
 
-`tf::fill_holes` gained a chart tier in v0.10.8; neither plugin calls it.
+Three of the new entry points became filters after the bump, without touching
+any existing call site: `tf::make_geodesic_distances` is *Compute Geodesic
+Distance from Selection (TrueForm)*, `tf::fill_holes` (with the chart tier
+v0.10.8 added) is *Close Holes (TrueForm)*, and the flap test behind
+`tf::has_flaps` splits *Measure Mesh Health (TrueForm)*'s rims into holes and
+flaps. The Dirichlet fields, tetrahedral meshing and open CSG fragments are
+still uncalled.
 
 The step from v0.9.17 to v0.10.0 was the breaking one: the `cut` module was
 removed outright, with no compatibility shim, and its ground redistributed to

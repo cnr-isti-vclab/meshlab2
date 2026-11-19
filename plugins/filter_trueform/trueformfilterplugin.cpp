@@ -9,6 +9,7 @@
 #include <QMatrix4x4>
 #include <QObject>
 #include <QList>
+#include <QMap>
 #include <QRegularExpression>
 #include <QStringList>
 #include <QVector3D>
@@ -88,6 +89,8 @@ constexpr QLatin1StringView kFilterRepairSelfIntersections("repair_self_intersec
 constexpr QLatin1StringView kFilterCutIsocontour("cut_along_scalar_isocontour_trueform");
 constexpr QLatin1StringView kFilterClean("remove_duplicate_vertices_trueform");
 constexpr QLatin1StringView kFilterImprove("remesh_by_edge_flipping_trueform");
+constexpr QLatin1StringView kFilterGeodesic("compute_geodesic_distance_from_selection_trueform");
+constexpr QLatin1StringView kFilterCloseHoles("close_holes_trueform");
 
 using Mask = vcg::tri::io::Mask;
 using TfPoints = tf::points_buffer<float, 3>;
@@ -387,6 +390,16 @@ MeshFilterRunResult runAlignCorresponding(const FilterParams &params, Document &
 using TfMesh = tf::polygons_buffer<int, float, 3, 3>;
 using TfForms = std::vector<decltype(std::declval<const TfMesh &>().polygons())>;
 
+// Whether tfMeshFromLayer() hands a face to TrueForm: live, on live vertices, and not
+// degenerate by index. It keeps exactly these, in face order, so the nth TrueForm face is
+// the nth face this accepts -- which is how a result that names faces is mapped back.
+bool tfCarriesFace(const VCGFace &f)
+{
+    if (f.IsD() || f.cV(0)->IsD() || f.cV(1)->IsD() || f.cV(2)->IsD())
+        return false;
+    return f.cV(0) != f.cV(1) && f.cV(1) != f.cV(2) && f.cV(0) != f.cV(2);
+}
+
 // A layer's triangles in world space. Booleans across layers are only meaningful once
 // each layer's matrix has been applied.
 TfMesh tfMeshFromLayer(const Document::MeshEntry &entry)
@@ -415,21 +428,10 @@ TfMesh tfMeshFromLayer(const Document::MeshEntry &entry)
         tf::make_sequence_range(mesh.face.size()), out.faces_buffer().data_buffer(),
         [&](std::size_t fi, tf::buffer<int> &corners) {
             const VCGFace &f = mesh.face[fi];
-            if (f.IsD())
+            if (!tfCarriesFace(f))
                 return;
-            int corner[3];
-            for (int k = 0; k < 3; ++k) {
-                const ptrdiff_t raw = f.cV(k) - base;
-                if (raw < 0 || std::size_t(raw) >= remap.size()
-                    || remap[std::size_t(raw)] < 0)
-                    return;
-                corner[k] = remap[std::size_t(raw)];
-            }
-            if (corner[0] == corner[1] || corner[1] == corner[2] || corner[0] == corner[2])
-                return;
-            corners.push_back(corner[0]);
-            corners.push_back(corner[1]);
-            corners.push_back(corner[2]);
+            for (int k = 0; k < 3; ++k)
+                corners.push_back(remap[std::size_t(f.cV(k) - base)]);
         },
         tf::checked);
     return out;
@@ -2498,10 +2500,15 @@ MeshFilterRunResult runMeshHealth(const FilterParams &params, Document &doc)
         const auto nonManifoldVertices = tf::make_non_manifold_vertices(tagged);
         const auto rims = tf::make_boundary_rims(tagged);
 
-        std::size_t closedRims = 0;
-        for (const bool rimClosed : rims.closed) {
-            if (rimClosed)
+        // Every rim is exactly one of a hole or a flap: a flap is an open rim whose two
+        // ends hang from edges three or more faces share, so it is a fin stuck on the
+        // surface rather than missing skin. Closing holes is a repair; closing flaps is not.
+        std::size_t closedRims = 0, flaps = 0;
+        for (std::size_t rim = 0; rim < rims.size(); ++rim) {
+            if (rims.closed[rim])
                 ++closedRims;
+            if (tf::topology::boundary_rim_is_flap(tagged.faces(), ctx.membership, rims, rim))
+                ++flaps;
         }
 
         // The only question that needs a spatial index, and the only one that can cost
@@ -2517,6 +2524,8 @@ MeshFilterRunResult runMeshHealth(const FilterParams &params, Document &doc)
              << QObject::tr("Euler characteristic: %1").arg(euler)
              << QObject::tr("Boundary rims: %1 (%2 closed, %3 open)")
                     .arg(rims.size()).arg(closedRims).arg(rims.size() - closedRims)
+             << QObject::tr("Holes: %1").arg(rims.size() - flaps)
+             << QObject::tr("Flaps: %1").arg(flaps)
              << QObject::tr("Non-manifold edges: %1").arg(nonManifoldEdges.size())
              << QObject::tr("Non-manifold vertices: %1").arg(nonManifoldVertices.size());
     } catch (const std::exception &e) {
@@ -2532,6 +2541,262 @@ MeshFilterRunResult runMeshHealth(const FilterParams &params, Document &doc)
     result.documentModified = false;
     result.infoMessages = info;
     return result;
+}
+
+// ---------------------------------------------------------------------------
+// Geodesics and hole filling
+// ---------------------------------------------------------------------------
+
+// Distance over the surface from the nearest selected vertex. Unreached vertices -- past
+// the cut-off, or on a piece no seed touches -- come back from TrueForm as infinity, which
+// no colour map can range over, so they take the cut-off, or the farthest reached distance
+// when there is none: they read as "far", the top of the scale.
+MeshFilterRunResult runGeodesicDistance(const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    Document::MeshEntry &entry = doc.mesh(index);
+    if (entry.mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+
+    const std::vector<std::size_t> live = liveVertexIndices(entry.mesh);
+    std::vector<int> seeds;
+    for (std::size_t i = 0; i < live.size(); ++i) {
+        if (entry.mesh.vert[live[i]].IsS())
+            seeds.push_back(int(i));
+    }
+    if (seeds.empty())
+        return fail(QObject::tr("Select at least one vertex to measure from."));
+
+    const double maxDistance = std::max(0.0, params.getDouble(QStringLiteral("maxDistance"), 0.0));
+
+    doc.beginFilterProgress(QObject::tr("Compute Geodesic Distance from Selection (TrueForm)"));
+    double farthest = 0.0;
+    int unreached = 0;
+    try {
+        const TfMesh source = tfMeshFromLayer(entry);
+        const auto distances = maxDistance > 0.0
+            ? tf::make_geodesic_distances<double>(
+                  source.polygons(), tf::make_range(seeds), float(maxDistance))
+            : tf::make_geodesic_distances<double>(source.polygons(), tf::make_range(seeds));
+
+        for (std::size_t i = 0; i < live.size(); ++i) {
+            if (std::isfinite(distances[i]))
+                farthest = std::max(farthest, distances[i]);
+            else
+                ++unreached;
+        }
+        const double fill = maxDistance > 0.0 ? maxDistance : farthest;
+        for (std::size_t i = 0; i < live.size(); ++i) {
+            const double d = distances[i];
+            entry.mesh.vert[live[i]].Q() = float(std::isfinite(d) ? d : fill);
+        }
+        entry.ioMask |= Mask::IOM_VERTQUALITY;
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm geodesic distance failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    doc.markMeshScalarChanged(
+        index, QObject::tr("Computed geodesic distance on '%1'").arg(entry.name));
+    doc.finishFilterProgress(true, QObject::tr("Computed geodesic distance."));
+
+    MeshFilterRunResult result;
+    result.success = true;
+    result.documentModified = true;
+    result.infoMessages
+        << QObject::tr("Measured from %1 seed vertex(es); farthest reached: %2.")
+               .arg(seeds.size()).arg(QString::number(farthest, 'g', 6));
+    if (unreached > 0)
+        result.infoMessages
+            << QObject::tr("%1 vertex(es) not reached; they hold %2.")
+                   .arg(unreached)
+                   .arg(QString::number(maxDistance > 0.0 ? maxDistance : farthest, 'g', 6));
+    result.visualizationHints.push_back(
+        { index, MeshFilterVisualizationAttribute::VertexQuality });
+    return result;
+}
+
+QString holeFillRefusal(tf::hole_fill_status status)
+{
+    switch (status) {
+    case tf::hole_fill_status::filled: return {};
+    case tf::hole_fill_status::refused_open: return QObject::tr("rim does not close");
+    case tf::hole_fill_status::refused_invalid_rim: return QObject::tr("rim is not a simple cycle");
+    case tf::hole_fill_status::refused_host_face: return QObject::tr("degenerate face at the rim");
+    case tf::hole_fill_status::refused_protection_depth:
+        return QObject::tr("rim edge could not be recovered");
+    case tf::hole_fill_status::refused_table: return QObject::tr("no admissible triangulation");
+    case tf::hole_fill_status::refused_resource: return QObject::tr("too large");
+    case tf::hole_fill_status::refused_rim_split:
+        return QObject::tr("needs a border edge split");
+    }
+    return QObject::tr("unknown reason");
+}
+
+// Fill the layer's closed boundary rims up to a size, in place. The fill names the host's
+// own vertices and faces, so it is stitched into the VCG mesh rather than replacing it:
+// every vertex and face it does not touch keeps its attributes. Only a face whose rim edge
+// the fill split is rebuilt, from TrueForm's plan for it.
+MeshFilterRunResult runCloseHoles(const FilterParams &params, Document &doc)
+{
+    const int index = doc.currentMeshIndex();
+    if (index < 0 || index >= doc.meshCount())
+        return fail(QObject::tr("No layer selected."));
+    Document::MeshEntry &entry = doc.mesh(index);
+    if (entry.mesh.FN() <= 0)
+        return fail(QObject::tr("The layer needs faces."));
+    bool invertible = false;
+    const QMatrix4x4 inverse = entry.transform.inverted(&invertible);
+    if (!invertible)
+        return fail(QObject::tr("The layer matrix is not invertible."));
+
+    const int maxHoleSize = params.getInt(QStringLiteral("maxHoleSize"), 30);
+    tf::hole_fill_config config;
+    config.min_quality = params.getDouble(QStringLiteral("minQuality"), config.min_quality);
+    config.fairing = params.getBool(QStringLiteral("fairing"), config.fairing);
+    config.split_rim = params.getBool(QStringLiteral("splitBorderEdges"), config.split_rim);
+    const bool selectNew = params.getBool(QStringLiteral("selectNewFaces"), true);
+
+    doc.beginFilterProgress(QObject::tr("Close Holes (TrueForm)"));
+    QStringList info;
+    try {
+        const TfMesh source = tfMeshFromLayer(entry);
+        tf::face_membership<int> membership(source.polygons());
+        auto tagged = source.polygons() | tf::tag(membership);
+        const auto rims = tf::make_boundary_rims(tagged);
+
+        // An open rim is a flap or a pinched boundary, never something to lid, and the
+        // size bound keeps a sheet's own outline from being capped with its holes.
+        tf::boundary_rims<int> chosen;
+        std::size_t open = 0, tooLarge = 0;
+        for (std::size_t r = 0; r < rims.size(); ++r) {
+            if (!rims.closed[r]) {
+                ++open;
+                continue;
+            }
+            if (rims.vertices[r].size() > std::size_t(maxHoleSize)) {
+                ++tooLarge;
+                continue;
+            }
+            chosen.vertices.offsets_buffer().push_back(int(chosen.vertices.data_buffer().size()));
+            chosen.faces.offsets_buffer().push_back(int(chosen.faces.data_buffer().size()));
+            for (const int v : rims.vertices[r])
+                chosen.vertices.data_buffer().push_back(v);
+            for (const int f : rims.faces[r])
+                chosen.faces.data_buffer().push_back(f);
+            chosen.closed.push_back(true);
+        }
+        if (chosen.size() == 0) {
+            const QString message =
+                QObject::tr("'%1' has no closed hole of at most %2 border edges "
+                            "(%3 larger, %4 open rims).")
+                    .arg(entry.name).arg(maxHoleSize).arg(tooLarge).arg(open);
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+        chosen.vertices.offsets_buffer().push_back(int(chosen.vertices.data_buffer().size()));
+        chosen.faces.offsets_buffer().push_back(int(chosen.faces.data_buffer().size()));
+
+        if (vcg::CallBackPos *cb = doc.progressCallback())
+            (*cb)(20, "Filling holes...");
+        const auto fill = tf::fill_holes(tagged, chosen, config);
+
+        std::size_t filled = 0;
+        QMap<QString, int> refusals;
+        for (std::size_t g = 0; g < fill.size(); ++g) {
+            if (fill.status[g] == tf::hole_fill_status::filled)
+                ++filled;
+            else
+                ++refusals[holeFillRefusal(fill.status[g])];
+        }
+        if (filled == 0) {
+            const QString message =
+                QObject::tr("None of the %1 hole(s) could be filled (%2).")
+                    .arg(chosen.size())
+                    .arg(QStringList(refusals.keys()).join(QStringLiteral(", ")));
+            doc.finishFilterProgress(false, message);
+            return fail(message);
+        }
+
+        // Stitch: TrueForm ids below the point count are live VCG vertices, the rest are
+        // the minted points appended here; face ids are the faces tfMeshFromLayer() kept.
+        VCGMesh &m = entry.mesh;
+        const std::vector<std::size_t> live = liveVertexIndices(m);
+        std::vector<std::size_t> carried;
+        carried.reserve(std::size_t(m.FN()));
+        for (std::size_t fi = 0; fi < m.face.size(); ++fi) {
+            if (tfCarriesFace(m.face[fi]))
+                carried.push_back(fi);
+        }
+
+        const auto &minted = fill.minted_points.data_buffer();
+        const std::size_t firstMinted = m.vert.size();
+        if (minted.size() > 0)
+            vcg::tri::Allocator<VCGMesh>::AddVertices(m, minted.size());
+        for (std::size_t i = 0; i < std::size_t(minted.size()); ++i) {
+            const QVector3D p = inverse.map(QVector3D(minted[i][0], minted[i][1], minted[i][2]));
+            m.vert[firstMinted + i].P() = vcg::Point3f(p.x(), p.y(), p.z());
+        }
+        const auto vertexOf = [&live, firstMinted](int id) {
+            return std::size_t(id) < live.size() ? live[std::size_t(id)]
+                                                 : firstMinted + (std::size_t(id) - live.size());
+        };
+        const auto addTriangle = [&m, &vertexOf](const std::array<int, 3> &t) {
+            vcg::tri::Allocator<VCGMesh>::AddFace(
+                m, vertexOf(t[0]), vertexOf(t[1]), vertexOf(t[2]));
+        };
+
+        if (selectNew) {
+            for (VCGFace &f : m.face)
+                f.ClearS();
+        }
+        const std::size_t firstNewFace = m.face.size();
+        for (std::size_t p = 0; p < fill.plan_faces.size(); ++p) {
+            vcg::tri::Allocator<VCGMesh>::DeleteFace(
+                m, m.face[carried[std::size_t(fill.plan_faces[p])]]);
+            for (const auto &t : fill.plan_triangles[p])
+                addTriangle(t);
+        }
+        for (const auto &t : fill.triangles.data_buffer())
+            addTriangle(t);
+        const std::size_t newFaces = m.face.size() - firstNewFace;
+        if (selectNew) {
+            for (std::size_t fi = firstNewFace; fi < m.face.size(); ++fi)
+                m.face[fi].SetS();
+            entry.ioMask |= Mask::IOM_FACEFLAGS;
+        }
+
+        vcg::tri::Allocator<VCGMesh>::CompactEveryVector(m);
+        vcg::tri::UpdateBounding<VCGMesh>::Box(m);
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(m);
+        entry.ioMask |= Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+
+        info << QObject::tr("Closed %1 of %2 hole(s) with %3 new face(s) and %4 new vertex(es).")
+                    .arg(filled).arg(chosen.size()).arg(newFaces).arg(minted.size());
+        if (fill.plan_faces.size() > 0)
+            info << QObject::tr("Rebuilt %1 face(s) whose border edge was split.")
+                        .arg(fill.plan_faces.size());
+        for (auto it = refusals.cbegin(); it != refusals.cend(); ++it)
+            info << QObject::tr("Not filled: %1 (%2).").arg(it.value()).arg(it.key());
+        if (tooLarge > 0)
+            info << QObject::tr("Skipped %1 hole(s) over %2 border edges.")
+                        .arg(tooLarge).arg(maxHoleSize);
+        if (open > 0)
+            info << QObject::tr("Left %1 open rim(s), which are not holes.").arg(open);
+    } catch (const std::exception &e) {
+        const QString message = QObject::tr("TrueForm hole filling failed: %1")
+                                    .arg(QString::fromLocal8Bit(e.what()));
+        doc.finishFilterProgress(false, message);
+        return fail(message);
+    }
+
+    doc.markMeshGeometryChanged(index, QObject::tr("Closed holes on '%1'").arg(entry.name));
+    doc.finishFilterProgress(true, QObject::tr("Closed holes."));
+    return success(info);
 }
 
 // ---------------------------------------------------------------------------
@@ -2837,6 +3102,10 @@ MeshFilterRunResult TrueFormFilterPlugin::runFilter(
         return runCleanMesh(params, doc);
     if (filterId == QString::fromLatin1(kFilterImprove))
         return runImproveTriangulation(params, doc);
+    if (filterId == QString::fromLatin1(kFilterGeodesic))
+        return runGeodesicDistance(params, doc);
+    if (filterId == QString::fromLatin1(kFilterCloseHoles))
+        return runCloseHoles(params, doc);
     return fail(QObject::tr("Unknown filter id: %1").arg(filterId));
 }
 

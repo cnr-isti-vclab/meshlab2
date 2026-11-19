@@ -984,8 +984,8 @@
         "requireVertices": true,
         "requireFaces": true
       },
-      "shortDescription": "Report a layer's manifoldness, closure, self-intersections, Euler characteristic, boundary rims and non-manifold counts.",
-      "longDescriptionMarkdown": "Reports every structural fact TrueForm can state about one layer, in one place:\n\n| Line | Meaning |\n|---|---|\n| Manifold | whether the faces around every vertex form one fan, which also says no edge carries more than two |\n| Closed | whether the surface has no boundary edge, and so encloses a volume |\n| Self-intersecting | whether the surface passes through itself anywhere |\n| Euler characteristic | V - E + F, each undirected edge counted once; 2 for a sphere, 0 for a torus |\n| Boundary rims | how many separate boundary curves there are, and how many of them close |\n| Non-manifold edges | edges carried by three or more faces |\n| Non-manifold vertices | vertices whose faces are not one fan |\n\nEach fact has its own filter elsewhere, but a mesh that misbehaves for no visible reason is usually diagnosed by reading several of them together: **closed but not manifold** points at a seam three sheets share, **manifold but not closed** at holes, and **self-intersecting** at geometry that has no well-defined inside no matter how clean its topology looks.\n\nThe answers are computed off one shared connectivity structure rather than one per question. Only the self-intersection test needs a spatial index, and it stops at the first contact it finds, so a mesh that does intersect itself is answered without the rest of it being examined.\n\nNothing is modified; this filter only reports.",
+      "shortDescription": "Report a layer's manifoldness, closure, self-intersections, Euler characteristic, boundary rims, holes, flaps and non-manifold counts.",
+      "longDescriptionMarkdown": "Reports every structural fact TrueForm can state about one layer, in one place:\n\n| Line | Meaning |\n|---|---|\n| Manifold | whether the faces around every vertex form one fan, which also says no edge carries more than two |\n| Closed | whether the surface has no boundary edge, and so encloses a volume |\n| Self-intersecting | whether the surface passes through itself anywhere |\n| Euler characteristic | V - E + F, each undirected edge counted once; 2 for a sphere, 0 for a torus |\n| Boundary rims | how many separate boundary curves there are, and how many of them close |\n| Holes | boundary rims that are missing skin: every closed rim, and an open one with an end that does not hang from a non-manifold edge |\n| Flaps | open rims whose two ends hang from edges three or more faces share: a fin stuck on the surface, not a hole |\n| Non-manifold edges | edges carried by three or more faces |\n| Non-manifold vertices | vertices whose faces are not one fan |\n\nEach fact has its own filter elsewhere, but a mesh that misbehaves for no visible reason is usually diagnosed by reading several of them together: **closed but not manifold** points at a seam three sheets share, **manifold but not closed** at holes, and **self-intersecting** at geometry that has no well-defined inside no matter how clean its topology looks.\n\nThe answers are computed off one shared connectivity structure rather than one per question. Only the self-intersection test needs a spatial index, and it stops at the first contact it finds, so a mesh that does intersect itself is answered without the rest of it being examined.\n\nNothing is modified; this filter only reports.",
       "tags": [
         "trueform",
         "measure",
@@ -1890,6 +1890,121 @@
           "id": "checkNormals",
           "label": "Check Normals",
           "help": "Reject flips and moves that would fold a triangle over.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        }
+      ]
+    },
+    {
+      "id": "compute_geodesic_distance_from_selection_trueform",
+      "name": "Compute Geodesic Distance from Selection (TrueForm)",
+      "pythonName": "compute_geodesic_distance_from_selection_trueform",
+      "categories": [
+        "Attribute/Scalar"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "VQ"
+      ],
+      "shortDescription": "Store each vertex's distance over the surface from the nearest selected vertex in vertex scalar.",
+      "longDescriptionMarkdown": "Measures, for every vertex, the shortest distance **over the surface** to the nearest selected vertex, and stores it in **vertex scalar**.\n\nThe front is propagated by triangle unfolding rather than along edges, so on a planar region the distance is the straight line and on a curved one it is shorter than any edge path. It is an approximation of the exact polyhedral geodesic: where the fronts of two seeds meet, the answer along that seam is the edge path. Large fronts are split across threads, so two runs may differ by a tiny relative amount on a large mesh.\n\n**Max Distance** stops the front early, which is much faster when only a neighbourhood is wanted; 0 measures the whole surface. A vertex the front does not reach — past the cut-off, or on a piece of the mesh with no selected vertex — holds the cut-off, or the farthest reached distance when there is none, so it reads as the top of the colour scale.\n\nThe layer matrix is applied first, so distances are in world units.\n\nThe result is a field to contour with *Create Polyline from Scalar Isocontour (TrueForm)* or cut into rings with *Cut Along Scalar Isocontour (TrueForm)*. Compare with the vcglib, heat-method and exact libigl versions of this filter, which trade speed against exactness differently.",
+      "tags": [
+        "trueform",
+        "geodesic",
+        "distance",
+        "selection",
+        "scalar"
+      ],
+      "parameters": [
+        {
+          "id": "maxDistance",
+          "label": "Max Distance",
+          "help": "Stop the front at this distance; vertices beyond it hold this value. 0 measures the whole surface.",
+          "group": "main",
+          "type": "absperc",
+          "default": 0.0,
+          "min": 0.0,
+          "max": "@bboxDiag5x",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "id": "close_holes_trueform",
+      "name": "Close Holes (TrueForm)",
+      "pythonName": "close_holes_trueform",
+      "categories": [
+        "Repair/Holes and Borders"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireVertices": true,
+        "requireFaces": true
+      },
+      "outputModifies": [
+        "FV",
+        "VG",
+        "VN",
+        "FS"
+      ],
+      "shortDescription": "Fill closed boundary rims up to a size with patches that continue the surrounding surface.",
+      "longDescriptionMarkdown": "Fills every **closed** boundary rim of at most **Max Hole Size** border edges, in place.\n\nEach hole goes down a ladder of methods, the first that succeeds winning: a rim of up to five vertices is triangulated exhaustively; a larger one is read as a height field over the plane its rim spans and sampled so that the patch **continues the surface around it**; where that refuses and the rim is planar it is lidded in its plane; and otherwise the triangulation with the best worst angle, then the least area, is chosen from a Delaunay tetrahedralization of the rim. The patch is then refined toward **Min Quality** and, with **Fairing**, smoothed against its neighbourhood; only the vertices a patch adds ever move.\n\n**Split Border Edges** lets the fill split the original edges along the rim where a patch needs it. The faces carrying a split edge are rebuilt, so they lose per-face and wedge attributes such as texture coordinates; turn it off to leave every original face untouched, at the cost of refusing a hole that can only be filled by splitting.\n\nAll other vertices and faces keep their attributes; added vertices carry position only. A hole that cannot be filled is left open and named in the log with the reason.\n\nOpen rims are never filled: an open rim is either a **flap** hanging from an edge three faces share or a pinched boundary, and *Measure Mesh Health (TrueForm)* counts both. Compare with *Close Holes*, which uses vcglib's ear-cutting fill.",
+      "tags": [
+        "trueform",
+        "repair",
+        "holes",
+        "fill",
+        "watertight"
+      ],
+      "parameters": [
+        {
+          "id": "maxHoleSize",
+          "label": "Max Hole Size",
+          "help": "Largest hole filled, in border edges. Keeps a sheet's own outline from being capped.",
+          "group": "main",
+          "type": "int",
+          "default": 30,
+          "min": 3,
+          "max": 1000000
+        },
+        {
+          "id": "selectNewFaces",
+          "label": "Select New Faces",
+          "help": "Replace the face selection with the faces the fill created.",
+          "group": "main",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "minQuality",
+          "label": "Min Quality",
+          "help": "Triangle quality the patch is refined toward, 1 being equilateral. 0 disables refinement.",
+          "group": "advanced",
+          "type": "double",
+          "default": 0.3,
+          "min": 0.0,
+          "max": 1.0,
+          "decimals": 3
+        },
+        {
+          "id": "fairing",
+          "label": "Fairing",
+          "help": "Smooth each refined patch against its neighbourhood.",
+          "group": "advanced",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "id": "splitBorderEdges",
+          "label": "Split Border Edges",
+          "help": "Allow the fill to split original edges along the rim. Rebuilt faces lose their per-face and wedge attributes.",
           "group": "advanced",
           "type": "bool",
           "default": true

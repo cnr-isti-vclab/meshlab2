@@ -59,19 +59,33 @@ entry point; `filters.json` is the full inventory.
 |---|---|
 | Select Non-Manifold Edges (TrueForm) | `tf::make_non_manifold_edges` |
 | Select Non-Manifold Vertices (TrueForm) | `tf::make_non_manifold_vertices` |
-| Measure Mesh Health (TrueForm) | `tf::is_manifold`, `tf::is_closed`, `tf::has_self_intersections`, `tf::euler_characteristic`, `tf::make_boundary_rims`, `tf::make_non_manifold_edges`, `tf::make_non_manifold_vertices` |
+| Measure Mesh Health (TrueForm) | `tf::is_manifold`, `tf::is_closed`, `tf::has_self_intersections`, `tf::euler_characteristic`, `tf::make_boundary_rims`, `tf::topology::boundary_rim_is_flap`, `tf::make_non_manifold_edges`, `tf::make_non_manifold_vertices` |
 | Split Non-Manifold Vertices (TrueForm) | `tf::split_non_manifold_vertices` |
 | Compute Face Quality (TrueForm) | `tf::compute_face_quality` |
 | Create Polyline from Boundary Rims (TrueForm) | `tf::make_boundary_rims` |
+| Close Holes (TrueForm) | `tf::make_boundary_rims`, `tf::fill_holes` |
 | Repair Self-Intersections (TrueForm) | `tf::make_polygon_arrangements` |
 | Extract Outer Shell (TrueForm) | `tf::make_outer_shell` |
 
-Two contracts in that table are the library's, not the plugin's, and the help
+These contracts are the library's, not the plugin's, and the help
 text has to state them because a caller cannot see them:
 
 - `tf::split_non_manifold_vertices` separates only the fans that come apart
   without cutting an edge. An edge three faces carry is crossed by no fan, so a
   vertex holding one is left untouched and `tf::make_non_manifold_vertices`
   still names it afterwards. The filter is a partial repair by construction.
+- `tf::fill_holes` states its result against the input's own ids: points past
+  the input's count are minted, and a face whose rim edge it split is replaced
+  by a *plan*. *Close Holes (TrueForm)* therefore stitches the result into the
+  layer instead of rebuilding it with `tf::make_filled_mesh`, which would drop
+  every attribute: it appends the minted points, deletes each planned face and
+  adds its triangles, then the patches. Mapping a TrueForm face id back to a
+  VCG face relies on `tfCarriesFace()`, the one predicate `tfMeshFromLayer()`
+  keeps faces by. Only closed rims are offered; an open rim is a flap or a
+  pinch and the library refuses it anyway.
+- `tf::make_geodesic_distances` answers infinity for a point no front reaches.
+  *Compute Geodesic Distance from Selection (TrueForm)* writes the cut-off (or
+  the farthest reached distance) there instead, so the colour map keeps a
+  finite range.
 - `tf::compute_face_quality`'s `quality` is a *triangle* measure. A face that is
   not a triangle reads `-1`; the angles and the aspect ratio hold at any arity.
