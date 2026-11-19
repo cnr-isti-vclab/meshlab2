@@ -367,12 +367,18 @@ bool meshNeedsCompaction(const VCGMesh &mesh)
         || mesh.FN() != int(mesh.face.size());
 }
 
+// Drop deleted elements from storage. Compaction moves elements, so the bounding box is
+// refreshed with it; a mesh with nothing left gets a null one.
 void compactMeshStorageInvariant(VCGMesh &mesh)
 {
     if (!meshNeedsCompaction(mesh))
         return;
 
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
+    if (mesh.VN() > 0)
+        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    else
+        mesh.bbox.SetNull();
 }
 
 // Framework invariant: every mesh entering the document from IO has valid face normals.

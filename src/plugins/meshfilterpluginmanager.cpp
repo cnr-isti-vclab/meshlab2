@@ -1,6 +1,7 @@
 #include "meshfilterpluginmanager.h"
 
 #include "document.h"
+#include "document_internal.h"
 #include "filterparam.h"
 #include "vcgmesh.h"
 #include <wrap/io_trimesh/io_mask.h>
@@ -406,25 +407,6 @@ int cleanupTargetMeshIndex(
     return params.getMesh(action.meshParameter, fallbackCurrentMeshIndex);
 }
 
-bool meshNeedsCompaction(const VCGMesh &mesh)
-{
-    return mesh.VN() != int(mesh.vert.size())
-        || mesh.EN() != int(mesh.edge.size())
-        || mesh.FN() != int(mesh.face.size());
-}
-
-void compactMeshStorageInvariant(VCGMesh &mesh)
-{
-    if (!meshNeedsCompaction(mesh))
-        return;
-
-    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
-    if (mesh.VN() > 0)
-        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
-    else
-        mesh.bbox.SetNull();
-}
-
 void finalizeMeshesAfterSuccessfulFilter(
     const MeshFilterDescriptor &descriptor,
     const MeshFilterRunResult &result,
@@ -457,7 +439,7 @@ void finalizeMeshesAfterSuccessfulFilter(
     const bool fauxEdgesModified = descriptor.outputModifies.contains(QStringLiteral("FP"));
 
     for (int meshIndex : std::as_const(targetMeshes)) {
-        compactMeshStorageInvariant(doc.mesh(meshIndex).mesh);
+        DocumentInternal::compactMeshStorageInvariant(doc.mesh(meshIndex).mesh);
         // Avoid recounting a newly added polygon mesh: addMesh() initialized it.
         const bool cacheAlreadyInitialized =
             result.newMeshIndices.contains(meshIndex)
