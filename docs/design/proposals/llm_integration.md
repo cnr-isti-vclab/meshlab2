@@ -43,24 +43,21 @@ One substantial gap, and one that has closed.
 
 ### Closed: the headless build now follows the application build
 
-This was previously the largest obstacle, and the fix landed in the sibling
-wheel repository `cignoni/pymeshlab2` rather than here. The arrangement today:
+This was previously the largest obstacle. The fix first landed in the separate
+wheel repository `cignoni/pymeshlab2`, now archived, and came here with the wheel
+itself (see [Packaging location](#packaging-location)). The arrangement today:
 
 - *Bindings* are shared by construction. `src/python/bindings/sources.cmake`
   defines `MESHLAB2_PYTHON_BINDING_SOURCES`, and both consumers include it:
   this repository's static `_meshlab2_bindings` (embedded console) and the
   wheel's `nanobind_add_module(_meshlab NB_STATIC …)`.
-- *The build graph* is no longer restated. The wheel does
-  `add_subdirectory(external/meshlab2 EXCLUDE_FROM_ALL)` and links the whole
-  `MeshLab2Plugins` target, so a plugin added here appears there without edits.
-  What it carries is expressed as explicit **opt-outs** rather than a hand-built
-  list: `MESHLAB2_PLUGIN_OBJ_RAPIDOBJ`, `MESHLAB2_PLUGIN_E57` and
-  `MESHLAB2_PLUGIN_GLTF` off unconditionally, and `FILTER_MESHFIX`,
-  `FILTER_QSLIM`, `FILTER_QUADWILD` off when their vendored externals are
-  absent.
+- *The build graph* is no longer restated. The wheel is built from this
+  repository's root `pyproject.toml` and links the whole `MeshLab2Plugins`
+  target, so a plugin added here appears there without edits; the plugin
+  opt-outs the separate repository carried are gone.
 - *Packaging* exists: `cibuildwheel` for CPython 3.10–3.14 on macOS arm64 and
   Windows x64, `delvewheel` / a macOS repair script, and bundling of the geogram
-  runtime and the quadwild helper binaries.
+  runtime and the QuadWild and TextureConsolidation helper programs.
 
 Two consequences remain, and both matter for a model-facing catalogue:
 
@@ -75,10 +72,10 @@ Two consequences remain, and both matter for a model-facing catalogue:
    `REQUIRE_VCPKG_DEPS` back on and the opt-outs dropped) the wheel lists 405,
    the application's exact set — but the rule below stands, since an
    installed wheel can still lag the tree it is compared against.
-2. **The submodule pin is a standing source of staleness.** The wheel repository
-   pins MeshLab as a submodule, and that pin is routinely behind; at the time of
-   writing it trailed `devel` by 135 commits. Folding the wheel into this
-   repository removes the pin; see [Packaging location](#packaging-location)
+2. *Resolved:* **the submodule pin was a standing source of staleness.** The
+   separate wheel repository pinned MeshLab as a submodule, and that pin
+   trailed `devel` by 135 commits when this was written. Folding the wheel into
+   this repository removed the pin; see [Packaging location](#packaging-location)
    below.
 
 A model that is told "these are MeshLab's filters" should be told so by the
@@ -96,10 +93,12 @@ behaviour. Nothing here has changed.
 ## Packaging location
 
 Decided 2026-11-03: the wheel folds into this repository, ahead of step 2.
-The plan is [Folding the pymeshlab2 wheel into this repository](pymeshlab_merge.md);
-what follows is the reasoning that led there.
+Carried out by 2026-11-22: the `2026.11` release built the wheels from its tag and
+the old repository is archived. The record is
+[Folding the pymeshlab2 wheel into this repository](../history/pymeshlab_merge.md);
+what follows is the reasoning that led there, as written before the move.
 
-The wheel lives in `cignoni/pymeshlab2`, which holds 23 files outside the
+The wheel lived in `cignoni/pymeshlab2`, which held 23 files outside the
 submodule: a `cibuildwheel` workflow, `CMakeLists.txt` (mostly the toggles
 above), `pyproject.toml`, `vcpkg.json`, a ~35-line `__init__.py` of runtime
 library shims, a macOS wheel-repair script, six examples and five test files.

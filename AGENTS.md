@@ -94,8 +94,8 @@ cannot be justified on vcglib's own terms probably belongs on the MeshLab side i
 
 Landing one is a **four-part** task: commit inside `vcglib/`, push to `origin/devel`,
 bump the gitlink, and land the MeshLab-side code that depends on it in the same bump. A
-dirty or unpushed submodule builds fine locally and fails for everyone else — CI and the
-pymeshlab2 sibling repo included.
+dirty or unpushed submodule builds fine locally and fails for everyone else, CI
+included.
 
 ```bash
 git -C vcglib status -sb && git -C vcglib rev-list --count origin/devel..HEAD

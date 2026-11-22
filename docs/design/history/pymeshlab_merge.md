@@ -1,18 +1,22 @@
-# Folding the pymeshlab2 wheel into this repository
+# Folding the pymeshlab2 wheel into this repository — record
+
+> **Completed 2026-11-22.** The wheel is built from this repository, the `2026.11`
+> release built it from its tag, and the separate repository, since moved to
+> `cnr-isti-vclab/pymeshlab2`, is archived. This is a dated record of the plan and its
+> execution, not a current description of the tree: the "Current" column names files
+> that lived in the archived repository.
 
 The Python wheel is built from a separate repository, `cignoni/pymeshlab2`, which
 carries MeshLab as a git submodule. This document proposes moving that build here
 and retiring the separate repository, and records the mapping table required by
 `AGENTS.md` before anything moves.
 
-**Status (2026-11-12):** both tables approved; the in-app facade rename and steps
-2–4 are done. `pip wheel .` builds `pymeshlab2` from this tree, the wheel exposes
-the same 405 filters as the application, and `wheels.yml` builds and tests the
-wheels on `devel` (macOS arm64 and Windows x64, CPython 3.10–3.14; first green run
-2026-11-03, `0ac8d6e8`). Steps 5–6 (tag, archive) have not started: no release has
-been tagged yet.
+**Status (2026-11-22):** all six steps done. `pip wheel .` builds `pymeshlab2` from
+this tree, the wheel exposes the same 405 filters as the application, `wheels.yml`
+builds and tests the wheels (macOS arm64 and Windows x64, CPython 3.10–3.14), and the
+`2026.11` release attached the wheels built from its tag.
 
-See also: [LLM Integration](llm_integration.md) (why wheel/app convergence came up),
+See also: [LLM Integration](../proposals/llm_integration.md) (why wheel/app convergence came up),
 [Branches and Releases](../release_process.md) (the release machinery this would join),
 [Python Scripting](../../python_scripting.md) (the API the wheel exposes).
 
@@ -204,7 +208,7 @@ independent of the wheel move and can land first, as its own commit.
 - **The test story becomes two-headed**: `ctest` for C++, `pytest` for the wheel.
   Kept small on purpose: `pytest` covers only what is specific to the wheel (the
   binding surface, the examples, and that **the filters a wheel exposes match the
-  descriptors in this tree**, the gap recorded in [LLM Integration](llm_integration.md));
+  descriptors in this tree**, the gap recorded in [LLM Integration](../proposals/llm_integration.md));
   filter behaviour stays in the three ctest tiers.
 - **cibuildwheel's isolated build environment** must see the vcpkg install tree
   the way the existing workflows lay it out. This is the one mechanically unknown
@@ -245,7 +249,12 @@ independent of the wheel move and can land first, as its own commit.
    hand, and from `release.yml`, which attaches the wheels to the draft release).
    *Proven*: green on `devel` since 2026-11-03 (`0ac8d6e8`, `9e386700`, `65d5212d`,
    and by hand on `460c4d84`).
-5. Tag a release; confirm the wheel builds from the tag.
-6. Only then archive `cignoni/pymeshlab2`.
+5. Tag a release; confirm the wheel builds from the tag. *Done*: `2026.11`, tagged
+   2026-11-22 on `6ee1aa9e`; `release.yml` built the wheels from the tag and attached
+   them to the release beside the DMG, ZIP and AppImage.
+6. Only then archive `cignoni/pymeshlab2`. *Done* 2026-11-22, under its new name
+   `cnr-isti-vclab/pymeshlab2`: its README now points here, and its one open pull
+   request, a draft fixing the vcpkg path in its own Windows wheel workflow, was
+   closed as superseded by this repository's `wheels.yml`.
 
 Steps 2–5 are each independently revertible; step 6 is the point of no easy return.
