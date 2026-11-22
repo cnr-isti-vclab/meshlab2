@@ -403,7 +403,9 @@ endif()
 
 option(MESHLAB2_MACOS_BUNDLE_ICON "Generate and embed the macOS app bundle icon" ON)
 if (APPLE AND MESHLAB2_MACOS_BUNDLE_ICON)
-    set(MESHLAB2_APP_ICON_PNG "${MESHLAB2_SOURCE_DIR}/img/MeshLab_Icon_512x512.png")
+    # The round eye on a rounded square filling Apple's 824-of-1024 icon grid: since
+    # macOS 26 Finder shrinks an icon that does not fill that shape into a grey plate.
+    set(MESHLAB2_APP_ICON_PNG "${MESHLAB2_SOURCE_DIR}/img/MeshLab_Icon_macOS_1024.png")
     set(MESHLAB2_APP_ICON_ICNS "${CMAKE_CURRENT_BINARY_DIR}/MeshLab.icns")
     add_custom_command(
         OUTPUT "${MESHLAB2_APP_ICON_ICNS}"

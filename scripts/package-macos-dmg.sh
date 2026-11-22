@@ -243,54 +243,34 @@ if [ -n "$SIGN_IDENTITY" ] && [ -d "$APP/Contents/Helpers" ]; then
 	done
 fi
 
-echo "==> building dmg"
+# macdeployqt signs the bundle; dmgbuild then lays out the disk image. macdeployqt's
+# own -dmg cannot add the Applications link or a background, and names the volume
+# after the path it is given ("build-release/dist/MeshLab").
 if [ -n "$SIGN_IDENTITY" ]; then
 	echo "==> Developer ID signing with hardened runtime"
 	"$MACDEPLOYQT" "$APP" -always-overwrite -libpath="$QT_LIBDIR" \
-		"-sign-for-notarization=$SIGN_IDENTITY" -dmg
+		"-sign-for-notarization=$SIGN_IDENTITY"
 else
 	echo "==> ad-hoc signing"
-	"$MACDEPLOYQT" "$APP" -always-overwrite -libpath="$QT_LIBDIR" \
-		-codesign=- -dmg
+	"$MACDEPLOYQT" "$APP" -always-overwrite -libpath="$QT_LIBDIR" -codesign=-
 fi
 codesign --verify --deep --strict --verbose=2 "$APP"
-GENERATED_DMG="$STAGE/$APP_NAME.dmg"
-[ -f "$GENERATED_DMG" ] || { echo "macdeployqt did not produce $GENERATED_DMG" >&2; exit 1; }
 
-# Give the mounted volume the app icon instead of the generic disk image one.
+DMGBUILD="${DMGBUILD:-dmgbuild}"
+command -v "$DMGBUILD" >/dev/null || {
+	echo "dmgbuild not found; install it with: pip install dmgbuild==2.0.0" >&2
+	exit 1
+}
 APP_ICON="$(find "$APP/Contents/Resources" -maxdepth 1 -type f -name '*.icns' -print -quit)"
-if [ -n "$APP_ICON" ] && xcrun -f SetFile >/dev/null 2>&1; then
-	echo "==> setting volume icon"
-	RW_DMG="$STAGE/$APP_NAME-rw.dmg"
-	# hdiutil reports the resolved path, so /tmp would never match the device line.
-	MOUNT_POINT="$(cd "$(mktemp -d "/tmp/$APP_NAME.XXXXXX")" && pwd -P)"
-	hdiutil convert "$GENERATED_DMG" -format UDRW -o "${RW_DMG%.dmg}" >/dev/null
-	DEVICE_NAME="$(hdiutil attach "$RW_DMG" -mountpoint "$MOUNT_POINT" -nobrowse -readwrite |
-		awk -v mp="$MOUNT_POINT" '$NF == mp {print $1; exit}')"
-	if [ -n "$DEVICE_NAME" ]; then
-		cp -f "$APP_ICON" "$MOUNT_POINT/.VolumeIcon.icns"
-		xcrun SetFile -a C "$MOUNT_POINT"
-		xcrun SetFile -a V "$MOUNT_POINT/.VolumeIcon.icns"
-		sync
-		hdiutil detach "$DEVICE_NAME" >/dev/null
-		rm -f "$GENERATED_DMG"
-		hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 \
-			-o "${GENERATED_DMG%.dmg}" >/dev/null
-		rm -f "$RW_DMG"
-	else
-		echo "Could not mount dmg; leaving default volume icon" >&2
-		hdiutil detach "$MOUNT_POINT" 2>/dev/null || true
-	fi
-	rmdir "$MOUNT_POINT" 2>/dev/null || true
-fi
-
 if [ -n "$SIGN_IDENTITY" ]; then
 	DMG="$BUILD_DIR/$APP_NAME-macos-$(uname -m).dmg"
 else
 	DMG="$BUILD_DIR/$APP_NAME-macos-$(uname -m)-unsigned.dmg"
 fi
 rm -f "$DMG"
-mv "$GENERATED_DMG" "$DMG"
+echo "==> building dmg"
+"$DMGBUILD" -s resources/macos/dmg_settings.py -D app="$APP" -D icon="$APP_ICON" \
+	-D background=resources/macos/dmg_background.png "$APP_NAME" "$DMG"
 if [ -n "$SIGN_IDENTITY" ]; then
 	echo "==> signing dmg"
 	codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"

@@ -109,6 +109,13 @@ Branch from the release tag, fix, merge into `main` and into `devel`, bump to
 The Windows workflow assembles the portable folder, then zips it; the signing step goes
 between the two, because a ZIP cannot carry a signature.
 
+On macOS, `macdeployqt` signs the bundle and [dmgbuild](https://github.com/dmgbuild/dmgbuild)
+(2.0.0, MIT, installed with pip) lays out the disk image: the `Applications` link, the
+background in the classic viewer gradient and the volume icon, set in
+`resources/macos/dmg_settings.py`. It writes Finder's layout file itself rather than
+scripting Finder, so it behaves the same on a CI runner. `scripts/package-macos-dmg.sh`
+needs it on `PATH`, or named by `DMGBUILD`.
+
 ## Build caches follow the default branch
 
 GitHub lets a run restore caches saved by its own branch and by the **default** branch,
