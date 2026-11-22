@@ -196,6 +196,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/mlgui.html">MlGui</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/filters.html">Filters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../texture_metrics.html">Texture and UV measures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
@@ -316,12 +317,32 @@ falls through to <code class="docutils literal notranslate"><span class="pre">st
 </pre></div>
 </div>
 <p>(<code class="docutils literal notranslate"><span class="pre">file_open</span></code> and <code class="docutils literal notranslate"><span class="pre">file_save</span></code> are accepted as alternates.)</p>
+<p>A relative <code class="docutils literal notranslate"><span class="pre">filesave</span></code> value reaches the filter already anchored in the document’s folder
+(<code class="docutils literal notranslate"><span class="pre">Document::directory()</span></code>: the project’s folder, or that of the first mesh loaded or saved).
+Only a document with no folder yet keeps the bare name, which then resolves against the
+working directory. So a default such as <code class="docutils literal notranslate"><span class="pre">&quot;report.csv&quot;</span></code> is fine,
+and a filter must not anchor it again. History and scripts keep the name as given.</p>
+<p><strong>A filter that makes a texture writes no file.</strong> It returns an image with a name and no
+path – <code class="docutils literal notranslate"><span class="pre">TextureAssociationUtils::outputTextureNames</span></code> for the name (the one asked for, or
+<code class="docutils literal notranslate"><span class="pre">&lt;layer&gt;_&lt;role&gt;.png</span></code>), <code class="docutils literal notranslate"><span class="pre">makeTextureAssetsFromImages</span></code> for the assets – and saving the mesh
+writes it. Take the name as a <code class="docutils literal notranslate"><span class="pre">string</span></code> parameter <code class="docutils literal notranslate"><span class="pre">textureName</span></code>, empty by default, or as the
+“new” choice of a <code class="docutils literal notranslate"><span class="pre">textureoutputref</span></code>, which is a name too. To overwrite an existing
+texture, replace its image and keep its name and <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code>: the file is left alone, the
+texture shows changed, and the next save writes the new image beside the mesh. See
+<a class="reference internal" href="history/project_persistence.html"><span class="std std-doc">project_persistence.md</span></a>.</p>
+<p>A filter that makes <strong>one new texture for each texture the faces use</strong> and moves the faces onto
+them, as <em>Transfer Color from Vertex to Texture</em> and <em>Colorize Texture by Principal Directions
+(Line Integral Convolution)</em> do, numbers them with <code class="docutils literal notranslate"><span class="pre">compactTextureSlotIndices</span></code> (the indices the
+faces use, renumbered 0, 1, …), appends them with <code class="docutils literal notranslate"><span class="pre">appendTextureAssociations</span></code>, and moves the
+faces past the old ones with <code class="docutils literal notranslate"><span class="pre">offsetTextureSlotIndices</span></code>. Numbering by the old indices would also
+make a texture for every index no face uses – after one such run, the old textures’ indices.
+It then asks the view to show the texture, with a <code class="docutils literal notranslate"><span class="pre">Texture</span></code> visualization hint.</p>
 <p>An <code class="docutils literal notranslate"><span class="pre">absperc</span></code> is a <strong>length</strong>, as an absolute value or as a percentage of its range
 (<code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code> and the other bound tokens). Its absolute half is labelled with the
 document’s unit (<code class="docutils literal notranslate"><span class="pre">Document::unit()</span></code>, “mm”, “m”, …) once the user has set one, and
 “abs” while it is unknown, so declare as <code class="docutils literal notranslate"><span class="pre">absperc</span></code> only what really is a length in the
 layer’s coordinates – not a count, an angle or a ratio.</p>
-<p>Every parameter also carries <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">help</span></code> and <code class="docutils literal notranslate"><span class="pre">group</span></code> — all 1168 declared
+<p>Every parameter also carries <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">help</span></code> and <code class="docutils literal notranslate"><span class="pre">group</span></code> — all 1433 declared
 parameters do. Each distinct <code class="docutils literal notranslate"><span class="pre">group</span></code> becomes one section of the form, in order
 of first appearance, and headings only appear once there is more than one group.
 The name is cosmetic except for one rule: <strong>a group whose name begins with
@@ -375,15 +396,14 @@ code runs, so the filter is greyed out with a reason instead of failing inside
 <code class="docutils literal notranslate"><span class="pre">requireEdges</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaceQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireEdgeQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexColor</span></code>,
 <code class="docutils literal notranslate"><span class="pre">requireFaceColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextureCoordinates</span></code>, <code class="docutils literal notranslate"><span class="pre">requirePerVertexTexCoords</span></code>,
 <code class="docutils literal notranslate"><span class="pre">requirePerWedgeTexCoords</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextures</span></code>. Declare them instead of
-re-checking by hand — 291 of 337 filters do.</p>
+re-checking by hand, as most filters do.</p>
 <p>A filter that can confine itself to the selection declares <strong><code class="docutils literal notranslate"><span class="pre">selectionScope</span></code></strong> —
 <code class="docutils literal notranslate"><span class="pre">&quot;vertices&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;faces&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;edges&quot;</span></code>, the kind of element its algorithm restricts to —
 and <strong>no toggle of its own</strong>. The loader injects one <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> bool, first and never
 advanced, labelled <em>Only selected vertices / faces / edges</em>; read it with
-<code class="docutils literal notranslate"><span class="pre">params.getBool(&quot;selectedOnly&quot;)</span></code>. A filter that confines some layer other than the
-current one names that mesh parameter in <code class="docutils literal notranslate"><span class="pre">selectionScopeMesh</span></code> (<em>Transfer Vertex
-Attributes</em> uses <code class="docutils literal notranslate"><span class="pre">TargetMesh</span></code>, the MLS projections <code class="docutils literal notranslate"><span class="pre">ProxyMesh</span></code>). Everything else is the
-framework’s (<code class="docutils literal notranslate"><span class="pre">src/plugins/selectionscope.h</span></code>):</p>
+<code class="docutils literal notranslate"><span class="pre">params.getBool(&quot;selectedOnly&quot;)</span></code>. The scope is always the current layer’s selection: a
+two-layer filter changes the current layer (<a class="reference internal" href="filter_organization.html"><span class="std std-doc">filter_organization.md</span></a>),
+so that is the one it confines itself on. Everything else is the framework’s (<code class="docutils literal notranslate"><span class="pre">src/plugins/selectionscope.h</span></code>):</p>
 <ul class="simple">
 <li><p><strong>Default</strong>: omitted, <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> is on exactly when there is something to confine
 the filter to, in the panel, in Python and in a replayed compact call alike.</p></li>
@@ -464,7 +484,10 @@ using CSL-JSON field names, then attached to filters with <code class="docutils 
 </div>
 <p>The framework generates the in-app <code class="docutils literal notranslate"><span class="pre">[bib]</span></code>, <code class="docutils literal notranslate"><span class="pre">[doi]</span></code>, and <code class="docutils literal notranslate"><span class="pre">[web]</span></code> actions, help
 citations, online references, and the combined <code class="docutils literal notranslate"><span class="pre">references.bib</span></code>; do not repeat
-the citation in <code class="docutils literal notranslate"><span class="pre">longDescriptionMarkdown</span></code>.</p>
+the citation in <code class="docutils literal notranslate"><span class="pre">longDescriptionMarkdown</span></code> (<code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> rejects a DOI
+link or a “Reference:” line there). Naming the authors in prose – “the method of Hoppe
+et al.” – is fine. A paper another manifest already declares is copied with the same id
+and identical fields: <code class="docutils literal notranslate"><span class="pre">docs/generate_api.py</span></code> refuses an id defined two ways.</p>
 </section>
 <section id="descriptions-and-formulas">
 <h3>Descriptions and formulas<a class="headerlink" href="#descriptions-and-formulas" title="Link to this heading">¶</a></h3>
@@ -488,14 +511,20 @@ to the reader:</p>
 line (<code class="docutils literal notranslate"><span class="pre">\n\n</span></code>) starts a paragraph, a single <code class="docutils literal notranslate"><span class="pre">\n</span></code> is a soft break that reads as a space,
 and lists and tables need the blank line before them that Markdown always needs. Write
 paragraphs; the help box is narrow and wraps, so hand-wrapping with single newlines gains
-nothing.</p>
+nothing. A line break inside a paragraph is a line ending in a backslash – <code class="docutils literal notranslate"><span class="pre">\\\n</span></code> in JSON,
+an escaped backslash and then the newline – not <code class="docutils literal notranslate"><span class="pre">&lt;br&gt;</span></code>.</p>
+<p>HTML that is never closed is worse than unformatted. After a <code class="docutils literal notranslate"><span class="pre">&lt;br&gt;</span></code>, or a <code class="docutils literal notranslate"><span class="pre">&lt;li&gt;</span></code> left open,
+Qt’s importer (6.11) drops the plain text and the links of <strong>everything that follows</strong>,
+across paragraphs, keeping only the code spans: 42 help texts showed a run of variable
+names where their prose had been. Where HTML stays, close every tag and write void ones
+self-closed (<code class="docutils literal notranslate"><span class="pre">&lt;br/&gt;</span></code>); text inside a code span is literal and safe.</p>
 <p><code class="docutils literal notranslate"><span class="pre">shortDescription</span></code> is the exception: it is <strong>not</strong> Markdown. It goes to a <code class="docutils literal notranslate"><span class="pre">QLabel</span></code> in the
 filter panel and to the tooltips in the Filters menu and the results list, so write it as
 one plain sentence. <code class="docutils literal notranslate"><span class="pre">**bold**</span></code> keeps its asterisks there, <code class="docutils literal notranslate"><span class="pre">$x$</span></code> its dollars, and a
 <code class="docutils literal notranslate"><span class="pre">[link](url)</span></code> shows both halves.</p>
-<p><code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> rejects a literal <code class="docutils literal notranslate"><span class="pre">\n</span></code> in any description or help text, and
-rejects a newline, an emphasis marker, a backtick, a <code class="docutils literal notranslate"><span class="pre">$</span></code>, a Markdown link or an HTML tag
-in a <code class="docutils literal notranslate"><span class="pre">shortDescription</span></code>.
+<p><code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> rejects a literal <code class="docutils literal notranslate"><span class="pre">\n</span></code> or an HTML tag left unclosed in any
+description or help text, and rejects a newline, an emphasis marker, a backtick, a <code class="docutils literal notranslate"><span class="pre">$</span></code>, a
+Markdown link or an HTML tag in a <code class="docutils literal notranslate"><span class="pre">shortDescription</span></code>.
 That check exists because 148 of them reached the help box across three plugins before
 anyone noticed – the <code class="docutils literal notranslate"><span class="pre">\\</span></code> rule above is easy to over-apply.</p>
 <p>Angular parameters must state their convention explicitly. Use <strong>Half-Angle</strong>
@@ -552,14 +581,17 @@ up front, or with a <code class="docutils literal notranslate"><span class="pre"
 <ul class="simple">
 <li><p><strong>Undo</strong>: <code class="docutils literal notranslate"><span class="pre">runFilter</span></code> for a non-<code class="docutils literal notranslate"><span class="pre">Information</span></code> filter is automatically wrapped in
 one undo step, and the Python call is recorded. <strong>Never touch the undo stack.</strong>
-A <code class="docutils literal notranslate"><span class="pre">SingleMesh</span></code> filter whose <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> is non-empty and contains only
-selection codes (<code class="docutils literal notranslate"><span class="pre">VS</span></code>/<code class="docutils literal notranslate"><span class="pre">FS</span></code>/<code class="docutils literal notranslate"><span class="pre">ES</span></code>), only color codes (<code class="docutils literal notranslate"><span class="pre">VC</span></code>/<code class="docutils literal notranslate"><span class="pre">FC</span></code>/<code class="docutils literal notranslate"><span class="pre">EC</span></code>) or only
-scalar codes (<code class="docutils literal notranslate"><span class="pre">VQ</span></code>/<code class="docutils literal notranslate"><span class="pre">FQ</span></code>/<code class="docutils literal notranslate"><span class="pre">EQ</span></code>) — or a mix of those three classes — automatically
-uses the cheap attribute-delta undo, which stores just those attributes
-instead of a full snapshot. That matters on large meshes, where snapshotting is
-seconds of deep copy. <strong>This makes <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> load-bearing:</strong> the delta
-does not capture geometry, so a filter that declares <code class="docutils literal notranslate"><span class="pre">VC</span></code> but also moves a
-vertex will not have the movement undone. Declare everything you change.</p></li>
+What the step costs is decided by the change markers the filter calls (below), not by
+its descriptor: a filter that changes only the selection, the per-element colors or the
+scalars and says so with <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code>, <code class="docutils literal notranslate"><span class="pre">markMeshColorChanged</span></code> or
+<code class="docutils literal notranslate"><span class="pre">markMeshScalarChanged</span></code> costs the undo history that layer alone, beside the shared copy
+of the mesh; anything announced with <code class="docutils literal notranslate"><span class="pre">markMeshGeometryChanged</span></code> costs a copy. On a large
+mesh that is the difference between a few MB and seconds of deep copy.
+A filter that leaves a named custom attribute declares <code class="docutils literal notranslate"><span class="pre">VA</span></code> or <code class="docutils literal notranslate"><span class="pre">FA</span></code>, calls
+<code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code>, and documents the attribute’s name, type and meaning in the
+long description, since expressions and scripts read it by name. Remove scratch attributes before returning,
+including the named ones vcglib leaves behind (see
+<a class="reference internal" href="data_model.html#undoredo-model"><span class="std std-ref">Data Model</span></a>).</p></li>
 <li><p><strong>Input preparation</strong>: declare <code class="docutils literal notranslate"><span class="pre">inputPrepare</span></code> codes instead of computing
 adjacency, normals or flags by hand — the framework enables the OCF
 components, runs the vcglib update in dependency order, and disables them
@@ -567,7 +599,17 @@ afterward. The full set: <code class="docutils literal notranslate"><span class=
 implies its adjacency), <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>, <code class="docutils literal notranslate"><span class="pre">VNorm</span></code> (implies <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>), <code class="docutils literal notranslate"><span class="pre">BBox</span></code>, <code class="docutils literal notranslate"><span class="pre">FMark</span></code>,
 <code class="docutils literal notranslate"><span class="pre">VMark</span></code>, <code class="docutils literal notranslate"><span class="pre">VTex</span></code>, <code class="docutils literal notranslate"><span class="pre">WTex</span></code>, <code class="docutils literal notranslate"><span class="pre">CurvDir</span></code>. <code class="docutils literal notranslate"><span class="pre">VE</span></code> is vertex-edge adjacency on a polyline
 layer’s real edges, for filters that walk the edge graph with <code class="docutils literal notranslate"><span class="pre">vcg::edge::VEIterator</span></code>,
-<code class="docutils literal notranslate"><span class="pre">VVStarVE</span></code> and the like.</p></li>
+<code class="docutils literal notranslate"><span class="pre">VVStarVE</span></code> and the like.
+Loading guarantees face normals, but nothing recomputes them after a filter edits a
+mesh, so a filter that reads face normals of the current mesh still declares <code class="docutils literal notranslate"><span class="pre">FNorm</span></code>.
+Preparation reaches only the current mesh: a filter reading normals of another layer
+(a mesh parameter) computes them itself; the load-time guarantee keeps them from
+being garbage, not from being stale.
+<code class="docutils literal notranslate"><span class="pre">FNorm</span></code> and <code class="docutils literal notranslate"><span class="pre">VNorm</span></code> overwrite the layer’s normals, which may be the ones a file
+carried, so the framework announces them as a geometry change: a color or scalar
+filter that declares them costs a copy all the same. The same holds for a vcglib
+routine that recomputes normals on the mesh it is given (<code class="docutils literal notranslate"><span class="pre">GeodesicHeat</span></code>, the
+<code class="docutils literal notranslate"><span class="pre">EmbreeAdaptor</span></code> scene load): a filter calling one announces geometry.</p></li>
 <li><p><strong>Cleanup/compaction</strong>: after a successful filter the framework compacts the
 affected meshes; don’t leave deleted elements around expecting them to persist.</p></li>
 <li><p><strong>Read-only inputs stay read-only</strong>: a filter that makes a new layer (<code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code>) or only
@@ -578,15 +620,18 @@ point with a null normal – it <strong>leaves out of what it reads</strong> (a 
 and says in the log how many it left out. <em>Screened Poisson</em> is the model: its point stream
 skips the points without a normal, with no option to ask for it, and the layer is left exactly as it was.</p></li>
 <li><p><strong>Notify changes</strong>: after mutating a mesh, call the matching
-<code class="docutils literal notranslate"><span class="pre">doc.markMeshGeometryChanged</span></code> / <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code> /
-<code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code> so the render/layer views refresh.</p></li>
+<code class="docutils literal notranslate"><span class="pre">doc.markMeshGeometryChanged</span></code> / <code class="docutils literal notranslate"><span class="pre">markMeshSelectionChanged</span></code> / <code class="docutils literal notranslate"><span class="pre">markMeshColorChanged</span></code> /
+<code class="docutils literal notranslate"><span class="pre">markMeshScalarChanged</span></code> / <code class="docutils literal notranslate"><span class="pre">markMeshMaterialChanged</span></code>. Each moves a revision, which is how
+the views refresh and how undo knows what changed: a change no marker announces is
+invisible to undo, and a later undo or refused filter can restore the old values over it.
+Call the narrowest marker that covers everything you changed; when in doubt, geometry.</p></li>
 </ul>
 </section>
 <section id="best-practices-what-s-expected">
 <h2>Best practices / what’s expected<a class="headerlink" href="#best-practices-what-s-expected" title="Link to this heading">¶</a></h2>
 <ul>
-<li><p><strong>Declare <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> accurately</strong> — the framework keys undo storage,
-compaction, and cache invalidation off it. The codes, as the UI spells them
+<li><p><strong>Declare <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> accurately</strong> — the framework keys compaction, the selection
+report and the polygon count off it, and the UI shows it. The codes, as the UI spells them
 out (<code class="docutils literal notranslate"><span class="pre">FilterPresentation::modifiedDataLabels</span></code>):</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
@@ -679,7 +724,13 @@ not change what is visible. For a filter that picks some of the layers and leave
 <em>Align Meshes Sequentially (Open3D)</em> leaves <code class="docutils literal notranslate"><span class="pre">aligned</span></code>. Names are shown as written, untranslated.</p></li>
 <li><p><strong>Suggest a view change</strong> (optional) via <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::visualizationHints</span></code>
 (e.g. switch to textured/quality shading) — see the visualization-hint path in
-<code class="docutils literal notranslate"><span class="pre">MainWindow::applyFilterVisualizationHints</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">MainWindow::applyFilterResultToViews</span></code>.</p></li>
+<li><p><strong>Move the 3D view</strong> (optional) via <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult::cameraState</span></code>, a MeshLab.CameraState
+document (<code class="docutils literal notranslate"><span class="pre">ViewTrackball::cameraStateJson</span></code>): the application animates the current view there,
+turning about the eye when the camera keeps it. Nothing else reads the field, so a filter whose
+camera a script should have puts it in <code class="docutils literal notranslate"><span class="pre">outputValues</span></code> too, as the <code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code> framing
+filters do (<code class="docutils literal notranslate"><span class="pre">cameraState</span></code>). Moving the view is not a document change: leave <code class="docutils literal notranslate"><span class="pre">documentModified</span></code>
+for what the run did to the document.</p></li>
 <li><p><strong>A Compute filter never bakes color.</strong> Mapping a scalar to a color is the render
 pass’s job: it is applied at draw time from the active colormap, so writing a ramp
 into <code class="docutils literal notranslate"><span class="pre">VC</span></code>/<code class="docutils literal notranslate"><span class="pre">FC</span></code> is both redundant and destructive — it overwrites whatever color the
@@ -690,10 +741,19 @@ purpose <em>is</em> color (<code class="docutils literal notranslate"><span clas
 expose an opt-in <code class="docutils literal notranslate"><span class="pre">map</span></code> / <code class="docutils literal notranslate"><span class="pre">colorize</span></code> parameter, all defaulting to false — they are
 waiting to be removed (a parameter is script-visible, so it needs its own pass), not
 precedent to copy.</p></li>
+<li><p><strong>Report progress from anything that can run for more than a moment.</strong> Size it on a
+large real input, not on the test fixture: a filter that takes 50 ms on the gargoyle
+can take minutes on a 3 M-face scan with 35 full-size photos, and without progress the
+user cannot tell slow from hung. Take <code class="docutils literal notranslate"><span class="pre">vcg::CallBackPos</span> <span class="pre">*cb</span> <span class="pre">=</span> <span class="pre">doc.progressCallback()</span></code>
+and call it with a percentage and a short message at every step of the outer loop (per
+raster, per layer, per pass) and every few tens of thousands of elements in an inner
+loop; split the range among the stages so the bar never runs backwards. Pass <code class="docutils literal notranslate"><span class="pre">cb</span></code> on to
+the vcglib algorithms that take one. <strong>The callback returns <code class="docutils literal notranslate"><span class="pre">false</span></code> when the user
+cancels</strong>: stop and return a failure, as <em>Compute Face Scalar from Rasters</em> does (<code class="docutils literal notranslate"><span class="pre">fail</span></code>
+with “Operation canceled.”) — the framework rolls the document back.</p></li>
 <li><p><strong>Randomized filters declare <code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></strong> — <code class="docutils literal notranslate"><span class="pre">int</span></code>, default <code class="docutils literal notranslate"><span class="pre">0</span></code>, minimum <code class="docutils literal notranslate"><span class="pre">0</span></code>,
 resolved through <code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code>, with the drawn value reported
-in the result messages so a run can be pinned afterwards. 39 parameters follow
-this; see <a class="reference internal" href="filter_organization.html#randomseed"><span class="std std-ref">Filter Organization</span></a>.</p></li>
+in the result messages so a run can be pinned afterwards; see <a class="reference internal" href="filter_organization.html#randomseed"><span class="std std-ref">Filter Organization</span></a>.</p></li>
 <li><p><strong>Per-layer plugin data</strong> (rare) — <code class="docutils literal notranslate"><span class="pre">doc.setLayerData(meshIndex,</span> <span class="pre">&quot;&lt;pluginId&gt;/&lt;name&gt;&quot;,</span> <span class="pre">ptr)</span></code>
 attaches an immutable, plugin-owned object to a layer: a solver state, a
 parametrization domain, anything too structured for mesh attributes. Undo

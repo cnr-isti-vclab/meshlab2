@@ -196,6 +196,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/mlgui.html">MlGui</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/filters.html">Filters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../texture_metrics.html">Texture and UV measures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
@@ -256,7 +257,7 @@
         │
         └─ ParameterFormBuilder (src/ui)   descriptors → editors, shared with the filter panel
                     │
-                    └─ PreferencesDialog     ~75 lines; owns no widget knowledge
+                    └─ PreferencesDialog     owns no widget knowledge
 </pre></div>
 </div>
 <p>Adding a preference means adding a JSON entry and reading it back. There is no UI code
@@ -290,8 +291,8 @@ rendered as Markdown, and not only as a tooltip. Every preference declares one.<
 site reads as a drop-in replacement for the constant it replaces. <code class="docutils literal notranslate"><span class="pre">Preferences::changed</span></code>
 fires after a new value is stored, for consumers that need to react live.</p>
 <p>Values are written to QSettings the moment they change — there is no OK/Cancel — and
-stored values are only adopted for ids that are still declared, so deleting an entry
-from the JSON leaves no stale key behind.</p>
+stored values are only adopted for ids that are still declared, so a value stored for an
+entry since deleted from the JSON is ignored (its key stays in QSettings, unread).</p>
 <p><strong>Only overrides are stored.</strong> A preference at its default has no QSettings key: setting
 a value equal to the default, <code class="docutils literal notranslate"><span class="pre">resetToDefault(id)</span></code>, and <code class="docutils literal notranslate"><span class="pre">resetToDefaults()</span></code> all remove
 the key rather than write the default into it, and a stored copy of the default found at
@@ -307,7 +308,7 @@ only the first of them.</p>
 <p>With <strong>inline help</strong>, each row’s help is shown as text under it, in place of its tooltip.
 <em>Show help</em> hides and shows it (<code class="docutils literal notranslate"><span class="pre">setInlineHelpVisible</span></code>); hidden, the help is the tooltip.
 The filter panel uses the same option, driven by its “?” button – see
-<a class="reference internal" href="architecture.html#meshfilterpanel"><span class="std std-ref">architecture.md</span></a>. The
+<a class="reference internal" href="user_interface.html#meshfilterpanel"><span class="std std-ref">architecture.md</span></a>. The
 choice is kept in QSettings as <code class="docutils literal notranslate"><span class="pre">preferencesDialog/showHelp</span></code>, outside the <code class="docutils literal notranslate"><span class="pre">preferences</span></code>
 group: it is how the dialog looks, not a preference, so <em>Restore All Defaults</em> leaves it
 alone.</p>

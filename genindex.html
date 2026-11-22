@@ -194,6 +194,7 @@
 <li class="toctree-l1"><a class="reference internal" href="api/mlgui.html">MlGui</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/filters.html">Filters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="texture_metrics.html">Texture and UV measures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
@@ -416,15 +417,21 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.adjust_vertex_color_white_balance">ms.adjust_vertex_color_white_balance() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.align_by_bounding_box_trueform">ms.align_by_bounding_box_trueform() (in module _meshlab)</a>
+        <li><a href="api/filters.html#meshlab.ms.align_current_raster_to_mesh_by_mutual_information">ms.align_current_raster_to_mesh_by_mutual_information() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.align_by_icp_trueform">ms.align_by_icp_trueform() (in module _meshlab)</a>
+        <li><a href="api/filters.html#meshlab.ms.align_current_raster_to_mesh_by_point_correspondences">ms.align_current_raster_to_mesh_by_point_correspondences() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.align_by_icp_vcglib">ms.align_by_icp_vcglib() (in module _meshlab)</a>
+        <li><a href="api/filters.html#meshlab.ms.align_layer_to_reference_by_bounding_box_trueform">ms.align_layer_to_reference_by_bounding_box_trueform() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.align_layer_to_reference_by_colored_icp_open3d">ms.align_layer_to_reference_by_colored_icp_open3d() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.align_layer_to_reference_by_corresponding_points_trueform">ms.align_layer_to_reference_by_corresponding_points_trueform() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.align_layer_to_reference_by_fast_global_registration_open3d">ms.align_layer_to_reference_by_fast_global_registration_open3d() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.align_layer_to_reference_by_icp_trueform">ms.align_layer_to_reference_by_icp_trueform() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.align_layer_to_reference_by_icp_vcglib">ms.align_layer_to_reference_by_icp_vcglib() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.align_layer_to_reference_by_point_to_plane_icp_open3d">ms.align_layer_to_reference_by_point_to_plane_icp_open3d() (in module _meshlab)</a>
 </li>
@@ -442,7 +449,7 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.align_sets_by_ransac_feature_matching_open3d">ms.align_sets_by_ransac_feature_matching_open3d() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.align_to_corresponding_points_trueform">ms.align_to_corresponding_points_trueform() (in module _meshlab)</a>
+        <li><a href="api/filters.html#meshlab.ms.align_visible_rasters_globally_by_mutual_information">ms.align_visible_rasters_globally_by_mutual_information() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.clamp_vertex_scalar">ms.clamp_vertex_scalar() (in module _meshlab)</a>
 </li>
@@ -450,9 +457,15 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.close_holes">ms.close_holes() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.close_holes_trueform">ms.close_holes_trueform() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.colorize_edges_by_scalar">ms.colorize_edges_by_scalar() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.colorize_faces_by_scalar">ms.colorize_faces_by_scalar() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.colorize_texture_by_principal_directions_line_integral_convolution">ms.colorize_texture_by_principal_directions_line_integral_convolution() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.colorize_texture_by_reaction_diffusion">ms.colorize_texture_by_reaction_diffusion() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.colorize_vertices_by_disk_distance">ms.colorize_vertices_by_disk_distance() (in module _meshlab)</a>
 </li>
@@ -492,7 +505,7 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.compute_face_scalar_from_geometry">ms.compute_face_scalar_from_geometry() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.compute_face_scalar_from_raster_coverage">ms.compute_face_scalar_from_raster_coverage() (in module _meshlab)</a>
+        <li><a href="api/filters.html#meshlab.ms.compute_face_scalar_from_rasters">ms.compute_face_scalar_from_rasters() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.compute_gaussian_curvature_libigl">ms.compute_gaussian_curvature_libigl() (in module _meshlab)</a>
 </li>
@@ -501,6 +514,8 @@
         <li><a href="api/filters.html#meshlab.ms.compute_geodesic_distance_from_border">ms.compute_geodesic_distance_from_border() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.compute_geodesic_distance_from_point">ms.compute_geodesic_distance_from_point() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.compute_geodesic_distance_from_selection_trueform">ms.compute_geodesic_distance_from_selection_trueform() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.compute_geodesic_distance_from_selection_vcglib">ms.compute_geodesic_distance_from_selection_vcglib() (in module _meshlab)</a>
 </li>
@@ -525,6 +540,8 @@
         <li><a href="api/filters.html#meshlab.ms.compute_polygon_face_normals">ms.compute_polygon_face_normals() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.compute_principal_curvature_directions_libigl">ms.compute_principal_curvature_directions_libigl() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.compute_principal_curvature_directions_per_face_texture_signal_processing">ms.compute_principal_curvature_directions_per_face_texture_signal_processing() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.compute_principal_curvature_directions_vcglib">ms.compute_principal_curvature_directions_vcglib() (in module _meshlab)</a>
 </li>
@@ -588,6 +605,8 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.create_isosurface_from_perlin_noise">ms.create_isosurface_from_perlin_noise() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.create_isosurface_from_vertex_scalar">ms.create_isosurface_from_vertex_scalar() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.create_mesh_bounding_box">ms.create_mesh_bounding_box() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.create_octahedron">ms.create_octahedron() (in module _meshlab)</a>
@@ -615,6 +634,8 @@
         <li><a href="api/filters.html#meshlab.ms.create_polyline_from_selection_perimeter">ms.create_polyline_from_selection_perimeter() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.create_polyline_from_self_intersections_trueform">ms.create_polyline_from_self_intersections_trueform() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.create_polyline_from_uv_seams">ms.create_polyline_from_uv_seams() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.create_reeb_graph_from_vertex_scalar">ms.create_reeb_graph_from_vertex_scalar() (in module _meshlab)</a>
 </li>
@@ -660,6 +681,8 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.dilate_selection">ms.dilate_selection() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.dilate_texture_across_seams">ms.dilate_texture_across_seams() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.displace_vertices_by_fractal_brownian_motion">ms.displace_vertices_by_fractal_brownian_motion() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.displace_vertices_by_heterogeneous_multifractal_noise">ms.displace_vertices_by_heterogeneous_multifractal_noise() (in module _meshlab)</a>
@@ -700,6 +723,10 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.import_cameras_to_visible_rasters">ms.import_cameras_to_visible_rasters() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.import_image_to_current_raster">ms.import_image_to_current_raster() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.inpaint_texture_on_selected_faces">ms.inpaint_texture_on_selected_faces() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.invert_face_orientation">ms.invert_face_orientation() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.invert_matrix">ms.invert_matrix() (in module _meshlab)</a>
@@ -728,9 +755,15 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.measure_selection_area_and_perimeter">ms.measure_selection_area_and_perimeter() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.measure_texel_coverage">ms.measure_texel_coverage() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.measure_texture_seam_discrepancy">ms.measure_texture_seam_discrepancy() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.measure_topological_properties">ms.measure_topological_properties() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.measure_topological_properties_for_quad_mesh">ms.measure_topological_properties_for_quad_mesh() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.measure_uv_mapping">ms.measure_uv_mapping() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.measure_vertex_scalar_histogram">ms.measure_vertex_scalar_histogram() (in module _meshlab)</a>
 </li>
@@ -792,10 +825,10 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.pack_texture_images">ms.pack_texture_images() (in module _meshlab)</a>
 </li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api/filters.html#meshlab.ms.pack_uv_charts_geogram">ms.pack_uv_charts_geogram() (in module _meshlab)</a>
 </li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api/filters.html#meshlab.ms.pack_uv_charts_vcglib">ms.pack_uv_charts_vcglib() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.parametrize_by_abstract_domain">ms.parametrize_by_abstract_domain() (in module _meshlab)</a>
@@ -833,6 +866,8 @@
         <li><a href="api/filters.html#meshlab.ms.parametrize_per_vertex_by_expression">ms.parametrize_per_vertex_by_expression() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.parametrize_per_wedge_by_expression">ms.parametrize_per_wedge_by_expression() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.parametrize_surface_along_polyline_local_flattening">ms.parametrize_surface_along_polyline_local_flattening() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.project_vertices_onto_line_of_sight">ms.project_vertices_onto_line_of_sight() (in module _meshlab)</a>
 </li>
@@ -918,6 +953,8 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.remove_t_vertices">ms.remove_t_vertices() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.remove_textures">ms.remove_textures() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.remove_unreferenced_vertices">ms.remove_unreferenced_vertices() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.remove_vertices_by_scalar">ms.remove_vertices_by_scalar() (in module _meshlab)</a>
@@ -927,6 +964,8 @@
         <li><a href="api/filters.html#meshlab.ms.rename_current_mesh_layer">ms.rename_current_mesh_layer() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.rename_current_raster">ms.rename_current_raster() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.rename_texture">ms.rename_texture() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.render_from_render_state_json">ms.render_from_render_state_json() (in module _meshlab)</a>
 </li>
@@ -939,6 +978,8 @@
         <li><a href="api/filters.html#meshlab.ms.repair_self_intersections_geogram">ms.repair_self_intersections_geogram() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.repair_self_intersections_trueform">ms.repair_self_intersections_trueform() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.repair_texture_seams">ms.repair_texture_seams() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.repair_watertight_mesh_meshfix">ms.repair_watertight_mesh_meshfix() (in module _meshlab)</a>
 </li>
@@ -972,6 +1013,8 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.scale_cameras">ms.scale_cameras() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.scale_to_known_length">ms.scale_to_known_length() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.select_all">ms.select_all() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.select_border">ms.select_border() (in module _meshlab)</a>
@@ -1002,6 +1045,8 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.select_faces_from_vertices">ms.select_faces_from_vertices() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.select_folded_uv_faces">ms.select_folded_uv_faces() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.select_ill_shaped_faces">ms.select_ill_shaped_faces() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.select_non_manifold_edges_trueform">ms.select_non_manifold_edges_trueform() (in module _meshlab)</a>
@@ -1015,6 +1060,8 @@
         <li><a href="api/filters.html#meshlab.ms.select_none">ms.select_none() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.select_outliers">ms.select_outliers() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.select_overlapping_uv_faces">ms.select_overlapping_uv_faces() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.select_point_cloud_outliers_by_radius_open3d">ms.select_point_cloud_outliers_by_radius_open3d() (in module _meshlab)</a>
 </li>
@@ -1040,7 +1087,11 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.set_camera_from_direction">ms.set_camera_from_direction() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.set_camera_to_frame_from_viewpoint">ms.set_camera_to_frame_from_viewpoint() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.set_camera_to_view_selection">ms.set_camera_to_view_selection() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.set_dummy_texture">ms.set_dummy_texture() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.set_matrix_from_translation_rotation_scale">ms.set_matrix_from_translation_rotation_scale() (in module _meshlab)</a>
 </li>
@@ -1060,15 +1111,21 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.set_raster_camera">ms.set_raster_camera() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.set_texture">ms.set_texture() (in module _meshlab)</a>
+        <li><a href="api/filters.html#meshlab.ms.set_texture_from_file">ms.set_texture_from_file() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.set_unit">ms.set_unit() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.set_vertex_color">ms.set_vertex_color() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.sharpen_face_normals_by_unsharp_mask">ms.sharpen_face_normals_by_unsharp_mask() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.sharpen_texture">ms.sharpen_texture() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.sharpen_vertex_color_by_unsharp_mask">ms.sharpen_vertex_color_by_unsharp_mask() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.sharpen_vertex_scalar_by_unsharp_mask">ms.sharpen_vertex_scalar_by_unsharp_mask() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.sharpen_vertices_by_adaptive_unsharp_mask">ms.sharpen_vertices_by_adaptive_unsharp_mask() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.sharpen_vertices_by_unsharp_mask">ms.sharpen_vertices_by_unsharp_mask() (in module _meshlab)</a>
 </li>
@@ -1095,6 +1152,8 @@
         <li><a href="api/filters.html#meshlab.ms.smooth_point_cloud_normals">ms.smooth_point_cloud_normals() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.smooth_polyline_on_surface">ms.smooth_polyline_on_surface() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.smooth_texture">ms.smooth_texture() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.smooth_vertex_color">ms.smooth_vertex_color() (in module _meshlab)</a>
 </li>
@@ -1146,7 +1205,7 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.tint_vertex_color">ms.tint_vertex_color() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.transfer_abstract_domain_to_another_layer">ms.transfer_abstract_domain_to_another_layer() (in module _meshlab)</a>
+        <li><a href="api/filters.html#meshlab.ms.transfer_abstract_domain_from_another_layer">ms.transfer_abstract_domain_from_another_layer() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.transfer_color_from_current_raster_to_vertex">ms.transfer_color_from_current_raster_to_vertex() (in module _meshlab)</a>
 </li>
@@ -1156,23 +1215,35 @@
 </li>
         <li><a href="api/filters.html#meshlab.ms.transfer_color_from_texture_to_vertex">ms.transfer_color_from_texture_to_vertex() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.transfer_color_from_texture_to_vertex_by_closest_point">ms.transfer_color_from_texture_to_vertex_by_closest_point() (in module _meshlab)</a>
-</li>
         <li><a href="api/filters.html#meshlab.ms.transfer_color_from_vertex_to_face">ms.transfer_color_from_vertex_to_face() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.transfer_color_from_vertex_to_texture">ms.transfer_color_from_vertex_to_texture() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.transfer_color_from_visible_rasters_to_texture">ms.transfer_color_from_visible_rasters_to_texture() (in module _meshlab)</a>
 </li>
+        <li><a href="api/filters.html#meshlab.ms.transfer_color_from_visible_rasters_to_texture_texture_consolidation">ms.transfer_color_from_visible_rasters_to_texture_texture_consolidation() (in module _meshlab)</a>
+</li>
         <li><a href="api/filters.html#meshlab.ms.transfer_color_from_visible_rasters_to_vertex">ms.transfer_color_from_visible_rasters_to_vertex() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.transfer_curvature_directions_from_face_to_vertex">ms.transfer_curvature_directions_from_face_to_vertex() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.transfer_curvature_directions_from_vertex_to_face">ms.transfer_curvature_directions_from_vertex_to_face() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.transfer_scalar_from_face_to_vertex">ms.transfer_scalar_from_face_to_vertex() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.transfer_scalar_from_vertex_to_face">ms.transfer_scalar_from_vertex_to_face() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.transfer_vertex_attributes_by_closest_point">ms.transfer_vertex_attributes_by_closest_point() (in module _meshlab)</a>
+        <li><a href="api/filters.html#meshlab.ms.transfer_texture_color_from_another_layer_to_vertex">ms.transfer_texture_color_from_another_layer_to_vertex() (in module _meshlab)</a>
 </li>
-        <li><a href="api/filters.html#meshlab.ms.transfer_vertex_attributes_to_texture_by_closest_point">ms.transfer_vertex_attributes_to_texture_by_closest_point() (in module _meshlab)</a>
+        <li><a href="api/filters.html#meshlab.ms.transfer_texture_detail">ms.transfer_texture_detail() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.transfer_texture_from_another_layer">ms.transfer_texture_from_another_layer() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.transfer_vertex_attributes_from_another_layer">ms.transfer_vertex_attributes_from_another_layer() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.transfer_vertex_attributes_from_another_layer_to_texture">ms.transfer_vertex_attributes_from_another_layer_to_texture() (in module _meshlab)</a>
+</li>
+        <li><a href="api/filters.html#meshlab.ms.transfer_vertex_scalar_by_smooth_interpolation">ms.transfer_vertex_scalar_by_smooth_interpolation() (in module _meshlab)</a>
 </li>
         <li><a href="api/filters.html#meshlab.ms.transform_camera_extrinsics">ms.transform_camera_extrinsics() (in module _meshlab)</a>
 </li>
@@ -1256,14 +1327,16 @@
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api/meshset.html#meshlab.MeshSet.save_current_mesh">save_current_mesh() (_meshlab.MeshSet method)</a>
 </li>
+        <li><a href="api/meshset.html#meshlab.MeshSet.save_current_mesh_texture">save_current_mesh_texture() (_meshlab.MeshSet method)</a>
+</li>
         <li><a href="api/meshset.html#meshlab.MeshSet.save_project">save_project() (_meshlab.MeshSet method)</a>
 </li>
         <li><a href="api/mlgui.html#meshlab.MlGui.save_snapshot">save_snapshot() (_meshlab.MlGui method)</a>
 </li>
-        <li><a href="api/meshset.html#meshlab.MeshSet.set_current_mesh">set_current_mesh() (_meshlab.MeshSet method)</a>
-</li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api/meshset.html#meshlab.MeshSet.set_current_mesh">set_current_mesh() (_meshlab.MeshSet method)</a>
+</li>
         <li><a href="api/meshset.html#meshlab.MeshSet.set_current_mesh_visibility">set_current_mesh_visibility() (_meshlab.MeshSet method)</a>
 </li>
         <li><a href="api/meshset.html#meshlab.MeshSet.set_current_raster">set_current_raster() (_meshlab.MeshSet method)</a>

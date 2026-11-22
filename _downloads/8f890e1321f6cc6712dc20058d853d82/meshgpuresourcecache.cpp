@@ -2,22 +2,20 @@
 #include "linerenderer.h"
 #include "textureassociationutils.h"
 #include "meshioplugin.h"
-#include "qualityrange.h"
+#include "parallelfor.h"
 
+#include <vcg/complex/algorithms/update/selection.h>
 #include <wrap/io_trimesh/io_mask.h>
 #include <rhi/qrhi.h>
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QImageReader>
-#include <QSemaphore>
 #include <QSet>
 #include <QString>
-#include <QThreadPool>
 #include <QVector3D>
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -67,36 +65,6 @@ constexpr size_t kMaxExpandedFillBatchFaces =
 static_assert(kMaxExpandedFillBatchFaces > 0);
 static_assert(kMaxExpandedFillBatchBytes <= std::numeric_limits<quint32>::max());
 
-template <typename Function>
-void parallelFor(size_t count, Function &&function)
-{
-    constexpr size_t kGrainSize = 64u * 1024u;
-    const size_t chunkCount = count / kGrainSize + (count % kGrainSize != 0);
-    QThreadPool *pool = QThreadPool::globalInstance();
-    const int workerCount = int(std::min(
-        chunkCount, size_t(std::max(1, pool->maxThreadCount()))));
-    if (workerCount <= 1) {
-        function(0, count);
-        return;
-    }
-
-    std::atomic_size_t next { 0 };
-    QSemaphore finished;
-    auto work = [&] {
-        for (;;) {
-            const size_t first = next.fetch_add(kGrainSize, std::memory_order_relaxed);
-            if (first >= count)
-                return;
-            function(first, first + std::min(kGrainSize, count - first));
-        }
-    };
-
-    for (int i = 1; i < workerCount; ++i)
-        pool->start([&] { work(); finished.release(); });
-    work();
-    finished.acquire(workerCount - 1);
-}
-
 int fillVariantIndex(MeshGpuResourceCache::FillVariant variant)
 {
     switch (variant) {
@@ -129,6 +97,34 @@ bool isPerFaceQualityFillVariant(MeshGpuResourceCache::FillVariant variant)
 {
     return variant == MeshGpuResourceCache::FillVariant::PerFaceQuality;
 }
+
+// The four color slots of a quality vertex: the raw value with a LUT flag, -1 for a per-vertex
+// value and -2 for a per-face one, which the shader maps through the matching half of the
+// view's qualityMap uniform. A value that is not finite gets the plain-color flag (0)
+// instead, so it shows in the fill color, as having no data.
+void writeQualitySlots(float *color, float quality, bool faceQuality)
+{
+    const bool finite = std::isfinite(quality);
+    color[0] = finite ? quality : 0.0f;
+    color[1] = 0.0f;
+    color[2] = 0.0f;
+    color[3] = finite ? (faceQuality ? -2.0f : -1.0f) : 0.0f;
+}
+
+// The revision of what a fill or point variant colors with: the per-element colors, the
+// scalars, or nothing that changes apart from the geometry.
+std::uint64_t colorSourceRevision(const MeshGpuResourceCache::MeshSource &source, int variantIndex,
+                                  bool points)
+{
+    using Fill = MeshGpuResourceCache::FillVariant;
+    using Point = MeshGpuResourceCache::PointVariant;
+    if (points)
+        return variantIndex == int(Point::PerVertex) ? source.colorRevision
+             : variantIndex == int(Point::PerVertexQuality) ? source.scalarRevision : 0;
+    return variantIndex == int(Fill::PerVertex) || variantIndex == int(Fill::PerFace) ? source.colorRevision
+         : variantIndex == int(Fill::PerVertexQuality) || variantIndex == int(Fill::PerFaceQuality)
+             ? source.scalarRevision : 0;
+}
 }
 
 struct MeshGpuResourceCache::CacheState
@@ -155,11 +151,7 @@ struct MeshGpuResourceCache::CacheState
     struct FillVariantGpu {
         std::uint64_t geometryRevision = 0;
         std::uint64_t materialRevision = 0;
-        bool qualityFixedRange = false;
-        float qualityRangeMin = 0.0f;
-        float qualityRangeMax = 1.0f;
-        bool qualityCenterOnZero = false;
-        float qualityPercentileCrop = 0.0f;
+        std::uint64_t colorSourceRevision = 0; // colorSourceRevision()
         bool valid = false;
         std::vector<FillBatchGpu> batches;
         mutable std::vector<FillBatchView> viewBatches;
@@ -175,6 +167,7 @@ struct MeshGpuResourceCache::CacheState
 
     struct EdgeGpu {
         std::uint64_t geometryRevision = 0;
+        std::uint64_t colorRevision = 0;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -184,11 +177,7 @@ struct MeshGpuResourceCache::CacheState
 
     struct PointsVariantGpu {
         std::uint64_t geometryRevision = 0;
-        bool qualityFixedRange = false;
-        float qualityRangeMin = 0.0f;
-        float qualityRangeMax = 1.0f;
-        bool qualityCenterOnZero = false;
-        float qualityPercentileCrop = 0.0f;
+        std::uint64_t colorSourceRevision = 0;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -275,14 +264,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     const MeshSource &source,
     FillVariant fillVariant,
     PointVariant pointVariant,
-    bool needFill,
-    bool needWire,
-    bool needEdges,
-    bool needPoints,
-    bool needBoundingBox,
-    bool needSelection,
-    bool needDecoratorNormals,
-    bool needDecoratorBoundaries)
+    const Needs &needs)
 {
     EnsureStats stats;
     if (!m_state || !rhi || !cb || !source.mesh || source.meshId == 0)
@@ -312,48 +294,19 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
     auto rebuildFillVariant =
         [&](CacheState::FillVariantGpu &dst, FillVariant variant) -> bool {
-            const bool qualityVariant =
-                isPerVertexQualityFillVariant(variant)
-                || isPerFaceQualityFillVariant(variant);
-            float requestedRangeMin = source.qualityRangeMin;
-            float requestedRangeMax = source.qualityRangeMax;
-            if (requestedRangeMin > requestedRangeMax)
-                std::swap(requestedRangeMin, requestedRangeMax);
-            const bool requestedRangeFinite =
-                std::isfinite(requestedRangeMin) && std::isfinite(requestedRangeMax);
-            const bool useFixedRange = qualityVariant && source.qualityFixedRange && requestedRangeFinite;
-            const bool useCenterOnZero = qualityVariant && !useFixedRange && source.qualityCenterOnZero;
-            const float requestedPercentileCrop = qualityVariant && !useFixedRange
-                ? std::clamp(source.qualityPercentileCrop, 0.0f, 0.5f)
-                : 0.0f;
-
+            // Quality goes in raw; the shader maps it through the range uniform, so a range
+            // change rebuilds nothing.
+            const std::uint64_t colorRevision = colorSourceRevision(source, fillVariantIndex(variant), false);
             if (dst.valid
                 && dst.geometryRevision == source.geometryRevision
-                && dst.materialRevision == source.materialRevision) {
-                if (!qualityVariant)
-                    return false;
-                const bool sameFixedRange =
-                    dst.qualityFixedRange == useFixedRange
-                    && (!useFixedRange
-                        || (dst.qualityRangeMin == requestedRangeMin
-                            && dst.qualityRangeMax == requestedRangeMax));
-                const bool sameAutoRange =
-                    useFixedRange
-                    || (dst.qualityCenterOnZero == useCenterOnZero
-                        && dst.qualityPercentileCrop == requestedPercentileCrop);
-                if (sameFixedRange && sameAutoRange) {
-                    return false;
-                }
-            }
+                && dst.materialRevision == source.materialRevision
+                && dst.colorSourceRevision == colorRevision)
+                return false;
 
             dst.valid = true;
             dst.geometryRevision = source.geometryRevision;
             dst.materialRevision = source.materialRevision;
-            dst.qualityFixedRange = useFixedRange;
-            dst.qualityRangeMin = requestedRangeMin;
-            dst.qualityRangeMax = requestedRangeMax;
-            dst.qualityCenterOnZero = useCenterOnZero;
-            dst.qualityPercentileCrop = requestedPercentileCrop;
+            dst.colorSourceRevision = colorRevision;
             dst.batches.clear();
             dst.viewBatches.clear();
 
@@ -397,51 +350,6 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool useVertexStyleColor = useVertexColor || useVertexQuality;
             const bool useFaceStyleColor = useFaceColor || useFaceQuality;
             const bool expandTriangles = useFaceStyleColor || useTextureColor;
-
-            auto collectVertexQuality = [&]() {
-                std::vector<float> values;
-                values.reserve(size_t(meshData.VN()));
-                for (int vi = 0; vi < meshData.VN(); ++vi) {
-                    const auto &v = meshData.vert[vi];
-                    if (!v.IsD())
-                        values.push_back(static_cast<float>(v.cQ()));
-                }
-                return values;
-            };
-            auto collectFaceQuality = [&]() {
-                std::vector<float> values;
-                values.reserve(size_t(meshData.FN()));
-                for (int fi = 0; fi < meshData.FN(); ++fi) {
-                    const auto &f = meshData.face[fi];
-                    if (!f.IsD())
-                        values.push_back(static_cast<float>(f.cQ()));
-                }
-                return values;
-            };
-
-            RenderQualityRange vertexQualityRange;
-            if (useVertexQuality) {
-                if (useFixedRange) {
-                    vertexQualityRange = fixedRenderQualityRange(requestedRangeMin, requestedRangeMax);
-                } else {
-                    vertexQualityRange = sampledRenderQualityRange(
-                        collectVertexQuality(),
-                        useCenterOnZero,
-                        requestedPercentileCrop);
-                }
-            }
-
-            RenderQualityRange faceQualityRange;
-            if (useFaceQuality) {
-                if (useFixedRange) {
-                    faceQualityRange = fixedRenderQualityRange(requestedRangeMin, requestedRangeMax);
-                } else {
-                    faceQualityRange = sampledRenderQualityRange(
-                        collectFaceQuality(),
-                        useCenterOnZero,
-                        requestedPercentileCrop);
-                }
-            }
 
             if (expandTriangles) {
                 struct PreparedTexture {
@@ -600,31 +508,23 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         size_t startBase,
                         bool useTextureForFace) {
                         QVector3D faceRgb(1.0f, 1.0f, 1.0f);
-                        float faceQualityT = 0.5f;
                         if (useFaceColor) {
                             const auto fc = f.cC();
                             faceRgb = QVector3D(
                                 static_cast<float>(fc[0]) / 255.0f,
                                 static_cast<float>(fc[1]) / 255.0f,
                                 static_cast<float>(fc[2]) / 255.0f);
-                        } else if (useFaceQuality) {
-                            faceQualityT = normalizedRenderQuality(
-                                static_cast<float>(f.cQ()), faceQualityRange);
                         }
 
                         for (int corner = 0; corner < 3; ++corner) {
                             const auto *vertex = f.cV(corner);
                             QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
-                            float vertexQualityT = 0.5f;
                             if (useVertexColor) {
                                 const auto vc = vertex->cC();
                                 vertexRgb = QVector3D(
                                     static_cast<float>(vc[0]) / 255.0f,
                                     static_cast<float>(vc[1]) / 255.0f,
                                     static_cast<float>(vc[2]) / 255.0f);
-                            } else if (useVertexQuality) {
-                                vertexQualityT = normalizedRenderQuality(
-                                    static_cast<float>(vertex->cQ()), vertexQualityRange);
                             }
                             const size_t base =
                                 startBase + size_t(corner * kFillVertexStrideFloats);
@@ -636,15 +536,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             groupData[base + 4] = vertex->cN()[1];
                             groupData[base + 5] = vertex->cN()[2];
                             if (useFaceQuality) {
-                                groupData[base + 6] = faceQualityT;
-                                groupData[base + 7] = 0.0f;
-                                groupData[base + 8] = 0.0f;
-                                groupData[base + 9] = -1.0f; // quality LUT lookup
+                                writeQualitySlots(&groupData[base + 6], float(f.cQ()), true);
                             } else if (useVertexQuality) {
-                                groupData[base + 6] = vertexQualityT;
-                                groupData[base + 7] = 0.0f;
-                                groupData[base + 8] = 0.0f;
-                                groupData[base + 9] = -1.0f; // quality LUT lookup
+                                writeQualitySlots(&groupData[base + 6], float(vertex->cQ()), false);
                             } else {
                                 groupData[base + 6] = useFaceStyleColor
                                     ? faceRgb.x()
@@ -712,7 +606,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             const int textureIndex =
                                 useTextureColor ? vcgFaceTextureGroup(source.ioMask, f) : 0;
 
-                            if (useTextureColor) {
+                            // A face with no texture is drawn untextured, not with texture 0
+                            // read at UVs that mean nothing.
+                            if (useTextureColor && textureIndex >= 0) {
                                 if (ensureGroupPrepared(textureIndex)) {
                                     textureGroup = textureIndex;
                                     useTextureForFace = true;
@@ -952,16 +848,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     for (size_t vi = first; vi < last; ++vi) {
                         const auto &v = meshData.vert[vi];
                         QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
-                        float vertexQualityT = 0.5f;
                         if (useVertexColor) {
                             const auto vc = v.cC();
                             vertexRgb = QVector3D(
                                 static_cast<float>(vc[0]) / 255.0f,
                                 static_cast<float>(vc[1]) / 255.0f,
                                 static_cast<float>(vc[2]) / 255.0f);
-                        } else if (useVertexQuality) {
-                            const float vq = static_cast<float>(v.cQ());
-                            vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
                         }
                         const size_t base = vi * size_t(kFillVertexStrideFloats);
                         vdata[base + 0] = v.cP()[0];
@@ -971,10 +863,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         vdata[base + 4] = v.cN()[1];
                         vdata[base + 5] = v.cN()[2];
                         if (useVertexQuality) {
-                            vdata[base + 6] = vertexQualityT;
-                            vdata[base + 7] = 0.0f;
-                            vdata[base + 8] = 0.0f;
-                            vdata[base + 9] = -1.0f; // quality LUT lookup
+                            writeQualitySlots(&vdata[base + 6], float(v.cQ()), false);
                         } else {
                             vdata[base + 6] = vertexRgb.x();
                             vdata[base + 7] = vertexRgb.y();
@@ -1102,43 +991,14 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
     auto rebuildPointsVariant =
         [&](CacheState::PointsVariantGpu &dst, PointVariant variant) -> bool {
-            const bool qualityVariant = (variant == PointVariant::PerVertexQuality);
-            float requestedRangeMin = source.qualityRangeMin;
-            float requestedRangeMax = source.qualityRangeMax;
-            if (requestedRangeMin > requestedRangeMax)
-                std::swap(requestedRangeMin, requestedRangeMax);
-            const bool requestedRangeFinite =
-                std::isfinite(requestedRangeMin) && std::isfinite(requestedRangeMax);
-            const bool useFixedRange = qualityVariant && source.qualityFixedRange && requestedRangeFinite;
-            const bool useCenterOnZero = qualityVariant && !useFixedRange && source.qualityCenterOnZero;
-            const float requestedPercentileCrop = qualityVariant && !useFixedRange
-                ? std::clamp(source.qualityPercentileCrop, 0.0f, 0.5f)
-                : 0.0f;
-
-            if (dst.valid && dst.geometryRevision == source.geometryRevision) {
-                if (!qualityVariant)
-                    return false;
-                const bool sameFixedRange =
-                    dst.qualityFixedRange == useFixedRange
-                    && (!useFixedRange
-                        || (dst.qualityRangeMin == requestedRangeMin
-                            && dst.qualityRangeMax == requestedRangeMax));
-                const bool sameAutoRange =
-                    useFixedRange
-                    || (dst.qualityCenterOnZero == useCenterOnZero
-                        && dst.qualityPercentileCrop == requestedPercentileCrop);
-                if (sameFixedRange && sameAutoRange) {
-                    return false;
-                }
-            }
+            const std::uint64_t colorRevision = colorSourceRevision(source, pointVariantIndex(variant), true);
+            if (dst.valid && dst.geometryRevision == source.geometryRevision
+                && dst.colorSourceRevision == colorRevision)
+                return false;
 
             dst.valid = true;
             dst.geometryRevision = source.geometryRevision;
-            dst.qualityFixedRange = useFixedRange;
-            dst.qualityRangeMin = requestedRangeMin;
-            dst.qualityRangeMax = requestedRangeMax;
-            dst.qualityCenterOnZero = useCenterOnZero;
-            dst.qualityPercentileCrop = requestedPercentileCrop;
+            dst.colorSourceRevision = colorRevision;
             dst.vbuf.reset();
             dst.vertexCount = 0;
 
@@ -1156,51 +1016,25 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool useVertexStyleColor = useVertexColor || useVertexQuality;
             const float useMeshColor = useVertexStyleColor ? 1.0f : 0.0f;
 
-            RenderQualityRange vertexQualityRange;
-            if (useVertexQuality) {
-                if (useFixedRange) {
-                    vertexQualityRange = fixedRenderQualityRange(requestedRangeMin, requestedRangeMax);
-                } else {
-                    std::vector<float> values;
-                    values.reserve(size_t(meshData.VN()));
-                    for (int vi = 0; vi < meshData.VN(); ++vi) {
-                        const auto &v = meshData.vert[vi];
-                        if (!v.IsD())
-                            values.push_back(static_cast<float>(v.cQ()));
-                    }
-                    vertexQualityRange = sampledRenderQualityRange(
-                        std::move(values),
-                        useCenterOnZero,
-                        requestedPercentileCrop);
-                }
-            }
-
             std::vector<float> pdata(
                 size_t(meshData.VN()) * size_t(kPointsVertexStrideFloats));
             parallelFor(size_t(meshData.VN()), [&](size_t first, size_t last) {
                 for (size_t vi = first; vi < last; ++vi) {
                     const auto &v = meshData.vert[vi];
                     QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
-                    float vertexQualityT = 0.5f;
                     if (useVertexColor) {
                         const auto vc = v.cC();
                         vertexRgb = QVector3D(
                             static_cast<float>(vc[0]) / 255.0f,
                             static_cast<float>(vc[1]) / 255.0f,
                             static_cast<float>(vc[2]) / 255.0f);
-                    } else if (useVertexQuality) {
-                        const float vq = static_cast<float>(v.cQ());
-                        vertexQualityT = normalizedRenderQuality(vq, vertexQualityRange);
                     }
                     const size_t base = vi * size_t(kPointsVertexStrideFloats);
                     pdata[base + 0] = v.cP()[0];
                     pdata[base + 1] = v.cP()[1];
                     pdata[base + 2] = v.cP()[2];
                     if (useVertexQuality) {
-                        pdata[base + 3] = vertexQualityT;
-                        pdata[base + 4] = 0.0f;
-                        pdata[base + 5] = 0.0f;
-                        pdata[base + 6] = -1.0f; // quality LUT lookup
+                        writeQualitySlots(&pdata[base + 3], float(v.cQ()), false);
                     } else {
                         pdata[base + 3] = vertexRgb.x();
                         pdata[base + 4] = vertexRgb.y();
@@ -1238,11 +1072,13 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         };
 
     auto rebuildEdges = [&](CacheState::EdgeGpu &dst) -> bool {
-        if (dst.valid && dst.geometryRevision == source.geometryRevision)
+        if (dst.valid && dst.geometryRevision == source.geometryRevision
+            && dst.colorRevision == source.colorRevision)
             return false;
 
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
+        dst.colorRevision = source.colorRevision;
         dst.vbuf.reset();
         dst.vertexCount = 0;
         dst.fatVbuf.reset();
@@ -1405,7 +1241,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             return true;
 
         std::vector<float> selectedFaceTriangles;
-        selectedFaceTriangles.reserve(static_cast<size_t>(meshData.FN()) * 9);
+        // Sized to the selection, not the mesh: reserving for every face cost hundreds of
+        // MB on a large scan for each selection change, however little was selected.
+        selectedFaceTriangles.reserve(vcg::tri::UpdateSelection<VCGMesh>::FaceCount(meshData) * 9);
         for (int fi = 0; fi < meshData.FN(); ++fi) {
             const auto &f = meshData.face[fi];
             if (f.IsD() || !f.IsS())
@@ -1437,7 +1275,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         }
 
         std::vector<float> selectedVertices;
-        selectedVertices.reserve(static_cast<size_t>(meshData.VN()) * 3);
+        selectedVertices.reserve(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(meshData) * 3);
         for (int vi = 0; vi < meshData.VN(); ++vi) {
             const auto &v = meshData.vert[vi];
             if (v.IsD() || !v.IsS())
@@ -1744,6 +1582,10 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         struct EdgeAccum {
             std::array<float, 3> p0 { 0.0f, 0.0f, 0.0f };
             std::array<float, 3> p1 { 0.0f, 0.0f, 0.0f };
+            // The vertices p0 and p1 came from, and the segments of later faces whose own
+            // vertices differ: only a mesh with a vertexIdentity has any.
+            std::array<int, 2> firstVertices { -1, -1 };
+            std::vector<std::array<float, 6>> otherSides;
             int incidentCount = 0;
             // For the first two faces on the edge, their corners at p0 and at p1.
             std::array<std::array<int, 2>, 2> corners {};
@@ -1789,6 +1631,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         std::unordered_map<std::uint64_t, EdgeAccum> edges;
         edges.reserve(static_cast<size_t>(meshData.FN()) * 3);
 
+        // Edges are keyed by vertex identity: the vertex index, or the source vertex a
+        // UV-layout vertex stands for.
+        const std::vector<int> *identity = source.vertexIdentity;
+        const int keyCount = identity && !identity->empty()
+            ? *std::max_element(identity->begin(), identity->end()) + 1
+            : meshData.VN();
+        const auto vertexKey = [&](const VCGVertex *v) {
+            const int index = int(vcg::tri::Index(meshData, v));
+            return identity ? (*identity)[size_t(index)] : index;
+        };
+
         for (int fi = 0; fi < meshData.FN(); ++fi) {
             const auto &f = meshData.face[fi];
             if (f.IsD())
@@ -1800,19 +1653,22 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 if (!v0 || !v1)
                     continue;
 
-                int a = vcg::tri::Index(meshData, v0);
-                int b = vcg::tri::Index(meshData, v1);
+                int a = vertexKey(v0);
+                int b = vertexKey(v1);
                 if (a < 0 || b < 0 || a == b)
                     continue;
 
                 bool swapped = false;
                 std::array<float, 3> p0 = { v0->cP()[0], v0->cP()[1], v0->cP()[2] };
                 std::array<float, 3> p1 = { v1->cP()[0], v1->cP()[1], v1->cP()[2] };
+                std::array<int, 2> vertices = { int(vcg::tri::Index(meshData, v0)),
+                                                int(vcg::tri::Index(meshData, v1)) };
                 int c0 = 3 * fi + i;
                 int c1 = 3 * fi + next;
                 if (a > b) {
                     std::swap(a, b);
                     std::swap(p0, p1);
+                    std::swap(vertices[0], vertices[1]);
                     std::swap(c0, c1);
                     swapped = true;
                 }
@@ -1821,6 +1677,9 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 if (acc.incidentCount == 0) {
                     acc.p0 = p0;
                     acc.p1 = p1;
+                    acc.firstVertices = vertices;
+                } else if (vertices != acc.firstVertices) {
+                    acc.otherSides.push_back({ p0[0], p0[1], p0[2], p1[0], p1[1], p1[2] });
                 }
                 if (acc.incidentCount < 2)
                     acc.corners[size_t(acc.incidentCount)] = { c0, c1 };
@@ -1862,18 +1721,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             }
             return c;
         };
-        std::vector<bool> onNonManifoldEdge(static_cast<size_t>(meshData.VN()), false);
+        std::vector<bool> onNonManifoldEdge(static_cast<size_t>(keyCount), false);
+        const auto appendSides = [](std::vector<float> &lines, const EdgeAccum &acc) {
+            lines.insert(lines.end(), { acc.p0[0], acc.p0[1], acc.p0[2], acc.p1[0], acc.p1[1], acc.p1[2] });
+            for (const auto &side : acc.otherSides)
+                lines.insert(lines.end(), side.begin(), side.end());
+        };
 
         for (const auto &kv : edges) {
             const EdgeAccum &acc = kv.second;
-            if (acc.incidentCount == 1) {
-                boundaryEdgeLines.push_back(acc.p0[0]);
-                boundaryEdgeLines.push_back(acc.p0[1]);
-                boundaryEdgeLines.push_back(acc.p0[2]);
-                boundaryEdgeLines.push_back(acc.p1[0]);
-                boundaryEdgeLines.push_back(acc.p1[1]);
-                boundaryEdgeLines.push_back(acc.p1[2]);
-            }
+            if (acc.incidentCount == 1)
+                appendSides(boundaryEdgeLines, acc);
 
             if (acc.incidentCount == 2) {
                 fan[size_t(fanOf(acc.corners[0][0]))] = fanOf(acc.corners[1][0]);
@@ -1882,12 +1740,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
             // Non-manifold edges: more than 2 incident faces.
             if (acc.incidentCount > 2) {
-                nonManifoldEdgeLines.push_back(acc.p0[0]);
-                nonManifoldEdgeLines.push_back(acc.p0[1]);
-                nonManifoldEdgeLines.push_back(acc.p0[2]);
-                nonManifoldEdgeLines.push_back(acc.p1[0]);
-                nonManifoldEdgeLines.push_back(acc.p1[1]);
-                nonManifoldEdgeLines.push_back(acc.p1[2]);
+                appendSides(nonManifoldEdgeLines, acc);
                 onNonManifoldEdge[size_t(kv.first >> 32)] = true;
                 onNonManifoldEdge[size_t(kv.first & 0xffffffffu)] = true;
             }
@@ -1913,19 +1766,13 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 }
             }
 
-            if (!isTextureBorder)
-                continue;
-
-            textureSeamLines.push_back(acc.p0[0]);
-            textureSeamLines.push_back(acc.p0[1]);
-            textureSeamLines.push_back(acc.p0[2]);
-            textureSeamLines.push_back(acc.p1[0]);
-            textureSeamLines.push_back(acc.p1[1]);
-            textureSeamLines.push_back(acc.p1[2]);
+            if (isTextureBorder)
+                appendSides(textureSeamLines, acc);
         }
 
-        std::vector<int> firstFan(static_cast<size_t>(meshData.VN()), -1);
-        std::vector<bool> manyFans(static_cast<size_t>(meshData.VN()), false);
+        std::vector<int> firstFan(static_cast<size_t>(keyCount), -1);
+        std::vector<bool> manyFans(static_cast<size_t>(keyCount), false);
+        std::vector<const VCGVertex *> keyVertex(static_cast<size_t>(keyCount), nullptr);
         for (int fi = 0; fi < meshData.FN(); ++fi) {
             const auto &f = meshData.face[fi];
             if (f.IsD())
@@ -1933,7 +1780,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             for (int k = 0; k < 3; ++k) {
                 if (!f.cV(k))
                     continue;
-                const size_t vi = size_t(vcg::tri::Index(meshData, f.cV(k)));
+                const size_t vi = size_t(vertexKey(f.cV(k)));
+                keyVertex[vi] = f.cV(k);
                 const int group = fanOf(3 * fi + k);
                 if (firstFan[vi] < 0)
                     firstFan[vi] = group;
@@ -1945,7 +1793,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         for (size_t vi = 0; vi < manyFans.size(); ++vi) {
             if (!manyFans[vi] || onNonManifoldEdge[vi])
                 continue;
-            const auto &p = meshData.vert[vi].cP();
+            const auto &p = keyVertex[vi]->cP();
             nonManifoldVertexPoints.insert(nonManifoldVertexPoints.end(), { p[0], p[1], p[2] });
         }
 
@@ -1966,32 +1814,46 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         return true;
     };
 
-    if (needFill) {
+    if (needs.fill) {
         auto &fill = meshCache.fill[fillVariantIndex(fillVariant)];
         stats.rebuiltFill = rebuildFillVariant(fill, fillVariant);
     }
-    if (needWire)
+    if (needs.wire)
         stats.rebuiltWire = rebuildWire(meshCache.wire);
-    if (needEdges)
+    if (needs.edges)
         stats.rebuiltEdges = rebuildEdges(meshCache.edges);
-    if (needPoints) {
+    if (needs.points) {
         auto &points = meshCache.points[pointVariantIndex(pointVariant)];
         stats.rebuiltPoints = rebuildPointsVariant(points, pointVariant);
     }
-    if (needBoundingBox)
+    // A variant of an older revision is rebuilt before it is drawn again, so its buffers
+    // only hold memory: release them. One at the current revision stays, since another
+    // view may be drawing the mesh with that color source.
+    for (size_t i = 0; i < meshCache.fill.size(); ++i) {
+        auto &fill = meshCache.fill[i];
+        if (fill.valid && (fill.geometryRevision != source.geometryRevision
+                           || fill.materialRevision != source.materialRevision
+                           || fill.colorSourceRevision != colorSourceRevision(source, int(i), false)))
+            fill = CacheState::FillVariantGpu{};
+    }
+    for (size_t i = 0; i < meshCache.points.size(); ++i) {
+        auto &points = meshCache.points[i];
+        if (points.valid && (points.geometryRevision != source.geometryRevision
+                             || points.colorSourceRevision != colorSourceRevision(source, int(i), true)))
+            points = CacheState::PointsVariantGpu{};
+    }
+    if (needs.boundingBox)
         stats.rebuiltBoundingBox = rebuildBBox(meshCache.bbox);
-    if (needSelection)
+    if (needs.selection)
         stats.rebuiltSelection = rebuildSelection(meshCache.selection);
-    if (needDecoratorNormals)
+    if (needs.decoratorNormals)
         stats.rebuiltDecoratorNormals = rebuildDecoratorNormals(meshCache.decoratorNormals);
-    if (needDecoratorBoundaries)
+    if (needs.decoratorBoundaries)
         stats.rebuiltDecoratorBoundaries =
             rebuildDecoratorBoundaries(meshCache.decoratorBoundaries);
 
-    if (updates) {
-        stats.uploadedResources = true;
+    if (updates)
         cb->resourceUpdate(updates);
-    }
 
     stats.elapsedMs = float(timer.nsecsElapsed() / 1000000.0);
     return stats;
@@ -2251,13 +2113,6 @@ void MeshGpuResourceCache::releaseRhiResources(QRhi *rhi)
     if (!m_state || !rhi)
         return;
     m_state->byRhi.erase(rhi);
-}
-
-void MeshGpuResourceCache::clearAll()
-{
-    if (!m_state)
-        return;
-    m_state->byRhi.clear();
 }
 
 std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> MeshGpuResourceCache::gpuMemoryStats() const

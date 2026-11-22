@@ -1441,3 +1441,16 @@ follows `Verb Object [(Backend)]`. The lexicon closed at 56 verbs and 5 connecto
 
 Ids and `pythonName`s are untouched by design and are pass 2: **250 of 328 `pythonName`s
 and 280 of 328 ids** no longer match their display name, plus parameter ids on top.
+
+Where it started -- the initial audit covered the 272-filter registry present on 2026-07-29:
+
+- **165 of 272 display names (61 %) did not lead with a verb**, so the reader could not
+  tell what would change.
+- Live synonym pairs, both spellings in active use: `remove` (10) / `delete` (8) ·
+  `create` (16) / `generate` (19) · `apply` (16) / `set` (16) · `transfer` (11) /
+  `project` (5) · `simplification` (6) / `decimation` (4) · `quality` (29) /
+  `scalar` (7) · `texcoord` (4) / `uv` (2).
+- Spelling splits: `parametrization` (8) vs `parameterization` (2); American
+  `Color` alongside British `Colourisation`.
+- 32 distinct free-text `menuPath` values across 32 plugins, including one-offs like
+  `Remeshing, Smoothing and Resampling` and backend leakage like `Normals/Embree`.

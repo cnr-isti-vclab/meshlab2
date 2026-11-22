@@ -2,11 +2,13 @@
 
 #include <QClipboard>
 #include <QDialogButtonBox>
+#include <QFontDatabase>
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPixmap>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSysInfo>
 #include <QTabWidget>
@@ -51,7 +53,7 @@ QString buildId()
 QString buildInformation()
 {
     return QObject::tr(
-        "MeshLab build: %1\n"
+        "MeshLab %9, build %1\n"
         "Built: %2\n"
         "Configuration: %3\n"
         "Qt: %4 (built with %5)\n"
@@ -65,7 +67,8 @@ QString buildInformation()
              QStringLiteral(QT_VERSION_STR),
              compilerName(),
              QSysInfo::prettyProductName(),
-             QSysInfo::currentCpuArchitecture());
+             QSysInfo::currentCpuArchitecture(),
+             QStringLiteral(MESHLAB2_DISPLAY_VERSION));
 }
 
 // The geometry code MeshLab is built on, split by how much of it there is: a general
@@ -73,7 +76,7 @@ QString buildInformation()
 //
 // These two lists are the only place either is written down for the user, so they have to
 // be kept in step with what the build actually links -- the reminder, and where to look
-// for what changed, is in docs/design/architecture.md.
+// for what changed, is in docs/design/third_party.md.
 struct ThirdPartyEntry
 {
     const char *name;
@@ -115,6 +118,12 @@ const ThirdPartyEntry kFocusedPackages[] = {
       QT_TR_NOOP("Quad remeshing through a binary mixed-integer formulation.") },
     { "Texture Defragmentation", "https://github.com/maggio-a/texture-defrag",
       QT_TR_NOOP("Merging and defragmenting the charts of a texture atlas.") },
+    { "TextureConsolidation", "https://github.com/hliuw/TextureConsolidation",
+      QT_TR_NOOP("Seamless textures from photographs or generated renderings, by optical-flow "
+                 "registration on the surface and gradient-domain stitching.") },
+    { "TextureSignalProcessing", "https://github.com/mkazhdan/TextureSignalProcessing",
+      QT_TR_NOOP("Gradient-domain processing on the texels of a texture atlas, continuous "
+                 "across its seams: repairing and dilating textures.") },
     { "xatlas", "https://github.com/jpcy/xatlas",
       QT_TR_NOOP("Automatic UV atlas generation and packing.") },
     { "BPA", "https://github.com/bernhardmgruber/bpa",
@@ -157,7 +166,7 @@ QString htmlTableRow(const QString &label, const QString &value)
 
 } // namespace
 
-AboutDialog::AboutDialog(QWidget *parent)
+AboutDialog::AboutDialog(const QString &systemReport, const QStringList &warnings, QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("About MeshLab"));
@@ -180,8 +189,8 @@ AboutDialog::AboutDialog(QWidget *parent)
     identity->setText(tr(
         "<div style='font-size:28pt; font-weight:600'>MeshLab</div>"
         "<div style='font-size:13pt'>The MeshLab rewrite for Qt 6</div>"
-        "<div style='margin-top:8px; color:gray'>Build %1</div>")
-        .arg(buildId().toHtmlEscaped()));
+        "<div style='margin-top:8px; color:gray'>%1 &middot; build %2</div>")
+        .arg(QStringLiteral(MESHLAB2_DISPLAY_VERSION), buildId().toHtmlEscaped()));
     identity->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
     header->addWidget(identity, 1);
     root->addLayout(header);
@@ -263,13 +272,28 @@ AboutDialog::AboutDialog(QWidget *parent)
         "agreement. File formats, UI and numerics depend on further libraries that are "
         "not listed here.</p>");
     tabs->addTab(htmlPage(librariesHtml, tabs), tr("Libraries"));
+
+    // Plain text, to be read in a bug report as much as here: the build, the machine, the
+    // graphics backend and what it can do, and the warnings Qt gave.
+    QString systemText = buildInformation() + QStringLiteral("\n\n") + systemReport;
+    systemText += QStringLiteral("\n") + tr("Recent warnings:") + QLatin1Char('\n');
+    systemText += warnings.isEmpty() ? tr("none") + QLatin1Char('\n')
+                                     : warnings.join(QStringLiteral("\n---\n")) + QLatin1Char('\n');
+    auto *systemPage = new QPlainTextEdit(systemText, tabs);
+    systemPage->setReadOnly(true);
+    systemPage->setFrameShape(QFrame::NoFrame);
+    systemPage->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    systemPage->setLineWrapMode(QPlainTextEdit::NoWrap);
+    tabs->addTab(systemPage, tr("System"));
     root->addWidget(tabs, 1);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok, this);
-    auto *copyButton = buttons->addButton(tr("Copy Build Information"),
+    auto *copyButton = buttons->addButton(tr("Copy System Information"),
                                            QDialogButtonBox::ActionRole);
-    connect(copyButton, &QPushButton::clicked, this, [] {
-        QGuiApplication::clipboard()->setText(buildInformation());
+    copyButton->setToolTip(tr("Copy the System tab -- the build, the machine, the graphics "
+                              "backend and the recent warnings -- for a bug report"));
+    connect(copyButton, &QPushButton::clicked, this, [systemText] {
+        QGuiApplication::clipboard()->setText(systemText);
     });
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     root->addWidget(buttons);

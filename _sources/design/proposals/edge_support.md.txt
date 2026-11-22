@@ -1,9 +1,9 @@
 # Edge Support
 
 This document records the state of edge handling in MeshLab and what it would
-take to make edges a first-class element. Per-edge colour storage, PLY I/O and
-rendering landed in September 2026; **everything else described here is
-unimplemented.**
+take to make edges a first-class element. **Stages 1-3 of [Staging](#staging) are
+implemented (2026-09-16); stages 4-5 and interactive edge selection are not.** See
+[Status](#status).
 
 See also: [Data Model](../data_model.md) (layers, `VCGMesh`, revisions),
 [Rendering](../rendering.md) (the edge pass and the selection overlay),

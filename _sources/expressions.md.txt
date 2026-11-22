@@ -52,14 +52,6 @@ from the source and are not checked mechanically.
 they can read. *Only selected* says whether the filter has the **Only selected …** option
 (see [Working on the selection](#working-on-the-selection)).
 
-Two of the fields are not what their labels suggest:
-
-- In *Compute Vertex Color by Expression* the red, green and blue formulas are labeled
-  **X, Y and Z Function** (their Python names are `x`, `y`, `z`); the fourth is the alpha.
-  *Compute Face Color* and *Compute Edge Color* label them Red, Green and Blue.
-- *Compute Vertex Coordinates by Expression* has an **Alpha expression** field that does
-  nothing; it is ignored.
-
 ## Writing an expression
 
 **Numbers** are written `3`, `0.5`, `.5` or `1e-3`. **Names are case-sensitive**: `Z` is
@@ -229,8 +221,8 @@ channel marks the selected faces green and leaves the rest black.
 In each, the filter is listed first and the formulas under its field labels.
 
 **Color the vertices by height**, blue at the bottom to red at the top.
-*Compute Vertex Color by Expression*: X `255*(z-zmin)/zdim`, Y `0`,
-Z `255-255*(z-zmin)/zdim`, Alpha `255`.
+*Compute Vertex Color by Expression*: Red `255*(z-zmin)/zdim`, Green `0`,
+Blue `255-255*(z-zmin)/zdim`, Alpha `255`.
 
 **Select the vertices above the middle.** *Select Vertices by Expression*: `z > zmid`.
 
@@ -243,8 +235,8 @@ Expression*: Red `127.5*(fnx+1)`, Green `127.5*(fny+1)`, Blue `127.5*(fnz+1)`, A
 Expression*: Red `0`, Green `fsel*255`, Blue `0`, Alpha `255`.
 
 **Carry a measurement into a later step.** *Define Custom Vertex Scalar Attribute*: name
-`height`, formula `z-zmin`. Then *Compute Vertex Color by Expression*: X `255*height/zdim`,
-Y `0`, Z `0`, Alpha `255`.
+`height`, formula `z-zmin`. Then *Compute Vertex Color by Expression*: Red `255*height/zdim`,
+Green `0`, Blue `0`, Alpha `255`.
 
 **Ripple a surface.** *Compute Vertex Coordinates by Expression*: X `x`, Y `y`,
 Z `z+0.1*sin(10*x)`.

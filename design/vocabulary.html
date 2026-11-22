@@ -196,6 +196,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/mlgui.html">MlGui</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/filters.html">Filters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../texture_metrics.html">Texture and UV measures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
@@ -254,36 +255,15 @@ this document rather than inventing a synonym locally.</p>
 applied to plugins and menus), <a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>.</p>
 <section id="why-this-exists">
 <h2>Why this exists<a class="headerlink" href="#why-this-exists" title="Link to this heading">¶</a></h2>
-<p>The initial audit covered the 272-filter registry present on 2026-07-29:</p>
-<ul class="simple">
-<li><p><strong>165 of 272 display names (61 %) did not lead with a verb</strong>, so the reader could not
-tell what would change.</p></li>
-<li><p>Live synonym pairs, both spellings in active use: <code class="docutils literal notranslate"><span class="pre">remove</span></code> (10) / <code class="docutils literal notranslate"><span class="pre">delete</span></code> (8) ·
-<code class="docutils literal notranslate"><span class="pre">create</span></code> (16) / <code class="docutils literal notranslate"><span class="pre">generate</span></code> (19) · <code class="docutils literal notranslate"><span class="pre">apply</span></code> (16) / <code class="docutils literal notranslate"><span class="pre">set</span></code> (16) · <code class="docutils literal notranslate"><span class="pre">transfer</span></code> (11) /
-<code class="docutils literal notranslate"><span class="pre">project</span></code> (5) · <code class="docutils literal notranslate"><span class="pre">simplification</span></code> (6) / <code class="docutils literal notranslate"><span class="pre">decimation</span></code> (4) · <code class="docutils literal notranslate"><span class="pre">quality</span></code> (29) /
-<code class="docutils literal notranslate"><span class="pre">scalar</span></code> (7) · <code class="docutils literal notranslate"><span class="pre">texcoord</span></code> (4) / <code class="docutils literal notranslate"><span class="pre">uv</span></code> (2).</p></li>
-<li><p>Spelling splits: <code class="docutils literal notranslate"><span class="pre">parametrization</span></code> (8) vs <code class="docutils literal notranslate"><span class="pre">parameterization</span></code> (2); American
-<code class="docutils literal notranslate"><span class="pre">Color</span></code> alongside British <code class="docutils literal notranslate"><span class="pre">Colourisation</span></code>.</p></li>
-<li><p>32 distinct free-text <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> values across 32 plugins, including one-offs like
-<code class="docutils literal notranslate"><span class="pre">Remeshing,</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Resampling</span></code> and backend leakage like <code class="docutils literal notranslate"><span class="pre">Normals/Embree</span></code>.</p></li>
-</ul>
-<p><strong>Current registry (2026-08-31): 327 filters</strong>, with five renaming rounds applied —
-<code class="docutils literal notranslate"><span class="pre">Meshing</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute</span></code>, <code class="docutils literal notranslate"><span class="pre">Creation</span></code>, <code class="docutils literal notranslate"><span class="pre">Geometry</span></code>, and <code class="docutils literal notranslate"><span class="pre">Selection</span></code>:</p>
-<ul class="simple">
-<li><p><strong>57 of 327 (17 %)</strong> do not lead with a verb, and every one of them sits in a root
-whose round has not run yet.</p></li>
-<li><p>The same is true of every surviving rejected synonym: <code class="docutils literal notranslate"><span class="pre">delete</span></code> and <code class="docutils literal notranslate"><span class="pre">generate</span></code> in
-<code class="docutils literal notranslate"><span class="pre">Document</span></code>, <code class="docutils literal notranslate"><span class="pre">quality</span></code> in <code class="docutils literal notranslate"><span class="pre">Repair</span></code>/<code class="docutils literal notranslate"><span class="pre">Transfer</span></code>/<code class="docutils literal notranslate"><span class="pre">Measurement</span></code>/<code class="docutils literal notranslate"><span class="pre">Selection</span></code>,
-<code class="docutils literal notranslate"><span class="pre">parameterization</span></code> in <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>. The completed rounds left no synonym debt,
-so no separate sweep is needed — each round retires its own.</p></li>
-<li><p>Free-text <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> is gone from the descriptors in favour of the <code class="docutils literal notranslate"><span class="pre">categories</span></code>
-array; the loader still reads a single <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string as a legacy fallback.</p></li>
-<li><p>British spellings are gone (<code class="docutils literal notranslate"><span class="pre">colour</span></code> 0 / <code class="docutils literal notranslate"><span class="pre">color</span></code> 34).</p></li>
-</ul>
-<p>Remaining rounds, largest first: <code class="docutils literal notranslate"><span class="pre">Repair</span></code> (24), <code class="docutils literal notranslate"><span class="pre">Document</span></code> (22),
-<code class="docutils literal notranslate"><span class="pre">Parametrization</span></code> (17), <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> (14), <code class="docutils literal notranslate"><span class="pre">Transfer</span></code> (13), <code class="docutils literal notranslate"><span class="pre">Texture</span></code> (3, plus 7
-filters still at the bare root awaiting a subcategory decision). Then pass 2: the
-Python names and parameter ids.</p>
+<p>An audit of the 272 filters registered on 2026-07-29 found most display names not
+leading with a verb, synonyms in live use side by side (<code class="docutils literal notranslate"><span class="pre">remove</span></code>/<code class="docutils literal notranslate"><span class="pre">delete</span></code>,
+<code class="docutils literal notranslate"><span class="pre">create</span></code>/<code class="docutils literal notranslate"><span class="pre">generate</span></code>, <code class="docutils literal notranslate"><span class="pre">quality</span></code>/<code class="docutils literal notranslate"><span class="pre">scalar</span></code>, …), split spellings, and 32 free-text menu
+paths. This document is the rule set the renaming then applied, in eleven rounds by
+category root and a final pass over ids and Python names. Every display name now leads
+with a ratified verb, or is one of the named results of §6, and
+<code class="docutils literal notranslate"><span class="pre">tests/test_filter_descriptors.cpp</span></code> enforces it against §3. The audit and the rounds
+are recorded in <a class="reference internal" href="history/filter_names.html"><span class="std std-doc">Filter Names</span></a>, the identifier pass in
+<a class="reference internal" href="history/pass2_identifier_map.html"><span class="std std-doc">Pass 2 Identifier Map</span></a>.</p>
 </section>
 <section id="filter-categories-closed-set">
 <h2>1. Filter categories (closed set)<a class="headerlink" href="#filter-categories-closed-set" title="Link to this heading">¶</a></h2>
@@ -294,7 +274,7 @@ intended:</p>
 <ul class="simple">
 <li><p><strong>A plugin may contain filters in any number of categories.</strong> This is structural,
 not a convention: in <code class="docutils literal notranslate"><span class="pre">filters.json</span></code>, <code class="docutils literal notranslate"><span class="pre">pluginId</span></code> is a <strong>file-level</strong> key while
-<code class="docutils literal notranslate"><span class="pre">categories</span></code> is a <strong>per-filter</strong> key. <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code> spans four categories,
+<code class="docutils literal notranslate"><span class="pre">categories</span></code> is a <strong>per-filter</strong> key. <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code> spans five categories,
 <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> spans several, and <code class="docutils literal notranslate"><span class="pre">filter_basic</span></code> still spans multiple categories.
 Plugins are dependency/build units; categories are the user-facing
 classification. See <a class="reference internal" href="filter_organization.html"><span class="std std-doc">Filter Organization</span></a>, decisions 1–3.</p></li>
@@ -333,7 +313,7 @@ descriptors; in-tree descriptors should use <code class="docutils literal notran
 (concepts); the verbs live in filter names. Both levels are validated by the loader —
 a category must be either a root or a declared <code class="docutils literal notranslate"><span class="pre">Root/Subcategory</span></code> pair.</p>
 <p>Two levels was chosen for growth. Eleven roots over the 272-filter migration corpus
-of 2026-07-29 was ~25 each; with the current 327 filters it remains small enough that a
+of 2026-07-29 was ~25 each; at about 400 filters it remains small enough that a
 flat list becomes unbrowsable as the archive grows toward several hundred more
 implementations, whereas the second level absorbs that.</p>
 <p>The authoritative copy is <code class="docutils literal notranslate"><span class="pre">src/plugins/filtercategories.h</span></code>/<code class="docutils literal notranslate"><span class="pre">.cpp</span></code>, which the loader
@@ -376,15 +356,15 @@ validates against; this table mirrors it and must be updated together with it.</
 <td><p>Creates or edits texture coordinates and atlas layout</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Assignment</span></code> · <code class="docutils literal notranslate"><span class="pre">Conversion</span></code> · <code class="docutils literal notranslate"><span class="pre">Packing</span></code></p></td>
-<td><p>Creates or edits texture images</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Assignment</span></code> · <code class="docutils literal notranslate"><span class="pre">Conversion</span></code> · <code class="docutils literal notranslate"><span class="pre">Packing</span></code> · <code class="docutils literal notranslate"><span class="pre">Filtering</span></code></p></td>
+<td><p>Creates or edits texture images. <code class="docutils literal notranslate"><span class="pre">Filtering</span></code> changes an image’s texels from its own texels (2026-11-12, for the TextureSignalProcessing filters)</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Transfer</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code> · <code class="docutils literal notranslate"><span class="pre">Between</span> <span class="pre">Layers</span></code> · <code class="docutils literal notranslate"><span class="pre">From</span> <span class="pre">Rasters</span></code></p></td>
 <td><p>Moves an attribute to another element, layer or raster. The subcategory names what supplies the correspondence: a mesh’s own incidence, a computed match between two layers, or a raster’s camera</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Measurement</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Topological</span></code> · <code class="docutils literal notranslate"><span class="pre">Statistics</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Geometric</span></code> · <code class="docutils literal notranslate"><span class="pre">Topological</span></code> · <code class="docutils literal notranslate"><span class="pre">Statistics</span></code> · <code class="docutils literal notranslate"><span class="pre">UV</span> <span class="pre">Mapping</span></code></p></td>
 <td><p>Reports values; does <strong>not</strong> modify the document</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Document</span></code></p></td>
@@ -394,8 +374,7 @@ validates against; this table mirrors it and must be updated together with it.</
 </tbody>
 </table>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">Repair</span></code> is a root, not a <code class="docutils literal notranslate"><span class="pre">Meshing</span></code> subcategory: at ~19 filters it is the single
-largest branch, and “clean up this broken scan” is a top-level task users come looking
+<p><code class="docutils literal notranslate"><span class="pre">Repair</span></code> is a root, not a <code class="docutils literal notranslate"><span class="pre">Meshing</span></code> subcategory: it holds 26 filters, and “clean up this broken scan” is a top-level task users come looking
 for, not a variety of meshing. Its subcategories, from the existing filters:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
@@ -451,8 +430,8 @@ was the only plural, and inconsistent with <code class="docutils literal notrans
 <li><p><strong>Subcategories are singular</strong> unless they name a class of countable items, where
 English forces the plural: <code class="docutils literal notranslate"><span class="pre">Repair/Duplicates</span></code>, <code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code>,
 <code class="docutils literal notranslate"><span class="pre">Repair/Holes</span> <span class="pre">and</span> <span class="pre">Borders</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Attribute</span></code>’s four subcategories are all singular quantity names —
-<code class="docutils literal notranslate"><span class="pre">Normal</span></code> · <code class="docutils literal notranslate"><span class="pre">Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Curvature</span></code> · <code class="docutils literal notranslate"><span class="pre">Color</span></code>. <code class="docutils literal notranslate"><span class="pre">Normals</span></code> was also a direct violation of
+<li><p><code class="docutils literal notranslate"><span class="pre">Attribute</span></code>’s quantity subcategories are all singular —
+<code class="docutils literal notranslate"><span class="pre">Normal</span></code> · <code class="docutils literal notranslate"><span class="pre">Scalar</span></code> · <code class="docutils literal notranslate"><span class="pre">Curvature</span></code> · <code class="docutils literal notranslate"><span class="pre">Color</span></code>, beside <code class="docutils literal notranslate"><span class="pre">Custom</span></code>. <code class="docutils literal notranslate"><span class="pre">Normals</span></code> was also a direct violation of
 the noun lexicon in §4, which makes <code class="docutils literal notranslate"><span class="pre">normal</span></code> canonical.</p></li>
 <li><p><strong>A subcategory must not repeat a root name unqualified.</strong> <code class="docutils literal notranslate"><span class="pre">Texture/Creation</span></code> was
 ambiguous against the root <code class="docutils literal notranslate"><span class="pre">Creation</span></code>, so texture subcategories are now
@@ -463,6 +442,12 @@ the qualifier disambiguates it.</p></li>
 <ul>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">Attribute</span></code> vs <code class="docutils literal notranslate"><span class="pre">Measurement</span></code></strong> — <code class="docutils literal notranslate"><span class="pre">Attribute</span></code> <em>stores</em> data on the mesh;
 <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> only <em>reports</em>. If nothing is stored, it is <code class="docutils literal notranslate"><span class="pre">Measurement</span></code>.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">Measurement/UV</span> <span class="pre">Mapping</span></code></strong> (approved 2026-10-23) — reports about a UV layout and the
+texture it addresses: its islands, folds, distortion and texel coverage. The name avoids
+<code class="docutils literal notranslate"><span class="pre">Measurement/Texture</span></code>, which form rule 4 forbids since it would repeat the root <code class="docutils literal notranslate"><span class="pre">Texture</span></code>.
+A filter that <em>stores</em> a per-face distortion as quality is <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>, as
+<em>Compute UV Distortion</em> is; one that selects faces by a UV property is
+<code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code> with <code class="docutils literal notranslate"><span class="pre">Parametrization</span></code>, as <em>Select Vertex Texture Seams</em> is.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> vs <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></strong> — the compute-vs-colorize rule: a
 filter computing a scalar field must not bake color. It returns a visualization hint
 instead. A filter that genuinely does both carries both categories.</p></li>
@@ -504,166 +489,6 @@ with <code class="docutils literal notranslate"><span class="pre">embree</span><
 <p>All three shape questions raised during review are now settled: <code class="docutils literal notranslate"><span class="pre">Repair</span></code> is a root ·
 <code class="docutils literal notranslate"><span class="pre">Boolean</span></code> stays in <code class="docutils literal notranslate"><span class="pre">Meshing</span></code> · <code class="docutils literal notranslate"><span class="pre">Curvature</span></code> is distinct from <code class="docutils literal notranslate"><span class="pre">Scalar</span></code>.</p>
 </section>
-<section id="migration-today-s-32-values-the-ontology">
-<h3>Migration: today’s 32 values → the ontology<a class="headerlink" href="#migration-today-s-32-values-the-ontology" title="Link to this heading">¶</a></h3>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Current <code class="docutils literal notranslate"><span class="pre">menuPath</span></code></p></th>
-<th class="head"><p>N</p></th>
-<th class="head"><p>Target <code class="docutils literal notranslate"><span class="pre">categories</span></code></p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Camera</span></code></p></td>
-<td><p>10</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Document/Camera</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Cleaning</span></code></p></td>
-<td><p>15</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Repair/*</span></code> by defect kind · <code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code> (Ball Pivoting)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Color</span></code></p></td>
-<td><p>24</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Compute/Attributes</span></code></p></td>
-<td><p>4</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Compute/Color</span></code></p></td>
-<td><p>2</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> — it writes color</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Compute/Geometry</span></code></p></td>
-<td><p>1</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Compute/Normals</span></code></p></td>
-<td><p>9</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Compute/Quality</span></code></p></td>
-<td><p>2</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Compute/Texture</span></code></p></td>
-<td><p>2</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Create</span></code></p></td>
-<td><p>16</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Primitives</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
-<td><p>1</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Transform</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Inspection</span></code></p></td>
-<td><p>1</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Measurement</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Layer</span></code></p></td>
-<td><p>14</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Document/Layer</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Layer/Boolean</span></code></p></td>
-<td><p>4</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code> — mis-filed under <code class="docutils literal notranslate"><span class="pre">Layer</span></code> today</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MLS</span></code></p></td>
-<td><p>8</p></td>
-<td><p><em>split by result</em> — <code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code> (projection) · <code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code> (marching cubes) · <code class="docutils literal notranslate"><span class="pre">Attribute/Curvature</span></code> · <code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code> (radius) · <code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Topology</span></code> (small components)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Measure</span></code></p></td>
-<td><p>5</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Geometric</span></code>, <code class="docutils literal notranslate"><span class="pre">Measurement/Topological</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Measure/Quality</span></code></p></td>
-<td><p>4</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Measurement/Statistics</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Meshing</span></code></p></td>
-<td><p>38</p></td>
-<td><p><em>split ten ways</em> — see the <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> breakdown in <a class="reference internal" href="filter_organization.html"><span class="std std-doc">Filter Organization</span></a></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Normals/Embree</span></code></p></td>
-<td><p>1</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Normal</span></code> — backend dropped</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Parameterization</span></code></p></td>
-<td><p>2</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> — spelling normalized</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Quality</span></code></p></td>
-<td><p>7</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Quality/Embree</span></code></p></td>
-<td><p>3</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> — backend dropped</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Quality/Geodesic</span></code></p></td>
-<td><p>4</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> — backend dropped</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Raster</span></code></p></td>
-<td><p>5</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code> (color projection) · <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> (coverage count)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Remeshing</span></code></p></td>
-<td><p>8</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Meshing/Remeshing</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Remeshing,</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Resampling</span></code></p></td>
-<td><p>2</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code> · <code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Remeshing/Surface</span> <span class="pre">Reconstruction</span></code></p></td>
-<td><p>3</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Sampling</span></code></p></td>
-<td><p>17</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Creation/Sampling</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Selection</span></code></p></td>
-<td><p>27</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Selection/*</span></code> by criterion</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Selection/Embree</span></code></p></td>
-<td><p>1</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Selection/by</span> <span class="pre">Visibility</span></code> — backend dropped</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Smoothing</span></code></p></td>
-<td><p>16</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Geometry/Smoothing</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span></code></p></td>
-<td><p>16</p></td>
-<td><p><em>split</em> — <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> (Voronoi Atlas, Flat Plane, Trivial Per-Triangle) · <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Conversion</span></code> (PerWedge↔PerVertex) · <code class="docutils literal notranslate"><span class="pre">Parametrization/Defragmentation</span></code> (+<code class="docutils literal notranslate"><span class="pre">Texture</span></code> secondary) · <code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code> (Set Texture) · <code class="docutils literal notranslate"><span class="pre">Texture/Conversion</span></code> (normal-map) · <code class="docutils literal notranslate"><span class="pre">Texture/Packing</span></code> (Pack Texture Images) · <code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> (the three Transfer filters)</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Notable corrections this surfaces:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">Compute/Color</span></code> belongs to <strong><code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></strong> — it writes color.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Compute/Texture</span></code> belongs to <strong><code class="docutils literal notranslate"><span class="pre">Texture</span></code></strong>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Quality</span></code>, <code class="docutils literal notranslate"><span class="pre">Compute/Quality</span></code>, <code class="docutils literal notranslate"><span class="pre">Quality/Embree</span></code> and <code class="docutils literal notranslate"><span class="pre">Quality/Geodesic</span></code> were <strong>four</strong>
-names for one concept — now the single <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Raster</span></code> was doing two unrelated jobs: projecting color (a <code class="docutils literal notranslate"><span class="pre">Transfer</span></code>) and computing
-coverage counts (an <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> write).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Layer/Boolean</span></code> moves out of <code class="docutils literal notranslate"><span class="pre">Layer</span></code> to <strong><code class="docutils literal notranslate"><span class="pre">Meshing/Boolean</span></code></strong> — booleans rebuild
-topology; they are not document-structure operations.</p></li>
-<li><p>Four backend-suffixed paths disappear entirely.</p></li>
-</ul>
-<p>Filters that now legitimately carry <strong>more than one</strong> category include <em>Simplification:
-QEC (with texture)</em> → <code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code> + <code class="docutils literal notranslate"><span class="pre">Texture</span></code>; <em>Parameterization +
-texturing from registered rasters</em> → <code class="docutils literal notranslate"><span class="pre">Parametrization/UV</span> <span class="pre">Creation</span></code> +
-<code class="docutils literal notranslate"><span class="pre">Texture/Assignment</span></code> + <code class="docutils literal notranslate"><span class="pre">Transfer/From</span> <span class="pre">Rasters</span></code>; <em>Transfer Vertex Color to Texture</em> →
-<code class="docutils literal notranslate"><span class="pre">Transfer/Between</span> <span class="pre">Layers</span></code> + <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code>.</p>
-</section>
 <section id="categories-and-what-should-never-be-hand-tagged">
 <h3>Categories, and what should never be hand-tagged<a class="headerlink" href="#categories-and-what-should-never-be-hand-tagged" title="Link to this heading">¶</a></h3>
 <p>Categories are the <strong>authored</strong> classification: a set of ontology paths expressing
@@ -681,7 +506,7 @@ what happened to <code class="docutils literal notranslate"><span class="pre">ta
 </thead>
 <tbody>
 <tr class="row-even"><td><p><strong>Data touched</strong></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> (<code class="docutils literal notranslate"><span class="pre">VG</span></code> 68, <code class="docutils literal notranslate"><span class="pre">VN</span></code> 61, <code class="docutils literal notranslate"><span class="pre">FV</span></code> 47, <code class="docutils literal notranslate"><span class="pre">VC</span></code> 31, <code class="docutils literal notranslate"><span class="pre">VQ</span></code> 30, <code class="docutils literal notranslate"><span class="pre">WT</span></code> 12, <code class="docutils literal notranslate"><span class="pre">TM</span></code>/<code class="docutils literal notranslate"><span class="pre">TX</span></code>, <code class="docutils literal notranslate"><span class="pre">FS</span></code>/<code class="docutils literal notranslate"><span class="pre">VS</span></code>) and <code class="docutils literal notranslate"><span class="pre">inputRequirements</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">outputModifies</span></code> (on 2026-11-15: <code class="docutils literal notranslate"><span class="pre">VG</span></code> 86, <code class="docutils literal notranslate"><span class="pre">VN</span></code> 86, <code class="docutils literal notranslate"><span class="pre">FV</span></code> 52, <code class="docutils literal notranslate"><span class="pre">VC</span></code> 27, <code class="docutils literal notranslate"><span class="pre">VQ</span></code> 35, <code class="docutils literal notranslate"><span class="pre">WT</span></code> 22, <code class="docutils literal notranslate"><span class="pre">TM</span></code>/<code class="docutils literal notranslate"><span class="pre">TX</span></code>, <code class="docutils literal notranslate"><span class="pre">FS</span></code>/<code class="docutils literal notranslate"><span class="pre">VS</span></code>) and <code class="docutils literal notranslate"><span class="pre">inputRequirements</span></code></p></td>
 <td><p>“writes UVs”, “reads vertex color”, “changes topology” — and the read/write distinction, which no hand tag currently captures</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>Implementation</strong></p></td>
@@ -714,119 +539,7 @@ in sections 3–4, singular and lower case (<code class="docutils literal notran
 </section>
 <section id="representation">
 <h2>2. Representation<a class="headerlink" href="#representation" title="Link to this heading">¶</a></h2>
-<p><em>What</em> the filter operates on and produces — orthogonal to the category, which says
-what it <em>does</em>. <em>Simplify Quadric Edge Collapse</em> is <code class="docutils literal notranslate"><span class="pre">Meshing/Simplification</span></code> acting on
-<code class="docutils literal notranslate"><span class="pre">Mesh/Triangle</span></code>; <em>Reconstruct Screened Poisson</em> is <code class="docutils literal notranslate"><span class="pre">Creation/Reconstruction</span></code> taking
-<code class="docutils literal notranslate"><span class="pre">Point</span> <span class="pre">Cloud</span></code> and producing <code class="docutils literal notranslate"><span class="pre">Mesh/Triangle</span></code>. Neither fact implies the other.</p>
-<p>With this, the classification model has four facets:</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Facet</p></th>
-<th class="head"><p>Answers</p></th>
-<th class="head"><p>Source</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><strong>Category</strong> (§1)</p></td>
-<td><p>what does it do</p></td>
-<td><p>authored, multi-valued</p></td>
-</tr>
-<tr class="row-odd"><td><p><strong>Representation</strong> (§2)</p></td>
-<td><p>what does it work on / produce</p></td>
-<td><p>authored, directional</p></td>
-</tr>
-<tr class="row-even"><td><p><strong>Data touched</strong></p></td>
-<td><p>which attributes does it read/write</p></td>
-<td><p>derived from <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code>, <code class="docutils literal notranslate"><span class="pre">inputRequirements</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><strong>Implementation</strong></p></td>
-<td><p>which library/algorithm</p></td>
-<td><p>derived from <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<section id="terminology-representation-not-domain">
-<h3>Terminology: <code class="docutils literal notranslate"><span class="pre">representation</span></code>, not “domain”<a class="headerlink" href="#terminology-representation-not-domain" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">inputDomain</span></code> and <code class="docutils literal notranslate"><span class="pre">outputDomain</span></code> already exist in the descriptor and mean <strong>document
-scope</strong> — <code class="docutils literal notranslate"><span class="pre">SingleMesh</span></code> / <code class="docutils literal notranslate"><span class="pre">WholeDocument</span></code> / <code class="docutils literal notranslate"><span class="pre">None</span></code>, and <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code> /
-<code class="docutils literal notranslate"><span class="pre">NewMeshes</span></code> / <code class="docutils literal notranslate"><span class="pre">Information</span></code>. Applying this document’s own one-term-per-concept rule,
-the new facet is <strong><code class="docutils literal notranslate"><span class="pre">representation</span></code></strong>, and those existing fields should be renamed
-<strong><code class="docutils literal notranslate"><span class="pre">inputScope</span></code> / <code class="docutils literal notranslate"><span class="pre">outputScope</span></code></strong> in the same pass, since scope is what they describe.</p>
-</section>
-<section id="the-values">
-<h3>The values<a class="headerlink" href="#the-values" title="Link to this heading">¶</a></h3>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Representation</p></th>
-<th class="head"><p>Meaning</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Mesh</span></code></p></td>
-<td><p>Any face-based surface; use when the filter does not care</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Mesh/Triangle</span></code></p></td>
-<td><p>Requires triangles</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Mesh/Quad</span></code></p></td>
-<td><p>Quad or quad-dominant</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Mesh/Polygonal</span></code></p></td>
-<td><p>General n-gons</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Point</span> <span class="pre">Cloud</span></code></p></td>
-<td><p>Vertices only, no faces</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Polyline</span></code></p></td>
-<td><p>Edge-based curves (the mesh edge container)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Volume</span></code></p></td>
-<td><p>Voxel grid or 3D scalar field</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Raster</span></code></p></td>
-<td><p>Registered image layer</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="direction-matters">
-<h3>Direction matters<a class="headerlink" href="#direction-matters" title="Link to this heading">¶</a></h3>
-<p>Input and output are declared separately:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">"inputRepresentation"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Point Cloud"</span><span class="p">],</span>
-<span class="nt">"outputRepresentation"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Mesh/Triangle"</span><span class="p">]</span>
-</pre></div>
-</div>
-<p>This is what answers <em>“what turns a point cloud into a surface?”</em> and <em>“what converts
-triangles to quads?”</em> — questions the current tree cannot express at all, even though
-the filters exist (<em>Tri to Quad by 4-8 Subdivision</em>, <em>Turn into a Pure-Triangular
-mesh</em>, <em>Reconstruct Ball Pivoting</em>).</p>
-</section>
-<section id="declared-not-derived">
-<h3>Declared, not derived<a class="headerlink" href="#declared-not-derived" title="Link to this heading">¶</a></h3>
-<p>Unlike the data-touched and implementation facets, representation cannot be inferred:</p>
-<ul class="simple">
-<li><p><strong>Quad-ness is invisible in the data structure.</strong> vcglib stores quad meshes as
-<em>triangle</em> meshes with faux edges (<code class="docutils literal notranslate"><span class="pre">FaceClearF</span></code>, <code class="docutils literal notranslate"><span class="pre">IsFaceFauxConsistent</span></code>), so the
-intent lives in bit flags, not in the type.</p></li>
-<li><p><strong>Polylines</strong> use the edge container, which a surface mesh may also populate
-incidentally.</p></li>
-<li><p>Only the point-cloud case is partly derivable: <code class="docutils literal notranslate"><span class="pre">requireVertices</span></code> without
-<code class="docutils literal notranslate"><span class="pre">requireFaces</span></code> implies a filter that tolerates points.</p></li>
-</ul>
-<p>So it is declared — but the loader should <strong>cross-check</strong> it: a filter declaring
-<code class="docutils literal notranslate"><span class="pre">Point</span> <span class="pre">Cloud</span></code> input while listing <code class="docutils literal notranslate"><span class="pre">requireFaces</span></code> is contradictory and should warn. That
-catches drift the same way category validation does.</p>
-</section>
-<section id="the-need-is-already-visible">
-<h3>The need is already visible<a class="headerlink" href="#the-need-is-already-visible" title="Link to this heading">¶</a></h3>
-<p>These concepts are being expressed informally today, where nothing can search or
-validate them: across current descriptors <code class="docutils literal notranslate"><span class="pre">quad</span></code> appears <strong>48</strong> times, <code class="docutils literal notranslate"><span class="pre">point</span> <span class="pre">cloud</span></code>
-<strong>33</strong>, and <code class="docutils literal notranslate"><span class="pre">polyline</span></code> <strong>12</strong> — scattered through display names, descriptions and tags.</p>
-</section>
+<p>Proposed, not implemented: what a filter works on and produces (<code class="docutils literal notranslate"><span class="pre">Mesh/Triangle</span></code>, <code class="docutils literal notranslate"><span class="pre">Point</span> <span class="pre">Cloud</span></code>, <code class="docutils literal notranslate"><span class="pre">Polyline</span></code>, …), as a facet beside the category. See <a class="reference internal" href="proposals/filter_representation.html"><span class="std std-doc">Filter Representation</span></a>.</p>
 </section>
 <section id="verb-lexicon">
 <h2>3. Verb lexicon<a class="headerlink" href="#verb-lexicon" title="Link to this heading">¶</a></h2>
@@ -925,7 +638,7 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p><strong><code class="docutils literal notranslate"><span class="pre">Split</span></code></strong> (claimed by layer and element operations)</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Smooth</span></code></p></td>
-<td><p>Reduce noise in positions/normals</p></td>
+<td><p>Reduce noise in positions/normals, or in a color signal: per vertex (<em>Smooth Vertex Color</em>) or in a texture (<em>Smooth Texture</em>, 2026-11-12)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Denoise</span></code>, <code class="docutils literal notranslate"><span class="pre">Fair</span></code>, <code class="docutils literal notranslate"><span class="pre">Blur</span></code>, <code class="docutils literal notranslate"><span class="pre">Relax</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Parametrize</span></code></p></td>
@@ -953,7 +666,7 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p><code class="docutils literal notranslate"><span class="pre">Re-Orient</span></code>, <code class="docutils literal notranslate"><span class="pre">Reorient</span></code> — the values are flipped, not recalculated, so not <code class="docutils literal notranslate"><span class="pre">Compute</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Sharpen</span></code></p></td>
-<td><p>Enhance local variation in an attribute</p></td>
+<td><p>Enhance local variation in an attribute or a texture</p></td>
 <td><p><em>(the unsharp-mask filters had no verb at all)</em></p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Trim</span></code></p></td>
@@ -981,34 +694,38 @@ validate them: across current descriptors <code class="docutils literal notransl
 <td><p>Admitted <strong>narrowly</strong>; still rejected for producing a layer, where <code class="docutils literal notranslate"><span class="pre">Create</span></code> wins</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Dilate</span></code>, <code class="docutils literal notranslate"><span class="pre">Erode</span></code></p></td>
-<td><p>Grow or shrink the selection by one ring of adjacent elements</p></td>
-<td><p>The standard morphological pair; <code class="docutils literal notranslate"><span class="pre">Select</span></code> names the act of selecting, not these two operations on an existing selection</p></td>
+<td><p>Grow or shrink the selection by one ring of adjacent elements; for <code class="docutils literal notranslate"><span class="pre">Dilate</span></code>, also grow the filled region of an image outwards (2026-11-12, for <em>Dilate Texture across Seams</em>)</p></td>
+<td><p>The standard morphological pair, which means the same on an image; <code class="docutils literal notranslate"><span class="pre">Select</span></code> names the act of selecting, not these two operations on an existing selection</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Close</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Inpaint</span></code></p></td>
+<td><p>Fill a region of an image from its surroundings (2026-11-12, for <em>Inpaint Texture on Selected Faces</em>)</p></td>
+<td><p>Admitted <strong>narrowly</strong>, as the image-processing term of art. <code class="docutils literal notranslate"><span class="pre">Repair</span></code> would fit, but would not tell it from <em>Repair Texture Seams</em>; <code class="docutils literal notranslate"><span class="pre">Fill</span></code> stays rejected under <code class="docutils literal notranslate"><span class="pre">Close</span></code>; also <code class="docutils literal notranslate"><span class="pre">Retouch</span></code>, <code class="docutils literal notranslate"><span class="pre">Heal</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Close</span></code></p></td>
 <td><p>Fill a boundary loop with new faces</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Fill</span></code>, <code class="docutils literal notranslate"><span class="pre">Patch</span></code>, <code class="docutils literal notranslate"><span class="pre">Cap</span></code> — <em>close a hole</em> is the established term of art, and <code class="docutils literal notranslate"><span class="pre">Repair</span></code> is too coarse to separate it from the other <code class="docutils literal notranslate"><span class="pre">Repair/*</span></code> filters</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Import</span></code>, <code class="docutils literal notranslate"><span class="pre">Export</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Import</span></code>, <code class="docutils literal notranslate"><span class="pre">Export</span></code></p></td>
 <td><p>Read or write data in a file outside the document</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Load</span></code>, <code class="docutils literal notranslate"><span class="pre">Save</span></code> — those are the File menu’s document-level operations, and a filter that writes a camera rig or a multiresolution build beside the mesh is not saving the document; also <code class="docutils literal notranslate"><span class="pre">Read</span></code>, <code class="docutils literal notranslate"><span class="pre">Write</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Rename</span></code></p></td>
-<td><p>Change the label of a layer or raster</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Rename</span></code></p></td>
+<td><p>Change the label of a layer or raster, or the name of a texture (the file name it is saved under)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Relabel</span></code>. <code class="docutils literal notranslate"><span class="pre">Set</span></code> would have covered it and matches the ids, but <em>rename</em> is the word a user searches for</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Render</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Render</span></code></p></td>
 <td><p>Produce an image from the scene</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Draw</span></code>, <code class="docutils literal notranslate"><span class="pre">Snapshot</span></code>, <code class="docutils literal notranslate"><span class="pre">Screenshot</span></code> — and not <code class="docutils literal notranslate"><span class="pre">Create</span></code>, which produces a layer</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Defragment</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Defragment</span></code></p></td>
 <td><p>Reduce the fragmentation of a texture atlas by merging compatible charts and resampling</p></td>
 <td><p>Admitted <strong>narrowly</strong>, for that alone. It is the term of the paper the filter implements (Maggiordomo et al. 2021); <code class="docutils literal notranslate"><span class="pre">Merge</span></code> describes only half of it, and <code class="docutils literal notranslate"><span class="pre">Pack</span></code> means arranging charts rather than merging them</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Embed</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Embed</span></code></p></td>
 <td><p>Make a curve part of a surface’s tessellation, so that its segments become mesh edges (2026-10-05, for <em>Embed Polyline in Surface</em>)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Insert</span></code>, <code class="docutils literal notranslate"><span class="pre">Imprint</span></code>, <code class="docutils literal notranslate"><span class="pre">Conform</span></code>, <code class="docutils literal notranslate"><span class="pre">Project</span></code> (which moves vertices onto a surface without retriangulating it)</p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Estimate</span></code></p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Estimate</span></code></p></td>
 <td><p>Report a result that is explicitly statistical or approximate, where the approximation is something the user needs to know about</p></td>
 <td><p>Admitted <strong>narrowly</strong>. <code class="docutils literal notranslate"><span class="pre">Compute</span></code> wins wherever the result is exact; the footnote below states the same rule and is where the ratified set ends</p></td>
 </tr>
@@ -1102,7 +819,7 @@ both sides of this line — a prerequisite when a filter needs them, and a resul
 asks for as <em>Compute Normals</em>.</p>
 <p>Every verb above the <code class="docutils literal notranslate"><span class="pre">Estimate</span></code> footnote is ratified. The rounds that introduced the
 later ones are recorded in <a class="reference internal" href="history/filter_names.html"><span class="std std-doc">Filter Names</span></a>, which is the history; this
-table is the authority. <code class="docutils literal notranslate"><span class="pre">tests/test_filters.cpp</span></code> parses it and fails if any shipped
+table is the authority. <code class="docutils literal notranslate"><span class="pre">tests/test_filter_descriptors.cpp</span></code> parses it and fails if any shipped
 display name leads with a word that is not here.</p>
 </section>
 <section id="element-and-data-nouns">
@@ -1188,13 +905,29 @@ display name leads with a word that is not here.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Cell</span> <span class="pre">Size</span></code>, as <em>Simplify by Vertex Clustering</em> and <em>Sample Vertices by Clustering</em> already say; qualified by what the grid is for when a dialog holds several lengths: <code class="docutils literal notranslate"><span class="pre">Downsampling</span> <span class="pre">Cell</span> <span class="pre">Size</span></code> (the matching step of the Open3D aligners)</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Matching</span> <span class="pre">Voxel</span> <span class="pre">Size</span></code>, <code class="docutils literal notranslate"><span class="pre">Registration</span> <span class="pre">Voxel</span> <span class="pre">Size</span></code> — they name the stage the number serves, not what it controls, and <code class="docutils literal notranslate"><span class="pre">voxel</span></code> implies a volume. <code class="docutils literal notranslate"><span class="pre">Voxel</span> <span class="pre">Size</span></code> stays where the filter’s own name says voxel grid (<em>Sample Point Cloud by Voxel Grid</em>) or builds a volume</p></td>
 </tr>
-<tr class="row-even"><td><p>Normal vector</p></td>
+<tr class="row-even"><td><p>Size of a texture a filter makes (UI label and id, 2026-11-13)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code>, id <code class="docutils literal notranslate"><span class="pre">textureSize</span></code>: one side, in texels, of a square texture; the help says the unit, the label does not. Width and height stay only where the size describes images that already exist (the UV measures, where 0 means each image’s own). See <a class="reference internal" href="#texture-size-2026-11-13"><span class="xref myst">Texture size</span></a></p></td>
+<td><p>a width and height pair for a new texture (<code class="docutils literal notranslate"><span class="pre">textW</span></code>/<code class="docutils literal notranslate"><span class="pre">textH</span></code>), <code class="docutils literal notranslate"><span class="pre">texsize</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">size</span> <span class="pre">(px)</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span> <span class="pre">(px)</span></code>, <code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">size</span> <span class="pre">(pixels)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Scale a gradient-domain (screened Poisson) filter acts at (UI label and id, 2026-11-13)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Detail</span> <span class="pre">Size</span></code>, id <code class="docutils literal notranslate"><span class="pre">detailSize</span></code>, a length on the surface (<code class="docutils literal notranslate"><span class="pre">absperc</span></code>): the wavelength at which the filter is halfway between keeping the input and acting on it, smaller patterns being smoothed, sharpened or transferred and larger ones kept. Qualified by what is filtered when a dialog has another (<code class="docutils literal notranslate"><span class="pre">Sharpening</span> <span class="pre">Detail</span> <span class="pre">Size</span></code>, <code class="docutils literal notranslate"><span class="pre">Normal</span> <span class="pre">Smoothing</span> <span class="pre">Size</span></code>). See <a class="reference internal" href="proposals/texture_signal_processing.html#fidelity-as-a-length-approved-and-applied-2026-11-13"><span class="std std-ref">Fidelity as a length</span></a></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Fidelity</span></code>, <code class="docutils literal notranslate"><span class="pre">Interpolation</span> <span class="pre">Weight</span></code>, <code class="docutils literal notranslate"><span class="pre">Screening</span> <span class="pre">Weight</span></code> — the solver’s weight, unitless on a surface scaled to unit area, which no one can relate to the mesh</p></td>
+</tr>
+<tr class="row-even"><td><p>Size of a pattern a filter grows on the surface (UI label and id, 2026-11-14)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Pattern</span> <span class="pre">Size</span></code>, id <code class="docutils literal notranslate"><span class="pre">patternSize</span></code>, a length on the surface (<code class="docutils literal notranslate"><span class="pre">absperc</span></code>): the period, the distance from one stripe or dot to the next. The texture’s size then only sets how many texels draw it. See <a class="reference internal" href="proposals/texture_signal_processing.html#reaction-diffusions-scale-as-a-length-approved-and-applied-2026-11-14"><span class="std std-ref">Reaction-diffusion’s scale as a length</span></a></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Diffusion</span> <span class="pre">Scale</span></code> (the solver’s factor, which with the program’s scaling made the pattern a number of texels), <code class="docutils literal notranslate"><span class="pre">Stripe</span> <span class="pre">Width</span></code> (half the period, and no word for dots)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Normal vector</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normal</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">normals</span> <span class="pre">direction</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Layer matrix</p></td>
+<tr class="row-even"><td><p>Layer matrix</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">matrix</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">transformation</span> <span class="pre">matrix</span></code> (verbose), <code class="docutils literal notranslate"><span class="pre">xform</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Layer/file stored state (2026-11-18)</p></td>
+<td><p><strong>Saved</strong> (the file holds this state), <strong>Modified</strong> (changes since saving), <strong>Not saved</strong> (no file holds it yet); table heading <strong>Status</strong>. The same labels apply to textures and raster planes</p></td>
+<td><p>Filled/hollow dots, <code class="docutils literal notranslate"><span class="pre">D</span></code>/<code class="docutils literal notranslate"><span class="pre">G</span></code>, or <code class="docutils literal notranslate"><span class="pre">New</span></code> (does not say whether a file holds it)</p></td>
 </tr>
 <tr class="row-even"><td><p>1D abstraction of a shape</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code></p></td>
@@ -1231,6 +964,89 @@ image-morphology operation (erosions and openings on a binary image).</p></li>
 that really computed it would call it that.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">centerline</span></code></strong> usually means one path through a tube, with no branching.</p></li>
 </ul>
+</section>
+<section id="texture-size-2026-11-13">
+<h3>Texture size (2026-11-13)<a class="headerlink" href="#texture-size-2026-11-13" title="Link to this heading">¶</a></h3>
+<p>A texture a filter makes is <strong>square</strong>, and its size is one number: <code class="docutils literal notranslate"><span class="pre">textureSize</span></code>,
+labelled <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code>, the side in texels. That was already what most of these
+filters asked; three transfers asked for a width and a height instead, and the labels
+spelled the unit three ways. A width and height pair stays where the numbers describe
+images that exist, of any shape: <em>Measure UV Mapping</em>, <em>Measure Texel Coverage</em> and
+<em>Select Overlapping UV Faces</em> take <code class="docutils literal notranslate"><span class="pre">textureWidth</span></code>/<code class="docutils literal notranslate"><span class="pre">textureHeight</span></code>, 0 for each image’s own
+size.</p>
+<p><em>Colorize Texture by Principal Directions (Line Integral Convolution)</em> follows the rule
+from its first commit. The other filters moved as below (approved and applied
+2026-11-13); the parameter ids are also pymeshlab2’s keyword arguments, renamed outright
+with no alias. The helps now say the unit, texels.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Filter</p></th>
+<th class="head"><p>Current id · label</p></th>
+<th class="head"><p>Target id · label</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><em>Transfer Color from Vertex to Texture</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textW</span></code>, <code class="docutils literal notranslate"><span class="pre">textH</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">width</span> <span class="pre">(px)</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">height</span> <span class="pre">(px)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_texture/filters.json</span></code>; <code class="docutils literal notranslate"><span class="pre">texturefilterplugin.cpp</span></code> built <code class="docutils literal notranslate"><span class="pre">QImage(QSize(textW,</span> <span class="pre">textH))</span></code></p></td>
+<td><p>id and label</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Transfer Vertex Attributes from Another Layer to Texture</em></p></td>
+<td><p>same</p></td>
+<td><p>same</p></td>
+<td><p>same file and code path</p></td>
+<td><p>id and label</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Transfer Texture from Another Layer</em></p></td>
+<td><p>same</p></td>
+<td><p>same</p></td>
+<td><p>same file and code path</p></td>
+<td><p>id and label</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Transfer Color from Visible Rasters to Texture</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">texsize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">size</span> <span class="pre">(px)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_color_projection</span></code>, <code class="docutils literal notranslate"><span class="pre">colorprojectionfilterplugin.cpp:306</span></code>; also set by the test fixture <code class="docutils literal notranslate"><span class="pre">makePhotoTexturedGargoyle</span></code></p></td>
+<td><p>id and label</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Parametrize from Registered Rasters with Texture</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_img_patch_param</span></code>, <code class="docutils literal notranslate"><span class="pre">imgpatchparamfilterplugin.cpp:1240</span></code></p></td>
+<td><p>label</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Transfer Color from Visible Rasters to Texture (Texture Consolidation)</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span> <span class="pre">(px)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">filter_texture_consolidation/filters.json</span></code></p></td>
+<td><p>label</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Set Dummy Texture</em> and <em>Parametrize by Atlas (xatlas)</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">dummy_img_size</span></code> · <code class="docutils literal notranslate"><span class="pre">Dummy</span> <span class="pre">size</span></code></p></td>
+<td><p>unchanged id · <code class="docutils literal notranslate"><span class="pre">Dummy</span> <span class="pre">Texture</span> <span class="pre">Size</span></code></p></td>
+<td><p>both make a square placeholder image (<code class="docutils literal notranslate"><span class="pre">makeDummyTexture(imageSize,</span> <span class="pre">…)</span></code>); the id belongs to the <code class="docutils literal notranslate"><span class="pre">dummy_*</span></code> group with <code class="docutils literal notranslate"><span class="pre">dummy_check_size</span></code> and <code class="docutils literal notranslate"><span class="pre">dummy_type</span></code>, which a rename of its own would move together</p></td>
+<td><p>label</p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Create Atlased Mesh from Abstract Domain</em> and <em>Pack UV Charts (vcglib)</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">size</span> <span class="pre">(pixels)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureSize</span></code> · <code class="docutils literal notranslate"><span class="pre">Atlas</span> <span class="pre">Size</span></code></p></td>
+<td><p>no texture is made: the side of the square grid the charts are packed on (<code class="docutils literal notranslate"><span class="pre">layout.packing.textureSize</span></code>; Pack UV Charts’ placeholder image only feeds the packer)</p></td>
+<td><p>label</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Measure UV Mapping</em>, <em>Measure Texel Coverage</em>, <em>Select Overlapping UV Faces</em></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureWidth</span></code>, <code class="docutils literal notranslate"><span class="pre">textureHeight</span></code> · <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Width</span></code>, <code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Height</span></code></p></td>
+<td><p>unchanged</p></td>
+<td><p>existing images, 0 = each image’s own size</p></td>
+<td><p>none</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Totals: 11 filters; 4 change ids (6 ids become 4), 6 change labels only, 3 stay.</p>
 </section>
 <section id="why-scalar-not-quality">
 <h3>Why <code class="docutils literal notranslate"><span class="pre">scalar</span></code>, not <code class="docutils literal notranslate"><span class="pre">quality</span></code><a class="headerlink" href="#why-scalar-not-quality" title="Link to this heading">¶</a></h3>
@@ -1306,6 +1122,69 @@ the icon cannot. Shortcuts go on a line of their own.</p></li>
 implementation vocabulary), <code class="docutils literal notranslate"><span class="pre">Selected</span> <span class="pre">elements</span> <span class="pre">overlay</span></code>, <code class="docutils literal notranslate"><span class="pre">Quality</span> <span class="pre">Histogram</span></code> (see
 above), <code class="docutils literal notranslate"><span class="pre">Edges</span> <span class="pre">pass</span></code> and every other <code class="docutils literal notranslate"><span class="pre">…</span> <span class="pre">pass</span></code>.</p></li>
 </ul>
+</section>
+<section id="search-aliases-2026-10-30">
+<h3>Search aliases (2026-10-30)<a class="headerlink" href="#search-aliases-2026-10-30" title="Link to this heading">¶</a></h3>
+<p>The filter search accepts the words this vocabulary turned down, since those are often the
+ones a user brings. Every rejected synonym of §3 is an alias that leads to its verb –
+<code class="docutils literal notranslate"><span class="pre">delete</span></code> finds <em>Remove …</em> – except <code class="docutils literal notranslate"><span class="pre">copy</span></code>, <code class="docutils literal notranslate"><span class="pre">map</span></code>, <code class="docutils literal notranslate"><span class="pre">push</span></code>, <code class="docutils literal notranslate"><span class="pre">pull</span></code>, <code class="docutils literal notranslate"><span class="pre">apply</span></code> and <code class="docutils literal notranslate"><span class="pre">bin</span></code>, each
+of which means something else too often; <code class="docutils literal notranslate"><span class="pre">test_filter_descriptors.cpp</span></code> fails when a row of
+§3 gains a rejected synonym without one. The nouns and spellings below are aliases as well.
+An alias works <strong>one way</strong>: a search for <em>position</em> finds the filters that say
+<em>coordinates</em>, but not the reverse, or texture coordinates would flood a search for
+positions. A match through an alias ranks below a direct one.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>typed</p></th>
+<th class="head"><p>also finds</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>position, positions</p></td>
+<td><p>coordinates</p></td>
+</tr>
+<tr class="row-odd"><td><p>quality</p></td>
+<td><p>scalar</p></td>
+</tr>
+<tr class="row-even"><td><p>texcoord, texcoords, uvs</p></td>
+<td><p>uv</p></td>
+</tr>
+<tr class="row-odd"><td><p>colour, colours</p></td>
+<td><p>color</p></td>
+</tr>
+<tr class="row-even"><td><p>triangle, triangles, tri</p></td>
+<td><p>face</p></td>
+</tr>
+<tr class="row-odd"><td><p>photo, photograph, picture</p></td>
+<td><p>raster, image</p></td>
+</tr>
+<tr class="row-even"><td><p>image</p></td>
+<td><p>raster</p></td>
+</tr>
+<tr class="row-odd"><td><p>model, object</p></td>
+<td><p>mesh</p></td>
+</tr>
+<tr class="row-even"><td><p>bbox, aabb</p></td>
+<td><p>bounding box</p></td>
+</tr>
+<tr class="row-odd"><td><p>pointcloud, points</p></td>
+<td><p>point cloud</p></td>
+</tr>
+<tr class="row-even"><td><p>isoline, contour</p></td>
+<td><p>isocontour</p></td>
+</tr>
+<tr class="row-odd"><td><p>hole, holes</p></td>
+<td><p>boundary</p></td>
+</tr>
+<tr class="row-even"><td><p>stats</p></td>
+<td><p>measure</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The table itself is <code class="docutils literal notranslate"><span class="pre">FilterPresentation::searchAliases()</span></code> (<code class="docutils literal notranslate"><span class="pre">src/ui/filterpresentation.cpp</span></code>);
+how the search uses it is in <a class="reference internal" href="proposals/filter_search.html"><span class="std std-doc">Filter Search</span></a>.</p>
 </section>
 </section>
 <section id="spelling-and-casing">
@@ -1407,58 +1286,6 @@ Collapse (QSlim)</em> → <code class="docutils literal notranslate"><span class
 to Face</em> → <code class="docutils literal notranslate"><span class="pre">transfer_color_from_vertex_to_face</span></code>.</p>
 <p>An earlier draft of this section dropped <code class="docutils literal notranslate"><span class="pre">by</span></code> while keeping <code class="docutils literal notranslate"><span class="pre">from</span></code> and <code class="docutils literal notranslate"><span class="pre">to</span></code>, which no
 reader could have predicted; pass 2 settled it by keeping every word (2026-09-03).</p>
-<section id="discoverability-prerequisite-done">
-<h3>Discoverability: prerequisite (done)<a class="headerlink" href="#discoverability-prerequisite-done" title="Link to this heading">¶</a></h3>
-<p>Dropping the category prefix from names is only safe if filter search can still find a
-filter by its category. It could not: <code class="docutils literal notranslate"><span class="pre">MeshFilterPanel::matchesSearch</span></code> matched <code class="docutils literal notranslate"><span class="pre">name</span></code>,
-<code class="docutils literal notranslate"><span class="pre">shortDescription</span></code>, <code class="docutils literal notranslate"><span class="pre">longDescriptionMarkdown</span></code> and <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code>, but <strong>not</strong> the
-category.</p>
-<p><strong>Implemented</strong> in <code class="docutils literal notranslate"><span class="pre">src/ui/meshfilterpanel.cpp</span></code> — <code class="docutils literal notranslate"><span class="pre">matchesSearch</span></code> now also matches the
-category. The historical before/after benchmark below used the 272 descriptors in the
-2026-07-29 category migration:</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Query</p></th>
-<th class="head"><p>Matches before</p></th>
-<th class="head"><p>After</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cleaning</span></code></p></td>
-<td><p>1</p></td>
-<td><p>16</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">selection</span></code></p></td>
-<td><p>17</p></td>
-<td><p>36</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sampling</span></code></p></td>
-<td><p>22</p></td>
-<td><p>28</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">simplification</span></code></p></td>
-<td><p>7</p></td>
-<td><p>7</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>The <code class="docutils literal notranslate"><span class="pre">cleaning</span></code> row shows how real the gap was: 15 of the 16 filters in that category
-were unfindable by its name, because they are called <em>Remove Duplicate Vertices</em>,
-<em>Repair Non-Manifold Edges</em> and so on — never “cleaning”.</p>
-<p>The unchanged rows matter just as much. <code class="docutils literal notranslate"><span class="pre">simplification</span></code> gained nothing <strong>because the
-category is currently repeated in those names</strong> (<em>Simplification: Quadric Edge
-Collapse</em>). Once the naming pass removes that redundancy, those queries would have lost
-their matches without this fix — so this is the prerequisite that makes the new grammar
-safe, not merely an improvement.</p>
-<p>Ranking is unaffected: sorting uses <code class="docutils literal notranslate"><span class="pre">titleMatchesAllTerms</span></code>, which is name-only, so name
-matches still sort above category-only matches.</p>
-<p>The implementation loops over the <code class="docutils literal notranslate"><span class="pre">categories</span></code> array; a single legacy <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string
-is still accepted by the loader for descriptors that predate it.</p>
-<p>Worth noting <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code> was <em>already</em> searched, which is exactly what the
-algorithm-archive model needs — typing <em>qslim</em> finds the QSlim implementations.</p>
-</section>
 </section>
 <section id="naming-the-layers-a-filter-creates">
 <h2>7. Naming the layers a filter creates<a class="headerlink" href="#naming-the-layers-a-filter-creates" title="Link to this heading">¶</a></h2>
@@ -1589,30 +1416,21 @@ no tag contains a comma or bracket, and that <code class="docutils literal notra
 <li><a class="reference internal" href="#terminology-and-scope">Terminology and scope</a></li>
 <li><a class="reference internal" href="#the-ontology">The ontology</a></li>
 <li><a class="reference internal" href="#how-category-names-are-formed">How category names are formed</a></li>
-<li><a class="reference internal" href="#migration-today-s-32-values-the-ontology">Migration: today’s 32 values → the ontology</a></li>
 <li><a class="reference internal" href="#categories-and-what-should-never-be-hand-tagged">Categories, and what should never be hand-tagged</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#representation">2. Representation</a><ul>
-<li><a class="reference internal" href="#terminology-representation-not-domain">Terminology: <code class="docutils literal notranslate"><span class="pre">representation</span></code>, not “domain”</a></li>
-<li><a class="reference internal" href="#the-values">The values</a></li>
-<li><a class="reference internal" href="#direction-matters">Direction matters</a></li>
-<li><a class="reference internal" href="#declared-not-derived">Declared, not derived</a></li>
-<li><a class="reference internal" href="#the-need-is-already-visible">The need is already visible</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#representation">2. Representation</a></li>
 <li><a class="reference internal" href="#verb-lexicon">3. Verb lexicon</a></li>
 <li><a class="reference internal" href="#element-and-data-nouns">4. Element and data nouns</a><ul>
 <li><a class="reference internal" href="#why-curve-skeleton-2026-09-27">Why <code class="docutils literal notranslate"><span class="pre">curve</span> <span class="pre">skeleton</span></code> (2026-09-27)</a></li>
+<li><a class="reference internal" href="#texture-size-2026-11-13">Texture size (2026-11-13)</a></li>
 <li><a class="reference internal" href="#why-scalar-not-quality">Why <code class="docutils literal notranslate"><span class="pre">scalar</span></code>, not <code class="docutils literal notranslate"><span class="pre">quality</span></code></a></li>
 <li><a class="reference internal" href="#the-view-s-pass-bar-2026-09-29">The view’s pass bar (2026-09-29)</a></li>
+<li><a class="reference internal" href="#search-aliases-2026-10-30">Search aliases (2026-10-30)</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#spelling-and-casing">5. Spelling and casing</a></li>
-<li><a class="reference internal" href="#naming-grammar">6. Naming grammar</a><ul>
-<li><a class="reference internal" href="#discoverability-prerequisite-done">Discoverability: prerequisite (done)</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#naming-grammar">6. Naming grammar</a></li>
 <li><a class="reference internal" href="#naming-the-layers-a-filter-creates">7. Naming the layers a filter creates</a><ul>
 <li><a class="reference internal" href="#how-a-filter-declares-it">How a filter declares it</a></li>
 </ul>

@@ -2,8 +2,15 @@ name: macOS DMG
 
 on:
   workflow_dispatch:
+  # Called by release.yml with the release version; a push or manual run leaves it
+  # empty and gets the date-and-commit artifact name instead.
+  workflow_call:
+    inputs:
+      release_version:
+        type: string
+        default: ''
   push:
-    branches: [main]
+    branches: [devel]
     # A documentation-only commit cannot break packaging. paths-ignore only skips
     # the run when *every* changed file matches, so a commit touching both docs
     # and code still builds.
@@ -56,8 +63,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-        with:
-          submodules: recursive
+
+      # Recursively and retrying, with QuadWild's RWTH-hosted submodules from the cache.
+      - name: Fetch submodules
+        uses: ./.github/actions/fetch-submodules
 
       - name: Validate signing secrets
         env:
@@ -197,9 +206,16 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # Before configuring: see .github/actions/helper-cache.
+      - name: Restore the helper programs
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: restore
+
       - name: Configure
         run: |
           cmake --preset vcpkg-manifest \
+            -DMESHLAB2_RELEASE_BUILD=${{ inputs.release_version && 'ON' || 'OFF' }} \
             -B "$BUILD_DIR" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
@@ -217,12 +233,23 @@ jobs:
         run: |
           cmake --build "$BUILD_DIR" -j"$(sysctl -n hw.ncpu)"
 
+      - name: Save the helper programs
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/helper-cache
+        with:
+          mode: save
+
       - name: Define release artifact name
         id: release-metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
-          RELEASE_DATE="$(date -u +%Y-%m-%d)"
-          SHORT_SHA="${GITHUB_SHA:0:8}"
-          echo "artifact_stem=$APP_NAME-$RELEASE_DATE-$SHORT_SHA-macos-arm64" >> "$GITHUB_OUTPUT"
+          if [ -n "$RELEASE_VERSION" ]; then
+            STEM="$APP_NAME-$RELEASE_VERSION-macos-arm64"
+          else
+            STEM="$APP_NAME-$(date -u +%Y-%m-%d)-${GITHUB_SHA:0:8}-macos-arm64"
+          fi
+          echo "artifact_stem=$STEM" >> "$GITHUB_OUTPUT"
 
       - name: Import Developer ID certificate
         env:
@@ -311,8 +338,18 @@ jobs:
             exit 1
           fi
 
-          xcrun stapler staple "$DMG_PATH"
-          xcrun stapler validate "$DMG_PATH"
+          # Stapling fetches the ticket from Apple's CloudKit, which drops the connection now
+          # and then (NSURLErrorDomain -1005, "CloudKit's response is inconsistent", error 68)
+          # even though the notarization above was accepted; a ticket can also lag the
+          # acceptance by a few seconds. Retry rather than lose a twenty-minute build.
+          for attempt in 1 2 3 4 5; do
+            if xcrun stapler staple "$DMG_PATH" && xcrun stapler validate "$DMG_PATH"; then
+              break
+            fi
+            [ "$attempt" -lt 5 ] || { echo "Stapling failed after $attempt attempts" >&2; exit 1; }
+            echo "Stapling attempt $attempt failed; retrying in $((attempt * 20)) s" >&2
+            sleep $((attempt * 20))
+          done
           spctl --assess --type open --context context:primary-signature \
             --verbose=2 "$DMG_PATH"
 

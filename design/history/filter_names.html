@@ -196,6 +196,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
@@ -3046,6 +3047,19 @@ follows <code class="docutils literal notranslate"><span class="pre">Verb</span>
 (<code class="docutils literal notranslate"><span class="pre">by</span></code>, <code class="docutils literal notranslate"><span class="pre">from</span></code>, <code class="docutils literal notranslate"><span class="pre">to</span></code>, <code class="docutils literal notranslate"><span class="pre">with</span></code>, <code class="docutils literal notranslate"><span class="pre">for</span></code>).</p>
 <p>Ids and <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s are untouched by design and are pass 2: <strong>250 of 328 <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s
 and 280 of 328 ids</strong> no longer match their display name, plus parameter ids on top.</p>
+<p>Where it started – the initial audit covered the 272-filter registry present on 2026-07-29:</p>
+<ul class="simple">
+<li><p><strong>165 of 272 display names (61 %) did not lead with a verb</strong>, so the reader could not
+tell what would change.</p></li>
+<li><p>Live synonym pairs, both spellings in active use: <code class="docutils literal notranslate"><span class="pre">remove</span></code> (10) / <code class="docutils literal notranslate"><span class="pre">delete</span></code> (8) ·
+<code class="docutils literal notranslate"><span class="pre">create</span></code> (16) / <code class="docutils literal notranslate"><span class="pre">generate</span></code> (19) · <code class="docutils literal notranslate"><span class="pre">apply</span></code> (16) / <code class="docutils literal notranslate"><span class="pre">set</span></code> (16) · <code class="docutils literal notranslate"><span class="pre">transfer</span></code> (11) /
+<code class="docutils literal notranslate"><span class="pre">project</span></code> (5) · <code class="docutils literal notranslate"><span class="pre">simplification</span></code> (6) / <code class="docutils literal notranslate"><span class="pre">decimation</span></code> (4) · <code class="docutils literal notranslate"><span class="pre">quality</span></code> (29) /
+<code class="docutils literal notranslate"><span class="pre">scalar</span></code> (7) · <code class="docutils literal notranslate"><span class="pre">texcoord</span></code> (4) / <code class="docutils literal notranslate"><span class="pre">uv</span></code> (2).</p></li>
+<li><p>Spelling splits: <code class="docutils literal notranslate"><span class="pre">parametrization</span></code> (8) vs <code class="docutils literal notranslate"><span class="pre">parameterization</span></code> (2); American
+<code class="docutils literal notranslate"><span class="pre">Color</span></code> alongside British <code class="docutils literal notranslate"><span class="pre">Colourisation</span></code>.</p></li>
+<li><p>32 distinct free-text <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> values across 32 plugins, including one-offs like
+<code class="docutils literal notranslate"><span class="pre">Remeshing,</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Resampling</span></code> and backend leakage like <code class="docutils literal notranslate"><span class="pre">Normals/Embree</span></code>.</p></li>
+</ul>
 </section>
 
         </article>

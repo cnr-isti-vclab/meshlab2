@@ -196,6 +196,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../api/mlgui.html">MlGui</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/filters.html">Filters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../texture_metrics.html">Texture and UV measures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/types.html">Supporting Types</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples</span></p>
@@ -257,8 +258,9 @@ per-filter display/Python name proposals derived from that grammar; <a class="re
 <a class="reference internal" href="data_model.html"><span class="std std-doc">Data Model</span></a>.</p>
 <section id="current-implementation-snapshot">
 <h2>Current Implementation Snapshot<a class="headerlink" href="#current-implementation-snapshot" title="Link to this heading">¶</a></h2>
-<p>As of 2026-08-31, MeshLab ships <strong>327 filters across 33 filter plugins</strong> with
-<strong>1131 declared parameters</strong>. Each in-tree descriptor uses the ordered
+<p>MeshLab ships about 400 filters across about 40 filter plugins; which of them a build
+has depends on its optional dependencies, and <code class="docutils literal notranslate"><span class="pre">plugins/filterpluginregistry.cpp</span></code> is the
+list. Each in-tree descriptor uses the ordered
 <code class="docutils literal notranslate"><span class="pre">categories</span></code> array, the loader validates entries against <a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a>,
 and the UI lists a filter under every category it declares. Filter search also
 matches categories and <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code>, so backend/library provenance remains
@@ -340,47 +342,6 @@ information.</p></li>
 scales to that: one optional dependency → one plugin.</p></li>
 </ul>
 </section>
-<section id="first-pass-plugins-categories-only">
-<h3>5. First pass = plugins + categories only<a class="headerlink" href="#first-pass-plugins-categories-only" title="Link to this heading">¶</a></h3>
-<p>The initial coordinated change renamed plugin directories/ids where needed, replaced
-the single <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string with a validated <code class="docutils literal notranslate"><span class="pre">categories</span></code> array, and reclassified
-the 272-filter baseline into the ontology. The baseline <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>s, descriptor ids, and
-MeshLab-style parameter ids (<code class="docutils literal notranslate"><span class="pre">TargetFaceNum</span></code>, <code class="docutils literal notranslate"><span class="pre">QualityThr</span></code>, …) are deliberately
-<strong>deferred to a second pass</strong>. Rationale: the first pass then breaks no scripts,
-so it can land quickly and be judged on the tree alone.</p>
-<p>This supersedes the single-pass approach in <em>Migration Strategy</em> step 4 below.</p>
-</section>
-</section>
-<section id="goals">
-<h2>Goals<a class="headerlink" href="#goals" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p>Make the filter browser predictable: users should know where to look for an
-operation before they know the exact filter name.</p></li>
-<li><p>Make filter names describe the observable result of the operation.</p></li>
-<li><p>Keep Python names explicit, coherent, and readable.</p></li>
-<li><p>Avoid hiding persistent mesh changes behind names that sound like temporary
-visualization changes.</p></li>
-<li><p>Separate framework concerns from filter-specific algorithms.</p></li>
-<li><p>Prefer a clean, coherent taxonomy over preserving legacy script names.</p></li>
-</ul>
-</section>
-<section id="remaining-issues">
-<h2>Remaining Issues<a class="headerlink" href="#remaining-issues" title="Link to this heading">¶</a></h2>
-<p>The current filter set is partly inherited from MeshLab naming and partly shaped
-by incremental MeshLab ports. That gives us working coverage, but not always a
-coherent vocabulary.</p>
-<p>Common issues:</p>
-<ul class="simple">
-<li><p>Some filters named <code class="docutils literal notranslate"><span class="pre">Colorize</span></code> actually compute quality/scalar values.</p></li>
-<li><p>Some filters both compute data and bake colors, which makes their side effects
-harder to predict. <strong>Now a hard rule — see below.</strong></p></li>
-<li><p>Similar parameters use slightly different names across plugins.</p></li>
-<li><p>Some plugin names mirror implementation provenance rather than user intent.</p></li>
-<li><p>Some Python names are algorithm-family names while others are action names.</p></li>
-<li><p>Menu categories mix operation families, data domains, and plugin provenance.</p></li>
-<li><p>Some defaults are document-dependent, so script generation and documentation
-need to be clear about when defaults are evaluated.</p></li>
-</ul>
 </section>
 <section id="guiding-principle">
 <h2>Guiding Principle<a class="headerlink" href="#guiding-principle" title="Link to this heading">¶</a></h2>
@@ -416,13 +377,17 @@ both redundant and <strong>destructive</strong> — it silently overwrites any c
 </tr>
 <tr class="row-odd"><td><p>Opt-in <code class="docutils literal notranslate"><span class="pre">map</span> <span class="pre">to</span> <span class="pre">colour</span></code> parameter on a compute filter</p></td>
 <td><p><em>Compute Vertex Scalar from Camera</em> (<code class="docutils literal notranslate"><span class="pre">map</span></code>), <em>Per Vertex/Face Quality Function</em> (<code class="docutils literal notranslate"><span class="pre">mapToColor</span></code>), <em>Compute Harmonic Scalar Field</em> (<code class="docutils literal notranslate"><span class="pre">colorize</span></code>)</p></td>
-<td><p><strong>Deferred to pass 2.</strong> These are opt-in rather than automatic, but the option is now redundant. Removing a parameter is script-visible, so it belongs with the parameter-id pass.</p></td>
+<td><p><strong>Partly done.</strong> <code class="docutils literal notranslate"><span class="pre">mapToColor</span></code> and <code class="docutils literal notranslate"><span class="pre">colorize</span></code> are gone; <code class="docutils literal notranslate"><span class="pre">map</span></code> remains on <em>Compute Vertex Scalar from Camera</em> and on the <em>Scalar by Expression</em> filters. The option is redundant beside the visualization hint, but removing a parameter is script-visible.</p></td>
 </tr>
 <tr class="row-even"><td><p>Colorizing is the filter’s actual purpose</p></td>
 <td><p><em>Colorize by vertex/face Quality</em></p></td>
 <td><p><strong>Correct as-is</strong> — these are <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> filters by definition.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Colorizing a newly created layer</p></td>
+<tr class="row-odd"><td><p>Color is the main use of the scalar</p></td>
+<td><p><em>Compute Mesh Ambient Occlusion</em>, <em>Compute Point Cloud Ambient Occlusion</em></p></td>
+<td><p><strong>Reversed 2026-11-14.</strong> Ambient occlusion is wanted as shading far more often than as a number, so both are <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code> first and <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code> second, write the value as a gray vertex color (0 is black, the largest value white) and declare <code class="docutils literal notranslate"><span class="pre">VC</span></code> in <code class="docutils literal notranslate"><span class="pre">outputModifies</span></code>. They ask for the <code class="docutils literal notranslate"><span class="pre">VertexColor</span></code> visualization hint. <em>Compute Obscurance</em> stays a pure scalar.</p></td>
+</tr>
+<tr class="row-even"><td><p>Colorizing a newly created layer</p></td>
 <td><p><em>Sample Surface by Voronoi Relaxation</em> / <em>Sample Volume</em> volume meshes</p></td>
 <td><p><strong>Acceptable</strong> — writes to a new layer, destroys nothing. Low priority.</p></td>
 </tr>
@@ -437,16 +402,6 @@ computed from the current document (face count, bbox diagonal, quality range) an
 be captured at invocation time — is <strong>acknowledged and deliberately deferred</strong>. It needs
 to be made more evident in the descriptors and the UI, but it is independent of the
 naming/classification work and should not block it.</p>
-</section>
-<section id="filter-categories">
-<h2>Filter Categories<a class="headerlink" href="#filter-categories" title="Link to this heading">¶</a></h2>
-<p>The taxonomy formerly drafted here now lives in <strong><a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> §1</strong> as
-a validated two-level ontology (11 noun roots with subcategories), together with the
-per-category definitions and discriminators, and the migration table from today’s 32
-<code class="docutils literal notranslate"><span class="pre">menuPath</span></code> values.</p>
-<p>It is deliberately <strong>not</strong> duplicated here: two copies of a taxonomy drift, which is
-the failure mode this whole exercise is correcting. This document covers how that
-ontology is <em>applied</em> to plugins, display names and the migration.</p>
 </section>
 <section id="naming-rules">
 <h2>Naming Rules<a class="headerlink" href="#naming-rules" title="Link to this heading">¶</a></h2>
@@ -485,15 +440,6 @@ coherent and aligned with the canonical operation name.</p>
 <li><p>keep ids unchanged only when the existing id is already clear enough</p></li>
 </ul>
 </section>
-<section id="categories">
-<h3>Categories<a class="headerlink" href="#categories" title="Link to this heading">¶</a></h3>
-<p>Categories are independent of plugin directory names, and a plugin’s filters may be
-spread across many of them. The validated ontology is in
-<a class="reference internal" href="vocabulary.html"><span class="std std-doc">Vocabulary</span></a> §1.</p>
-<p>Resolved there: <code class="docutils literal notranslate"><span class="pre">Simplification</span></code>, <code class="docutils literal notranslate"><span class="pre">Remeshing</span></code> and <code class="docutils literal notranslate"><span class="pre">Subdivision</span></code> are <strong>subcategories of
-<code class="docutils literal notranslate"><span class="pre">Meshing</span></code></strong>, not separate roots — which is also why one <code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code> plugin serves
-all three (ruling 2).</p>
-</section>
 </section>
 <section id="parameter-naming-rules">
 <h2>Parameter Naming Rules<a class="headerlink" href="#parameter-naming-rules" title="Link to this heading">¶</a></h2>
@@ -531,28 +477,31 @@ all three (ruling 2).</p>
 <tr class="row-odd"><td><p>output texture</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">outputTexture</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>selected-only toggle</p></td>
+<tr class="row-even"><td><p>name of a texture the filter makes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">textureName</span></code> (see below)</p></td>
+</tr>
+<tr class="row-odd"><td><p>selected-only toggle</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code> — injected from <code class="docutils literal notranslate"><span class="pre">selectionScope</span></code>, never declared by hand (<a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>)</p></td>
 </tr>
-<tr class="row-odd"><td><p>preserve boundary</p></td>
+<tr class="row-even"><td><p>preserve boundary</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">preserveBoundary</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>preserve topology</p></td>
+<tr class="row-odd"><td><p>preserve topology</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">preserveTopology</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>update normals</p></td>
+<tr class="row-even"><td><p>update normals</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">updateNormals</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>random seed</p></td>
+<tr class="row-odd"><td><p>random seed</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code> (see below)</p></td>
 </tr>
-<tr class="row-odd"><td><p>iteration count</p></td>
+<tr class="row-even"><td><p>iteration count</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">iterations</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>quality threshold</p></td>
+<tr class="row-odd"><td><p>quality threshold</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">qualityThreshold</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>distance threshold</p></td>
+<tr class="row-even"><td><p>distance threshold</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">distanceThreshold</span></code></p></td>
 </tr>
 </tbody>
@@ -561,9 +510,10 @@ all three (ruling 2).</p>
 <section id="a-single-mesh-filter-works-on-the-current-layer">
 <h3>A single-mesh filter works on the current layer<a class="headerlink" href="#a-single-mesh-filter-works-on-the-current-layer" title="Link to this heading">¶</a></h3>
 <p>A filter that works on one mesh takes it from the current layer, chosen in the layer panel,
-never from a mesh parameter; a mesh parameter names a <em>second</em> input. <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> in the
-table above is the source of a source-to-target pair, so one standing alone is the telltale,
-and <code class="docutils literal notranslate"><span class="pre">FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer</span></code> refuses it.</p>
+never from a mesh parameter; a mesh parameter names a <em>second</em> input. A lone <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code>
+that defaults to the current layer is the telltale of a filter taking its own mesh as a
+parameter, and <code class="docutils literal notranslate"><span class="pre">FilterDescriptorTests::singleMeshFiltersUseTheCurrentLayer</span></code> refuses it; one
+that defaults to another layer is the source a two-layer filter reads (next section).</p>
 <p>Migrated 2026-09-29 (measured from the code, not the manifests: each of these read its
 <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and never touched the current layer otherwise): the ten TrueForm filters
 <em>Create Tube from Polyline</em>, <em>Split into Connected Components</em>, <em>Extract Outer Shell</em>,
@@ -576,20 +526,49 @@ of <em>Compute Point Cloud Ambient Occlusion</em>, the surface of <em>Compute Ge
 Number (libigl)</em> and the target of <em>Displace Vertices Toward Target Mesh</em> (both refuse the
 current layer), the projection reference of <em>Remesh Isotropically</em>, the samples to refine of
 <em>Sample Surface by Poisson Disk</em>, the fixed base of <em>Align Meshes Globally</em>, and the optional
-fit layer of <em>Create Grid</em>. That is all 17 filters with a single mesh parameter; the other
-30 with mesh parameters take two meshes.</p>
-<p><strong>Open3D pairwise aligners, 2026-10-15.</strong> The five pairwise registrations —
-<em>Align by Point-to-Point ICP</em>, <em>Point-to-Plane ICP</em>, <em>Colored ICP</em>, <em>Feature Matching</em> and
-<em>Fast Global Registration</em>, all <code class="docutils literal notranslate"><span class="pre">(Open3D)</span></code> (renamed <em>Align Layer to Reference by …</em> on
-2026-10-18, see <a class="reference internal" href="vocabulary.html"><span class="std std-doc">vocabulary</span></a> §4) — dropped <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and now take only
-<code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code>: the current layer is the one that moves and the parameter names the layer
-it moves onto. Measured from their manifests before the change: each declared
-<code class="docutils literal notranslate"><span class="pre">inputDomain:</span> <span class="pre">SingleMesh</span></code> and <code class="docutils literal notranslate"><span class="pre">outputDomain:</span> <span class="pre">ModifyCurrentMesh</span></code>, and each <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code>
-defaulted to <code class="docutils literal notranslate"><span class="pre">&#64;currentMeshIndex</span></code>, so the parameter named the layer the filter already
-declared it modified. The counts above predate this and were not re-measured. The five
-TrueForm aligners (<em>Align by Bounding Box</em>, <em>by ICP</em> and the others in <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>)
-still take both parameters; they are the same pattern and were left alone because the
-request named Open3D only.</p>
+fit layer of <em>Create Grid</em>. That was all 17 filters with a single mesh parameter on that date; today 33 filters
+have one mesh parameter and 15 take two.</p>
+<p><strong>Open3D pairwise aligners, 2026-10-15.</strong> The five pairwise registrations dropped
+<code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> and take only <code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code>: the first filters migrated to the general rule
+below.</p>
+</section>
+<section id="a-filter-that-reads-two-layers-changes-the-current-one">
+<h3>A filter that reads two layers changes the current one<a class="headerlink" href="#a-filter-that-reads-two-layers-changes-the-current-one" title="Link to this heading">¶</a></h3>
+<p>A filter that reads two layers and changes one changes the <strong>current</strong> layer, as a
+single-mesh filter does. The other layer is one mesh parameter, defaulting to
+<code class="docutils literal notranslate"><span class="pre">&#64;otherMeshIndex</span></code>, named for its role: <code class="docutils literal notranslate"><span class="pre">sourceMesh</span></code> when it is read from, <code class="docutils literal notranslate"><span class="pre">referenceMesh</span></code>
+when the current layer is matched, measured or projected onto it. There is no parameter for
+the layer that changes. Such a filter declares <code class="docutils literal notranslate"><span class="pre">outputDomain:</span> <span class="pre">ModifyCurrentMesh</span></code>.</p>
+<p>So the verb’s object is always the current layer: for a transfer, make current the layer
+that receives and pick where it comes from; for an alignment, the layer that moves and what
+it moves onto; for a distance or a selection, the layer that gets the values and what it is
+measured against. A filter that changes neither layer – it creates one, or only reports –
+is not bound by this.</p>
+<p><code class="docutils literal notranslate"><span class="pre">FilterDescriptorTests::twoLayerFiltersChangeTheCurrentLayer</span></code> refuses a <code class="docutils literal notranslate"><span class="pre">ModifyCurrentMesh</span></code>
+filter with two mesh parameters, or with one that defaults to the current layer: both are
+how a filter names the layer it changes. Its exception table holds the parameters that may
+default to the current layer without naming the changed one – a surface to project onto,
+by default the layer’s own (<em>Remesh Isotropically</em>, the two MLS projections), and the layer
+held fixed by the whole-document aligners – and fails the run in both directions. The
+migration that brought 15 filters under the rule is recorded in
+<a class="reference internal" href="history/two_layer_filters.html"><span class="std std-doc">two_layer_filters.md</span></a>.</p>
+<p>A scoped filter (<code class="docutils literal notranslate"><span class="pre">selectionScope</span></code>) confines itself on the current layer’s selection, which
+under this rule is always the layer it changes.</p>
+</section>
+<section id="texturename">
+<h3><code class="docutils literal notranslate"><span class="pre">textureName</span></code><a class="headerlink" href="#texturename" title="Link to this heading">¶</a></h3>
+<p>A filter that makes a texture writes no file: it returns an image with a name, and saving
+the mesh writes it under that name (<a class="reference internal" href="adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>). The name is a
+<code class="docutils literal notranslate"><span class="pre">textureName</span></code> parameter – <code class="docutils literal notranslate"><span class="pre">string</span></code>, default empty – resolved through
+<code class="docutils literal notranslate"><span class="pre">TextureAssociationUtils::outputTextureNames</span></code>:</p>
+<ul class="simple">
+<li><p><strong>empty</strong> (the default) names it after the layer and what it holds, <code class="docutils literal notranslate"><span class="pre">&lt;layer&gt;_&lt;role&gt;.png</span></code>
+(<code class="docutils literal notranslate"><span class="pre">scan_color.png</span></code>, <code class="docutils literal notranslate"><span class="pre">scan_tangent_normal.png</span></code>), so two layers’ textures do not share a name;</p></li>
+<li><p><strong>a name</strong> is used as given, with <code class="docutils literal notranslate"><span class="pre">.png</span></code> added when it has no suffix;</p></li>
+<li><p>with <strong>several texture slots</strong>, <code class="docutils literal notranslate"><span class="pre">_0</span></code>, <code class="docutils literal notranslate"><span class="pre">_1</span></code> … go before the suffix.</p></li>
+</ul>
+<p>It is a name and not a path: where the file goes is decided by the save. <em>Rename Texture</em>
+changes it afterwards. Python passes it as <code class="docutils literal notranslate"><span class="pre">textureName</span></code>, the parameter id.</p>
 </section>
 <section id="randomseed">
 <h3><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code><a class="headerlink" href="#randomseed" title="Link to this heading">¶</a></h3>
@@ -686,673 +665,14 @@ entries only.</p></li>
 and output-modifies fields?</p></li>
 </ul>
 </section>
-<section id="migration-strategy">
-<h2>Migration Strategy<a class="headerlink" href="#migration-strategy" title="Link to this heading">¶</a></h2>
-<ol class="arabic simple">
-<li><p>Document the taxonomy and agree on the vocabulary.</p></li>
-<li><p>Audit all existing filters and assign each one a proposed family.</p></li>
-<li><p>Choose canonical display names, Python names, descriptor ids, and parameter
-ids together.</p></li>
-<li><p>Update menu paths and descriptors in one coordinated pass.</p></li>
-<li><p>Update generated docs to show the canonical names.</p></li>
-<li><p>Add temporary aliases only for cases where we explicitly decide the short-term
-release-management benefit is worth the extra complexity.</p></li>
-<li><p>Remove stale names from user-facing docs once the new taxonomy is in place.</p></li>
-</ol>
-</section>
-<section id="moves-since-pass-1">
-<h2>Moves since pass 1<a class="headerlink" href="#moves-since-pass-1" title="Link to this heading">¶</a></h2>
-<p>One row per filter that changed plugin after the pass-1 layout settled, with the measured
-evidence that justified it.</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Filter</p></th>
-<th class="head"><p>From</p></th>
-<th class="head"><p>To</p></th>
-<th class="head"><p>Evidence</p></th>
-<th class="head"><p>Applied</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">trim_surface_by_plane</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code></p></td>
-<td><p>It first shipped built on PoissonRecon’s SurfaceTrimmer, which is what put it there. Reimplemented on <code class="docutils literal notranslate"><span class="pre">vcg::tri::ClipMeshWithPlane</span></code>, its dispatch references no <code class="docutils literal notranslate"><span class="pre">ScreenedPoisson::</span></code> symbol and the plugin’s own headers are not included by it; <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> already holds <code class="docutils literal notranslate"><span class="pre">create_polyline_from_planar_section</span></code>, whose plane vocabulary it shares, and <code class="docutils literal notranslate"><span class="pre">close_holes</span></code>.</p></td>
-<td><p>2026-09-24</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="plugin-mapping-table-historical-pass-1-proposal">
-<h2>Plugin Mapping Table (historical pass-1 proposal)<a class="headerlink" href="#plugin-mapping-table-historical-pass-1-proposal" title="Link to this heading">¶</a></h2>
-<blockquote>
-<div><p><strong>Status (2026-08-31): historical design record.</strong> Applied pieces include the
-category migration, <code class="docutils literal notranslate"><span class="pre">filter_func</span></code> → <code class="docutils literal notranslate"><span class="pre">filter_expression</span></code>, removal of the empty
-<code class="docutils literal notranslate"><span class="pre">filter_intrinsic_simplification</span></code>, and the libigl merge into <strong><code class="docutils literal notranslate"><span class="pre">filter_igl</span></code></strong>.
-Since then the implementation has grown again to <strong>33 filter plugin directories</strong>
-with new dependency/algorithm archives such as <code class="docutils literal notranslate"><span class="pre">filter_instant_meshes</span></code>,
-<code class="docutils literal notranslate"><span class="pre">filter_quadwild</span></code>, and <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>.</p>
-<p><strong>Deferred — the splits and family folds</strong> (<code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> 37 filters → 10 targets,
-<code class="docutils literal notranslate"><span class="pre">filter_colorproc</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_unsharp</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_sampling</span></code>, and the folds that would create
-<code class="docutils literal notranslate"><span class="pre">filter_compute</span></code> / <code class="docutils literal notranslate"><span class="pre">filter_color</span></code> / <code class="docutils literal notranslate"><span class="pre">filter_smooth</span></code>). They were designed <em>before</em>
-categories became a first-class axis, so they now largely re-implement the category
-organization at the plugin level, while moving hundreds of lines of filter
-implementation between 1500-line files with no automated behaviour check. The rows
-below therefore describe the <em>intended</em> end state, not the current tree.</p>
-</div></blockquote>
-<p>Every pre-baseline plugin classified against decision 1. Evidence columns were
-measured from each plugin’s
-<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>, <code class="docutils literal notranslate"><span class="pre">.gitmodules</span></code>, and directory contents — not inferred from names.
-The uniform <code class="docutils literal notranslate"><span class="pre">option(MESHLAB2_PLUGIN_FILTER_*)</span></code> present in every plugin is build
-plumbing, not a dependency gate, and does not justify a separate plugin.</p>
-<p>Verdicts: <strong>KEEP</strong> = passes a split test as-is · <strong>RENAME</strong> = passes a test but
-the name is unclear · <strong>FOLD</strong> = fails both tests, merge into family plugin(s) ·
-<strong>DROP</strong> = not a filter plugin.</p>
-<section id="stays-separate-real-external-dependency">
-<h3>Stays separate — real external dependency<a class="headerlink" href="#stays-separate-real-external-dependency" title="Link to this heading">¶</a></h3>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Current</p></th>
-<th class="head"><p>Filters</p></th>
-<th class="head"><p>Dependency evidence</p></th>
-<th class="head"><p>Verdict</p></th>
-<th class="head"><p>Target</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code></p></td>
-<td><p>1</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">find_package(CGAL)</span></code></p></td>
-<td><p>KEEP</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_embree</span></code></p></td>
-<td><p>5</p></td>
-<td><p>embree + OpenMP via <code class="docutils literal notranslate"><span class="pre">MeshLab2Embree</span></code></p></td>
-<td><p>KEEP</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_embree</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_mesh_booleans</span></code></p></td>
-<td><p>4</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">find_package(libigl)</span></code></p></td>
-<td><p>MERGE</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_igl</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_parametrization</span></code></p></td>
-<td><p>2</p></td>
-<td><p>libigl — gated on <code class="docutils literal notranslate"><span class="pre">MeshLab2PluginFilterIglCommon</span></code>, includes <code class="docutils literal notranslate"><span class="pre">igl/lscm.h</span></code>, <code class="docutils literal notranslate"><span class="pre">igl/harmonic.h</span></code></p></td>
-<td><p>MERGE</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_igl</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_func</span></code></p></td>
-<td><p>18</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">find_package(muparser)</span></code></p></td>
-<td><p>RENAME</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_expression</span></code> — dep is real, but “func” says nothing</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><strong>One dependency → one plugin.</strong> In the historical proposal, the two libigl plugins
-merge into a single <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> containing the 6 baseline filters, and
-<code class="docutils literal notranslate"><span class="pre">filter_igl_common</span></code>’s adapter code becomes its
-internal implementation rather than a separate gate target. This is the shape that
-scales as many more libigl filters arrive: one <code class="docutils literal notranslate"><span class="pre">find_package</span></code>, one build gate, one
-provenance story.</p>
-<p><code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> will span several menu families (parametrization, booleans, and later
-decimation, smoothing, curvature, deformation…) and that is <strong>not</strong> a repeat of the
-<code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> grab-bag. The difference is which axis carries the meaning: a
-plugin is a <em>dependency/build</em> unit, while categories do all the user-facing
-organizing. <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> was broken because its name described nothing and its
-filters were mis-filed; <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> names its dependency exactly and its filters
-file into the correct families.</p>
-<p>Naming convention for this group: <strong>name the plugin after the dependency</strong>
-(<code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_embree</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code>) so the reason it is separate is
-visible in the name. <code class="docutils literal notranslate"><span class="pre">filter_expression</span></code> is the deliberate exception — muparser is
-an implementation choice, whereas “expression filters” is what the user is looking
-for (see open ruling 5).</p>
-</section>
-<section id="stays-separate-vendored-third-party-code">
-<h3>Stays separate — vendored third-party code<a class="headerlink" href="#stays-separate-vendored-third-party-code" title="Link to this heading">¶</a></h3>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Current</p></th>
-<th class="head"><p>Filters</p></th>
-<th class="head"><p>Vendoring evidence</p></th>
-<th class="head"><p>Verdict</p></th>
-<th class="head"><p>Target</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_qslim</span></code></p></td>
-<td><p>1</p></td>
-<td><p>submodule <code class="docutils literal notranslate"><span class="pre">external/qslim</span></code> + <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code></p></td>
-<td><p>KEEP</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_qslim</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_meshfix</span></code></p></td>
-<td><p>1</p></td>
-<td><p>submodule <code class="docutils literal notranslate"><span class="pre">external/meshfix</span></code> + <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code></p></td>
-<td><p>KEEP</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_meshfix</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_xatlas</span></code></p></td>
-<td><p>1</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">upstream/</span></code> + <code class="docutils literal notranslate"><span class="pre">UPSTREAM.md</span></code></p></td>
-<td><p>KEEP</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_xatlas</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_texture_defragmentation</span></code></p></td>
-<td><p>2</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">upstream/</span></code></p></td>
-<td><p>KEEP</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_texture_defragmentation</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code></p></td>
-<td><p>3</p></td>
-<td><p>vendored source tree + OpenMP</p></td>
-<td><p>KEEP</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Current dependency/vendored additions outside the original table include
-<code class="docutils literal notranslate"><span class="pre">filter_instant_meshes</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_quadwild</span></code>, and <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code>; each remains a
-separate plugin because its external algorithm code is the build/provenance unit.</p>
-</section>
-<section id="folds-into-family-plugins">
-<h3>Folds into family plugins<a class="headerlink" href="#folds-into-family-plugins" title="Link to this heading">¶</a></h3>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Current</p></th>
-<th class="head"><p>Filters</p></th>
-<th class="head"><p>Why it fails both tests</p></th>
-<th class="head"><p>Target(s)</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_basic</span></code></p></td>
-<td><p>3</p></td>
-<td><p>no dep; three unrelated filters</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_measure</span></code> (Measure Mesh Summary), <code class="docutils literal notranslate"><span class="pre">filter_transform</span></code> (Normalize To Unit Box), <code class="docutils literal notranslate"><span class="pre">filter_create</span></code> (Create Isosurface from Perlin Noise)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_create</span></code></p></td>
-<td><p>13</p></td>
-<td><p>already a family name</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_create</span></code> (unchanged)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_clean</span></code></p></td>
-<td><p>15</p></td>
-<td><p>already a family name</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_clean</span></code> (14), <code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code> (1 — its lone non-Cleaning filter is <em>Reconstruct Surface by Ball Pivoting</em>)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_select</span></code></p></td>
-<td><p>25</p></td>
-<td><p>already a family name</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_select</span></code> (unchanged)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_colorproc</span></code></p></td>
-<td><p>31</p></td>
-<td><p>no dep; name is provenance-ish</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_color</span></code> (24), <code class="docutils literal notranslate"><span class="pre">filter_compute</span></code> (7 Quality — per the compute-vs-colorize rule)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_measure</span></code></p></td>
-<td><p>8</p></td>
-<td><p>already a family name</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_measure</span></code> (unchanged)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_layer</span></code></p></td>
-<td><p>14</p></td>
-<td><p>already a family name</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_layer</span></code> (unchanged)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_camera</span></code></p></td>
-<td><p>10</p></td>
-<td><p>already a family name</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_camera</span></code> (unchanged)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_texture</span></code></p></td>
-<td><p>11</p></td>
-<td><p>already a family name</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_texture</span></code> (unchanged)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_sampling</span></code></p></td>
-<td><p>14</p></td>
-<td><p>already a family name</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_sampling</span></code> (unchanged)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code></p></td>
-<td><p>37</p></td>
-<td><p>no dep; <strong>the single worst grab-bag</strong> — its 37 filters span nine families, see breakdown below</p></td>
-<td><p>9 targets — <strong>see open ruling 2</strong></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_unsharp</span></code></p></td>
-<td><p>21</p></td>
-<td><p>no dep; algorithm-named</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_smooth</span></code> (14), <code class="docutils literal notranslate"><span class="pre">filter_compute</span></code> (7 normals)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_trioptimize</span></code></p></td>
-<td><p>3</p></td>
-<td><p>no dep; algorithm-named</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code> (2), <code class="docutils literal notranslate"><span class="pre">filter_smooth</span></code> (1)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_sample</span></code></p></td>
-<td><p>1</p></td>
-<td><p><strong>Resolved:</strong> random vertex displacement moved to the functional <code class="docutils literal notranslate"><span class="pre">filter_vertex_displacement</span></code> plugin, together with the five MeshLab fractal displacement methods</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_vertex_displacement</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_voronoi</span></code></p></td>
-<td><p>4</p></td>
-<td><p>no dep; algorithm-named</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code> (1), <code class="docutils literal notranslate"><span class="pre">filter_sampling</span></code> (3)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_geodesic</span></code></p></td>
-<td><p>4</p></td>
-<td><p>no dep; algorithm-named</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_compute</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_icp</span></code></p></td>
-<td><p>3</p></td>
-<td><p>no dep; <strong>mis-filed</strong> — ICP/Global Align/Overlapping are registration, currently under Remeshing+Measure</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_align</span></code> (new family)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_plymc</span></code></p></td>
-<td><p>2</p></td>
-<td><p>no dep — uses vcglib’s own <code class="docutils literal notranslate"><span class="pre">create/plymc/plymc.h</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code> (1 <em>Reconstruct Surface by Volumetric Merging</em>), <code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code> (1 <em>Edge Collapse for Marching Cube meshes</em>)</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_img_patch_param</span></code></p></td>
-<td><p>4</p></td>
-<td><p>no dep</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_parametrize</span></code> (2), <code class="docutils literal notranslate"><span class="pre">filter_compute</span></code> (2 — “Quality from raster coverage” is a Compute, not a Raster op)</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_color_projection</span></code></p></td>
-<td><p>3</p></td>
-<td><p>no dep</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_transfer</span></code> (raster→mesh/texture projection)</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="filter-meshing-breakdown-37-filters-9-families">
-<h3><code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> breakdown (37 filters → 9 families)<a class="headerlink" href="#filter-meshing-breakdown-37-filters-9-families" title="Link to this heading">¶</a></h3>
-<p>This one plugin is the largest source of misfiling in the tree. Notably it holds
-<strong>11 transform/matrix filters</strong>, which is what makes <code class="docutils literal notranslate"><span class="pre">filter_transform</span></code> a real
-family rather than a one-filter stub.</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Target</p></th>
-<th class="head"><p>N</p></th>
-<th class="head"><p>Filters</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_transform</span></code></p></td>
-<td><p>11</p></td>
-<td><p>Flip/swap axis · Rotate · Rotate to Fit a plane · Align to Principal Axis · Scale, Normalize · Translate, Center, set Origin · Matrix: Reset / Freeze / Invert / Set from TRS / Set-Copy</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code></p></td>
-<td><p>14</p></td>
-<td><p><em>remeshing</em> — Isotropic Explicit · Tri to Quad (4-8) · Quad-Dominant · Pure-Triangular · Tri to Quad smart pairing · <em>subdivision</em> — Loop · Butterfly · Midpoint · LS3 Loop · Catmull-Clark · Doo Sabin · <em>simplification</em> — Clustering Decimation · Quadric Edge Collapse · QEC with texture</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_clean</span></code></p></td>
-<td><p>4</p></td>
-<td><p>Re-Orient faces coherently · Invert Face Orientation · Close Holes · Split Vertices by Attribute Seam</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_create</span></code></p></td>
-<td><p>3</p></td>
-<td><p>Create Polyline from Selected Edges · Create Polyline from Selection Perimeter · Create Polyline from Planar Section</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_compute</span></code></p></td>
-<td><p>2</p></td>
-<td><p>Compute Point Cloud Normals · Compute Principal Curvature Directions</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_smooth</span></code></p></td>
-<td><p>1</p></td>
-<td><p>Smooth Point Cloud Normals</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_parametrize</span></code></p></td>
-<td><p>1</p></td>
-<td><p>Parametrize by Cylindrical Projection</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_select</span></code></p></td>
-<td><p>1</p></td>
-<td><p>Select Crease Edges</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="judgment-call">
-<h3>Judgment call<a class="headerlink" href="#judgment-call" title="Link to this heading">¶</a></h3>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Current</p></th>
-<th class="head"><p>Filters</p></th>
-<th class="head"><p>Situation</p></th>
-<th class="head"><p>Proposed</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_mls</span></code></p></td>
-<td><p>8</p></td>
-<td><p>No external dep and no vendored provenance, so it fails both tests — but its 8 filters span <strong>four</strong> families (projection→Smooth, marching cubes→Reconstruct, curvature quality + radius→Compute, small-component→Select) over ~15 shared source files (<code class="docutils literal notranslate"><span class="pre">apss.tpp</span></code>, <code class="docutils literal notranslate"><span class="pre">rimls.tpp</span></code>, <code class="docutils literal notranslate"><span class="pre">mlssurface</span></code>, <code class="docutils literal notranslate"><span class="pre">balltree</span></code>). Folding would scatter a shared algorithm core.</p></td>
-<td><p>KEEP as an <strong>algorithm-suite exception</strong> — see open ruling 1</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="not-filter-plugins">
-<h3>Not filter plugins<a class="headerlink" href="#not-filter-plugins" title="Link to this heading">¶</a></h3>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Current</p></th>
-<th class="head"><p>Situation</p></th>
-<th class="head"><p>Action</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_igl_common</span></code></p></td>
-<td><p>No <code class="docutils literal notranslate"><span class="pre">filters.json</span></code>. It is the <strong>libigl dependency gate</strong>: a static adapter library whose existence as a CMake target is what the libigl-backed plugins are conditioned on.</p></td>
-<td><p>MERGE into <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> as internal implementation code, since that becomes its only consumer. No separate gate target needed.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_intrinsic_simplification</span></code></p></td>
-<td><p>Directory is <strong>empty</strong> and not referenced in <code class="docutils literal notranslate"><span class="pre">plugins/CMakeLists.txt</span></code></p></td>
-<td><p>DELETE</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-</section>
-<section id="third-axis-plugin-display-names">
-<h3>Third axis: plugin display names<a class="headerlink" href="#third-axis-plugin-display-names" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">MeshFilterPlugin::name()</span></code> is what the user actually reads — first column of the
-<strong>Filter Plugins Info</strong> dialog. It is a separate axis from the directory/<code class="docutils literal notranslate"><span class="pre">pluginId</span></code>
-and needs the same pass. Current state is inconsistent in four ways:</p>
-<ul class="simple">
-<li><p><strong>A <code class="docutils literal notranslate"><span class="pre">MeshLab</span> </code> prefix on 19 of 31, absent on 12.</strong> The prefix is pure noise:
-every plugin in the application is a MeshLab plugin.</p></li>
-<li><p><strong>Inconsistent suffix</strong> — mostly <code class="docutils literal notranslate"><span class="pre">…</span> <span class="pre">Filters</span></code>, but <code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">Meshes</span></code>,
-<code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Tools</span></code>, <code class="docutils literal notranslate"><span class="pre">VCG</span> <span class="pre">Surface</span> <span class="pre">Reconstruction</span></code>.</p></li>
-<li><p><strong>Editorial qualifiers</strong> — <code class="docutils literal notranslate"><span class="pre">Original</span> <span class="pre">QSlim</span> <span class="pre">Filters</span></code>.</p></li>
-<li><p><strong>Family invisible or wrong</strong> — <code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Sample</span> <span class="pre">Filters</span></code> (its one filter is a
-smoothing filter), <code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Basic</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Function</span> <span class="pre">Filters</span></code>.</p></li>
-</ul>
-<p>Rules:</p>
-<ol class="arabic simple">
-<li><p>Drop the <code class="docutils literal notranslate"><span class="pre">MeshLab</span> </code> prefix everywhere.</p></li>
-<li><p>Family plugins: <code class="docutils literal notranslate"><span class="pre">&lt;Family&gt;</span> <span class="pre">Filters</span></code>.</p></li>
-<li><p>Dependency/vendored plugins: <code class="docutils literal notranslate"><span class="pre">&lt;Library</span> <span class="pre">or</span> <span class="pre">Algorithm&gt;</span> <span class="pre">&lt;Family&gt;</span> <span class="pre">Filters</span></code> — here
-the library <strong>is</strong> the identity, so naming it is informative, not provenance
-leakage. (Decision 3 restricts backends in categories, not in the name of a
-plugin that exists <em>because</em> of that backend.)</p></li>
-<li><p>No editorial adjectives.</p></li>
-</ol>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Current display name</p></th>
-<th class="head"><p>Target</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Basic</span> <span class="pre">Filters</span></code></p></td>
-<td><p><em>(dissolved — see fold table)</em></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Camera</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Camera</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CGAL</span> <span class="pre">Mesh</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">CGAL</span> <span class="pre">Remeshing</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Cleaning</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Cleaning</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Color</span> <span class="pre">Projection</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Transfer</span> <span class="pre">and</span> <span class="pre">Projection</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Color</span> <span class="pre">Processing</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Color</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">Meshes</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Create</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Embree</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Embree</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Function</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Expression</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Geodesic</span> <span class="pre">Filters</span></code></p></td>
-<td><p><em>(dissolved → Compute Filters)</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">ICP</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Alignment</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Image</span> <span class="pre">Patch</span> <span class="pre">Parameterization</span> <span class="pre">Filters</span></code></p></td>
-<td><p><em>(dissolved → Parametrization / Compute)</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Layer</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Layer</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">libigl</span> <span class="pre">Boolean</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">libigl</span> <span class="pre">Filters</span></code> <em>(merged into <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code>)</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">libigl</span> <span class="pre">Parametrization</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">libigl</span> <span class="pre">Filters</span></code> <em>(merged into <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code>)</em></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Measure</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Measure</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshFix</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">MeshFix</span> <span class="pre">Cleaning</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Meshing</span> <span class="pre">Filters</span></code></p></td>
-<td><p><em>(dissolved across nine families)</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">MLS</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">MLS</span> <span class="pre">(APSS/RIMLS)</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">VCG</span> <span class="pre">Surface</span> <span class="pre">Reconstruction</span></code></p></td>
-<td><p><em>(dissolved → Reconstruction / Simplification)</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Original</span> <span class="pre">QSlim</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">QSlim</span> <span class="pre">Simplification</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Sample</span> <span class="pre">Filters</span></code></p></td>
-<td><p><em>(dissolved → Smoothing Filters)</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Sampling</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Sampling</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">PoissonRecon</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Screened</span> <span class="pre">Poisson</span> <span class="pre">Reconstruction</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Selection</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Selection</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Tools</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Defragmentation</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Texture</span> <span class="pre">Defragmentation</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">TriOptimize</span> <span class="pre">Filters</span></code></p></td>
-<td><p><em>(dissolved → Remeshing / Smoothing)</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Smoothing</span> <span class="pre">and</span> <span class="pre">Normal</span> <span class="pre">Filters</span></code></p></td>
-<td><p><em>(split → Smoothing Filters / Compute Filters)</em></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">Voronoi</span> <span class="pre">Filters</span></code></p></td>
-<td><p><em>(dissolved → Remeshing / Sampling)</em></p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">xatlas</span> <span class="pre">Filters</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">xatlas</span> <span class="pre">Parametrization</span> <span class="pre">Filters</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>New family plugins need display names too: <code class="docutils literal notranslate"><span class="pre">Compute</span> <span class="pre">Filters</span></code>,
-<code class="docutils literal notranslate"><span class="pre">Transform</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">Subdivision</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">Simplification</span> <span class="pre">Filters</span></code>,
-<code class="docutils literal notranslate"><span class="pre">Reconstruction</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">Parametrization</span> <span class="pre">Filters</span></code>, <code class="docutils literal notranslate"><span class="pre">Smoothing</span> <span class="pre">Filters</span></code>.</p>
-</section>
-<section id="proposed-post-fold-plugin-set-not-the-current-tree">
-<h3>Proposed post-fold plugin set, not the current tree<a class="headerlink" href="#proposed-post-fold-plugin-set-not-the-current-tree" title="Link to this heading">¶</a></h3>
-<p>Family plugins and their post-fold populations (totals verified against the
-historical 272-filter baseline):</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Plugin</p></th>
-<th class="head"><p>N</p></th>
-<th class="head"><p></p></th>
-<th class="head"><p>Plugin</p></th>
-<th class="head"><p>N</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_select</span></code></p></td>
-<td><p>26</p></td>
-<td><p></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_sampling</span></code></p></td>
-<td><p>17</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_color</span></code></p></td>
-<td><p>24</p></td>
-<td><p></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_layer</span></code></p></td>
-<td><p>14</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_compute</span></code></p></td>
-<td><p>22</p></td>
-<td><p></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_transform</span></code></p></td>
-<td><p>12</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_clean</span></code></p></td>
-<td><p>18</p></td>
-<td><p></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_texture</span></code></p></td>
-<td><p>11</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code></p></td>
-<td><p>18</p></td>
-<td><p></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_camera</span></code></p></td>
-<td><p>10</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_create</span></code></p></td>
-<td><p>17</p></td>
-<td><p></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_measure</span></code></p></td>
-<td><p>9</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_smooth</span></code></p></td>
-<td><p>17</p></td>
-<td><p></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_align</span></code></p></td>
-<td><p>3</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_transfer</span></code></p></td>
-<td><p>3</p></td>
-<td><p></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_parametrize</span></code></p></td>
-<td><p>3</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code></p></td>
-<td><p>2</p></td>
-<td><p></p></td>
-<td><p></p></td>
-<td><p></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>17 family plugins (226 filters) + 9 dependency/vendored plugins + 1 algorithm suite
-(46 filters) = <strong>27 filter plugins, from 32</strong>. These proposal totals were verified
-against the historical 272-filter baseline, not the current 327-filter registry.</p>
-<p>Historical dependency/vendored group: <code class="docutils literal notranslate"><span class="pre">filter_igl</span></code> (6), <code class="docutils literal notranslate"><span class="pre">filter_embree</span></code> (5),
-<code class="docutils literal notranslate"><span class="pre">filter_expression</span></code> (18), <code class="docutils literal notranslate"><span class="pre">filter_cgal</span></code> (1), <code class="docutils literal notranslate"><span class="pre">filter_screened_poisson</span></code> (3),
-<code class="docutils literal notranslate"><span class="pre">filter_texture_defragmentation</span></code> (2), <code class="docutils literal notranslate"><span class="pre">filter_xatlas</span></code> (1), <code class="docutils literal notranslate"><span class="pre">filter_qslim</span></code> (1),
-<code class="docutils literal notranslate"><span class="pre">filter_meshfix</span></code> (1); plus the <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code> suite (8).</p>
-<p>Expect this group — not the family group — to grow as more libraries are archived.</p>
-<p>The headline is not the count: it is that no plugin name is vague or
-provenance-only any more, and the 37-filter <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> grab-bag is gone.
-New families introduced: <code class="docutils literal notranslate"><span class="pre">filter_compute</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_color</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_smooth</span></code>,
-<code class="docutils literal notranslate"><span class="pre">filter_transform</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_transfer</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_align</span></code>.</p>
-</section>
-<section id="rulings">
-<h3>Rulings<a class="headerlink" href="#rulings" title="Link to this heading">¶</a></h3>
-<p><strong>All settled.</strong> <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code> stays as an algorithm suite (1) · remeshing,
-subdivision and simplification share one <strong><code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code></strong> (2) ·
-<code class="docutils literal notranslate"><span class="pre">filter_transform</span></code> is a real family (3) · the raster-projection family is
-<strong><code class="docutils literal notranslate"><span class="pre">filter_transfer</span></code></strong> (4) · the muparser plugin is <strong><code class="docutils literal notranslate"><span class="pre">filter_expression</span></code></strong> (5) ·
-<strong><code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code> is kept</strong> despite holding only 2 filters (6).</p>
-<p>The plugin mapping is therefore complete and ready to review as a whole. The
-remaining prerequisite before code moves is the <strong>menu vocabulary table</strong>.</p>
-<ol class="arabic">
-<li><p>~~<strong><code class="docutils literal notranslate"><span class="pre">filter_mls</span></code> exception.</strong>~~ <strong>Accepted.</strong> Under the algorithm-archive
-framing (decision 4) an algorithm suite keeping its own plugin is normal rather
-than exceptional. Proposed third split test:</p>
-<blockquote>
-<div><p>A plugin may stay separate if it owns <strong>shared private implementation code</strong>
-used by filters in more than one family.</p>
-</div></blockquote>
-<p>The qualifier matters: the test is shared <em>code</em>, not shared topic. <code class="docutils literal notranslate"><span class="pre">filter_mls</span></code>
-passes clearly — ~15 source files (<code class="docutils literal notranslate"><span class="pre">apss.tpp</span></code>, <code class="docutils literal notranslate"><span class="pre">rimls.tpp</span></code>, <code class="docutils literal notranslate"><span class="pre">mlssurface</span></code>,
-<code class="docutils literal notranslate"><span class="pre">balltree</span></code>) behind 8 filters spanning Smooth/Reconstruct/Compute/Select.
-<code class="docutils literal notranslate"><span class="pre">filter_voronoi</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_trioptimize</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_unsharp</span></code> do <strong>not</strong> pass:
-they are thin wrappers over vcglib with no private core, so they still fold.
-Without this qualifier “algorithm family” would justify keeping everything.</p>
-</li>
-<li><p>~~Split <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code>’s tessellation filters three ways or one?~~ <strong>One
-<code class="docutils literal notranslate"><span class="pre">filter_remesh</span></code> (18 filters)</strong> — remeshing, subdivision and simplification share
-a single plugin. <code class="docutils literal notranslate"><span class="pre">filter_subdivide</span></code> and <code class="docutils literal notranslate"><span class="pre">filter_simplify</span></code> are <em>not</em> created.</p>
-<p>Note this constrains only the plugin axis. The menu vocabulary is decided
-separately, so <code class="docutils literal notranslate"><span class="pre">Remeshing</span></code>, <code class="docutils literal notranslate"><span class="pre">Subdivision</span></code> and <code class="docutils literal notranslate"><span class="pre">Simplification</span></code> may still be
-distinct user-facing families served by this one plugin — which is exactly the
-plugin-is-a-build-unit / menu-does-the-organizing split from decisions 1–3.</p>
-</li>
-<li><p>~~<code class="docutils literal notranslate"><span class="pre">filter_transform</span></code> with a single filter.~~ <strong>Resolved by the breakdown</strong>: it
-inherits 11 transform/matrix filters from <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> plus <em>Normalize To
-Unit Box</em>, so it is a genuine 12-filter family — and the natural home for the
-interactive move/rotate/scale tools’ commit filters.</p></li>
-<li><p>~~Name for the raster-projection family.~~ <strong><code class="docutils literal notranslate"><span class="pre">filter_transfer</span></code></strong> — chosen over
-<code class="docutils literal notranslate"><span class="pre">filter_project</span></code> because the family also covers non-projection transfers between
-domains (texture↔vertex colour, mesh↔mesh attributes), which <code class="docutils literal notranslate"><span class="pre">project</span></code> would
-misdescribe.</p></li>
-<li><p>~~Name for the muparser plugin.~~ <strong><code class="docutils literal notranslate"><span class="pre">filter_expression</span></code></strong> — the deliberate
-exception to naming dependency-gated plugins after their dependency, since
-“expression” is what the user is looking for and muparser is an implementation
-choice that could change.</p></li>
-<li><p>~~Is a 2-filter <code class="docutils literal notranslate"><span class="pre">filter_reconstruct</span></code> worth keeping?~~ <strong>Kept.</strong> Surface
-reconstruction is a task users go looking for by name, so the family earns its
-place on discoverability even while thin — and under the algorithm-archive
-framing it is an obvious growth point, with Screened Poisson, PlyMC and the MLS
-marching cubes already filing into its <code class="docutils literal notranslate"><span class="pre">Reconstruction</span></code> menu from their own
-plugins.</p></li>
-</ol>
-</section>
-</section>
 <section id="open-questions">
 <h2>Open Questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>~~Should <code class="docutils literal notranslate"><span class="pre">Registration</span></code> be a top-level family?~~ Settled by the plugin table:
-<code class="docutils literal notranslate"><span class="pre">filter_align</span></code> exists as its own family (the three ICP/global-align filters were
+the filters live in <code class="docutils literal notranslate"><span class="pre">filter_icp</span></code>, a family of their own (the three ICP/global-align filters were
 mis-filed under Remeshing + Measure).</p></li>
 <li><p>~~Should <code class="docutils literal notranslate"><span class="pre">Sampling</span></code> remain top-level?~~ Settled: <code class="docutils literal notranslate"><span class="pre">filter_sampling</span></code> is kept as a
-family (17 filters).</p></li>
+family (14 filters).</p></li>
 <li><p>~~Should <code class="docutils literal notranslate"><span class="pre">Reconstruction</span></code> be top-level?~~ Settled by ruling 6: kept as its own
 family rather than folded into <code class="docutils literal notranslate"><span class="pre">Create</span></code>.</p></li>
 <li><p>Should view-only actions be filters, commands, or both?</p></li>
@@ -1409,42 +729,25 @@ specific release-management reason?</p></li>
 <li><a class="reference internal" href="#filter-categories-are-a-closed-validated-ontology">2. Filter categories are a closed, validated ontology</a></li>
 <li><a class="reference internal" href="#backends-never-appear-in-menus-algorithm-names-may-appear-in-filter-names">3. Backends never appear in menus; algorithm names may appear in filter names</a></li>
 <li><a class="reference internal" href="#meshlab-is-an-algorithm-archive-competing-implementations-are-a-feature">4. MeshLab is an algorithm archive — competing implementations are a feature</a></li>
-<li><a class="reference internal" href="#first-pass-plugins-categories-only">5. First pass = plugins + categories only</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#goals">Goals</a></li>
-<li><a class="reference internal" href="#remaining-issues">Remaining Issues</a></li>
 <li><a class="reference internal" href="#guiding-principle">Guiding Principle</a></li>
 <li><a class="reference internal" href="#rule-a-compute-filter-never-bakes-color">Rule: a Compute filter never bakes color</a></li>
 <li><a class="reference internal" href="#deferred-document-dependent-defaults">Deferred: document-dependent defaults</a></li>
-<li><a class="reference internal" href="#filter-categories">Filter Categories</a></li>
 <li><a class="reference internal" href="#naming-rules">Naming Rules</a><ul>
 <li><a class="reference internal" href="#display-and-python-names">Display and Python names</a></li>
 <li><a class="reference internal" href="#descriptor-ids">Descriptor IDs</a></li>
-<li><a class="reference internal" href="#categories">Categories</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#parameter-naming-rules">Parameter Naming Rules</a><ul>
 <li><a class="reference internal" href="#a-single-mesh-filter-works-on-the-current-layer">A single-mesh filter works on the current layer</a></li>
+<li><a class="reference internal" href="#a-filter-that-reads-two-layers-changes-the-current-one">A filter that reads two layers changes the current one</a></li>
+<li><a class="reference internal" href="#texturename"><code class="docutils literal notranslate"><span class="pre">textureName</span></code></a></li>
 <li><a class="reference internal" href="#randomseed"><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#defaults-and-script-generation">Defaults and Script Generation</a></li>
 <li><a class="reference internal" href="#filter-side-effects">Filter Side Effects</a></li>
-<li><a class="reference internal" href="#migration-strategy">Migration Strategy</a></li>
-<li><a class="reference internal" href="#moves-since-pass-1">Moves since pass 1</a></li>
-<li><a class="reference internal" href="#plugin-mapping-table-historical-pass-1-proposal">Plugin Mapping Table (historical pass-1 proposal)</a><ul>
-<li><a class="reference internal" href="#stays-separate-real-external-dependency">Stays separate — real external dependency</a></li>
-<li><a class="reference internal" href="#stays-separate-vendored-third-party-code">Stays separate — vendored third-party code</a></li>
-<li><a class="reference internal" href="#folds-into-family-plugins">Folds into family plugins</a></li>
-<li><a class="reference internal" href="#filter-meshing-breakdown-37-filters-9-families"><code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code> breakdown (37 filters → 9 families)</a></li>
-<li><a class="reference internal" href="#judgment-call">Judgment call</a></li>
-<li><a class="reference internal" href="#not-filter-plugins">Not filter plugins</a></li>
-<li><a class="reference internal" href="#third-axis-plugin-display-names">Third axis: plugin display names</a></li>
-<li><a class="reference internal" href="#proposed-post-fold-plugin-set-not-the-current-tree">Proposed post-fold plugin set, not the current tree</a></li>
-<li><a class="reference internal" href="#rulings">Rulings</a></li>
-</ul>
-</li>
 <li><a class="reference internal" href="#open-questions">Open Questions</a></li>
 </ul>
 </li>

@@ -79,13 +79,36 @@ visibilityset
 
 (`file_open` and `file_save` are accepted as alternates.)
 
+A relative `filesave` value reaches the filter already anchored in the document's folder
+(`Document::directory()`: the project's folder, or that of the first mesh loaded or saved).
+Only a document with no folder yet keeps the bare name, which then resolves against the
+working directory. So a default such as `"report.csv"` is fine,
+and a filter must not anchor it again. History and scripts keep the name as given.
+
+**A filter that makes a texture writes no file.** It returns an image with a name and no
+path -- `TextureAssociationUtils::outputTextureNames` for the name (the one asked for, or
+`<layer>_<role>.png`), `makeTextureAssetsFromImages` for the assets -- and saving the mesh
+writes it. Take the name as a `string` parameter `textureName`, empty by default, or as the
+"new" choice of a `textureoutputref`, which is a name too. To overwrite an existing
+texture, replace its image and keep its name and `sourcePath`: the file is left alone, the
+texture shows changed, and the next save writes the new image beside the mesh. See
+[project_persistence.md](history/project_persistence.md).
+
+A filter that makes **one new texture for each texture the faces use** and moves the faces onto
+them, as *Transfer Color from Vertex to Texture* and *Colorize Texture by Principal Directions
+(Line Integral Convolution)* do, numbers them with `compactTextureSlotIndices` (the indices the
+faces use, renumbered 0, 1, ...), appends them with `appendTextureAssociations`, and moves the
+faces past the old ones with `offsetTextureSlotIndices`. Numbering by the old indices would also
+make a texture for every index no face uses -- after one such run, the old textures' indices.
+It then asks the view to show the texture, with a `Texture` visualization hint.
+
 An `absperc` is a **length**, as an absolute value or as a percentage of its range
 (`@bboxDiag` and the other bound tokens). Its absolute half is labelled with the
 document's unit (`Document::unit()`, "mm", "m", ...) once the user has set one, and
 "abs" while it is unknown, so declare as `absperc` only what really is a length in the
 layer's coordinates -- not a count, an angle or a ratio.
 
-Every parameter also carries `label`, `help` and `group` — all 1168 declared
+Every parameter also carries `label`, `help` and `group` — all 1433 declared
 parameters do. Each distinct `group` becomes one section of the form, in order
 of first appearance, and headings only appear once there is more than one group.
 The name is cosmetic except for one rule: **a group whose name begins with
@@ -130,16 +153,15 @@ code runs, so the filter is greyed out with a reason instead of failing inside
 `requireEdges`, `requireVertexQuality`, `requireFaceQuality`, `requireEdgeQuality`, `requireVertexColor`,
 `requireFaceColor`, `requireTextureCoordinates`, `requirePerVertexTexCoords`,
 `requirePerWedgeTexCoords`, `requireTextures`. Declare them instead of
-re-checking by hand — 291 of 337 filters do.
+re-checking by hand, as most filters do.
 
 A filter that can confine itself to the selection declares **`selectionScope`** —
 `"vertices"`, `"faces"` or `"edges"`, the kind of element its algorithm restricts to —
 and **no toggle of its own**. The loader injects one `selectedOnly` bool, first and never
 advanced, labelled *Only selected vertices / faces / edges*; read it with
-`params.getBool("selectedOnly")`. A filter that confines some layer other than the
-current one names that mesh parameter in `selectionScopeMesh` (*Transfer Vertex
-Attributes* uses `TargetMesh`, the MLS projections `ProxyMesh`). Everything else is the
-framework's (`src/plugins/selectionscope.h`):
+`params.getBool("selectedOnly")`. The scope is always the current layer's selection: a
+two-layer filter changes the current layer ([filter_organization.md](filter_organization.md)),
+so that is the one it confines itself on. Everything else is the framework's (`src/plugins/selectionscope.h`):
 
 - **Default**: omitted, `selectedOnly` is on exactly when there is something to confine
   the filter to, in the panel, in Python and in a replayed compact call alike.
@@ -230,7 +252,10 @@ using CSL-JSON field names, then attached to filters with `referenceIds`:
 
 The framework generates the in-app `[bib]`, `[doi]`, and `[web]` actions, help
 citations, online references, and the combined `references.bib`; do not repeat
-the citation in `longDescriptionMarkdown`.
+the citation in `longDescriptionMarkdown` (`test_filter_descriptors.cpp` rejects a DOI
+link or a "Reference:" line there). Naming the authors in prose -- "the method of Hoppe
+et al." -- is fine. A paper another manifest already declares is copied with the same id
+and identical fields: `docs/generate_api.py` refuses an id defined two ways.
 
 ### Descriptions and formulas
 
@@ -259,16 +284,23 @@ The rendering is `QTextBrowser::setMarkdown`, so ordinary Markdown rules apply: 
 line (`\n\n`) starts a paragraph, a single `\n` is a soft break that reads as a space,
 and lists and tables need the blank line before them that Markdown always needs. Write
 paragraphs; the help box is narrow and wraps, so hand-wrapping with single newlines gains
-nothing.
+nothing. A line break inside a paragraph is a line ending in a backslash -- `\\\n` in JSON,
+an escaped backslash and then the newline -- not `<br>`.
+
+HTML that is never closed is worse than unformatted. After a `<br>`, or a `<li>` left open,
+Qt's importer (6.11) drops the plain text and the links of **everything that follows**,
+across paragraphs, keeping only the code spans: 42 help texts showed a run of variable
+names where their prose had been. Where HTML stays, close every tag and write void ones
+self-closed (`<br/>`); text inside a code span is literal and safe.
 
 `shortDescription` is the exception: it is **not** Markdown. It goes to a `QLabel` in the
 filter panel and to the tooltips in the Filters menu and the results list, so write it as
 one plain sentence. `**bold**` keeps its asterisks there, `$x$` its dollars, and a
 `[link](url)` shows both halves.
 
-`test_filter_descriptors.cpp` rejects a literal `\n` in any description or help text, and
-rejects a newline, an emphasis marker, a backtick, a `$`, a Markdown link or an HTML tag
-in a `shortDescription`.
+`test_filter_descriptors.cpp` rejects a literal `\n` or an HTML tag left unclosed in any
+description or help text, and rejects a newline, an emphasis marker, a backtick, a `$`, a
+Markdown link or an HTML tag in a `shortDescription`.
 That check exists because 148 of them reached the help box across three plugins before
 anyone noticed -- the `\\` rule above is easy to over-apply.
 
@@ -327,14 +359,17 @@ up front, or with a `success = false` result that says why.
 
 - **Undo**: `runFilter` for a non-`Information` filter is automatically wrapped in
   one undo step, and the Python call is recorded. **Never touch the undo stack.**
-  A `SingleMesh` filter whose `outputModifies` is non-empty and contains only
-  selection codes (`VS`/`FS`/`ES`), only color codes (`VC`/`FC`/`EC`) or only
-  scalar codes (`VQ`/`FQ`/`EQ`) — or a mix of those three classes — automatically
-  uses the cheap attribute-delta undo, which stores just those attributes
-  instead of a full snapshot. That matters on large meshes, where snapshotting is
-  seconds of deep copy. **This makes `outputModifies` load-bearing:** the delta
-  does not capture geometry, so a filter that declares `VC` but also moves a
-  vertex will not have the movement undone. Declare everything you change.
+  What the step costs is decided by the change markers the filter calls (below), not by
+  its descriptor: a filter that changes only the selection, the per-element colors or the
+  scalars and says so with `markMeshSelectionChanged`, `markMeshColorChanged` or
+  `markMeshScalarChanged` costs the undo history that layer alone, beside the shared copy
+  of the mesh; anything announced with `markMeshGeometryChanged` costs a copy. On a large
+  mesh that is the difference between a few MB and seconds of deep copy.
+  A filter that leaves a named custom attribute declares `VA` or `FA`, calls
+  `markMeshMaterialChanged`, and documents the attribute's name, type and meaning in the
+  long description, since expressions and scripts read it by name. Remove scratch attributes before returning,
+  including the named ones vcglib leaves behind (see
+  [Data Model](data_model.md#undoredo-model)).
 - **Input preparation**: declare `inputPrepare` codes instead of computing
   adjacency, normals or flags by hand — the framework enables the OCF
   components, runs the vcglib update in dependency order, and disables them
@@ -343,6 +378,16 @@ up front, or with a `success = false` result that says why.
   `VMark`, `VTex`, `WTex`, `CurvDir`. `VE` is vertex-edge adjacency on a polyline
   layer's real edges, for filters that walk the edge graph with `vcg::edge::VEIterator`,
   `VVStarVE` and the like.
+  Loading guarantees face normals, but nothing recomputes them after a filter edits a
+  mesh, so a filter that reads face normals of the current mesh still declares `FNorm`.
+  Preparation reaches only the current mesh: a filter reading normals of another layer
+  (a mesh parameter) computes them itself; the load-time guarantee keeps them from
+  being garbage, not from being stale.
+  `FNorm` and `VNorm` overwrite the layer's normals, which may be the ones a file
+  carried, so the framework announces them as a geometry change: a color or scalar
+  filter that declares them costs a copy all the same. The same holds for a vcglib
+  routine that recomputes normals on the mesh it is given (`GeodesicHeat`, the
+  `EmbreeAdaptor` scene load): a filter calling one announces geometry.
 - **Cleanup/compaction**: after a successful filter the framework compacts the
   affected meshes; don't leave deleted elements around expecting them to persist.
 - **Read-only inputs stay read-only**: a filter that makes a new layer (`NewMeshes`) or only
@@ -353,13 +398,16 @@ up front, or with a `success = false` result that says why.
   and says in the log how many it left out. *Screened Poisson* is the model: its point stream
   skips the points without a normal, with no option to ask for it, and the layer is left exactly as it was.
 - **Notify changes**: after mutating a mesh, call the matching
-  `doc.markMeshGeometryChanged` / `markMeshSelectionChanged` /
-  `markMeshMaterialChanged` so the render/layer views refresh.
+  `doc.markMeshGeometryChanged` / `markMeshSelectionChanged` / `markMeshColorChanged` /
+  `markMeshScalarChanged` / `markMeshMaterialChanged`. Each moves a revision, which is how
+  the views refresh and how undo knows what changed: a change no marker announces is
+  invisible to undo, and a later undo or refused filter can restore the old values over it.
+  Call the narrowest marker that covers everything you changed; when in doubt, geometry.
 
 ## Best practices / what's expected
 
-- **Declare `outputModifies` accurately** — the framework keys undo storage,
-  compaction, and cache invalidation off it. The codes, as the UI spells them
+- **Declare `outputModifies` accurately** — the framework keys compaction, the selection
+  report and the polygon count off it, and the UI shows it. The codes, as the UI spells them
   out (`FilterPresentation::modifiedDataLabels`):
 
   | | vertex | face | edge |
@@ -417,7 +465,13 @@ up front, or with a `success = false` result that says why.
   *Align Meshes Sequentially (Open3D)* leaves `aligned`. Names are shown as written, untranslated.
 - **Suggest a view change** (optional) via `MeshFilterRunResult::visualizationHints`
   (e.g. switch to textured/quality shading) — see the visualization-hint path in
-  `MainWindow::applyFilterVisualizationHints`.
+  `MainWindow::applyFilterResultToViews`.
+- **Move the 3D view** (optional) via `MeshFilterRunResult::cameraState`, a MeshLab.CameraState
+  document (`ViewTrackball::cameraStateJson`): the application animates the current view there,
+  turning about the eye when the camera keeps it. Nothing else reads the field, so a filter whose
+  camera a script should have puts it in `outputValues` too, as the `Document/Camera` framing
+  filters do (`cameraState`). Moving the view is not a document change: leave `documentModified`
+  for what the run did to the document.
 - **A Compute filter never bakes color.** Mapping a scalar to a color is the render
   pass's job: it is applied at draw time from the active colormap, so writing a ramp
   into `VC`/`FC` is both redundant and destructive — it overwrites whatever color the
@@ -428,10 +482,19 @@ up front, or with a `success = false` result that says why.
   expose an opt-in `map` / `colorize` parameter, all defaulting to false — they are
   waiting to be removed (a parameter is script-visible, so it needs its own pass), not
   precedent to copy.
+- **Report progress from anything that can run for more than a moment.** Size it on a
+  large real input, not on the test fixture: a filter that takes 50 ms on the gargoyle
+  can take minutes on a 3 M-face scan with 35 full-size photos, and without progress the
+  user cannot tell slow from hung. Take `vcg::CallBackPos *cb = doc.progressCallback()`
+  and call it with a percentage and a short message at every step of the outer loop (per
+  raster, per layer, per pass) and every few tens of thousands of elements in an inner
+  loop; split the range among the stages so the bar never runs backwards. Pass `cb` on to
+  the vcglib algorithms that take one. **The callback returns `false` when the user
+  cancels**: stop and return a failure, as *Compute Face Scalar from Rasters* does (`fail`
+  with "Operation canceled.") — the framework rolls the document back.
 - **Randomized filters declare `randomSeed`** — `int`, default `0`, minimum `0`,
   resolved through `FilterParams::getRandomSeed()`, with the drawn value reported
-  in the result messages so a run can be pinned afterwards. 39 parameters follow
-  this; see [Filter Organization](filter_organization.md#randomseed).
+  in the result messages so a run can be pinned afterwards; see [Filter Organization](filter_organization.md#randomseed).
 - **Per-layer plugin data** (rare) — `doc.setLayerData(meshIndex, "<pluginId>/<name>", ptr)`
   attaches an immutable, plugin-owned object to a layer: a solver state, a
   parametrization domain, anything too structured for mesh attributes. Undo

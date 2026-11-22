@@ -37,11 +37,6 @@ QString summarizeLoadMask(int mask)
     return attrs.join(QStringLiteral(", "));
 }
 
-bool isMeshLabProjectExtension(const QString &path)
-{
-    return QFileInfo(path).suffix().compare(QStringLiteral("mlp"), Qt::CaseInsensitive) == 0;
-}
-
 QString resolveProjectEntryPath(const QString &projectFilePath, const QString &entryPath)
 {
     const QString normalized = QDir::fromNativeSeparators(entryPath.trimmed());
@@ -50,7 +45,10 @@ QString resolveProjectEntryPath(const QString &projectFilePath, const QString &e
     const QFileInfo info(normalized);
     if (info.isAbsolute())
         return info.absoluteFilePath();
-    return QFileInfo(projectFilePath).dir().filePath(normalized);
+    // The writer makes the path relative as text (QDir::relativeFilePath), so it is undone as
+    // text: left to the file system, the ".." would climb from wherever a symlinked folder
+    // really is -- /var is /private/var on macOS -- and miss the file.
+    return QDir::cleanPath(QFileInfo(projectFilePath).dir().filePath(normalized));
 }
 
 bool parseFloatList(const QString &text, int expectedCount, std::vector<float> &values)
@@ -79,30 +77,6 @@ QMatrix4x4 meshLabProjectMatrixToQt(const std::vector<float> &values)
         values[12], values[13], values[14], values[15]);
 }
 
-bool parseIntPair(const QString &text, int &a, int &b)
-{
-    const QStringList parts = text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
-    if (parts.size() < 2)
-        return false;
-    bool ok0 = false;
-    bool ok1 = false;
-    a = parts.at(0).toInt(&ok0);
-    b = parts.at(1).toInt(&ok1);
-    return ok0 && ok1;
-}
-
-bool parseFloatPair(const QString &text, float &a, float &b)
-{
-    const QStringList parts = text.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
-    if (parts.size() < 2)
-        return false;
-    bool ok0 = false;
-    bool ok1 = false;
-    a = parts.at(0).toFloat(&ok0);
-    b = parts.at(1).toFloat(&ok1);
-    return ok0 && ok1;
-}
-
 RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &semanticText)
 {
     const QString semantic = semanticText.trimmed().toLower();
@@ -117,133 +91,6 @@ RasterPlaneSemantic rasterPlaneSemanticFromProject(const QString &semanticText)
     if (semantic == QStringLiteral("depth") || semantic == QStringLiteral("depthfloat"))
         return RasterPlaneSemantic::DepthFloat;
     return RasterPlaneSemantic::RGBA;
-}
-
-bool parseMeshLabProjectCamera(
-    const QXmlStreamAttributes &attrs,
-    CameraShot &outShot,
-    QString *errorMessage = nullptr)
-{
-    CameraShot::VcgShot shot;
-    vcg::Camera<float> &cam = shot.Intrinsics;
-
-    if (attrs.hasAttribute(QStringLiteral("CameraType"))) {
-        bool ok = false;
-        const int type = attrs.value(QStringLiteral("CameraType")).toInt(&ok);
-        if (!ok) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Invalid CameraType attribute");
-            return false;
-        }
-        // Only perspective and orthographic are drawn; the other vcg types (isometric,
-        // cavalieri) are read as perspective rather than refused, so the project still opens.
-        cam.cameraType = type == vcg::Camera<float>::ORTHO ? vcg::Camera<float>::ORTHO
-                                                            : vcg::Camera<float>::PERSPECTIVE;
-        if (type != vcg::Camera<float>::PERSPECTIVE && type != vcg::Camera<float>::ORTHO)
-            qWarning("Camera type %d is not supported; reading it as perspective.", type);
-    }
-
-    const bool binaryData =
-        attrs.value(QStringLiteral("BinaryData")).trimmed() == QStringLiteral("1");
-
-    if (binaryData) {
-        const QByteArray traBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("TranslationVector")).toLocal8Bit());
-        const QByteArray rotBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("RotationMatrix")).toLocal8Bit());
-        const QByteArray focalBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("FocalMm")).toLocal8Bit());
-        const QByteArray viewportBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("ViewportPx")).toLocal8Bit());
-        const QByteArray centerBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("CenterPx")).toLocal8Bit());
-        const QByteArray pixelBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("PixelSizeMm")).toLocal8Bit());
-        const QByteArray lensBytes = QByteArray::fromBase64(
-            attrs.value(QStringLiteral("LensDistortion")).toLocal8Bit());
-
-        if (traBytes.size() < int(sizeof(float) * 3)
-            || rotBytes.size() < int(sizeof(float) * 16)
-            || focalBytes.size() < int(sizeof(float))
-            || viewportBytes.size() < int(sizeof(int) * 2)
-            || centerBytes.size() < int(sizeof(float) * 2)
-            || pixelBytes.size() < int(sizeof(float) * 2)
-            || lensBytes.size() < int(sizeof(float) * 2)) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Incomplete binary VCGCamera payload");
-            return false;
-        }
-
-        vcg::Point3f tra;
-        memcpy(tra.V(), traBytes.constData(), sizeof(float) * 3);
-        shot.Extrinsics.SetTra(-tra);
-
-        vcg::Matrix44f rot;
-        memcpy(rot.V(), rotBytes.constData(), sizeof(float) * 16);
-        shot.Extrinsics.SetRot(rot);
-
-        memcpy(&cam.FocalMm, focalBytes.constData(), sizeof(float));
-        memcpy(&cam.ViewportPx, viewportBytes.constData(), sizeof(int) * 2);
-        memcpy(&cam.CenterPx, centerBytes.constData(), sizeof(float) * 2);
-        memcpy(&cam.PixelSizeMm, pixelBytes.constData(), sizeof(float) * 2);
-        memcpy(&cam.k[0], lensBytes.constData(), sizeof(float) * 2);
-    } else {
-        std::vector<float> translationValues;
-        std::vector<float> rotationValues;
-        if (!parseFloatList(attrs.value(QStringLiteral("TranslationVector")).toString(), 3, translationValues)
-            || !parseFloatList(attrs.value(QStringLiteral("RotationMatrix")).toString(), 16, rotationValues)) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Invalid camera extrinsics");
-            return false;
-        }
-        shot.Extrinsics.SetTra(vcg::Point3f(
-            -translationValues[0],
-            -translationValues[1],
-            -translationValues[2]));
-        vcg::Matrix44f rot;
-        for (int row = 0; row < 4; ++row)
-            for (int col = 0; col < 4; ++col)
-                rot[row][col] = rotationValues[size_t(col + 4 * row)];
-        shot.Extrinsics.SetRot(rot);
-
-        bool ok = false;
-        cam.FocalMm = attrs.value(QStringLiteral("FocalMm")).toFloat(&ok);
-        if (!ok) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Invalid FocalMm attribute");
-            return false;
-        }
-
-        int viewportW = 0;
-        int viewportH = 0;
-        float centerX = 0.0f;
-        float centerY = 0.0f;
-        float pixelX = 0.0f;
-        float pixelY = 0.0f;
-        float lens0 = 0.0f;
-        float lens1 = 0.0f;
-        if (!parseIntPair(attrs.value(QStringLiteral("ViewportPx")).toString(), viewportW, viewportH)
-            || !parseFloatPair(attrs.value(QStringLiteral("CenterPx")).toString(), centerX, centerY)
-            || !parseFloatPair(attrs.value(QStringLiteral("PixelSizeMm")).toString(), pixelX, pixelY)
-            || !parseFloatPair(attrs.value(QStringLiteral("LensDistortion")).toString(), lens0, lens1)) {
-            if (errorMessage)
-                *errorMessage = QObject::tr("Invalid camera intrinsics");
-            return false;
-        }
-        cam.ViewportPx = vcg::Point2i(viewportW, viewportH);
-        cam.CenterPx = vcg::Point2f(centerX, centerY);
-        cam.PixelSizeMm = vcg::Point2f(pixelX, pixelY);
-        cam.k[0] = lens0;
-        cam.k[1] = lens1;
-    }
-
-    outShot = CameraShot::fromVcgShot(shot);
-    if (!outShot.isValid()) {
-        if (errorMessage)
-            *errorMessage = QObject::tr("Parsed VCGCamera is not valid");
-        return false;
-    }
-    return true;
 }
 
 bool parseMeshLabProjectFile(
@@ -312,7 +159,8 @@ bool parseMeshLabProjectFile(
             } else if (name == QStringLiteral("VCGCamera")) {
                 if (currentRaster) {
                     QString cameraError;
-                    if (!parseMeshLabProjectCamera(xml.attributes(), currentRaster->shot, &cameraError)) {
+                    if (!CameraShot::readVcgCameraXml(
+                            xml.attributes(), currentRaster->shot, currentRaster->lens, &cameraError)) {
                         errorMessage =
                             QObject::tr("Invalid VCGCamera in project '%1': %2")
                                 .arg(filename, cameraError);
@@ -329,6 +177,7 @@ bool parseMeshLabProjectFile(
                         attrs.value(QStringLiteral("fileName")).toString());
                     plane.semantic =
                         rasterPlaneSemanticFromProject(attrs.value(QStringLiteral("semantic")).toString());
+                    plane.undistorted = attrs.value(QStringLiteral("undistorted")) == QStringLiteral("1");
                     currentRaster->planes.push_back(std::move(plane));
                 }
             }
@@ -518,12 +367,32 @@ bool meshNeedsCompaction(const VCGMesh &mesh)
         || mesh.FN() != int(mesh.face.size());
 }
 
+// Drop deleted elements from storage. Compaction moves elements, so the bounding box is
+// refreshed with it; a mesh with nothing left gets a null one.
 void compactMeshStorageInvariant(VCGMesh &mesh)
 {
     if (!meshNeedsCompaction(mesh))
         return;
 
     vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
+    if (mesh.VN() > 0)
+        vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
+    else
+        mesh.bbox.SetNull();
+}
+
+// Framework invariant: every mesh entering the document from IO has valid face normals.
+// Imported vertex normals are kept exactly as the file gives them and smooth ones are
+// generated only when missing; face normals are computed whenever the file has none,
+// since filters, closest-point queries and the Python API read them without asking.
+void computeMissingNormals(VCGMesh &mesh, int loadMask)
+{
+    if (mesh.FN() == 0)
+        return;
+    if (!(loadMask & vcg::tri::io::Mask::IOM_VERTNORMAL))
+        vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
+    else if (!(loadMask & vcg::tri::io::Mask::IOM_FACENORMAL))
+        vcg::tri::UpdateNormal<VCGMesh>::PerFaceNormalized(mesh);
 }
 
 void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &dst)
@@ -539,7 +408,6 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.textureAssets = src.textureAssets;
     dst.materialSet = src.materialSet;
     dst.visible = src.visible;
-    dst.modified = src.modified;
     dst.ioMask = src.ioMask;
     dst.polygonFaceCount = src.polygonFaceCount;
     // Shared, not copied: the payloads are immutable, so a duplicate and its original
@@ -633,9 +501,11 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
     const bool copyVertTexCoord   = src.vert.IsTexCoordEnabled();
     const bool copyVertCurvDir    = src.vert.IsCurvatureDirEnabled();
     const bool copyFaceWedgeTex   = src.face.IsWedgeTexCoordEnabled();
+    const bool copyFaceCurvDir    = src.face.IsCurvatureDirEnabled();
     if (copyVertTexCoord)  dst.vert.EnableTexCoord();
     if (copyVertCurvDir)   dst.vert.EnableCurvatureDir();
     if (copyFaceWedgeTex)  dst.face.EnableWedgeTexCoord();
+    if (copyFaceCurvDir)   dst.face.EnableCurvatureDir();
 
     std::vector<int> vertexMap(src.vert.size(), -1);
     if (src.VN() > 0) {
@@ -688,6 +558,8 @@ void deepCopyMesh(const VCGMesh &src, VCGMesh &dst)
             df.C() = sf.cC();
             df.Q() = sf.cQ();
             df.Flags() = sf.Flags();
+            if (copyFaceCurvDir) { df.PD1() = sf.cPD1(); df.PD2() = sf.cPD2();
+                                   df.K1()  = sf.cK1();  df.K2()  = sf.cK2(); }
             ++dstFaceIndex;
         }
     }
