@@ -383,6 +383,12 @@ Publishing is a separate, deliberate step, not yet automated — see Open items.
 </div>
 <p>The Windows workflow assembles the portable folder, then zips it; the signing step goes
 between the two, because a ZIP cannot carry a signature.</p>
+<p>On macOS, <code class="docutils literal notranslate"><span class="pre">macdeployqt</span></code> signs the bundle and <a class="reference external" href="https://github.com/dmgbuild/dmgbuild">dmgbuild</a>
+(2.0.0, MIT, installed with pip) lays out the disk image: the <code class="docutils literal notranslate"><span class="pre">Applications</span></code> link, the
+background in the classic viewer gradient and the volume icon, set in
+<code class="docutils literal notranslate"><span class="pre">resources/macos/dmg_settings.py</span></code>. It writes Finder’s layout file itself rather than
+scripting Finder, so it behaves the same on a CI runner. <code class="docutils literal notranslate"><span class="pre">scripts/package-macos-dmg.sh</span></code>
+needs it on <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, or named by <code class="docutils literal notranslate"><span class="pre">DMGBUILD</span></code>.</p>
 </section>
 <section id="build-caches-follow-the-default-branch">
 <h2>Build caches follow the default branch<a class="headerlink" href="#build-caches-follow-the-default-branch" title="Link to this heading">¶</a></h2>
