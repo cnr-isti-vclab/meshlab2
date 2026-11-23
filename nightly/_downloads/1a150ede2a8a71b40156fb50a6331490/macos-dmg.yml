@@ -285,7 +285,11 @@ jobs:
         env:
           RELEASE_ARTIFACT_STEM: ${{ steps.release-metadata.outputs.artifact_stem }}
         run: |
-          ./scripts/package-macos-dmg.sh \
+          # dmgbuild writes the disk image's Finder layout; a venv because the
+          # runner's Homebrew Python refuses pip installs (PEP 668).
+          python3 -m venv "$RUNNER_TEMP/dmgbuild"
+          "$RUNNER_TEMP/dmgbuild/bin/pip" install --quiet dmgbuild==2.0.0
+          DMGBUILD="$RUNNER_TEMP/dmgbuild/bin/dmgbuild" ./scripts/package-macos-dmg.sh \
             --no-build \
             --build-dir "$BUILD_DIR" \
             --sign-identity "$MACOS_SIGNING_IDENTITY"

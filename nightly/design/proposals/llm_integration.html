@@ -328,24 +328,21 @@ build with the application build. The first step that is actually about models
 <p>One substantial gap, and one that has closed.</p>
 <section id="closed-the-headless-build-now-follows-the-application-build">
 <h3>Closed: the headless build now follows the application build<a class="headerlink" href="#closed-the-headless-build-now-follows-the-application-build" title="Link to this heading">¶</a></h3>
-<p>This was previously the largest obstacle, and the fix landed in the sibling
-wheel repository <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code> rather than here. The arrangement today:</p>
+<p>This was previously the largest obstacle. The fix first landed in the separate
+wheel repository <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>, now archived, and came here with the wheel
+itself (see <a class="reference internal" href="#packaging-location"><span class="xref myst">Packaging location</span></a>). The arrangement today:</p>
 <ul class="simple">
 <li><p><em>Bindings</em> are shared by construction. <code class="docutils literal notranslate"><span class="pre">src/python/bindings/sources.cmake</span></code>
 defines <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_BINDING_SOURCES</span></code>, and both consumers include it:
 this repository’s static <code class="docutils literal notranslate"><span class="pre">_meshlab2_bindings</span></code> (embedded console) and the
 wheel’s <code class="docutils literal notranslate"><span class="pre">nanobind_add_module(_meshlab</span> <span class="pre">NB_STATIC</span> <span class="pre">…)</span></code>.</p></li>
-<li><p><em>The build graph</em> is no longer restated. The wheel does
-<code class="docutils literal notranslate"><span class="pre">add_subdirectory(external/meshlab2</span> <span class="pre">EXCLUDE_FROM_ALL)</span></code> and links the whole
-<code class="docutils literal notranslate"><span class="pre">MeshLab2Plugins</span></code> target, so a plugin added here appears there without edits.
-What it carries is expressed as explicit <strong>opt-outs</strong> rather than a hand-built
-list: <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PLUGIN_OBJ_RAPIDOBJ</span></code>, <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PLUGIN_E57</span></code> and
-<code class="docutils literal notranslate"><span class="pre">MESHLAB2_PLUGIN_GLTF</span></code> off unconditionally, and <code class="docutils literal notranslate"><span class="pre">FILTER_MESHFIX</span></code>,
-<code class="docutils literal notranslate"><span class="pre">FILTER_QSLIM</span></code>, <code class="docutils literal notranslate"><span class="pre">FILTER_QUADWILD</span></code> off when their vendored externals are
-absent.</p></li>
+<li><p><em>The build graph</em> is no longer restated. The wheel is built from this
+repository’s root <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> and links the whole <code class="docutils literal notranslate"><span class="pre">MeshLab2Plugins</span></code>
+target, so a plugin added here appears there without edits; the plugin
+opt-outs the separate repository carried are gone.</p></li>
 <li><p><em>Packaging</em> exists: <code class="docutils literal notranslate"><span class="pre">cibuildwheel</span></code> for CPython 3.10–3.14 on macOS arm64 and
 Windows x64, <code class="docutils literal notranslate"><span class="pre">delvewheel</span></code> / a macOS repair script, and bundling of the geogram
-runtime and the quadwild helper binaries.</p></li>
+runtime and the QuadWild and TextureConsolidation helper programs.</p></li>
 </ul>
 <p>Two consequences remain, and both matter for a model-facing catalogue:</p>
 <ol class="arabic simple">
@@ -360,10 +357,10 @@ nothing distinguishing the two. Built in-tree (2026-11-03, with
 <code class="docutils literal notranslate"><span class="pre">REQUIRE_VCPKG_DEPS</span></code> back on and the opt-outs dropped) the wheel lists 405,
 the application’s exact set — but the rule below stands, since an
 installed wheel can still lag the tree it is compared against.</p></li>
-<li><p><strong>The submodule pin is a standing source of staleness.</strong> The wheel repository
-pins MeshLab as a submodule, and that pin is routinely behind; at the time of
-writing it trailed <code class="docutils literal notranslate"><span class="pre">devel</span></code> by 135 commits. Folding the wheel into this
-repository removes the pin; see <a class="reference internal" href="#packaging-location"><span class="xref myst">Packaging location</span></a>
+<li><p><em>Resolved:</em> <strong>the submodule pin was a standing source of staleness.</strong> The
+separate wheel repository pinned MeshLab as a submodule, and that pin
+trailed <code class="docutils literal notranslate"><span class="pre">devel</span></code> by 135 commits when this was written. Folding the wheel into
+this repository removed the pin; see <a class="reference internal" href="#packaging-location"><span class="xref myst">Packaging location</span></a>
 below.</p></li>
 </ol>
 <p>A model that is told “these are MeshLab’s filters” should be told so by the
@@ -382,9 +379,11 @@ behaviour. Nothing here has changed.</p>
 <section id="packaging-location">
 <h2>Packaging location<a class="headerlink" href="#packaging-location" title="Link to this heading">¶</a></h2>
 <p>Decided 2026-11-03: the wheel folds into this repository, ahead of step 2.
-The plan is <a class="reference internal" href="pymeshlab_merge.html"><span class="std std-doc">Folding the pymeshlab2 wheel into this repository</span></a>;
-what follows is the reasoning that led there.</p>
-<p>The wheel lives in <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>, which holds 23 files outside the
+Carried out by 2026-11-22: the <code class="docutils literal notranslate"><span class="pre">2026.11</span></code> release built the wheels from its tag and
+the old repository is archived. The record is
+<a class="reference internal" href="../history/pymeshlab_merge.html"><span class="std std-doc">Folding the pymeshlab2 wheel into this repository</span></a>;
+what follows is the reasoning that led there, as written before the move.</p>
+<p>The wheel lived in <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>, which held 23 files outside the
 submodule: a <code class="docutils literal notranslate"><span class="pre">cibuildwheel</span></code> workflow, <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> (mostly the toggles
 above), <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>, <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code>, a ~35-line <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> of runtime
 library shims, a macOS wheel-repair script, six examples and five test files.
