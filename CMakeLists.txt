@@ -1057,3 +1057,14 @@ target_link_libraries(MeshLab2RenderSettingsJsonTests PRIVATE
 )
 
 add_test(NAME MeshLab2RenderSettingsJsonTests COMMAND MeshLab2RenderSettingsJsonTests)
+
+# Batch mode: the application itself runs tests/test_script_mode.py with no window. A
+# script that raises must fail the process, which the second test inverts.
+if(MESHLAB2_PYTHON_CONSOLE)
+    foreach(mode pass fail)
+        add_test(NAME MeshLab2ScriptMode_${mode}
+            COMMAND MeshLab2 --script ${MESHLAB2_SOURCE_DIR}/tests/test_script_mode.py
+                    ${MESHLAB2_SOURCE_DIR}/tests/data/simple.off ${mode})
+    endforeach()
+    set_tests_properties(MeshLab2ScriptMode_fail PROPERTIES WILL_FAIL TRUE)
+endif()
