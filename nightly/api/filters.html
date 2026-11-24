@@ -9315,9 +9315,11 @@ Angle between face normal is considered signed according to convexity/concavity.
 <dt class="sig sig-object py" id="meshlab.ms.set_texture_from_file">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_texture_from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_texture_from_file" title="Link to this definition">¶</a></dt>
 <dd><p>Loads an image file and makes it the only texture of the current mesh, replacing the textures it had. The mesh needs texture coordinates, per wedge or per vertex. To make a test pattern instead, see <em>Set Dummy Texture</em>.</p>
+<p>With one texture chosen in <strong>Replace</strong>, only that texture’s image is replaced, under the new file’s name, and the mesh’s other textures and materials stay as they are.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>textureFile</strong> (<em>fileopen</em>, default: ``) — The image that becomes the only texture of the mesh.</p></li>
+<li><p><strong>texture</strong> (<em>textureref</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — The texture whose image the file replaces, or all of them, leaving the file as the only texture.</p></li>
 </ul>
 </dd></dl>
 

@@ -11486,9 +11486,12 @@ Make an image file the texture of the current mesh, mapped by its UV coordinates
 
 Loads an image file and makes it the only texture of the current mesh, replacing the textures it had. The mesh needs texture coordinates, per wedge or per vertex. To make a test pattern instead, see *Set Dummy Texture*.
 
+With one texture chosen in **Replace**, only that texture's image is replaced, under the new file's name, and the mesh's other textures and materials stay as they are.
+
 **Parameters:**
 
 - **textureFile** (*fileopen*, default: ``) — The image that becomes the only texture of the mesh.
+- **texture** (*textureref*, default: `0`) — The texture whose image the file replaces, or all of them, leaving the file as the only texture.
 ```
 
 ---
