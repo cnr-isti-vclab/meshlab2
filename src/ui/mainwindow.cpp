@@ -641,6 +641,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_layerWidget, &LayerWidget::filterActionRequested, this,
             &MainWindow::openFilterOrRunIfParameterless);
     connect(m_layerWidget, &LayerWidget::filterRunRequested, this, &MainWindow::executeFilter);
+    connect(m_layerWidget, &LayerWidget::saveMeshRequested, this, &MainWindow::saveCurrentMesh);
+    connect(m_layerWidget, &LayerWidget::reloadMeshRequested, this, &MainWindow::reloadCurrentMesh);
     m_layerDock = new QDockWidget(tr("Layers"), this);
     m_layerDock->setWidget(m_layerWidget);
 

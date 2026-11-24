@@ -964,7 +964,18 @@ MeshFilterRunResult TextureFilterPlugin::runFilter(
             newAssets.push_back(Tex::makeTextureAssetFromPath(normalizedPath));
         }
 
-        Tex::replaceTextureAssociations(entry, newAssets);
+        // One texture chosen (numbered from 1, as Rename Texture numbers them): only its image
+        // is replaced, and the other textures and the materials stay. Set Dummy Texture has no
+        // such parameter, so it always replaces them all.
+        const int chosen = params.getTextureRef(QStringLiteral("texture"), 0);
+        if (chosen > 0) {
+            if (chosen > int(entry.textureAssets.size()))
+                return fail(QObject::tr("'%1' has no texture %2.").arg(entry.name).arg(chosen));
+            entry.textureAssets[size_t(chosen - 1)] = newAssets.front();
+            Tex::rebuildLegacyTextureAssociation(entry);
+        } else {
+            Tex::replaceTextureAssociations(entry, newAssets);
+        }
 
         doc.markMeshMaterialChanged(
             meshIndex,

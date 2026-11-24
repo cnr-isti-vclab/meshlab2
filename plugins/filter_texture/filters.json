@@ -453,7 +453,7 @@
       "name": "Set Texture from File",
       "pythonName": "set_texture_from_file",
       "shortDescription": "Make an image file the texture of the current mesh, mapped by its UV coordinates.",
-      "longDescriptionMarkdown": "Loads an image file and makes it the only texture of the current mesh, replacing the textures it had. The mesh needs texture coordinates, per wedge or per vertex. To make a test pattern instead, see *Set Dummy Texture*.",
+      "longDescriptionMarkdown": "Loads an image file and makes it the only texture of the current mesh, replacing the textures it had. The mesh needs texture coordinates, per wedge or per vertex. To make a test pattern instead, see *Set Dummy Texture*.\n\nWith one texture chosen in **Replace**, only that texture's image is replaced, under the new file's name, and the mesh's other textures and materials stay as they are.",
       "tags": [
         "texture",
         "uv",
@@ -479,6 +479,16 @@
           "fileNameFilters": [
             "Images (*.png *.jpg *.jpeg *.dds *.bmp *.tif *.tiff)"
           ]
+        },
+        {
+          "id": "texture",
+          "label": "Replace",
+          "help": "The texture whose image the file replaces, or all of them, leaving the file as the only texture.",
+          "group": "main",
+          "type": "textureref",
+          "default": 0,
+          "allowAutomatic": true,
+          "automaticLabel": "All textures"
         }
       ],
       "outputModifies": [

@@ -8,6 +8,10 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QSignalSpy>
+#include <QApplication>
+#include <QContextMenuEvent>
+#include <QTimer>
+#include <QMenu>
 #include <QScrollBar>
 #include <QScrollArea>
 #include <QTableWidget>
@@ -29,6 +33,7 @@ private slots:
     void theListStaysWhereTheUserScrolledItWhenALayerChanges();
     void theMarkSaysWhetherAFileHoldsTheLayer();
     void typingANameRunsTheRenameFilter();
+    void ctrlDDuplicatesTheCurrentLayer();
 };
 
 namespace {
@@ -478,6 +483,45 @@ void LayerWidgetTests::typingANameRunsTheRenameFilter()
     QCOMPARE(textureParams.value(QStringLiteral("texture")).toInt(), 1);
     QCOMPARE(textureParams.value(QStringLiteral("textureName")).toString(),
              QStringLiteral("albedo.png"));
+}
+
+// Ctrl+D duplicates the current layer through the filter, wherever the focus is; and a mesh
+// row's context menu puts what is done to that layer first.
+void LayerWidgetTests::ctrlDDuplicatesTheCurrentLayer()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("only"));
+    LayerWidget widget(&doc);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+    QSignalSpy runs(&widget, &LayerWidget::filterRunRequested);
+    QTest::keyClick(&widget, Qt::Key_D, Qt::ControlModifier);
+    QCOMPARE(runs.count(), 1);
+    QCOMPARE(runs.last().at(1).toString(), QStringLiteral("Duplicate Current Layer"));
+
+    // A mesh row's menu: that layer's own commands first, Remove last, no raster filters.
+    QTreeWidget *meshTree = nullptr;
+    for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>())
+        if (candidate->topLevelItemCount() == 1)
+            meshTree = candidate;
+    QVERIFY(meshTree);
+    const QPoint rowCenter = widget.mapFrom(
+        meshTree->viewport(), meshTree->visualItemRect(meshTree->topLevelItem(0)).center());
+    QStringList entries;
+    QTimer::singleShot(0, &widget, [&] {
+        if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+            for (QAction *action : menu->actions())
+                entries << (action->isSeparator() ? QStringLiteral("-") : action->text());
+            menu->close();
+        }
+    });
+    QContextMenuEvent event(QContextMenuEvent::Mouse, rowCenter, widget.mapToGlobal(rowCenter));
+    QApplication::sendEvent(&widget, &event);
+    QCOMPARE(entries.mid(0, 6), (QStringList{ QStringLiteral("Rename"), QStringLiteral("Duplicate"),
+                                              QStringLiteral("-"), QStringLiteral("Save Mesh..."),
+                                              QStringLiteral("Reload"), QStringLiteral("-") }));
+    QCOMPARE(entries.last(), QStringLiteral("Remove"));
+    QVERIFY(!entries.join(QLatin1Char(' ')).contains(QStringLiteral("Raster")));
 }
 
 QTEST_MAIN(LayerWidgetTests)

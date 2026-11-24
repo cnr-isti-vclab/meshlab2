@@ -63,6 +63,7 @@ constexpr int kRoleRasterIndex = Qt::UserRole + 3;
 constexpr int kRoleRasterId = Qt::UserRole + 4;
 constexpr int kRolePlaneIndex = Qt::UserRole + 5;
 constexpr int kRoleTextureIndex = Qt::UserRole + 6;
+const QKeySequence kDuplicateLayerShortcut(Qt::CTRL | Qt::Key_D);
 constexpr int kLayerKindMesh = 1;
 constexpr int kLayerKindRaster = 2;
 
@@ -1355,6 +1356,11 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
         connect(shortcut, &QShortcut::activated, this, [this, i] { m_doc->showVisibilitySet(i); });
     }
     connect(m_doc, &Document::visibilitySetsChanged, this, [this] { scheduleRebuild(); });
+    // Ctrl+D duplicates the current layer, whichever widget has the focus, as the layer menu shows.
+    auto *duplicate = new QShortcut(kDuplicateLayerShortcut, this);
+    duplicate->setContext(Qt::ApplicationShortcut);
+    connect(duplicate, &QShortcut::activated, this,
+            [this] { requestFilterRun(QStringLiteral("duplicate_current_layer"), {}); });
 
     // --- Tree view (page 0) ---
     auto *treeSplitter = new QSplitter(Qt::Vertical, this);
@@ -2781,10 +2787,22 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
         const int textureIndex = itemUnderCursor->data(0, kRoleTextureIndex).toInt(&textureOk);
         const LayerItemRef ref = layerRefForItem(itemUnderCursor);
         if (textureOk && ref.kind == LayerItemKind::Mesh && ref.index >= 0 && ref.index < m_doc->meshCount()) {
+            // A texture with no asset of its own (index -1) is not one the texture filters reach.
+            const bool hasAsset = textureIndex >= 0
+                && textureIndex < int(m_doc->mesh(ref.index).textureAssets.size());
             QMenu menu(this);
+            QAction *renameAction = menu.addAction(tr("Rename"));
+            renameAction->setEnabled(hasAsset);
+            connect(renameAction, &QAction::triggered, this, [this, item = itemUnderCursor] {
+                editTextureName(item);
+            });
+            QAction *setAction = menu.addAction(tr("Set Texture from File..."));
+            setAction->setEnabled(hasAsset);
+            connect(setAction, &QAction::triggered, this, [this, meshIndex = ref.index, textureIndex] {
+                replaceMeshTexture(meshIndex, textureIndex);
+            });
             QAction *saveAction = menu.addAction(tr("Save Texture..."));
-            saveAction->setEnabled(textureIndex >= 0
-                                   && textureIndex < int(m_doc->mesh(ref.index).textureAssets.size()));
+            saveAction->setEnabled(hasAsset);
             connect(saveAction, &QAction::triggered, this, [this, meshIndex = ref.index, textureIndex]() {
                 saveMeshTexture(meshIndex, textureIndex);
             });
@@ -2855,34 +2873,136 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
     }
 
     const std::vector<Document::FilterInfo> infos = m_doc->filterInfos();
-
+    const auto isLayerFilter = [](const Document::FilterInfo &info) {
+        return info.descriptor.categories.contains(QStringLiteral("Document/Layer"), Qt::CaseInsensitive);
+    };
     QMenu menu(this);
-    bool anyAdded = false;
-    for (const Document::FilterInfo &info : infos) {
-        // Layer-management filters, wherever they sit in their category list.
-        if (!info.descriptor.categories.contains(QStringLiteral("Document/Layer"),
-                                                 Qt::CaseInsensitive))
-            continue;
-        QAction *action = menu.addAction(info.descriptor.name);
-        action->setData(info.key);
-        action->setEnabled(info.applicable);
+    // A filter as a menu entry; it opens in the filter panel, or runs at once if it has no
+    // parameters. The filters act on the current mesh, so the row under the pointer, if any,
+    // is made current first.
+    const auto addFilter = [&](const Document::FilterInfo &info, int meshIndex, const QString &label = {}) {
+        QAction *action = menu.addAction(label.isEmpty() ? info.descriptor.name : label);
+        // Whether it applies was decided on the current mesh; on another row the filter panel
+        // says why, if it does not.
+        action->setEnabled(info.applicable || (meshIndex >= 0 && meshIndex != m_doc->currentMeshIndex()));
         if (!info.applicable && !info.applicabilityError.isEmpty())
             action->setToolTip(info.applicabilityError);
-        connect(action, &QAction::triggered, this, [this, key = info.key]() {
+        connect(action, &QAction::triggered, this, [this, key = info.key, meshIndex]() {
+            if (meshIndex >= 0 && meshIndex < m_doc->meshCount())
+                m_doc->setCurrentMeshIndex(meshIndex);
             emit filterActionRequested(key);
         });
-        anyAdded = true;
+        return action;
+    };
+
+    if (ref.kind != LayerItemKind::Mesh || ref.index < 0 || ref.index >= m_doc->meshCount()) {
+        // Not on a layer: every layer filter, acting on the current layer.
+        for (const Document::FilterInfo &info : infos)
+            if (isLayerFilter(info))
+                addFilter(info, -1);
+        if (!menu.isEmpty())
+            menu.exec(event->globalPos());
+        return;
     }
 
-    // The layer under the pointer, which the filters above do not look at: they act on the
-    // current one.
-    if (ref.kind == LayerItemKind::Mesh && ref.index >= 0 && ref.index < m_doc->meshCount()) {
-        if (anyAdded)
-            menu.addSeparator();
-        addVisibilitySetActions(menu, ref.index);
-        anyAdded = true;
-    }
+    // On a mesh row, what is done to that one layer comes first, most used at the top and the
+    // removal last: name and copy, file, look and sets, the layers made from it, the layers taken
+    // together, and Remove. Raster filters are left out.
+    const int index = ref.index;
+    const auto filterById = [&](QLatin1StringView id) -> const Document::FilterInfo * {
+        for (const Document::FilterInfo &info : infos)
+            if (info.descriptor.id == id)
+                return &info;
+        return nullptr;
+    };
+    const QLatin1StringView placed[] = { QLatin1StringView("rename_current_mesh_layer"),
+                                         QLatin1StringView("duplicate_current_layer"),
+                                         QLatin1StringView("set_random_layer_color"),
+                                         QLatin1StringView("remove_current_mesh_layer") };
 
-    if (anyAdded)
-        menu.exec(event->globalPos());
+    connect(menu.addAction(tr("Rename")), &QAction::triggered, this, [this, index] { editMeshName(index); });
+    if (const Document::FilterInfo *info = filterById(placed[1]))
+        addFilter(*info, index, tr("Duplicate"))->setShortcut(kDuplicateLayerShortcut);
+    menu.addSeparator();
+
+    QAction *saveAction = menu.addAction(tr("Save Mesh..."));
+    saveAction->setShortcut(QKeySequence::Save);
+    connect(saveAction, &QAction::triggered, this, [this, index] {
+        m_doc->setCurrentMeshIndex(index);
+        emit saveMeshRequested();
+    });
+    QAction *reloadAction = menu.addAction(tr("Reload"));
+    reloadAction->setEnabled(!m_doc->mesh(index).sourcePath.isEmpty());
+    connect(reloadAction, &QAction::triggered, this, [this, index] {
+        m_doc->setCurrentMeshIndex(index);
+        emit reloadMeshRequested();
+    });
+    menu.addSeparator();
+
+    if (const Document::FilterInfo *info = filterById(placed[2]))
+        addFilter(*info, index);
+    addVisibilitySetActions(menu, index);
+
+    // The rest of the layer filters, by name: first those that work on this layer, then those
+    // that take the document's layers together.
+    for (MeshFilterInputDomain domain : { MeshFilterInputDomain::SingleMesh, MeshFilterInputDomain::WholeDocument }) {
+        std::vector<const Document::FilterInfo *> group;
+        for (const Document::FilterInfo &info : infos)
+            if (isLayerFilter(info) && info.descriptor.inputDomain == domain
+                && std::find(std::begin(placed), std::end(placed), info.descriptor.id) == std::end(placed))
+                group.push_back(&info);
+        std::sort(group.begin(), group.end(), [](auto *a, auto *b) { return a->descriptor.name < b->descriptor.name; });
+        menu.addSeparator();
+        for (const Document::FilterInfo *info : group)
+            addFilter(*info, index);
+    }
+    menu.addSeparator();
+    if (const Document::FilterInfo *info = filterById(placed[3]))
+        addFilter(*info, index, tr("Remove"));
+    menu.exec(event->globalPos());
+}
+
+void LayerWidget::editMeshName(int meshIndex)
+{
+    if (m_viewMode == ViewMode::Tree) {
+        for (int i = 0; i < m_meshTree->topLevelItemCount(); ++i) {
+            QTreeWidgetItem *item = m_meshTree->topLevelItem(i);
+            if (layerRefForItem(item).index == meshIndex) {
+                m_meshTree->editItem(item, 0);
+                return;
+            }
+        }
+        return;
+    }
+    // The table's name column (1) carries the layer index.
+    for (int row = 0; row < m_meshTable->rowCount(); ++row) {
+        QTableWidgetItem *item = m_meshTable->item(row, 1);
+        if (item && item->data(kRoleMeshIndex).toInt() == meshIndex) {
+            m_meshTable->editItem(item);
+            return;
+        }
+    }
+}
+
+void LayerWidget::replaceMeshTexture(int meshIndex, int assetIndex)
+{
+    // The file dialog asks for what the filter's own file parameter asks for.
+    QStringList nameFilters;
+    for (const Document::FilterInfo &info : m_doc->filterInfos())
+        if (info.descriptor.id == QLatin1StringView("set_texture_from_file"))
+            for (const MeshFilterParameterDescriptor &param : info.descriptor.parameters)
+                if (param.id == QLatin1StringView("textureFile"))
+                    nameFilters = param.fileNameFilters;
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Set Texture from File"),
+        FileDialogDirectory::startingPath(QStringLiteral("texture"), QString()),
+        nameFilters.join(QStringLiteral(";;")));
+    if (path.isEmpty() || meshIndex >= m_doc->meshCount())
+        return;
+    FileDialogDirectory::remember(QStringLiteral("texture"), path);
+    m_doc->setCurrentMeshIndex(meshIndex);
+    // The filter numbers textures from 1, as Rename Texture does; 0 would replace them all.
+    requestFilterRun(QStringLiteral("set_texture_from_file"),
+                     QVariantMap{ { QStringLiteral("textureFile"), path },
+                                  { QStringLiteral("texture"), assetIndex + 1 } });
 }

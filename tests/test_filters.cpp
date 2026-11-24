@@ -10692,7 +10692,9 @@ void FilterTests::setTextureUvGridTellsUAndVApart()
 
 // Both Set Texture filters take texture coordinates per vertex as well as per wedge: the
 // requirement used to be per wedge only, so a mesh whose UVs were per vertex was refused
-// before the filter ran. A mesh with no texture coordinates at all is still refused.
+// before the filter ran. A mesh with no texture coordinates at all is still refused. Set
+// Texture from File can also replace one texture of several, as the layer panel's texture
+// menu asks it to.
 void FilterTests::setTextureAcceptsPerVertexTexCoords()
 {
     Document doc;
@@ -10725,6 +10727,22 @@ void FilterTests::setTextureAcceptsPerVertexTexCoords()
     QVERIFY2(r.success, qPrintable(r.errorMessage));
     QCOMPARE(doc.mesh(meshIndex).textureAssets.size(), std::size_t(1));
     QCOMPARE(Document::meshTextureDisplayName(doc.mesh(meshIndex), 0), QStringLiteral("red.png"));
+
+    // One texture chosen (from 1): only its image is replaced, and the other stays.
+    QImage green(8, 8, QImage::Format_RGB32);
+    green.fill(Qt::green);
+    TextureAssociationUtils::appendTextureAssociations(
+        doc.mesh(meshIndex), { TextureAssociationUtils::makeTextureAssetFromImage(green, QStringLiteral("green.png")) });
+    const QString bluePath = dir.filePath(QStringLiteral("blue.png"));
+    QImage blue(8, 8, QImage::Format_RGB32);
+    blue.fill(Qt::blue);
+    QVERIFY(blue.save(bluePath));
+    r = doc.runFilter(fromFileKey, { { QStringLiteral("textureFile"), bluePath }, { QStringLiteral("texture"), 2 } });
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(doc.mesh(meshIndex).textureAssets.size(), std::size_t(2));
+    QCOMPARE(Document::meshTextureDisplayName(doc.mesh(meshIndex), 0), QStringLiteral("red.png"));
+    QCOMPARE(Document::meshTextureDisplayName(doc.mesh(meshIndex), 1), QStringLiteral("blue.png"));
+    QVERIFY(!doc.runFilter(fromFileKey, { { QStringLiteral("textureFile"), bluePath }, { QStringLiteral("texture"), 3 } }).success);
 
     VCGMesh bare;
     vcg::tri::Allocator<VCGMesh>::AddVertices(bare, 3);

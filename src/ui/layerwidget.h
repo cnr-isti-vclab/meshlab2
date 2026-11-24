@@ -61,6 +61,10 @@ signals:
     // Emitted when the answer to layerVisibility() may have changed.
     void layerVisibilityChanged(int shown, int total);
     void filterActionRequested(const QString &filterKey);
+    // Save or reload the current mesh, as the File menu does: the panel makes the row current
+    // first. They are not filters, so the main window runs them.
+    void saveMeshRequested();
+    void reloadMeshRequested();
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
@@ -128,6 +132,10 @@ private:
     void editTextureName(QTreeWidgetItem *textureItem);
     // Runs the filter `filterId` through the main window, as the filter panel would.
     void requestFilterRun(const QString &filterId, const QVariantMap &parameters);
+    // Opens the in-place editor on the name of mesh `meshIndex`, in whichever view is shown.
+    void editMeshName(int meshIndex);
+    // Asks for an image file and runs Set Texture from File on that one texture.
+    void replaceMeshTexture(int meshIndex, int assetIndex);
 
 private slots:
     void onTreeItemChanged(QTreeWidgetItem *item, int column);
