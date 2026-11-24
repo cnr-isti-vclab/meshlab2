@@ -343,7 +343,7 @@ increments `(app_version, os, arch, day)` and keeps nothing else.
 
 **Tier 1** is one submission, one JSON object, gzipped — built by projecting the local
 journal of [Local Usage Model](local_usage_model.md) through the aggregate, never read
-from the journal directly (§3.1, and that document's §5). Illustrative rather than
+from the journal directly (§3.1, and that document's §7). Illustrative rather than
 final:
 
 ```json
