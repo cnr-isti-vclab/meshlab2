@@ -2,6 +2,7 @@
 #include "pymesh.h"
 
 #include "document.h"
+#include "filterdescriptorloader.h"
 
 #if !defined(PYMESHLAB_STANDALONE)
 #include "headlessrendercontext.h"
@@ -360,6 +361,81 @@ std::vector<FilterInfoRecord> MeshSetCore::listFilters() const
         out.push_back(std::move(item));
     }
     return out;
+}
+
+QVariantMap MeshSetCore::filterDescriptor(const std::string &filterNameOrKey) const
+{
+    const QString key = resolveFilterKey(toQString(filterNameOrKey));
+    const std::optional<MeshFilterDescriptor> found = m_document->filterDescriptor(key);
+    if (!found)
+        throw std::runtime_error("Unknown filter: " + filterNameOrKey);
+    const MeshFilterDescriptor &d = *found;
+
+    // Values as the manifest spells them: JSON numbers parse as doubles, so an int
+    // parameter's 10 would otherwise read 10.0, and a color is a QColor once parsed.
+    const auto value = [](const QVariant &v, MeshFilterParameterType type) -> QVariant {
+        if (type == MeshFilterParameterType::Int && v.canConvert<qlonglong>())
+            return v.toLongLong();
+        if (v.userType() != QMetaType::QColor)
+            return v;
+        const QColor c = v.value<QColor>();
+        return c.alpha() == 255 ? c.name() : c.name(QColor::HexArgb);
+    };
+
+    QVariantList parameters;
+    for (const MeshFilterParameterDescriptor &p : d.parameters) {
+        QVariantMap param{
+            { QStringLiteral("id"), p.id },
+            { QStringLiteral("label"), p.label },
+            { QStringLiteral("type"), FilterDescriptorLoader::parameterTypeName(p.type) },
+            { QStringLiteral("help"), p.helpMarkdown },
+            { QStringLiteral("group"), p.group },
+            { QStringLiteral("default"), value(p.defaultValue, p.type) },
+        };
+        if (p.minValue.isValid())
+            param.insert(QStringLiteral("min"), value(p.minValue, p.type));
+        if (p.maxValue.isValid())
+            param.insert(QStringLiteral("max"), value(p.maxValue, p.type));
+        if (!p.enabledWhen.isEmpty())
+            param.insert(QStringLiteral("enabledWhen"), p.enabledWhen);
+        if (!p.enumOptions.empty()) {
+            QVariantList options;
+            for (const MeshFilterEnumOption &o : p.enumOptions)
+                options << QVariantMap{ { QStringLiteral("id"), o.id },
+                                        { QStringLiteral("label"), o.label },
+                                        { QStringLiteral("help"), o.helpMarkdown } };
+            param.insert(QStringLiteral("enumOptions"), options);
+        }
+        const QStringList meshRequirements =
+            FilterDescriptorLoader::requirementNames(p.meshRequirements);
+        if (!meshRequirements.isEmpty())
+            param.insert(QStringLiteral("meshRequirements"), meshRequirements);
+        parameters << param;
+    }
+
+    QVariantList references;
+    for (const MeshFilterReference &r : d.references)
+        references << QVariantMap{ { QStringLiteral("id"), r.id },
+                                   { QStringLiteral("citation"), r.markdownCitation() },
+                                   { QStringLiteral("url"), r.webUrl() } };
+
+    return QVariantMap{
+        { QStringLiteral("key"), key },
+        { QStringLiteral("id"), d.id },
+        { QStringLiteral("name"), d.name },
+        { QStringLiteral("pythonName"), d.effectivePythonName() },
+        { QStringLiteral("categories"), d.categories },
+        { QStringLiteral("tags"), d.tags },
+        { QStringLiteral("shortDescription"), d.shortDescription },
+        { QStringLiteral("longDescriptionMarkdown"), d.longDescriptionMarkdown },
+        { QStringLiteral("inputDomain"), FilterDescriptorLoader::inputDomainName(d.inputDomain) },
+        { QStringLiteral("outputDomain"), FilterDescriptorLoader::outputDomainName(d.outputDomain) },
+        { QStringLiteral("inputRequirements"),
+          FilterDescriptorLoader::requirementNames(d.inputRequirements) },
+        { QStringLiteral("outputModifies"), d.outputModifies },
+        { QStringLiteral("references"), references },
+        { QStringLiteral("parameters"), parameters },
+    };
 }
 
 QString MeshSetCore::resolveFilterKey(const QString &filterNameOrKey) const

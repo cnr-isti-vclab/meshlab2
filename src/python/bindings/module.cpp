@@ -33,6 +33,7 @@ nb::object variantToPython(const QVariant &v)
         return nb::cast(v.toBool());
     case QMetaType::QString:
         return nb::str(v.toString().toStdString().c_str());
+    case QMetaType::QStringList:
     case QMetaType::QVariantList: {
         nb::list list;
         for (const QVariant &item : v.toList())
@@ -137,6 +138,16 @@ NB_MODULE(_meshlab, m)
         .def("save_project",       &MeshSetCore::saveProject,       nb::arg("file_name"))
         .def("filter_list",        &MeshSetCore::filterList)
         .def("list_filters",       &MeshSetCore::listFilters)
+        .def("filter_descriptor",
+             [](const MeshSetCore &ms, const std::string &filter) {
+                 return variantToPython(ms.filterDescriptor(filter));
+             },
+             nb::arg("filter"),
+             "The filter's full descriptor as a dict, keyed as in filters.json: "
+             "descriptions, categories, tags, input requirements, references and every "
+             "parameter with its type, help, default and range. Defaults and ranges are "
+             "resolved against the current mesh, so a size given as a fraction of the "
+             "bounding box arrives in model units.")
         .def("apply_filter",       &MeshSetCore::applyFilter,
              nb::arg("filter"), nb::arg("params") = nb::dict())
 #if !defined(PYMESHLAB_STANDALONE)

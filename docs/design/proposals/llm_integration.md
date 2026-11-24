@@ -21,6 +21,7 @@ MeshLab is closer to being model-drivable than it looks. The relevant assets:
 | **423 filters / 39 plugins**, 1473 declared parameters | `plugins/*/filters.json` | Each descriptor carries `id`, `pythonName`, `shortDescription`, `longDescriptionMarkdown`, `tags`, `categories`, `inputDomain`/`outputDomain`, `inputRequirements`, and typed `parameters` with `default`/`min`/`max`/`help`. This is a tool schema already; converting it to JSON Schema is mechanical. |
 | Controlled vocabulary and naming grammar | [Vocabulary](../vocabulary.md) | Tool-selection accuracy is dominated by whether names and descriptions are predictable. |
 | Generic dispatch | `Document::runFilter(filterKey, params)`, `MeshSet::apply_filter()` | One entry point; no per-filter binding work. |
+| Descriptors from Python | `MeshSet::list_filters()`, `MeshSet::filter_descriptor(name)` | The live build's catalogue, and each filter's full descriptor keyed as in `filters.json`, including injected parameters, with defaults and ranges resolved against the current mesh. This is what `search_filters` and `describe_filter` return. |
 | Pre-flight validation | `Document::validateFilterInvocation()`; `FilterInfo::applicable` / `applicabilityError` | Lets a caller be told *why* a filter cannot run, in a form it can act on, before running it. |
 | Structured results | `MeshFilterRunResult` — `success`, `errorMessage`, `infoMessages`, `newMeshIndices`, `outputValues` | The observation half of an act/observe loop. |
 | Declared input requirements | `requireFaces`, `requireVertices`, `requireEdges`, `requireVertexQuality`, `requireFaceQuality`, `requireEdgeQuality`, `requireVertexColor`, `requireFaceColor`, `requireTextureCoordinates`, `requirePerVertexTexCoords`, `requirePerWedgeTexCoords`, `requireTextures` | Machine-checkable preconditions — a caller can repair state instead of guessing. |
@@ -41,12 +42,6 @@ MeshLab is closer to being model-drivable than it looks. The relevant assets:
   `--capture-window`; there is no `meshlab --script foo.py`.
 - **The wheel is not on PyPI**, and there are no Linux wheels. An out-of-tree
   server is easy to install only once `pip install pymeshlab2` works.
-- **Python sees filter names, not filter knowledge.** Every plugin's manifest is
-  compiled into the binary (`:/filters/<pluginId>/filters.json`), but
-  `MeshSet.list_filters()` returns only `id`, `name`, `python_name`, the plugin and
-  applicability. Descriptions, parameter schemas, tags, categories and references
-  are out of Python's reach; `docs/generate_api.py` reads them from the source
-  tree instead. One binding returning a filter's descriptor as a dict closes this.
 
 ## The catalogue comes from the build
 
@@ -193,7 +188,7 @@ with the filter set reached through discovery rather than enumeration:
           │
    ┌──────┴───────────────────────────────────────────┐
    │  search_filters(query)      → ranked descriptors │  MeshSet::list_filters()
-   │  describe_filter(name)      → full param schema  │  (live build)
+   │  describe_filter(name)      → full param schema  │  MeshSet::filter_descriptor()
    │  apply_filter(name, params) → FilterRunResult    │  Document::runFilter
    │  get_document_state()       → layers, bbox, caps │  Document
    │  measure(kind)              → outputValues       │  Measurement/* filters
@@ -237,7 +232,6 @@ quality bounds everything downstream.
 1. **Headless tool server** over `pymeshlab2`, out of tree. Find out
    empirically where a model goes wrong before designing around assumptions.
    Enumerates filters from the live `MeshSet` and reports the wheel's version.
-   Needs one binding first, exposing each filter's descriptor to Python.
    Publishing the wheel to PyPI makes it installable by anyone.
 2. **Sensor and vision tools** in the same server, closing the act/observe loop.
 3. **`QLocalServer` bridge** so the same server can attach to a running GUI

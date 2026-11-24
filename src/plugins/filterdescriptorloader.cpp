@@ -22,43 +22,104 @@
 
 namespace {
 
+// The manifest spelling of each enum value, read by the parsers below and written back
+// by the *Name() functions, so the two directions cannot drift apart. An unknown string
+// parses as the type's default, the entry listed first.
+struct InputDomainName { MeshFilterInputDomain value; const char *name; };
+constexpr InputDomainName kInputDomainNames[] = {
+    { MeshFilterInputDomain::SingleMesh,    "SingleMesh" },
+    { MeshFilterInputDomain::None,          "None" },
+    { MeshFilterInputDomain::WholeDocument, "WholeDocument" },
+};
+
+struct OutputDomainName { MeshFilterOutputDomain value; const char *name; };
+constexpr OutputDomainName kOutputDomainNames[] = {
+    { MeshFilterOutputDomain::Information,       "Information" },
+    { MeshFilterOutputDomain::ModifyCurrentMesh, "ModifyCurrentMesh" },
+    { MeshFilterOutputDomain::NewMeshes,         "NewMeshes" },
+};
+
+struct ParameterTypeName { MeshFilterParameterType value; const char *name; };
+constexpr ParameterTypeName kParameterTypeNames[] = {
+    { MeshFilterParameterType::String,           "string" },
+    { MeshFilterParameterType::Bool,             "bool" },
+    { MeshFilterParameterType::Int,              "int" },
+    { MeshFilterParameterType::Double,           "double" },
+    { MeshFilterParameterType::AbsPerc,          "absperc" },
+    { MeshFilterParameterType::Mesh,             "mesh" },
+    { MeshFilterParameterType::FileOpen,         "fileopen" },
+    { MeshFilterParameterType::FileSave,         "filesave" },
+    { MeshFilterParameterType::TextureRef,       "textureref" },
+    { MeshFilterParameterType::TextureOutputRef, "textureoutputref" },
+    { MeshFilterParameterType::Enum,             "enum" },
+    { MeshFilterParameterType::Color,            "color" },
+    { MeshFilterParameterType::Point3f,          "point3f" },
+    { MeshFilterParameterType::CameraState,      "camerastate" },
+    { MeshFilterParameterType::RenderState,      "renderstate" },
+    { MeshFilterParameterType::VisibilitySet,    "visibilityset" },
+};
+
+template <typename Entry, size_t N>
+auto parseName(const Entry (&table)[N], const QString &s)
+{
+    for (const Entry &entry : table) {
+        if (s == QLatin1String(entry.name))
+            return entry.value;
+    }
+    return table[0].value;
+}
+
+template <typename Entry, size_t N, typename Value>
+QString nameOf(const Entry (&table)[N], Value value)
+{
+    for (const Entry &entry : table) {
+        if (entry.value == value)
+            return QString::fromLatin1(entry.name);
+    }
+    return {};
+}
+
 MeshFilterInputDomain parseInputDomain(const QString &s)
 {
-    if (s == QStringLiteral("None"))
-        return MeshFilterInputDomain::None;
-    if (s == QStringLiteral("WholeDocument"))
-        return MeshFilterInputDomain::WholeDocument;
-    return MeshFilterInputDomain::SingleMesh;
+    return parseName(kInputDomainNames, s);
 }
 
 MeshFilterOutputDomain parseOutputDomain(const QString &s)
 {
-    if (s == QStringLiteral("NewMeshes"))
-        return MeshFilterOutputDomain::NewMeshes;
-    if (s == QStringLiteral("ModifyCurrentMesh"))
-        return MeshFilterOutputDomain::ModifyCurrentMesh;
-    return MeshFilterOutputDomain::Information;
+    return parseName(kOutputDomainNames, s);
 }
 
 MeshFilterParameterType parseParamType(const QString &s)
 {
-    if (s == QStringLiteral("bool"))   return MeshFilterParameterType::Bool;
-    if (s == QStringLiteral("int"))    return MeshFilterParameterType::Int;
-    if (s == QStringLiteral("double")) return MeshFilterParameterType::Double;
-    if (s == QStringLiteral("absperc")) return MeshFilterParameterType::AbsPerc;
-    if (s == QStringLiteral("mesh"))   return MeshFilterParameterType::Mesh;
-    if (s == QStringLiteral("string")) return MeshFilterParameterType::String;
-    if (s == QStringLiteral("fileopen") || s == QStringLiteral("file_open")) return MeshFilterParameterType::FileOpen;
-    if (s == QStringLiteral("filesave") || s == QStringLiteral("file_save")) return MeshFilterParameterType::FileSave;
-    if (s == QStringLiteral("textureref")) return MeshFilterParameterType::TextureRef;
-    if (s == QStringLiteral("textureoutputref")) return MeshFilterParameterType::TextureOutputRef;
-    if (s == QStringLiteral("enum"))   return MeshFilterParameterType::Enum;
-    if (s == QStringLiteral("color"))  return MeshFilterParameterType::Color;
-    if (s == QStringLiteral("point3f")) return MeshFilterParameterType::Point3f;
-    if (s == QStringLiteral("camerastate")) return MeshFilterParameterType::CameraState;
-    if (s == QStringLiteral("renderstate")) return MeshFilterParameterType::RenderState;
-    if (s == QStringLiteral("visibilityset")) return MeshFilterParameterType::VisibilitySet;
-    return MeshFilterParameterType::String;
+    // Two older spellings, still accepted on input.
+    if (s == QStringLiteral("file_open")) return MeshFilterParameterType::FileOpen;
+    if (s == QStringLiteral("file_save")) return MeshFilterParameterType::FileSave;
+    return parseName(kParameterTypeNames, s);
+}
+
+struct RequirementName { bool MeshFilterMeshRequirements::*flag; const char *name; };
+constexpr RequirementName kRequirementNames[] = {
+    { &MeshFilterMeshRequirements::requireVertices,           "requireVertices" },
+    { &MeshFilterMeshRequirements::requireEdges,              "requireEdges" },
+    { &MeshFilterMeshRequirements::requireFaces,              "requireFaces" },
+    { &MeshFilterMeshRequirements::requireVertexColor,        "requireVertexColor" },
+    { &MeshFilterMeshRequirements::requireFaceColor,          "requireFaceColor" },
+    { &MeshFilterMeshRequirements::requireTextureCoordinates, "requireTextureCoordinates" },
+    { &MeshFilterMeshRequirements::requirePerVertexTexCoords, "requirePerVertexTexCoords" },
+    { &MeshFilterMeshRequirements::requirePerWedgeTexCoords,  "requirePerWedgeTexCoords" },
+    { &MeshFilterMeshRequirements::requireTextures,           "requireTextures" },
+    { &MeshFilterMeshRequirements::requireVertexQuality,      "requireVertexQuality" },
+    { &MeshFilterMeshRequirements::requireFaceQuality,        "requireFaceQuality" },
+    { &MeshFilterMeshRequirements::requireEdgeQuality,        "requireEdgeQuality" },
+};
+
+// Both `inputRequirements` and a mesh parameter's `meshRequirements`.
+MeshFilterMeshRequirements parseRequirements(const QJsonObject &obj)
+{
+    MeshFilterMeshRequirements req;
+    for (const RequirementName &entry : kRequirementNames)
+        req.*entry.flag = obj.value(QLatin1String(entry.name)).toBool(false);
+    return req;
 }
 
 MeshFilterCleanupKind parseCleanupKind(const QString &s)
@@ -153,19 +214,7 @@ MeshFilterParameterDescriptor parseParameter(const QJsonObject &obj)
     p.textureAllowAutomatic = obj.value(QStringLiteral("allowAutomatic")).toBool(true);
     p.textureAutomaticLabel = obj.value(QStringLiteral("automaticLabel")).toString();
 
-    const QJsonObject meshReq = obj.value(QStringLiteral("meshRequirements")).toObject();
-    p.meshRequirements.requireVertices = meshReq.value(QStringLiteral("requireVertices")).toBool(false);
-    p.meshRequirements.requireEdges = meshReq.value(QStringLiteral("requireEdges")).toBool(false);
-    p.meshRequirements.requireFaces = meshReq.value(QStringLiteral("requireFaces")).toBool(false);
-    p.meshRequirements.requireVertexColor = meshReq.value(QStringLiteral("requireVertexColor")).toBool(false);
-    p.meshRequirements.requireFaceColor = meshReq.value(QStringLiteral("requireFaceColor")).toBool(false);
-    p.meshRequirements.requireTextureCoordinates = meshReq.value(QStringLiteral("requireTextureCoordinates")).toBool(false);
-    p.meshRequirements.requirePerVertexTexCoords = meshReq.value(QStringLiteral("requirePerVertexTexCoords")).toBool(false);
-    p.meshRequirements.requirePerWedgeTexCoords = meshReq.value(QStringLiteral("requirePerWedgeTexCoords")).toBool(false);
-    p.meshRequirements.requireTextures = meshReq.value(QStringLiteral("requireTextures")).toBool(false);
-    p.meshRequirements.requireVertexQuality = meshReq.value(QStringLiteral("requireVertexQuality")).toBool(false);
-    p.meshRequirements.requireEdgeQuality = meshReq.value(QStringLiteral("requireEdgeQuality")).toBool(false);
-    p.meshRequirements.requireFaceQuality = meshReq.value(QStringLiteral("requireFaceQuality")).toBool(false);
+    p.meshRequirements = parseRequirements(obj.value(QStringLiteral("meshRequirements")).toObject());
 
     p.meshAllowsNone = obj.value(QStringLiteral("meshAllowsNone")).toBool(false);
 
@@ -234,19 +283,7 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
     d.inputDomain  = parseInputDomain(obj.value(QStringLiteral("inputDomain")).toString(QStringLiteral("SingleMesh")));
     d.outputDomain = parseOutputDomain(obj.value(QStringLiteral("outputDomain")).toString(QStringLiteral("Information")));
 
-    const QJsonObject req = obj.value(QStringLiteral("inputRequirements")).toObject();
-    d.inputRequirements.requireVertices           = req.value(QStringLiteral("requireVertices")).toBool(false);
-    d.inputRequirements.requireEdges              = req.value(QStringLiteral("requireEdges")).toBool(false);
-    d.inputRequirements.requireFaces              = req.value(QStringLiteral("requireFaces")).toBool(false);
-    d.inputRequirements.requireVertexColor        = req.value(QStringLiteral("requireVertexColor")).toBool(false);
-    d.inputRequirements.requireFaceColor          = req.value(QStringLiteral("requireFaceColor")).toBool(false);
-    d.inputRequirements.requireTextureCoordinates = req.value(QStringLiteral("requireTextureCoordinates")).toBool(false);
-    d.inputRequirements.requirePerVertexTexCoords = req.value(QStringLiteral("requirePerVertexTexCoords")).toBool(false);
-    d.inputRequirements.requirePerWedgeTexCoords  = req.value(QStringLiteral("requirePerWedgeTexCoords")).toBool(false);
-    d.inputRequirements.requireTextures           = req.value(QStringLiteral("requireTextures")).toBool(false);
-    d.inputRequirements.requireVertexQuality      = req.value(QStringLiteral("requireVertexQuality")).toBool(false);
-    d.inputRequirements.requireEdgeQuality      = req.value(QStringLiteral("requireEdgeQuality")).toBool(false);
-    d.inputRequirements.requireFaceQuality        = req.value(QStringLiteral("requireFaceQuality")).toBool(false);
+    d.inputRequirements = parseRequirements(obj.value(QStringLiteral("inputRequirements")).toObject());
 
     auto parseCleanupArray = [](const QJsonArray &actions) {
         QVector<MeshFilterCleanupAction> cleanup;
@@ -409,6 +446,31 @@ QVariant resolveToken(const QVariant &v, double bboxDiag,
 }
 
 } // namespace
+
+QString FilterDescriptorLoader::inputDomainName(MeshFilterInputDomain domain)
+{
+    return nameOf(kInputDomainNames, domain);
+}
+
+QString FilterDescriptorLoader::outputDomainName(MeshFilterOutputDomain domain)
+{
+    return nameOf(kOutputDomainNames, domain);
+}
+
+QString FilterDescriptorLoader::parameterTypeName(MeshFilterParameterType type)
+{
+    return nameOf(kParameterTypeNames, type);
+}
+
+QStringList FilterDescriptorLoader::requirementNames(const MeshFilterMeshRequirements &req)
+{
+    QStringList names;
+    for (const RequirementName &entry : kRequirementNames) {
+        if (req.*entry.flag)
+            names << QString::fromLatin1(entry.name);
+    }
+    return names;
+}
 
 std::vector<MeshFilterParameterDescriptor> FilterDescriptorLoader::loadParameters(
     const QString &resourcePath,

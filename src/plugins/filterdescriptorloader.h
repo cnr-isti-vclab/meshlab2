@@ -132,6 +132,14 @@ public:
         const std::vector<MeshFilterDescriptor> &descriptors,
         const QString &resourcePath);
 
+    // The manifest spelling of a parsed value ("SingleMesh", "NewMeshes", "absperc"), for
+    // writing a descriptor back out in the vocabulary it was declared in.
+    static QString inputDomainName(MeshFilterInputDomain domain);
+    static QString outputDomainName(MeshFilterOutputDomain domain);
+    static QString parameterTypeName(MeshFilterParameterType type);
+    // The requirement keys set in req, e.g. {"requireFaces", "requireVertexQuality"}.
+    static QStringList requirementNames(const MeshFilterMeshRequirements &req);
+
     // Resolve all "@token" symbolic values in descriptor bounds/defaults
     // against the current document state. Called from filters() implementations.
     static void resolveSymbolicBounds(

@@ -96,6 +96,9 @@ public:
 
     std::vector<std::string> filterList() const;
     std::vector<FilterInfoRecord> listFilters() const;
+    // One filter's full descriptor, keyed as in filters.json, with the parameters the
+    // framework injects and every "@token" bound resolved against the current document.
+    QVariantMap filterDescriptor(const std::string &filterNameOrKey) const;
     FilterRunRecord applyFilter(const std::string &filterNameOrKey,
                                 const nanobind::dict &params) const;
 

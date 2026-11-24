@@ -73,3 +73,29 @@ def test_wheel_exposes_every_declared_filter():
 
     assert sorted(declared - exposed) == []
     assert sorted(exposed - declared) == []
+
+
+@pytest.mark.smoke
+def test_filter_descriptor_reports_what_a_call_accepts():
+    ms = mod.MeshSet()
+    ms.load_new_mesh(str(SAMPLE_MESH))
+    d = ms.filter_descriptor("remesh_isotropically_vcglib")
+
+    assert d["pythonName"] == "remesh_isotropically_vcglib"
+    assert d["inputDomain"] == "SingleMesh"
+    assert d["inputRequirements"] == ["requireFaces"]
+    assert [r["id"] for r in d["references"]] == ["hoppe1993optimization"]
+
+    params = {p["id"]: p for p in d["parameters"]}
+    # Injected by the framework, so absent from filters.json but accepted by apply_filter.
+    assert params["selectedOnly"]["type"] == "bool"
+    assert params["Iterations"]["default"] == 10
+    assert isinstance(params["Iterations"]["default"], int)
+    # "@bboxDiag01" and "@bboxDiag" arrive resolved against the loaded mesh.
+    target = params["TargetLen"]
+    assert target["type"] == "absperc"
+    assert target["max"] > 0
+    assert target["default"] == pytest.approx(0.01 * target["max"])
+
+    with pytest.raises(Exception):
+        ms.filter_descriptor("no_such_filter")
