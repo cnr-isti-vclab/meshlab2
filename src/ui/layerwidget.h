@@ -120,6 +120,14 @@ private:
     void showVisibilitySetMenu(int index, const QPoint &globalPos);
     void savePlaneImage(int rasterIndex, int planeIndex);
     void saveMeshTexture(int meshIndex, int textureIndex);
+    // A name typed in the panel is applied by running the rename filter on the layer it was
+    // typed on, so the rename is an entry in the action history and in a generated script
+    // like any other. An empty or unchanged name puts the old one back.
+    void renameLayer(LayerItemRef ref, const QString &typedName);
+    // Swaps the name of a texture row for a line editor; finishing it runs Rename Texture.
+    void editTextureName(QTreeWidgetItem *textureItem);
+    // Runs the filter `filterId` through the main window, as the filter panel would.
+    void requestFilterRun(const QString &filterId, const QVariantMap &parameters);
 
 private slots:
     void onTreeItemChanged(QTreeWidgetItem *item, int column);

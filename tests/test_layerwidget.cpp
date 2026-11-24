@@ -6,6 +6,8 @@
 
 #include <QImage>
 #include <QLabel>
+#include <QLineEdit>
+#include <QSignalSpy>
 #include <QScrollBar>
 #include <QScrollArea>
 #include <QTableWidget>
@@ -26,6 +28,7 @@ private slots:
     void theTitleBarButtonsGoOverTheArrowsAndTheCheckMarks();
     void theListStaysWhereTheUserScrolledItWhenALayerChanges();
     void theMarkSaysWhetherAFileHoldsTheLayer();
+    void typingANameRunsTheRenameFilter();
 };
 
 namespace {
@@ -369,6 +372,112 @@ void LayerWidgetTests::theMarkSaysWhetherAFileHoldsTheLayer()
     const QString grabDir = qEnvironmentVariable("MESHLAB2_GRAB_DIR");
     if (!grabDir.isEmpty())
         widget.grab().save(grabDir + QStringLiteral("/layerwidget_status.png"));
+}
+
+// A name typed in the panel is applied by the rename filter of what was renamed -- run on that
+// layer, so it is an action in the history and a line in a generated script -- never written
+// into the document directly. The main window runs what the panel asks for; here the request
+// is the whole story. An unchanged or empty name, or Escape, asks for nothing.
+void LayerWidgetTests::typingANameRunsTheRenameFilter()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("first"));
+    addTinyMesh(doc, QStringLiteral("second"));
+    doc.mesh(0).mesh.face.EnableWedgeTexCoord();
+    QImage red(2, 2, QImage::Format_RGBA8888);
+    red.fill(Qt::red);
+    TextureAssociationUtils::replaceTextureAssociations(
+        doc.mesh(0), { TextureAssociationUtils::makeTextureAssetFromImage(red, QStringLiteral("atlas.png")) });
+    QImage photo(4, 4, QImage::Format_RGBA8888);
+    photo.fill(Qt::blue);
+    doc.addRasterImage(photo, QStringLiteral("photo"));
+    doc.setCurrentMeshIndex(1);
+
+    LayerWidget widget(&doc);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+    QSignalSpy runs(&widget, &LayerWidget::filterRunRequested);
+    const auto lastRun = [&] { return runs.last(); };
+    const auto keyOf = [&](const QString &id) {
+        for (const Document::FilterInfo &info : doc.filterInfos())
+            if (info.descriptor.id == id)
+                return info.key;
+        return QString();
+    };
+
+    QTreeWidget *meshTree = nullptr;
+    for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>()) {
+        if (candidate->topLevelItemCount() == 2)
+            meshTree = candidate;
+    }
+    QVERIFY(meshTree);
+
+    // The tree: an edited mesh name renames that layer, which is made current first.
+    meshTree->topLevelItem(0)->setText(0, QStringLiteral("  renamed  "));
+    QCOMPARE(runs.count(), 1);
+    QCOMPARE(lastRun().at(0).toString(), keyOf(QStringLiteral("rename_current_mesh_layer")));
+    QCOMPARE(lastRun().at(2).toMap().value(QStringLiteral("newName")).toString(),
+             QStringLiteral("renamed"));
+    QCOMPARE(doc.currentMeshIndex(), 0);
+    QCOMPARE(doc.mesh(0).name, QStringLiteral("first")); // the filter, not the panel, renames
+
+    // Unchanged or empty: nothing is run, and the old name comes back.
+    QTest::qWait(50);
+    meshTree->topLevelItem(1)->setText(0, QStringLiteral("   "));
+    QTest::qWait(50);
+    QCOMPARE(runs.count(), 1);
+    QCOMPARE(meshTree->topLevelItem(1)->text(0), QStringLiteral("second"));
+
+    // The raster table's name column.
+    widget.setViewMode(LayerWidget::ViewMode::Table);
+    QTableWidget *rasterTable = nullptr;
+    for (QTableWidget *candidate : widget.findChildren<QTableWidget *>()) {
+        if (candidate->rowCount() == 1)
+            rasterTable = candidate;
+    }
+    QVERIFY(rasterTable);
+    rasterTable->item(0, 2)->setText(QStringLiteral("photo 2"));
+    QCOMPARE(runs.count(), 2);
+    QCOMPARE(lastRun().at(0).toString(), keyOf(QStringLiteral("rename_current_raster")));
+    QCOMPARE(lastRun().at(2).toMap().value(QStringLiteral("newName")).toString(),
+             QStringLiteral("photo 2"));
+    widget.setViewMode(LayerWidget::ViewMode::Tree);
+    QTest::qWait(50);
+
+    // A texture: a double-click puts an editor where its name is.
+    QTreeWidgetItem *layer = meshTree->topLevelItem(0);
+    QTreeWidgetItem *texture = nullptr;
+    for (int c = 0; c < layer->childCount(); ++c)
+        if (layer->child(c)->text(1).startsWith(QStringLiteral("Tex")))
+            texture = layer->child(c);
+    QVERIFY(texture);
+    emit meshTree->itemDoubleClicked(texture, 1);
+    auto *edit = qobject_cast<QLineEdit *>(meshTree->itemWidget(texture, 2));
+    QVERIFY(edit);
+    QCOMPARE(edit->text(), QStringLiteral("atlas.png"));
+
+    // Escape leaves the name alone.
+    QTest::keyClick(edit, Qt::Key_Escape);
+    QTest::qWait(50);
+    QCOMPARE(runs.count(), 2);
+
+    layer = meshTree->topLevelItem(0);
+    texture = nullptr;
+    for (int c = 0; c < layer->childCount(); ++c)
+        if (layer->child(c)->text(1).startsWith(QStringLiteral("Tex")))
+            texture = layer->child(c);
+    QVERIFY(texture);
+    emit meshTree->itemDoubleClicked(texture, 1);
+    edit = qobject_cast<QLineEdit *>(meshTree->itemWidget(texture, 2));
+    QVERIFY(edit);
+    edit->setText(QStringLiteral("albedo.png"));
+    QTest::keyClick(edit, Qt::Key_Return);
+    QCOMPARE(runs.count(), 3);
+    QCOMPARE(lastRun().at(0).toString(), keyOf(QStringLiteral("rename_texture")));
+    const QVariantMap textureParams = lastRun().at(2).toMap();
+    QCOMPARE(textureParams.value(QStringLiteral("texture")).toInt(), 1);
+    QCOMPARE(textureParams.value(QStringLiteral("textureName")).toString(),
+             QStringLiteral("albedo.png"));
 }
 
 QTEST_MAIN(LayerWidgetTests)
