@@ -2,19 +2,24 @@
 
 A plan for collecting aggregate usage data from MeshLab installs, designed so that
 the data is useful enough to change decisions and narrow enough that it cannot
-identify anyone. Nothing in this document is implemented yet; the codebase today has
-no network code at all (`find_package(Qt6 ... )` in `CMakeLists.txt:33` does not
-include `Network`) and no crash handling.
+identify anyone. **Not implemented.** The codebase today has no network code at all
+(`find_package(Qt6 ...)` at `CMakeLists.txt:155` does not include `Network`) and no
+crash handling.
+
+The richer, local-only half of the same idea — the per-user action journal this
+aggregates from, and the predictions built on it — is
+[Local Usage Model](local_usage_model.md).
 
 See also: [Preferences](../preferences.md) · [Architecture](../architecture.md) ·
 [Filter Organization](../filter_organization.md)
 
 ## 1. Why collect anything
 
-MeshLab ships **334 filters across 34 filter plugins, exposing 1163 parameters**,
-organized into 11 root categories and 42 subcategories, plus 6 I/O plugins covering 9
-file formats, 4 interactive tools and 15 preferences. (Counts as of 2026-09-06; they
-moved twice while this document was being written, which is itself part of the
+MeshLab ships **423 filters across 39 filter plugins, exposing 1473 parameters**,
+organized into 11 root categories and 45 subcategories, plus 6 I/O plugins covering 9
+file formats, 4 interactive tools and 42 preferences. (Counts as of 2026-11-24. The
+first draft of this document, eleven weeks earlier, said 292 filters and 12
+preferences — the surface grows by roughly a filter a day, which is itself the
 argument.) Nobody knows which parts of that surface are load-bearing. Every maintenance decision — what to deprecate,
 what to test, what to optimize, what to document first — is currently made on
 intuition and on the loudest issue reports.
@@ -28,7 +33,7 @@ review. This register is the contract:
 |---|---|
 | Which filters can be deprecated or merged? | invocation counts per filter, per version, over months |
 | Which filters are broken in the field? | failure counts + stable error codes per filter |
-| Which of the 1163 parameters are dead UI? | count of runs where a parameter differed from its default |
+| Which of the 1473 parameters are dead UI? | count of runs where a parameter differed from its default |
 | Where does time go for real users? | runtime histograms bucketed by mesh size |
 | Did release N regress performance? | same histograms, sliced by app version |
 | Which file formats deserve engineering? | I/O counts and failure rates per format and direction |
@@ -242,28 +247,104 @@ daily rollups, which contain no envelope signature finer than the k-anonymized o
 are kept indefinitely. Server code and schema live in this repository so the claims
 here are checkable.
 
-### 3.9 Consent
+### 3.9 Two channels, and what may ride on each
+
+Collection is split in two, because the questions split in two and so do their
+consent requirements.
+
+**Tier 0 — the update check.** Not a small telemetry ping; an update check that
+declines to carry anything an update check does not already need. "Is there a newer
+build for this platform?" cannot be answered without the version, the OS and the
+architecture, which makes those three fields *strictly necessary for a service the
+user asked for* — the one footing on which automatic collection stands without
+consent, rather than resting on the audience-measurement reading of the ePrivacy
+exemption. The server counts what it unavoidably sees:
+
+- payload `app_version`, `os`, `arch`, and nothing else. **No identifier of any kind.**
+- the client checks at most once a day, so checks/day ≈ daily active installs — the
+  same counting trick as Firefox's ADI and Debian's popcon;
+- the server increments counters, as with the geo tallies of §3.6; no rows, no IP.
+
+That yields active installs per day by version and platform, and the **upgrade curve**:
+how fast a release propagates and how long old ones linger, which is the whole of
+"how long must we support 2026.3". It cannot yield unique installs per month,
+retention, or sessions per install — those need an identifier and stay in tier 1.
+
+**Tier 1 — the session digest.** Everything else in this document, opt-in.
+
+**Tier 2 — the local journal.** Richer than either, never transmitted, no consent
+needed because nothing leaves: [Local Usage Model](local_usage_model.md).
+
+#### Why the split is worth more than its parts
+
+The census covers very nearly the whole population by version × OS × arch. The digests
+cover the same strata at a far lower rate. Dividing them gives the **opt-in rate per
+stratum**, and that makes the opt-in data correctable: reweight it so its platform and
+version mix matches the census, and the structural skew is gone. Post-stratification
+turns the standard objection to opt-in — unknown bias — into measured bias.
+
+It does not fix everything. Skew *within* a stratum, power users being likelier to opt
+in than casual ones on the same platform, stays uncorrectable. But a stratum opting in
+at 40 % against another at 8 % tells you where to distrust the numbers, which opt-in
+alone can never do.
+
+#### The invariant that keeps tier 0 honest
+
+**Tier 0's payload is frozen at what the update check functionally requires. Anything
+else — anything at all — goes in tier 1.** The slope is real: once an automatic channel
+exists every later question will want to ride on it, each addition individually
+reasonable, and the functional-necessity argument survives exactly as long as the
+payload stays functionally necessary. A field added here is not a schema change, it is
+a change of legal basis.
+
+One dependency, stated plainly: this is free *if* MeshLab ships update checking anyway,
+which a desktop application distributed outside app stores generally should. Without
+that feature a bare census ping has no functional cover and falls back to the weaker
+audience-measurement argument.
+
+### 3.10 Consent
+
+This section governs **tier 1**; tier 0 is covered above, and tier 2 needs no consent.
 
 **Opt-in, off by default.** The alternative — opt-out — yields far better coverage,
 and for a project maintained inside a European public research institution it is not
-worth defending. The honest consent flow is also the effective one: a first-run
-dialog that states the fourteen decisions, links this document, and offers a **"Show me
-exactly what would be sent"** button that renders the real payload from the current
-session. Opt-in rates rise sharply when the payload is inspectable, and the same
-viewer is the best debugging tool the feature has.
+worth defending. The form that works is **prompted choice**: a first-run dialog with
+no pre-selected answer, stating the fourteen decisions, linking this document, and
+offering a **"Show me exactly what would be sent"** button that renders the real
+payload from the current session. Legally that is consent — freely given, specific,
+informed — so it satisfies GDPR and ePrivacy Art. 5(3) without leaning on an
+exemption, which matters because a public research body cannot fall back on legitimate
+interest. Practically it recovers most of the coverage a buried checkbox loses, and it
+changes the shape of the selection filter: "answered a dialog" is far less biased than
+"went looking in preferences". The same viewer is the best debugging tool the feature
+has, and it is also what removes the discovery risk — nobody finds a surprise
+connection in a packet capture if they were shown the payload on first launch.
 
 Additional rules: consent is versioned, and a schema change that adds a *category* of
 data re-asks; `MESHLAB2_NO_TELEMETRY=1` and the conventional `DO_NOT_TRACK=1` force
 off; headless, Python-driven, `--generate-docs` and test runs default to off, because
 there is no one present to consent — a CI farm must never be able to skew the data.
 
-The honest cost: an opt-in cohort skews toward engaged users. Therefore **absolute
-install counts are never a published or internal KPI**. Only ratios within the cohort
-and version-to-version deltas are treated as sound.
+The honest cost: an opt-in cohort skews toward engaged users. Absolute counts from
+this tier are therefore never a KPI — the census in §3.9 is where install numbers come
+from, and the digests are reweighted against it before any cross-platform or
+cross-version comparison is published.
 
 ## 4. The schema
 
-One submission, one JSON object, gzipped. Illustrative rather than final:
+**Tier 0** is one line, and is shown in full:
+
+```
+GET /v1/update?v=2026.11&os=macos&arch=arm64
+```
+
+No body, no identifier, no cookie; the response is the update manifest. The server
+increments `(app_version, os, arch, day)` and keeps nothing else.
+
+**Tier 1** is one submission, one JSON object, gzipped — built by projecting the local
+journal of [Local Usage Model](local_usage_model.md) through the aggregate, never read
+from the journal directly (§3.1, and that document's §5). Illustrative rather than
+final:
 
 ```json
 {
@@ -318,7 +399,7 @@ Notes on specific choices:
   failed to shut down cleanly.
 - **I/O keys carry the plugin id**, because three plugins claim `obj` and two claim
   `stl`, and `Document::preferredImportPluginForExtension`
-  (`src/core/document_io.cpp:92`) makes the winner a user-visible choice. Which
+  (`src/core/document_io.cpp:97`) makes the winner a user-visible choice. Which
   importer people actually end up on, and whether it fails more than its rivals, is a
   question nothing else answers.
 - **No country field.** It is counted at ingest instead, unlinked; see §3.6.
@@ -332,12 +413,12 @@ already funnels everything interesting through single call sites:
 
 | Signal | Funnel | Covers |
 |---|---|---|
-| filter runs, timing, success | `Document::runFilter` — `src/core/document_filters.cpp:50` | menu, filter panel, Python API, interactive tools — all of them, and it already measures elapsed ms |
-| I/O counts, formats, failures | `Document::loadMesh` / `Document::saveMesh` — `src/core/document_io.cpp:106`, `:539` | every import and export |
+| filter runs, timing, success | `Document::runFilter` — `src/core/document_filters.cpp:48` | menu, filter panel, Python API, interactive tools — all of them, and it already measures elapsed ms |
+| I/O counts, formats, failures | `Document::loadMesh` / `Document::saveMesh` — `src/core/document_io.cpp:131`, `:600` | every import and export |
 | session lifecycle, unclean exit | `MainWindow` ctor/dtor, `src/app/main.cpp` | one flag file written at start, removed on clean quit |
 | document shape | `Document` layer add/remove | peak counts and memory |
 | feature discovery | `RenderWidget` mode changes, `InteractiveTool` activation | 4 tools, render modes |
-| wrong defaults | `Preferences::changed` — `src/core/preferences.h` | 15 preferences |
+| wrong defaults | `Preferences::changed` — `src/core/preferences.h` | 42 preferences |
 
 ```
 Document::runFilter ──┐
@@ -375,12 +456,13 @@ Design points worth committing to:
 
 | Change | Where | Why |
 |---|---|---|
-| Stable error codes on filter results | `MeshFilterRunResult` — `src/plugins/meshfilterplugin.h:317` | `errorMessage` is a translated free-text `QString`; it can never be sent. Add an `errorCode` enum/interned id alongside it. Useful independently: scripts and tests can branch on a code instead of matching English prose |
+| Stable error codes on filter results | `MeshFilterRunResult` — `src/plugins/meshfilterplugin.h:394` | `errorMessage` is a translated free-text `QString`; it can never be sent. Add an `errorCode` enum/interned id alongside it. Useful independently: scripts and tests can branch on a code instead of matching English prose |
 | Unclean-exit detection | `src/app/main.cpp` | none exists today; a sentinel file at startup is ~15 lines and unlocks the single best release-gating metric |
 | GPU family allowlist | `src/render` | map the driver string to a coarse family; raw strings must never leave |
 | Bucket ladders | `src/core/telemetry.h` | shared by client and server rollups; changing one is a schema version bump |
 | Consent + viewer UI | `src/ui` | first-run dialog, a preferences page, and a payload viewer |
 | Telemetry preferences | `resources/preferences.json` | `stats.enabled`, `stats.consentVersion` — the existing schema renders them with no UI code, per [Preferences](../preferences.md) |
+| Update checking | new, `src/core` + `src/ui` | tier 0 (§3.9) is a side effect of this feature, not a feature of its own. Wanted anyway for a desktop app distributed outside app stores; without it the automatic channel loses its justification |
 
 ## 7. Server side sizing
 
@@ -422,6 +504,26 @@ One submission per session; **average 2.5 KB raw, ~1 KB gzipped on the wire**
 
 Peak assumes a 10× diurnal factor over the average. Gzipped storage is ~40 % of raw.
 
+**Tier 0** is the opposite shape: many more requests, essentially no storage. One
+check per active install per day, ~200 B of query string in and an update manifest
+out, counted into `(version, os, arch, day)` rows:
+
+| Scenario | Checks/day | Avg req/s | Peak req/s | Inbound/day | Counter rows/year |
+|---|---|---|---|---|---|
+| Dogfood | 500 | 0.006 | 0.06 | 0.5 MB | ~25 k |
+| Established | 17 000 | 0.19 | 1.9 | 17 MB | ~25 k |
+| MeshLab-scale | 133 000 | 1.5 | 15 | 133 MB | ~25 k |
+| Blowout | 533 000 | 6.2 | 62 | 530 MB | ~25 k |
+
+Checks/day is taken as monthly active installs × sessions ÷ 30, which counts an
+install used twice in a day once, as the daily rate limit does. The row count does not
+move with scale because it is the product of versions, platforms and days, not of
+users — a few tens of thousands of rows a year at any size.
+
+So tier 0 multiplies the request count by roughly four and adds nothing measurable to
+storage. TLS handshakes still dominate its cost: 62 req/s at the blowout peak is around
+12 % of one core. **The machine in §7.3 does not change.**
+
 ### 7.3 What that costs
 
 - **CPU.** Validate + coarsen + append ≈ 100 µs per submission, so even the blowout
@@ -462,7 +564,11 @@ The community supplies the data, so the community gets the data. Monthly, publis
 - a static dashboard with filter usage, failure rates, version adoption, platform mix
   and a country/region map;
 - machine-readable aggregate CSVs, with any cell below k = 20 installs suppressed;
-- the schema, the ingest code, and the decisions register — in this repository.
+- the schema, the ingest code, and the decisions register — in this repository;
+- the filter and transition counts as a small table shipped inside the application,
+  where they become the cold-start prior for every install's local predictor
+  ([Local Usage Model](local_usage_model.md) §4) — contributed data coming back as a
+  feature that works for everyone, including those who did not contribute.
 
 This is also what makes the feature defensible: a user who wonders what is collected
 can read the schema, press the button that shows their own payload, and then look at
@@ -472,30 +578,40 @@ exactly what everyone's payloads became.
 
 | Phase | Content | Why in this order |
 |---|---|---|
-| 0 | `Telemetry` core, counters at the funnels, local digest file, payload viewer. **No network code at all.** | Schema mistakes are cheap now and expensive after collection starts. Dogfood a full release cycle, then delete the fields nobody looked at |
-| 1 | Consent flow, `Qt6::Network` submitter, ingest service, raw storage | Smallest thing that produces real data |
-| 2 | Nightly rollup, public dashboard, published CSVs | Closes the loop; §8 is what earns the opt-ins |
-| 3 | Error codes, unclean-exit signal, runtime/size histograms | Needs the `MeshFilterRunResult` change and is worth its own review |
-| 4 | Sampling, k-anonymity tightening, cold archive | Only if scale demands it; the model in §7.2 says it may never |
+| 0 | The local journal and the aggregate projected from it, payload viewer. **No network code at all.** Shared with [Local Usage Model](local_usage_model.md) phase 0 | Schema mistakes are cheap now and expensive after collection starts. Dogfood a full release cycle, then delete the fields nobody looked at |
+| 1 | Tier 0: update checking, census counters, the manifest endpoint | Independent of the consent question, so it need not wait for it, and it produces the denominators that phase 3 reweights against |
+| 2 | Tier 1: consent flow, `Qt6::Network` submitter, ingest service, raw storage | Smallest thing that produces behavioural data |
+| 3 | Nightly rollup, post-stratification against the census, public dashboard, published CSVs | Closes the loop; §8 is what earns the opt-ins |
+| 4 | Error codes, unclean-exit signal, runtime/size histograms | Needs the `MeshFilterRunResult` change and is worth its own review |
+| 5 | Sampling, k-anonymity tightening, cold archive | Only if scale demands it; the model in §7.2 says it may never |
 
 ## 10. Open decisions
 
-1. **Consent model** — opt-in (recommended, assumed throughout) vs. opt-out with a
-   prominent first-run notice. Changes coverage by roughly 3–5× and changes the
-   legal posture entirely.
-2. **Identity model** — session-only (maximum privacy, cannot separate heavy users
+1. **Tier 1's consent model** — prompted choice (recommended, assumed throughout) vs.
+   opt-out with a prominent first-run notice. The tiering of §3.9 lowers the stakes:
+   the census already carries the install and version numbers, so what opt-out would
+   buy is behavioural coverage, against an open-source backlash risk that has little
+   to do with the actual privacy properties.
+2. **Whether tier 0 ships at all**, which is really the question of whether MeshLab
+   ships update checking. If it does not, the automatic channel should be dropped
+   rather than justified some other way.
+3. **Identity model** — session-only (maximum privacy, cannot separate heavy users
    from many users) vs. monthly rotating install id (recommended) vs. a stable
    install id (rejected here).
-3. **Hosting** — institutional VM vs. commercial VPS. Both are adequate; the
+4. **Hosting** — institutional VM vs. commercial VPS. Both are adequate; the
    institutional route affects who the data controller is.
-4. **Whether country may ever be crossed with behaviour.** Assumed no: the marginal
+5. **Whether country may ever be crossed with behaviour.** Assumed no: the marginal
    distribution in §3.6 is free, but a join needs country inside the envelope, which
    costs ~3 bits even with an 8-region bucket and re-opens the k-anonymity question.
-5. **GPU driver version.** Currently excluded as 4–6 bits. It is also the difference
+6. **GPU driver version.** Currently excluded as 4–6 bits. It is also the difference
    between "Radeon users have problems" and "this driver branch has problems", which
    for a renderer-heavy application may be worth buying.
 
 ## Related
+
+[Local Usage Model](local_usage_model.md) is the other half of the design: the same
+actions, kept in full on the user's own machine and used to help them, with this
+document's digest as a lossy one-way projection of it.
 
 `Telemetry` is deliberately shaped like [`Preferences`](../preferences.md) — a `src/core`
 singleton over a declared schema — so that adding a counter is a schema entry plus one

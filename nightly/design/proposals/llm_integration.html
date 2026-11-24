@@ -280,39 +280,43 @@ mechanisms are already load-bearing for this purpose.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document::runFilter(filterKey,</span> <span class="pre">params)</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshSet::apply_filter()</span></code></p></td>
 <td><p>One entry point; no per-filter binding work.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Pre-flight validation</p></td>
+<tr class="row-odd"><td><p>Descriptors from Python</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshSet::list_filters()</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshSet::filter_descriptor(name)</span></code></p></td>
+<td><p>The live build’s catalogue, and each filter’s full descriptor keyed as in <code class="docutils literal notranslate"><span class="pre">filters.json</span></code>, including injected parameters, with defaults and ranges resolved against the current mesh. This is what <code class="docutils literal notranslate"><span class="pre">search_filters</span></code> and <code class="docutils literal notranslate"><span class="pre">describe_filter</span></code> return.</p></td>
+</tr>
+<tr class="row-even"><td><p>Pre-flight validation</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document::validateFilterInvocation()</span></code>; <code class="docutils literal notranslate"><span class="pre">FilterInfo::applicable</span></code> / <code class="docutils literal notranslate"><span class="pre">applicabilityError</span></code></p></td>
 <td><p>Lets a caller be told <em>why</em> a filter cannot run, in a form it can act on, before running it.</p></td>
 </tr>
-<tr class="row-even"><td><p>Structured results</p></td>
+<tr class="row-odd"><td><p>Structured results</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult</span></code> — <code class="docutils literal notranslate"><span class="pre">success</span></code>, <code class="docutils literal notranslate"><span class="pre">errorMessage</span></code>, <code class="docutils literal notranslate"><span class="pre">infoMessages</span></code>, <code class="docutils literal notranslate"><span class="pre">newMeshIndices</span></code>, <code class="docutils literal notranslate"><span class="pre">outputValues</span></code></p></td>
 <td><p>The observation half of an act/observe loop.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Declared input requirements</p></td>
+<tr class="row-even"><td><p>Declared input requirements</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">requireFaces</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertices</span></code>, <code class="docutils literal notranslate"><span class="pre">requireEdges</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaceQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireEdgeQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaceColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextureCoordinates</span></code>, <code class="docutils literal notranslate"><span class="pre">requirePerVertexTexCoords</span></code>, <code class="docutils literal notranslate"><span class="pre">requirePerWedgeTexCoords</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextures</span></code></p></td>
 <td><p>Machine-checkable preconditions — a caller can repair state instead of guessing.</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>20 measurement / information filters</strong></p></td>
+<tr class="row-odd"><td><p><strong>20 measurement / information filters</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Measurement/*</span></code> categories</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">get_info</span></code>, <code class="docutils literal notranslate"><span class="pre">compute_geometric_measures</span></code>, <code class="docutils literal notranslate"><span class="pre">compute_topological_measures</span></code>, vertex/face quality stats and histograms, <code class="docutils literal notranslate"><span class="pre">compute_hausdorff_distance</span></code>, <code class="docutils literal notranslate"><span class="pre">compute_chamfer_distance</span></code>. This is the sensor set: it is what makes <em>self-checking</em> possible rather than open-loop guessing.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Offscreen rendering</p></td>
+<tr class="row-even"><td><p>Offscreen rendering</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">MeshSet::render_snapshot()</span></code>, <code class="docutils literal notranslate"><span class="pre">MlGui::save_snapshot()</span></code>, <code class="docutils literal notranslate"><span class="pre">HeadlessRenderContext</span></code></p></td>
 <td><p>Visual feedback for a multimodal model.</p></td>
 </tr>
-<tr class="row-even"><td><p>Scale-relative parameter types</p></td>
+<tr class="row-odd"><td><p>Scale-relative parameter types</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">absperc</span></code> (97 parameters), <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code> expressions</p></td>
 <td><p>Directly addresses the hardest grounding problem (see below).</p></td>
 </tr>
-<tr class="row-odd"><td><p>Reproducibility</p></td>
+<tr class="row-even"><td><p>Reproducibility</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">ScriptAction</span></code> (<code class="docutils literal notranslate"><span class="pre">filterKey</span></code>, <code class="docutils literal notranslate"><span class="pre">params</span></code>, <code class="docutils literal notranslate"><span class="pre">pythonCall</span></code>, <code class="docutils literal notranslate"><span class="pre">compactPythonCall</span></code>), <code class="docutils literal notranslate"><span class="pre">UndoActionRecord</span></code>, undo-graph Python export</p></td>
 <td><p>Audit trail, single-step rollback, and a replayable transcript, all free.</p></td>
 </tr>
-<tr class="row-even"><td><p>Seed discipline</p></td>
+<tr class="row-odd"><td><p>Seed discipline</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code> declared by 52 filters across 13 plugins, resolved via <code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code></p></td>
 <td><p>Randomized filters can be made deterministic on demand.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Importable headless package</p></td>
+<tr class="row-even"><td><p>Importable headless package</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> wheels, built from this repository’s build graph and binding sources for CPython 3.10–3.14 on macOS arm64 and Windows x64</p></td>
 <td><p>A tool server can <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">pymeshlab2</span></code> with no GUI. The wheel links the whole plugin set, so it exposes the same filters as the application.</p></td>
 </tr>
@@ -341,6 +345,69 @@ it is actually talking to. Any tool server enumerates filters from the live
 reports the backing version alongside. Today the wheel and the application carry
 the same set, but an installed wheel can lag the tree it is compared against, and
 a build without an optional dependency drops that plugin’s filters.</p>
+</section>
+<section id="feeding-filter-knowledge-to-the-client">
+<h2>Feeding filter knowledge to the client<a class="headerlink" href="#feeding-filter-knowledge-to-the-client" title="Link to this heading">¶</a></h2>
+<p>The client learns about filters only through what the server sends it, and the
+whole catalogue is too large to send at once: the manifests total 1.1 MB, around
+300k tokens, and even a one-line index of names and short descriptions is around
+16k tokens, beyond what a small local model can spend before it starts working. So
+the knowledge goes in layers, each pulled only when needed:</p>
+<ol class="arabic simple">
+<li><p><strong>Orientation, sent once.</strong> The descriptions of the fixed tools, plus the
+server’s <code class="docutils literal notranslate"><span class="pre">instructions</span></code> (MCP sends them when the client connects): what MeshLab
+is, the <code class="docutils literal notranslate"><span class="pre">Verb</span> <span class="pre">Object</span> <span class="pre">[(Backend)]</span></code> naming grammar, the 11 categories, that
+parameters scale with the mesh (<code class="docutils literal notranslate"><span class="pre">absperc</span></code>, the bounding box), and to measure
+before and after changing anything. A few hundred tokens, written by hand.</p></li>
+<li><p><strong>Discovery, per question.</strong> <code class="docutils literal notranslate"><span class="pre">search_filters</span></code> returns a few ranked matches:
+name, <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>, short description, categories, tags, and whether each can
+run on the current document and if not why. Search runs in the server.
+Lexical matching over names, tags and descriptions comes first, expanded with
+the rejected synonyms of <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>, which map a user’s
+<code class="docutils literal notranslate"><span class="pre">delete</span></code> or <code class="docutils literal notranslate"><span class="pre">decimate</span></code> onto <code class="docutils literal notranslate"><span class="pre">Remove</span></code> and <code class="docutils literal notranslate"><span class="pre">Simplify</span></code>; embeddings only if
+measurement shows lexical search missing.</p></li>
+<li><p><strong>Detail, per filter.</strong> <code class="docutils literal notranslate"><span class="pre">describe_filter</span></code> returns the full descriptor: the
+long description, every parameter with type, default, range and help, input
+requirements, and references.</p></li>
+<li><p><strong>Browsable material.</strong> The vocabulary, the category tree and one page per
+filter as MCP resources (<code class="docutils literal notranslate"><span class="pre">meshlab://filter/&lt;id&gt;</span></code>), for clients that let the
+user or model browse. Many clients support only tools, so nothing essential
+lives only here.</p></li>
+<li><p><strong>Recipes.</strong> How filters combine — clean a scan, simplify under a Hausdorff
+bound, bake a texture from photos — is the knowledge no descriptor holds.
+Written as MCP prompts or as short <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> example scripts, it is new
+content rather than an export, and the place where MeshLab’s experience would
+go.</p></li>
+</ol>
+<p>Layers 2 and 3 come from the running build (see the previous section), so they
+are only as good as the descriptors; layers 1 and 5 are written for the purpose.</p>
+</section>
+<section id="distribution-and-clients">
+<h2>Distribution and clients<a class="headerlink" href="#distribution-and-clients" title="Link to this heading">¶</a></h2>
+<p>An MCP server is a program the client starts and talks to, usually over
+stdin/stdout. It does not need a new native executable:</p>
+<ul class="simple">
+<li><p><strong>Headless.</strong> A Python module over <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>, using the official <code class="docutils literal notranslate"><span class="pre">mcp</span></code>
+Python SDK, shipped as an optional extra of the wheel (<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">pymeshlab2[mcp]</span></code>) and started as <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">pymeshlab2.mcp</span></code>. Everything native
+is already in the wheel.</p></li>
+<li><p><strong>Live document.</strong> A mode of the existing executable (<code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">--mcp</span></code>), or a
+<code class="docutils literal notranslate"><span class="pre">QLocalServer</span></code> inside the running application with a small stdio shim
+forwarding MCP messages to it, so edits are visible and land in the undo graph.</p></li>
+</ul>
+<p>The model is chosen by the user’s client, not by MeshLab. A local runtime such as
+Ollama serves the model and its tool calling but does not speak MCP itself: a client
+sits between them, running the model, starting the server and relaying the calls.
+Goose, mcphost and Open WebUI do this with Ollama; LM Studio does it with its own
+local runtime. The client is configured with an entry such as</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"> </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"python"</span><span class="p">,</span><span class="w"> </span><span class="nt">"args"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"-m"</span><span class="p">,</span><span class="w"> </span><span class="s2">"pymeshlab2.mcp"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+</div>
+<p>and the same server works unchanged with cloud clients. Run locally, the model,
+the server and the mesh all stay on the user’s machine.</p>
+<p>Choosing among 423 filters is the hard part for a small model. The small fixed tool
+set and the predictable names are what make it workable; a mid-size model with
+good tool calling is the realistic floor, to be confirmed by the benchmark below
+rather than assumed.</p>
 </section>
 <section id="four-independent-axes">
 <h2>Four independent axes<a class="headerlink" href="#four-independent-axes" title="Link to this heading">¶</a></h2>
@@ -416,7 +483,7 @@ with the filter set reached through discovery rather than enumeration:</p>
           │
    ┌──────┴───────────────────────────────────────────┐
    │  search_filters(query)      → ranked descriptors │  MeshSet::list_filters()
-   │  describe_filter(name)      → full param schema  │  (live build)
+   │  describe_filter(name)      → full param schema  │  MeshSet::filter_descriptor()
    │  apply_filter(name, params) → FilterRunResult    │  Document::runFilter
    │  get_document_state()       → layers, bbox, caps │  Document
    │  measure(kind)              → outputValues       │  Measurement/* filters
@@ -522,6 +589,8 @@ power-user capability to a shipped feature.</p></li>
 <li><a class="reference internal" href="#the-substrate-that-already-exists">The substrate that already exists</a></li>
 <li><a class="reference internal" href="#what-is-missing">What is missing</a></li>
 <li><a class="reference internal" href="#the-catalogue-comes-from-the-build">The catalogue comes from the build</a></li>
+<li><a class="reference internal" href="#feeding-filter-knowledge-to-the-client">Feeding filter knowledge to the client</a></li>
+<li><a class="reference internal" href="#distribution-and-clients">Distribution and clients</a></li>
 <li><a class="reference internal" href="#four-independent-axes">Four independent axes</a><ul>
 <li><a class="reference internal" href="#a-where-the-model-runs">A. Where the model runs</a></li>
 <li><a class="reference internal" href="#b-what-the-model-manipulates">B. What the model manipulates</a></li>

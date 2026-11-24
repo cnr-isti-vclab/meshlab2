@@ -21,6 +21,7 @@ MeshLab is closer to being model-drivable than it looks. The relevant assets:
 | **423 filters / 39 plugins**, 1473 declared parameters | `plugins/*/filters.json` | Each descriptor carries `id`, `pythonName`, `shortDescription`, `longDescriptionMarkdown`, `tags`, `categories`, `inputDomain`/`outputDomain`, `inputRequirements`, and typed `parameters` with `default`/`min`/`max`/`help`. This is a tool schema already; converting it to JSON Schema is mechanical. |
 | Controlled vocabulary and naming grammar | [Vocabulary](../vocabulary.md) | Tool-selection accuracy is dominated by whether names and descriptions are predictable. |
 | Generic dispatch | `Document::runFilter(filterKey, params)`, `MeshSet::apply_filter()` | One entry point; no per-filter binding work. |
+| Descriptors from Python | `MeshSet::list_filters()`, `MeshSet::filter_descriptor(name)` | The live build's catalogue, and each filter's full descriptor keyed as in `filters.json`, including injected parameters, with defaults and ranges resolved against the current mesh. This is what `search_filters` and `describe_filter` return. |
 | Pre-flight validation | `Document::validateFilterInvocation()`; `FilterInfo::applicable` / `applicabilityError` | Lets a caller be told *why* a filter cannot run, in a form it can act on, before running it. |
 | Structured results | `MeshFilterRunResult` — `success`, `errorMessage`, `infoMessages`, `newMeshIndices`, `outputValues` | The observation half of an act/observe loop. |
 | Declared input requirements | `requireFaces`, `requireVertices`, `requireEdges`, `requireVertexQuality`, `requireFaceQuality`, `requireEdgeQuality`, `requireVertexColor`, `requireFaceColor`, `requireTextureCoordinates`, `requirePerVertexTexCoords`, `requirePerWedgeTexCoords`, `requireTextures` | Machine-checkable preconditions — a caller can repair state instead of guessing. |
@@ -50,6 +51,73 @@ it is actually talking to. Any tool server enumerates filters from the live
 reports the backing version alongside. Today the wheel and the application carry
 the same set, but an installed wheel can lag the tree it is compared against, and
 a build without an optional dependency drops that plugin's filters.
+
+## Feeding filter knowledge to the client
+
+The client learns about filters only through what the server sends it, and the
+whole catalogue is too large to send at once: the manifests total 1.1 MB, around
+300k tokens, and even a one-line index of names and short descriptions is around
+16k tokens, beyond what a small local model can spend before it starts working. So
+the knowledge goes in layers, each pulled only when needed:
+
+1. **Orientation, sent once.** The descriptions of the fixed tools, plus the
+   server's `instructions` (MCP sends them when the client connects): what MeshLab
+   is, the `Verb Object [(Backend)]` naming grammar, the 11 categories, that
+   parameters scale with the mesh (`absperc`, the bounding box), and to measure
+   before and after changing anything. A few hundred tokens, written by hand.
+2. **Discovery, per question.** `search_filters` returns a few ranked matches:
+   name, `pythonName`, short description, categories, tags, and whether each can
+   run on the current document and if not why. Search runs in the server.
+   Lexical matching over names, tags and descriptions comes first, expanded with
+   the rejected synonyms of [Vocabulary](../vocabulary.md), which map a user's
+   `delete` or `decimate` onto `Remove` and `Simplify`; embeddings only if
+   measurement shows lexical search missing.
+3. **Detail, per filter.** `describe_filter` returns the full descriptor: the
+   long description, every parameter with type, default, range and help, input
+   requirements, and references.
+4. **Browsable material.** The vocabulary, the category tree and one page per
+   filter as MCP resources (`meshlab://filter/<id>`), for clients that let the
+   user or model browse. Many clients support only tools, so nothing essential
+   lives only here.
+5. **Recipes.** How filters combine — clean a scan, simplify under a Hausdorff
+   bound, bake a texture from photos — is the knowledge no descriptor holds.
+   Written as MCP prompts or as short `pymeshlab2` example scripts, it is new
+   content rather than an export, and the place where MeshLab's experience would
+   go.
+
+Layers 2 and 3 come from the running build (see the previous section), so they
+are only as good as the descriptors; layers 1 and 5 are written for the purpose.
+
+## Distribution and clients
+
+An MCP server is a program the client starts and talks to, usually over
+stdin/stdout. It does not need a new native executable:
+
+- **Headless.** A Python module over `pymeshlab2`, using the official `mcp`
+  Python SDK, shipped as an optional extra of the wheel (`pip install
+  pymeshlab2[mcp]`) and started as `python -m pymeshlab2.mcp`. Everything native
+  is already in the wheel.
+- **Live document.** A mode of the existing executable (`MeshLab --mcp`), or a
+  `QLocalServer` inside the running application with a small stdio shim
+  forwarding MCP messages to it, so edits are visible and land in the undo graph.
+
+The model is chosen by the user's client, not by MeshLab. A local runtime such as
+Ollama serves the model and its tool calling but does not speak MCP itself: a client
+sits between them, running the model, starting the server and relaying the calls.
+Goose, mcphost and Open WebUI do this with Ollama; LM Studio does it with its own
+local runtime. The client is configured with an entry such as
+
+```json
+{ "command": "python", "args": ["-m", "pymeshlab2.mcp"] }
+```
+
+and the same server works unchanged with cloud clients. Run locally, the model,
+the server and the mesh all stay on the user's machine.
+
+Choosing among 423 filters is the hard part for a small model. The small fixed tool
+set and the predictable names are what make it workable; a mid-size model with
+good tool calling is the realistic floor, to be confirmed by the benchmark below
+rather than assumed.
 
 ## Four independent axes
 
@@ -120,7 +188,7 @@ with the filter set reached through discovery rather than enumeration:
           │
    ┌──────┴───────────────────────────────────────────┐
    │  search_filters(query)      → ranked descriptors │  MeshSet::list_filters()
-   │  describe_filter(name)      → full param schema  │  (live build)
+   │  describe_filter(name)      → full param schema  │  MeshSet::filter_descriptor()
    │  apply_filter(name, params) → FilterRunResult    │  Document::runFilter
    │  get_document_state()       → layers, bbox, caps │  Document
    │  measure(kind)              → outputValues       │  Measurement/* filters

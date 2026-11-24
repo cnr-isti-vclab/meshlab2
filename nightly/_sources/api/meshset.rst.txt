@@ -63,6 +63,13 @@ Methods
 
    current_raster(self) -> int
 
+.. py:method:: MeshSet.filter_descriptor(...)
+   :module: _meshlab
+
+   filter_descriptor(self, filter: str) -> object
+   
+   The filter's full descriptor as a dict, keyed as in filters.json: descriptions, categories, tags, input requirements, references and every parameter with its type, help, default and range. Defaults and ranges are resolved against the current mesh, so a size given as a fraction of the bounding box arrives in model units.
+
 .. py:method:: MeshSet.filter_list(...)
    :module: _meshlab
 

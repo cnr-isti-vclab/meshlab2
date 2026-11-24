@@ -435,6 +435,21 @@ is why <code class="docutils literal notranslate"><span class="pre">set_mesh_vis
         <span class="nb">print</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">python_name</span><span class="p">,</span> <span class="s2">"|"</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">ms.filter_descriptor(name)</span></code> returns everything else the filter declares, as a dict
+keyed as in its <code class="docutils literal notranslate"><span class="pre">filters.json</span></code>: <code class="docutils literal notranslate"><span class="pre">shortDescription</span></code>, <code class="docutils literal notranslate"><span class="pre">longDescriptionMarkdown</span></code>,
+<code class="docutils literal notranslate"><span class="pre">categories</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">inputDomain</span></code>, <code class="docutils literal notranslate"><span class="pre">outputDomain</span></code>, <code class="docutils literal notranslate"><span class="pre">inputRequirements</span></code>,
+<code class="docutils literal notranslate"><span class="pre">outputModifies</span></code>, <code class="docutils literal notranslate"><span class="pre">references</span></code>, and <code class="docutils literal notranslate"><span class="pre">parameters</span></code>, each with <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">label</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>,
+<code class="docutils literal notranslate"><span class="pre">help</span></code>, <code class="docutils literal notranslate"><span class="pre">group</span></code>, <code class="docutils literal notranslate"><span class="pre">default</span></code> and, where declared, <code class="docutils literal notranslate"><span class="pre">min</span></code>, <code class="docutils literal notranslate"><span class="pre">max</span></code>, <code class="docutils literal notranslate"><span class="pre">enumOptions</span></code>,
+<code class="docutils literal notranslate"><span class="pre">enabledWhen</span></code> and <code class="docutils literal notranslate"><span class="pre">meshRequirements</span></code>. It also lists the parameters the framework adds
+to some filters, such as <code class="docutils literal notranslate"><span class="pre">selectedOnly</span></code>, and gives defaults and ranges resolved against
+the current mesh: a size declared as 1% of the bounding box diagonal arrives in model
+units.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">d</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">filter_descriptor</span><span class="p">(</span><span class="s2">"remesh_isotropically_vcglib"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">"shortDescription"</span><span class="p">])</span>
+<span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s2">"parameters"</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="s2">"id"</span><span class="p">],</span> <span class="n">p</span><span class="p">[</span><span class="s2">"type"</span><span class="p">],</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"default"</span><span class="p">),</span> <span class="s2">"-"</span><span class="p">,</span> <span class="n">p</span><span class="p">[</span><span class="s2">"label"</span><span class="p">])</span>
+</pre></div>
+</div>
 </section>
 <section id="running-filters">
 <h2>Running Filters<a class="headerlink" href="#running-filters" title="Link to this heading">¶</a></h2>

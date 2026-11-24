@@ -309,6 +309,13 @@ duplicating the full filter list here.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="meshlab.MeshSet.filter_descriptor">
+<span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">filter_descriptor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.filter_descriptor" title="Link to this definition">¶</a></dt>
+<dd><p>filter_descriptor(self, filter: str) -&gt; object</p>
+<p>The filter’s full descriptor as a dict, keyed as in filters.json: descriptions, categories, tags, input requirements, references and every parameter with its type, help, default and range. Defaults and ranges are resolved against the current mesh, so a size given as a fraction of the bounding box arrives in model units.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="meshlab.MeshSet.filter_list">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">filter_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.filter_list" title="Link to this definition">¶</a></dt>
 <dd><p>filter_list(self) -&gt; list[str]</p>
@@ -503,6 +510,7 @@ duplicating the full filter list here.</p>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_mesh_id"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_mesh_id()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_mesh_index"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_mesh_index()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_raster"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_raster()</span></code></a></li>
+<li><a class="reference internal" href="#meshlab.MeshSet.filter_descriptor"><code class="docutils literal notranslate"><span class="pre">MeshSet.filter_descriptor()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.filter_list"><code class="docutils literal notranslate"><span class="pre">MeshSet.filter_list()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.is_current_mesh_visible"><code class="docutils literal notranslate"><span class="pre">MeshSet.is_current_mesh_visible()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.is_mesh_visible"><code class="docutils literal notranslate"><span class="pre">MeshSet.is_mesh_visible()</span></code></a></li>

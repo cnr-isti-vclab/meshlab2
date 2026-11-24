@@ -207,6 +207,23 @@ for info in ms.list_filters():
         print(info.python_name, "|", info.name)
 ```
 
+`ms.filter_descriptor(name)` returns everything else the filter declares, as a dict
+keyed as in its `filters.json`: `shortDescription`, `longDescriptionMarkdown`,
+`categories`, `tags`, `inputDomain`, `outputDomain`, `inputRequirements`,
+`outputModifies`, `references`, and `parameters`, each with `id`, `label`, `type`,
+`help`, `group`, `default` and, where declared, `min`, `max`, `enumOptions`,
+`enabledWhen` and `meshRequirements`. It also lists the parameters the framework adds
+to some filters, such as `selectedOnly`, and gives defaults and ranges resolved against
+the current mesh: a size declared as 1% of the bounding box diagonal arrives in model
+units.
+
+```python
+d = ms.filter_descriptor("remesh_isotropically_vcglib")
+print(d["shortDescription"])
+for p in d["parameters"]:
+    print(p["id"], p["type"], p.get("default"), "-", p["label"])
+```
+
 ## Running Filters
 
 There are two equivalent styles.

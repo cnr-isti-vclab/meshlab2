@@ -248,17 +248,21 @@
 <h1>Usage Statistics<a class="headerlink" href="#usage-statistics" title="Link to this heading">¶</a></h1>
 <p>A plan for collecting aggregate usage data from MeshLab installs, designed so that
 the data is useful enough to change decisions and narrow enough that it cannot
-identify anyone. Nothing in this document is implemented yet; the codebase today has
-no network code at all (<code class="docutils literal notranslate"><span class="pre">find_package(Qt6</span> <span class="pre">...</span> <span class="pre">)</span></code> in <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:33</span></code> does not
-include <code class="docutils literal notranslate"><span class="pre">Network</span></code>) and no crash handling.</p>
+identify anyone. <strong>Not implemented.</strong> The codebase today has no network code at all
+(<code class="docutils literal notranslate"><span class="pre">find_package(Qt6</span> <span class="pre">...)</span></code> at <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:155</span></code> does not include <code class="docutils literal notranslate"><span class="pre">Network</span></code>) and no
+crash handling.</p>
+<p>The richer, local-only half of the same idea — the per-user action journal this
+aggregates from, and the predictions built on it — is
+<a class="reference internal" href="local_usage_model.html"><span class="std std-doc">Local Usage Model</span></a>.</p>
 <p>See also: <a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a> · <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a> ·
 <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a></p>
 <section id="why-collect-anything">
 <h2>1. Why collect anything<a class="headerlink" href="#why-collect-anything" title="Link to this heading">¶</a></h2>
-<p>MeshLab ships <strong>334 filters across 34 filter plugins, exposing 1163 parameters</strong>,
-organized into 11 root categories and 42 subcategories, plus 6 I/O plugins covering 9
-file formats, 4 interactive tools and 15 preferences. (Counts as of 2026-09-06; they
-moved twice while this document was being written, which is itself part of the
+<p>MeshLab ships <strong>423 filters across 39 filter plugins, exposing 1473 parameters</strong>,
+organized into 11 root categories and 45 subcategories, plus 6 I/O plugins covering 9
+file formats, 4 interactive tools and 42 preferences. (Counts as of 2026-11-24. The
+first draft of this document, eleven weeks earlier, said 292 filters and 12
+preferences — the surface grows by roughly a filter a day, which is itself the
 argument.) Nobody knows which parts of that surface are load-bearing. Every maintenance decision — what to deprecate,
 what to test, what to optimize, what to document first — is currently made on
 intuition and on the loudest issue reports.</p>
@@ -280,7 +284,7 @@ review. This register is the contract:</p>
 <tr class="row-odd"><td><p>Which filters are broken in the field?</p></td>
 <td><p>failure counts + stable error codes per filter</p></td>
 </tr>
-<tr class="row-even"><td><p>Which of the 1163 parameters are dead UI?</p></td>
+<tr class="row-even"><td><p>Which of the 1473 parameters are dead UI?</p></td>
 <td><p>count of runs where a parameter differed from its default</p></td>
 </tr>
 <tr class="row-odd"><td><p>Where does time go for real users?</p></td>
@@ -551,27 +555,94 @@ daily rollups, which contain no envelope signature finer than the k-anonymized o
 are kept indefinitely. Server code and schema live in this repository so the claims
 here are checkable.</p>
 </section>
+<section id="two-channels-and-what-may-ride-on-each">
+<h3>3.9 Two channels, and what may ride on each<a class="headerlink" href="#two-channels-and-what-may-ride-on-each" title="Link to this heading">¶</a></h3>
+<p>Collection is split in two, because the questions split in two and so do their
+consent requirements.</p>
+<p><strong>Tier 0 — the update check.</strong> Not a small telemetry ping; an update check that
+declines to carry anything an update check does not already need. “Is there a newer
+build for this platform?” cannot be answered without the version, the OS and the
+architecture, which makes those three fields <em>strictly necessary for a service the
+user asked for</em> — the one footing on which automatic collection stands without
+consent, rather than resting on the audience-measurement reading of the ePrivacy
+exemption. The server counts what it unavoidably sees:</p>
+<ul class="simple">
+<li><p>payload <code class="docutils literal notranslate"><span class="pre">app_version</span></code>, <code class="docutils literal notranslate"><span class="pre">os</span></code>, <code class="docutils literal notranslate"><span class="pre">arch</span></code>, and nothing else. <strong>No identifier of any kind.</strong></p></li>
+<li><p>the client checks at most once a day, so checks/day ≈ daily active installs — the
+same counting trick as Firefox’s ADI and Debian’s popcon;</p></li>
+<li><p>the server increments counters, as with the geo tallies of §3.6; no rows, no IP.</p></li>
+</ul>
+<p>That yields active installs per day by version and platform, and the <strong>upgrade curve</strong>:
+how fast a release propagates and how long old ones linger, which is the whole of
+“how long must we support 2026.3”. It cannot yield unique installs per month,
+retention, or sessions per install — those need an identifier and stay in tier 1.</p>
+<p><strong>Tier 1 — the session digest.</strong> Everything else in this document, opt-in.</p>
+<p><strong>Tier 2 — the local journal.</strong> Richer than either, never transmitted, no consent
+needed because nothing leaves: <a class="reference internal" href="local_usage_model.html"><span class="std std-doc">Local Usage Model</span></a>.</p>
+<section id="why-the-split-is-worth-more-than-its-parts">
+<h4>Why the split is worth more than its parts<a class="headerlink" href="#why-the-split-is-worth-more-than-its-parts" title="Link to this heading">¶</a></h4>
+<p>The census covers very nearly the whole population by version × OS × arch. The digests
+cover the same strata at a far lower rate. Dividing them gives the <strong>opt-in rate per
+stratum</strong>, and that makes the opt-in data correctable: reweight it so its platform and
+version mix matches the census, and the structural skew is gone. Post-stratification
+turns the standard objection to opt-in — unknown bias — into measured bias.</p>
+<p>It does not fix everything. Skew <em>within</em> a stratum, power users being likelier to opt
+in than casual ones on the same platform, stays uncorrectable. But a stratum opting in
+at 40 % against another at 8 % tells you where to distrust the numbers, which opt-in
+alone can never do.</p>
+</section>
+<section id="the-invariant-that-keeps-tier-0-honest">
+<h4>The invariant that keeps tier 0 honest<a class="headerlink" href="#the-invariant-that-keeps-tier-0-honest" title="Link to this heading">¶</a></h4>
+<p><strong>Tier 0’s payload is frozen at what the update check functionally requires. Anything
+else — anything at all — goes in tier 1.</strong> The slope is real: once an automatic channel
+exists every later question will want to ride on it, each addition individually
+reasonable, and the functional-necessity argument survives exactly as long as the
+payload stays functionally necessary. A field added here is not a schema change, it is
+a change of legal basis.</p>
+<p>One dependency, stated plainly: this is free <em>if</em> MeshLab ships update checking anyway,
+which a desktop application distributed outside app stores generally should. Without
+that feature a bare census ping has no functional cover and falls back to the weaker
+audience-measurement argument.</p>
+</section>
+</section>
 <section id="consent">
-<h3>3.9 Consent<a class="headerlink" href="#consent" title="Link to this heading">¶</a></h3>
+<h3>3.10 Consent<a class="headerlink" href="#consent" title="Link to this heading">¶</a></h3>
+<p>This section governs <strong>tier 1</strong>; tier 0 is covered above, and tier 2 needs no consent.</p>
 <p><strong>Opt-in, off by default.</strong> The alternative — opt-out — yields far better coverage,
 and for a project maintained inside a European public research institution it is not
-worth defending. The honest consent flow is also the effective one: a first-run
-dialog that states the fourteen decisions, links this document, and offers a <strong>“Show me
-exactly what would be sent”</strong> button that renders the real payload from the current
-session. Opt-in rates rise sharply when the payload is inspectable, and the same
-viewer is the best debugging tool the feature has.</p>
+worth defending. The form that works is <strong>prompted choice</strong>: a first-run dialog with
+no pre-selected answer, stating the fourteen decisions, linking this document, and
+offering a <strong>“Show me exactly what would be sent”</strong> button that renders the real
+payload from the current session. Legally that is consent — freely given, specific,
+informed — so it satisfies GDPR and ePrivacy Art. 5(3) without leaning on an
+exemption, which matters because a public research body cannot fall back on legitimate
+interest. Practically it recovers most of the coverage a buried checkbox loses, and it
+changes the shape of the selection filter: “answered a dialog” is far less biased than
+“went looking in preferences”. The same viewer is the best debugging tool the feature
+has, and it is also what removes the discovery risk — nobody finds a surprise
+connection in a packet capture if they were shown the payload on first launch.</p>
 <p>Additional rules: consent is versioned, and a schema change that adds a <em>category</em> of
 data re-asks; <code class="docutils literal notranslate"><span class="pre">MESHLAB2_NO_TELEMETRY=1</span></code> and the conventional <code class="docutils literal notranslate"><span class="pre">DO_NOT_TRACK=1</span></code> force
 off; headless, Python-driven, <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code> and test runs default to off, because
 there is no one present to consent — a CI farm must never be able to skew the data.</p>
-<p>The honest cost: an opt-in cohort skews toward engaged users. Therefore <strong>absolute
-install counts are never a published or internal KPI</strong>. Only ratios within the cohort
-and version-to-version deltas are treated as sound.</p>
+<p>The honest cost: an opt-in cohort skews toward engaged users. Absolute counts from
+this tier are therefore never a KPI — the census in §3.9 is where install numbers come
+from, and the digests are reweighted against it before any cross-platform or
+cross-version comparison is published.</p>
 </section>
 </section>
 <section id="the-schema">
 <h2>4. The schema<a class="headerlink" href="#the-schema" title="Link to this heading">¶</a></h2>
-<p>One submission, one JSON object, gzipped. Illustrative rather than final:</p>
+<p><strong>Tier 0</strong> is one line, and is shown in full:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>GET /v1/update?v=2026.11&amp;os=macos&amp;arch=arm64
+</pre></div>
+</div>
+<p>No body, no identifier, no cookie; the response is the update manifest. The server
+increments <code class="docutils literal notranslate"><span class="pre">(app_version,</span> <span class="pre">os,</span> <span class="pre">arch,</span> <span class="pre">day)</span></code> and keeps nothing else.</p>
+<p><strong>Tier 1</strong> is one submission, one JSON object, gzipped — built by projecting the local
+journal of <a class="reference internal" href="local_usage_model.html"><span class="std std-doc">Local Usage Model</span></a> through the aggregate, never read
+from the journal directly (§3.1, and that document’s §5). Illustrative rather than
+final:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
 <span class="w">  </span><span class="nt">"schema"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">"consent"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
@@ -624,7 +695,7 @@ public information: the filter key that was running when the previous session
 failed to shut down cleanly.</p></li>
 <li><p><strong>I/O keys carry the plugin id</strong>, because three plugins claim <code class="docutils literal notranslate"><span class="pre">obj</span></code> and two claim
 <code class="docutils literal notranslate"><span class="pre">stl</span></code>, and <code class="docutils literal notranslate"><span class="pre">Document::preferredImportPluginForExtension</span></code>
-(<code class="docutils literal notranslate"><span class="pre">src/core/document_io.cpp:92</span></code>) makes the winner a user-visible choice. Which
+(<code class="docutils literal notranslate"><span class="pre">src/core/document_io.cpp:97</span></code>) makes the winner a user-visible choice. Which
 importer people actually end up on, and whether it fails more than its rivals, is a
 question nothing else answers.</p></li>
 <li><p><strong>No country field.</strong> It is counted at ingest instead, unlinked; see §3.6.</p></li>
@@ -646,11 +717,11 @@ already funnels everything interesting through single call sites:</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>filter runs, timing, success</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Document::runFilter</span></code> — <code class="docutils literal notranslate"><span class="pre">src/core/document_filters.cpp:50</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document::runFilter</span></code> — <code class="docutils literal notranslate"><span class="pre">src/core/document_filters.cpp:48</span></code></p></td>
 <td><p>menu, filter panel, Python API, interactive tools — all of them, and it already measures elapsed ms</p></td>
 </tr>
 <tr class="row-odd"><td><p>I/O counts, formats, failures</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Document::loadMesh</span></code> / <code class="docutils literal notranslate"><span class="pre">Document::saveMesh</span></code> — <code class="docutils literal notranslate"><span class="pre">src/core/document_io.cpp:106</span></code>, <code class="docutils literal notranslate"><span class="pre">:539</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Document::loadMesh</span></code> / <code class="docutils literal notranslate"><span class="pre">Document::saveMesh</span></code> — <code class="docutils literal notranslate"><span class="pre">src/core/document_io.cpp:131</span></code>, <code class="docutils literal notranslate"><span class="pre">:600</span></code></p></td>
 <td><p>every import and export</p></td>
 </tr>
 <tr class="row-even"><td><p>session lifecycle, unclean exit</p></td>
@@ -667,7 +738,7 @@ already funnels everything interesting through single call sites:</p>
 </tr>
 <tr class="row-odd"><td><p>wrong defaults</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Preferences::changed</span></code> — <code class="docutils literal notranslate"><span class="pre">src/core/preferences.h</span></code></p></td>
-<td><p>15 preferences</p></td>
+<td><p>42 preferences</p></td>
 </tr>
 </tbody>
 </table>
@@ -716,7 +787,7 @@ mechanism rather than a promise.</p></li>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Stable error codes on filter results</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult</span></code> — <code class="docutils literal notranslate"><span class="pre">src/plugins/meshfilterplugin.h:317</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult</span></code> — <code class="docutils literal notranslate"><span class="pre">src/plugins/meshfilterplugin.h:394</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">errorMessage</span></code> is a translated free-text <code class="docutils literal notranslate"><span class="pre">QString</span></code>; it can never be sent. Add an <code class="docutils literal notranslate"><span class="pre">errorCode</span></code> enum/interned id alongside it. Useful independently: scripts and tests can branch on a code instead of matching English prose</p></td>
 </tr>
 <tr class="row-odd"><td><p>Unclean-exit detection</p></td>
@@ -738,6 +809,10 @@ mechanism rather than a promise.</p></li>
 <tr class="row-odd"><td><p>Telemetry preferences</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">resources/preferences.json</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">stats.enabled</span></code>, <code class="docutils literal notranslate"><span class="pre">stats.consentVersion</span></code> — the existing schema renders them with no UI code, per <a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a></p></td>
+</tr>
+<tr class="row-even"><td><p>Update checking</p></td>
+<td><p>new, <code class="docutils literal notranslate"><span class="pre">src/core</span></code> + <code class="docutils literal notranslate"><span class="pre">src/ui</span></code></p></td>
+<td><p>tier 0 (§3.9) is a side effect of this feature, not a feature of its own. Wanted anyway for a desktop app distributed outside app stores; without it the automatic channel loses its justification</p></td>
 </tr>
 </tbody>
 </table>
@@ -831,6 +906,59 @@ language × app_version × month is a few tens of thousands of sparse rows a yea
 </table>
 </div>
 <p>Peak assumes a 10× diurnal factor over the average. Gzipped storage is ~40 % of raw.</p>
+<p><strong>Tier 0</strong> is the opposite shape: many more requests, essentially no storage. One
+check per active install per day, ~200 B of query string in and an update manifest
+out, counted into <code class="docutils literal notranslate"><span class="pre">(version,</span> <span class="pre">os,</span> <span class="pre">arch,</span> <span class="pre">day)</span></code> rows:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Scenario</p></th>
+<th class="head"><p>Checks/day</p></th>
+<th class="head"><p>Avg req/s</p></th>
+<th class="head"><p>Peak req/s</p></th>
+<th class="head"><p>Inbound/day</p></th>
+<th class="head"><p>Counter rows/year</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Dogfood</p></td>
+<td><p>500</p></td>
+<td><p>0.006</p></td>
+<td><p>0.06</p></td>
+<td><p>0.5 MB</p></td>
+<td><p>~25 k</p></td>
+</tr>
+<tr class="row-odd"><td><p>Established</p></td>
+<td><p>17 000</p></td>
+<td><p>0.19</p></td>
+<td><p>1.9</p></td>
+<td><p>17 MB</p></td>
+<td><p>~25 k</p></td>
+</tr>
+<tr class="row-even"><td><p>MeshLab-scale</p></td>
+<td><p>133 000</p></td>
+<td><p>1.5</p></td>
+<td><p>15</p></td>
+<td><p>133 MB</p></td>
+<td><p>~25 k</p></td>
+</tr>
+<tr class="row-odd"><td><p>Blowout</p></td>
+<td><p>533 000</p></td>
+<td><p>6.2</p></td>
+<td><p>62</p></td>
+<td><p>530 MB</p></td>
+<td><p>~25 k</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Checks/day is taken as monthly active installs × sessions ÷ 30, which counts an
+install used twice in a day once, as the daily rate limit does. The row count does not
+move with scale because it is the product of versions, platforms and days, not of
+users — a few tens of thousands of rows a year at any size.</p>
+<p>So tier 0 multiplies the request count by roughly four and adds nothing measurable to
+storage. TLS handshakes still dominate its cost: 62 req/s at the blowout peak is around
+12 % of one core. <strong>The machine in §7.3 does not change.</strong></p>
 </section>
 <section id="what-that-costs">
 <h3>7.3 What that costs<a class="headerlink" href="#what-that-costs" title="Link to this heading">¶</a></h3>
@@ -875,7 +1003,11 @@ as obfuscation, not authentication.</p>
 <li><p>a static dashboard with filter usage, failure rates, version adoption, platform mix
 and a country/region map;</p></li>
 <li><p>machine-readable aggregate CSVs, with any cell below k = 20 installs suppressed;</p></li>
-<li><p>the schema, the ingest code, and the decisions register — in this repository.</p></li>
+<li><p>the schema, the ingest code, and the decisions register — in this repository;</p></li>
+<li><p>the filter and transition counts as a small table shipped inside the application,
+where they become the cold-start prior for every install’s local predictor
+(<a class="reference internal" href="local_usage_model.html"><span class="std std-doc">Local Usage Model</span></a> §4) — contributed data coming back as a
+feature that works for everyone, including those who did not contribute.</p></li>
 </ul>
 <p>This is also what makes the feature defensible: a user who wonders what is collected
 can read the schema, press the button that shows their own payload, and then look at
@@ -893,22 +1025,26 @@ exactly what everyone’s payloads became.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>0</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Telemetry</span></code> core, counters at the funnels, local digest file, payload viewer. <strong>No network code at all.</strong></p></td>
+<td><p>The local journal and the aggregate projected from it, payload viewer. <strong>No network code at all.</strong> Shared with <a class="reference internal" href="local_usage_model.html"><span class="std std-doc">Local Usage Model</span></a> phase 0</p></td>
 <td><p>Schema mistakes are cheap now and expensive after collection starts. Dogfood a full release cycle, then delete the fields nobody looked at</p></td>
 </tr>
 <tr class="row-odd"><td><p>1</p></td>
-<td><p>Consent flow, <code class="docutils literal notranslate"><span class="pre">Qt6::Network</span></code> submitter, ingest service, raw storage</p></td>
-<td><p>Smallest thing that produces real data</p></td>
+<td><p>Tier 0: update checking, census counters, the manifest endpoint</p></td>
+<td><p>Independent of the consent question, so it need not wait for it, and it produces the denominators that phase 3 reweights against</p></td>
 </tr>
 <tr class="row-even"><td><p>2</p></td>
-<td><p>Nightly rollup, public dashboard, published CSVs</p></td>
-<td><p>Closes the loop; §8 is what earns the opt-ins</p></td>
+<td><p>Tier 1: consent flow, <code class="docutils literal notranslate"><span class="pre">Qt6::Network</span></code> submitter, ingest service, raw storage</p></td>
+<td><p>Smallest thing that produces behavioural data</p></td>
 </tr>
 <tr class="row-odd"><td><p>3</p></td>
+<td><p>Nightly rollup, post-stratification against the census, public dashboard, published CSVs</p></td>
+<td><p>Closes the loop; §8 is what earns the opt-ins</p></td>
+</tr>
+<tr class="row-even"><td><p>4</p></td>
 <td><p>Error codes, unclean-exit signal, runtime/size histograms</p></td>
 <td><p>Needs the <code class="docutils literal notranslate"><span class="pre">MeshFilterRunResult</span></code> change and is worth its own review</p></td>
 </tr>
-<tr class="row-even"><td><p>4</p></td>
+<tr class="row-odd"><td><p>5</p></td>
 <td><p>Sampling, k-anonymity tightening, cold archive</p></td>
 <td><p>Only if scale demands it; the model in §7.2 says it may never</p></td>
 </tr>
@@ -919,9 +1055,14 @@ exactly what everyone’s payloads became.</p>
 <section id="open-decisions">
 <h2>10. Open decisions<a class="headerlink" href="#open-decisions" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
-<li><p><strong>Consent model</strong> — opt-in (recommended, assumed throughout) vs. opt-out with a
-prominent first-run notice. Changes coverage by roughly 3–5× and changes the
-legal posture entirely.</p></li>
+<li><p><strong>Tier 1’s consent model</strong> — prompted choice (recommended, assumed throughout) vs.
+opt-out with a prominent first-run notice. The tiering of §3.9 lowers the stakes:
+the census already carries the install and version numbers, so what opt-out would
+buy is behavioural coverage, against an open-source backlash risk that has little
+to do with the actual privacy properties.</p></li>
+<li><p><strong>Whether tier 0 ships at all</strong>, which is really the question of whether MeshLab
+ships update checking. If it does not, the automatic channel should be dropped
+rather than justified some other way.</p></li>
 <li><p><strong>Identity model</strong> — session-only (maximum privacy, cannot separate heavy users
 from many users) vs. monthly rotating install id (recommended) vs. a stable
 install id (rejected here).</p></li>
@@ -937,6 +1078,9 @@ for a renderer-heavy application may be worth buying.</p></li>
 </section>
 <section id="related">
 <h2>Related<a class="headerlink" href="#related" title="Link to this heading">¶</a></h2>
+<p><a class="reference internal" href="local_usage_model.html"><span class="std std-doc">Local Usage Model</span></a> is the other half of the design: the same
+actions, kept in full on the user’s own machine and used to help them, with this
+document’s digest as a lossy one-way projection of it.</p>
 <p><code class="docutils literal notranslate"><span class="pre">Telemetry</span></code> is deliberately shaped like <a class="reference internal" href="../preferences.html"><span class="std std-doc"><code class="docutils literal notranslate"><span class="pre">Preferences</span></code></span></a> — a <code class="docutils literal notranslate"><span class="pre">src/core</span></code>
 singleton over a declared schema — so that adding a counter is a schema entry plus one
 call, and so that the same JSON-declared-parameters machinery can render the consent
@@ -993,7 +1137,12 @@ and settings UI without new widget code.</p>
 <li><a class="reference internal" href="#country-without-spending-bits">3.6 Country, without spending bits</a></li>
 <li><a class="reference internal" href="#the-ip-address-is-never-stored">3.7 The IP address is never stored</a></li>
 <li><a class="reference internal" href="#self-hosted-short-raw-retention-no-third-party">3.8 Self-hosted, short raw retention, no third party</a></li>
-<li><a class="reference internal" href="#consent">3.9 Consent</a></li>
+<li><a class="reference internal" href="#two-channels-and-what-may-ride-on-each">3.9 Two channels, and what may ride on each</a><ul>
+<li><a class="reference internal" href="#why-the-split-is-worth-more-than-its-parts">Why the split is worth more than its parts</a></li>
+<li><a class="reference internal" href="#the-invariant-that-keeps-tier-0-honest">The invariant that keeps tier 0 honest</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#consent">3.10 Consent</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#the-schema">4. The schema</a></li>
