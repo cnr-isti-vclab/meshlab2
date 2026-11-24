@@ -81,16 +81,26 @@ public:
         bool valid = false;
     };
 
-    // The wire is split like the fill: one non-indexed buffer per batch of faces, because a
-    // QRhi buffer size is a quint32 and a large mesh's wire does not fit in one.
-    struct WireBatchView {
+    // A non-indexed vertex stream whose size grows with the mesh is split, like the fill,
+    // into buffers of at most 256 MB: a QRhi buffer size is a quint32, and on a large mesh
+    // one buffer wrapped and silently drew only part of it. Draw every batch in turn.
+    struct BufferBatchView {
         QRhiBuffer *vertexBuffer = nullptr;
         int vertexCount = 0;
     };
 
+    struct BufferBatches {
+        const BufferBatchView *data = nullptr;
+        int count = 0;
+        const BufferBatchView *begin() const { return data; }
+        const BufferBatchView *end() const { return data + count; }
+        bool empty() const { return count == 0; }
+        // Binds each batch as vertex input 0 and draws it, with whatever pipeline is set.
+        void draw(QRhiCommandBuffer *cb) const;
+    };
+
     struct WirePassView {
-        const WireBatchView *batches = nullptr;
-        int batchCount = 0;
+        BufferBatches batches;
         bool valid = false;
     };
 
@@ -107,8 +117,7 @@ public:
     };
 
     struct PointsPassView {
-        QRhiBuffer *vertexBuffer = nullptr;
-        int vertexCount = 0;
+        BufferBatches batches;
         bool valid = false;
     };
 
@@ -119,14 +128,10 @@ public:
     };
 
     struct DecoratorPassView {
-        QRhiBuffer *vertexNormalsBuffer = nullptr;
-        int vertexNormalsVertexCount = 0;
-        QRhiBuffer *faceNormalsBuffer = nullptr;
-        int faceNormalsVertexCount = 0;
-        QRhiBuffer *curvatureDirPD1Buffer = nullptr;
-        int curvatureDirPD1VertexCount = 0;
-        QRhiBuffer *curvatureDirPD2Buffer = nullptr;
-        int curvatureDirPD2VertexCount = 0;
+        BufferBatches vertexNormals;
+        BufferBatches faceNormals;
+        BufferBatches curvatureDirPD1;
+        BufferBatches curvatureDirPD2;
         QRhiBuffer *boundaryEdgesBuffer = nullptr;
         int boundaryEdgesVertexCount = 0;
         QRhiBuffer *boundaryEdgesFatBuffer = nullptr;
@@ -145,10 +150,8 @@ public:
     };
 
     struct SelectionPassView {
-        QRhiBuffer *selectedFacesBuffer = nullptr;
-        int selectedFacesVertexCount = 0;
-        QRhiBuffer *selectedVerticesBuffer = nullptr;
-        int selectedVerticesVertexCount = 0;
+        BufferBatches selectedFaces;
+        BufferBatches selectedVertices;
         QRhiBuffer *selectedEdgesBuffer = nullptr;
         int selectedEdgesVertexCount = 0;
         // The same edges as quads, in the fat-line layout of LineRenderer::buildFatLineVertices.

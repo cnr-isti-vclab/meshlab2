@@ -223,28 +223,17 @@ void RenderWidget::renderSceneSelectionItems(
             m_selectionUbuf.get(), ubufOffset, kDecoratorUbufSize, selectionData);
         cb->resourceUpdate(uSel);
 
-        if (item.drawFaces
-            && m_selectionFacesPipeline
-            && selectionView.selectedFacesBuffer
-            && selectionView.selectedFacesVertexCount > 0) {
+        if (item.drawFaces && m_selectionFacesPipeline && !selectionView.selectedFaces.empty()) {
             cb->setGraphicsPipeline(m_selectionFacesPipeline.get());
             setShaderResourcesWithOffset(cb, m_selectionSrb.get(), ubufOffset);
-            const QRhiCommandBuffer::VertexInput fv(
-                selectionView.selectedFacesBuffer, 0);
-            cb->setVertexInput(0, 1, &fv);
-            cb->draw(selectionView.selectedFacesVertexCount);
+            selectionView.selectedFaces.draw(cb);
         }
 
-        if (item.drawVertices
-            && m_selectionVerticesPipeline
-            && selectionView.selectedVerticesBuffer
-            && selectionView.selectedVerticesVertexCount > 0) {
+        if (item.drawVertices && m_selectionVerticesPipeline
+            && !selectionView.selectedVertices.empty()) {
             cb->setGraphicsPipeline(m_selectionVerticesPipeline.get());
             setShaderResourcesWithOffset(cb, m_selectionSrb.get(), ubufOffset);
-            const QRhiCommandBuffer::VertexInput vv(
-                selectionView.selectedVerticesBuffer, 0);
-            cb->setVertexInput(0, 1, &vv);
-            cb->draw(selectionView.selectedVerticesVertexCount);
+            selectionView.selectedVertices.draw(cb);
         }
 
         if (item.drawEdges

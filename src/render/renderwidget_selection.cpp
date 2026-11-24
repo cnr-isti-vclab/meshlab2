@@ -203,12 +203,10 @@ void RenderWidget::executePendingDepthPick(
         if (m_depthPickPointsPipeline) {
             const MeshGpuResourceCache::PointsPassView pointsView =
                 m_doc->gpuCache().pointsPassView(m_rhi, m_doc->mesh(mi).meshId, pointVariant);
-            if (pointsView.valid && pointsView.vertexBuffer && pointsView.vertexCount > 0) {
+            if (pointsView.valid && !pointsView.batches.empty()) {
                 cb->setGraphicsPipeline(m_depthPickPointsPipeline.get());
                 setShaderResourcesWithOffset(cb, m_depthPickSrb.get(), ubufOffset);
-                const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
-                cb->setVertexInput(0, 1, &pv);
-                cb->draw(pointsView.vertexCount);
+                pointsView.batches.draw(cb);
             }
         }
     }
@@ -417,8 +415,7 @@ void RenderWidget::renderCurrentMeshMask(
     const bool currentHasPoints =
         currentMeshMode.showPoints
         && currentPointsView.valid
-        && currentPointsView.vertexBuffer
-        && currentPointsView.vertexCount > 0;
+        && !currentPointsView.batches.empty();
 
     if (!currentHasFill && !currentHasEdges && currentHasPoints) {
         // Keep the point-cloud outline path unchanged.
@@ -439,9 +436,7 @@ void RenderWidget::renderCurrentMeshMask(
                 ubufOffset);
             cb->setGraphicsPipeline(m_currentMaskPointsPipeline.get());
             setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
-            const QRhiCommandBuffer::VertexInput pv(currentPointsView.vertexBuffer, 0);
-            cb->setVertexInput(0, 1, &pv);
-            cb->draw(currentPointsView.vertexCount);
+            currentPointsView.batches.draw(cb);
             m_currentMaskFromPoints = true;
         }
         cb->endPass();
@@ -535,7 +530,7 @@ void RenderWidget::renderCurrentMeshMask(
                                const MeshGpuResourceCache::PointsPassView &pointsView) {
         if (!m_currentMaskPointsDepthOnlyPipeline)
             return;
-        if (!pointsView.valid || !pointsView.vertexBuffer || pointsView.vertexCount <= 0)
+        if (!pointsView.valid || pointsView.batches.empty())
             return;
         const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
         uploadMainUbufForMesh(
@@ -552,9 +547,7 @@ void RenderWidget::renderCurrentMeshMask(
             1.0f);
         cb->setGraphicsPipeline(m_currentMaskPointsDepthOnlyPipeline.get());
         setShaderResourcesWithOffset(cb, m_srb.get(), ubufOffset);
-        const QRhiCommandBuffer::VertexInput pv(pointsView.vertexBuffer, 0);
-        cb->setVertexInput(0, 1, &pv);
-        cb->draw(pointsView.vertexCount);
+        pointsView.batches.draw(cb);
     };
 
     // 1) Render current mesh into buffer A (encoded depth in color, depth test/write enabled).

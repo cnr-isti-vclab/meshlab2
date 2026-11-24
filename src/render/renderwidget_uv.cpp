@@ -968,11 +968,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             updateStyleUbuf(wireSettings);
             cb->setGraphicsPipeline(wirePipeline);
             setShaderResourcesWithOffset(cb, m_srb.get(), 0);
-            for (int bi = 0; bi < wireView.batchCount; ++bi) {
-                const QRhiCommandBuffer::VertexInput binding(wireView.batches[bi].vertexBuffer, 0);
-                cb->setVertexInput(0, 1, &binding);
-                cb->draw(quint32(wireView.batches[bi].vertexCount));
-            }
+            wireView.batches.draw(cb);
         };
         if (meshSettings.showWire)
             drawWire(meshSettings.wireColor, meshSettings.wireSize);
@@ -995,7 +991,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
         if (meshSettings.showPoints && m_pointsPipeline) {
             const MeshGpuResourceCache::PointsPassView pointsView =
                 cache.pointsPassView(m_rhi, layoutId, uvPointVariant);
-            if (pointsView.valid && pointsView.vertexCount > 0) {
+            if (pointsView.valid && !pointsView.batches.empty()) {
                 PerMeshRenderSettings pointSettings = meshSettings;
                 pointSettings.pointLighting = false;
                 // No gradient buffer is drawn for the texture view.
@@ -1003,17 +999,15 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 updateStyleUbuf(pointSettings);
                 cb->setGraphicsPipeline(m_pointsPipeline.get());
                 setShaderResourcesWithOffset(cb, m_srb.get(), 0);
-                const QRhiCommandBuffer::VertexInput binding(pointsView.vertexBuffer, 0);
-                cb->setVertexInput(0, 1, &binding);
-                cb->draw(quint32(pointsView.vertexCount));
+                pointsView.batches.draw(cb);
             }
         }
 
         // Selection overlay, reusing the 3D scene's selection pipelines so the look matches
         // (translucent red faces + red points), projected with the UV ortho MVP.
         const MeshGpuResourceCache::SelectionPassView selection = cache.selectionPassView(m_rhi, layoutId);
-        const bool hasSelFaces = selection.selectedFacesBuffer && selection.selectedFacesVertexCount > 0;
-        const bool hasSelVerts = selection.selectedVerticesBuffer && selection.selectedVerticesVertexCount > 0;
+        const bool hasSelFaces = !selection.selectedFaces.empty();
+        const bool hasSelVerts = !selection.selectedVertices.empty();
         if (m_selectionUbuf && m_selectionSrb && (hasSelFaces || hasSelVerts)) {
             const quint32 selOffset =
                 allocateDynamicUbufOffset(m_selectionUbufAllocator, "selection");
@@ -1029,16 +1023,12 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             if (hasSelFaces && m_selectionFacesPipeline) {
                 cb->setGraphicsPipeline(m_selectionFacesPipeline.get());
                 setShaderResourcesWithOffset(cb, m_selectionSrb.get(), selOffset);
-                const QRhiCommandBuffer::VertexInput fv(selection.selectedFacesBuffer, 0);
-                cb->setVertexInput(0, 1, &fv);
-                cb->draw(quint32(selection.selectedFacesVertexCount));
+                selection.selectedFaces.draw(cb);
             }
             if (hasSelVerts && m_selectionVerticesPipeline) {
                 cb->setGraphicsPipeline(m_selectionVerticesPipeline.get());
                 setShaderResourcesWithOffset(cb, m_selectionSrb.get(), selOffset);
-                const QRhiCommandBuffer::VertexInput vv(selection.selectedVerticesBuffer, 0);
-                cb->setVertexInput(0, 1, &vv);
-                cb->draw(quint32(selection.selectedVerticesVertexCount));
+                selection.selectedVertices.draw(cb);
             }
         }
     }

@@ -538,14 +538,14 @@ void RenderWidget::planSimpleBufferPasses(
             const MeshGpuResourceCache::WirePassView wireView =
                 m_doc->gpuCache().wirePassView(m_rhi, m_doc->mesh(mi).meshId);
             QRhiGraphicsPipeline *wirePipeline = wirePipelineForSettings(meshSettings);
-            for (int bi = 0; wireView.valid && bi < wireView.batchCount; ++bi) {
+            for (const auto &batch : wireView.batches) {
                 appendBufferDrawItem(
                     plan.wireItems,
                     mi,
                     wirePipeline,
                     meshSettings,
-                    wireView.batches[bi].vertexBuffer,
-                    wireView.batches[bi].vertexCount);
+                    batch.vertexBuffer,
+                    batch.vertexCount);
             }
         }
 
@@ -610,13 +610,15 @@ void RenderWidget::planSimpleBufferPasses(
                 // material's option, and the points take it whatever the layer's surface is.
                 PerMeshRenderSettings pointSettings = meshSettings;
                 pointSettings.fillMaterial = FillMaterial::Plain;
-                appendBufferDrawItem(
-                    plan.pointItems,
-                    mi,
-                    m_pointsPipeline.get(),
-                    pointSettings,
-                    pointsView.vertexBuffer,
-                    pointsView.vertexCount);
+                for (const auto &batch : pointsView.batches) {
+                    appendBufferDrawItem(
+                        plan.pointItems,
+                        mi,
+                        m_pointsPipeline.get(),
+                        pointSettings,
+                        batch.vertexBuffer,
+                        batch.vertexCount);
+                }
             }
         }
     }
@@ -660,7 +662,7 @@ void RenderWidget::planDecoratorPasses(
     };
 
     auto appendLineDecoratorItems =
-        [&](int slot, auto shouldDraw, auto colorGetter, auto bufferGetter, auto countGetter) {
+        [&](int slot, auto shouldDraw, auto colorGetter, auto batchesGetter) {
             if (!canDrawLineDecoratorSlot(slot))
                 return;
             for (const RenderMeshPassRequests &meshRequest : requests.meshes) {
@@ -679,15 +681,17 @@ void RenderWidget::planDecoratorPasses(
                 if (!decoratorView.valid)
                     continue;
 
-                appendDecoratorDrawItem(
-                    plan.decoratorItems,
-                    mi,
-                    slot,
-                    SceneDecoratorDrawKind::Line,
-                    colorGetter(meshSettings),
-                    1.0f,
-                    bufferGetter(decoratorView),
-                    countGetter(decoratorView));
+                for (const auto &batch : batchesGetter(decoratorView)) {
+                    appendDecoratorDrawItem(
+                        plan.decoratorItems,
+                        mi,
+                        slot,
+                        SceneDecoratorDrawKind::Line,
+                        colorGetter(meshSettings),
+                        1.0f,
+                        batch.vertexBuffer,
+                        batch.vertexCount);
+                }
             }
         };
 
@@ -754,10 +758,7 @@ void RenderWidget::planDecoratorPasses(
             return settings.decoratorVertexNormalColor;
         },
         [](const MeshGpuResourceCache::DecoratorPassView &view) {
-            return view.vertexNormalsBuffer;
-        },
-        [](const MeshGpuResourceCache::DecoratorPassView &view) {
-            return view.vertexNormalsVertexCount;
+            return view.vertexNormals;
         });
     appendLineDecoratorItems(
         kDecoratorSlotFaceNormals,
@@ -768,10 +769,7 @@ void RenderWidget::planDecoratorPasses(
             return settings.decoratorFaceNormalColor;
         },
         [](const MeshGpuResourceCache::DecoratorPassView &view) {
-            return view.faceNormalsBuffer;
-        },
-        [](const MeshGpuResourceCache::DecoratorPassView &view) {
-            return view.faceNormalsVertexCount;
+            return view.faceNormals;
         });
     appendLineDecoratorItems(
         kDecoratorSlotCurvaturePD1,
@@ -782,10 +780,7 @@ void RenderWidget::planDecoratorPasses(
             return settings.decoratorCurvatureDirPD1Color;
         },
         [](const MeshGpuResourceCache::DecoratorPassView &view) {
-            return view.curvatureDirPD1Buffer;
-        },
-        [](const MeshGpuResourceCache::DecoratorPassView &view) {
-            return view.curvatureDirPD1VertexCount;
+            return view.curvatureDirPD1;
         });
     appendLineDecoratorItems(
         kDecoratorSlotCurvaturePD2,
@@ -796,10 +791,7 @@ void RenderWidget::planDecoratorPasses(
             return settings.decoratorCurvatureDirPD2Color;
         },
         [](const MeshGpuResourceCache::DecoratorPassView &view) {
-            return view.curvatureDirPD2Buffer;
-        },
-        [](const MeshGpuResourceCache::DecoratorPassView &view) {
-            return view.curvatureDirPD2VertexCount;
+            return view.curvatureDirPD2;
         });
     appendFatOrLineDecoratorItems(
         kDecoratorSlotBoundaryEdges,
@@ -915,13 +907,11 @@ void RenderWidget::planSelectionPasses(
         const bool drawFaces =
             meshSettings.showSelectionFaces
             && m_selectionFacesPipeline
-            && selectionView.selectedFacesBuffer
-            && selectionView.selectedFacesVertexCount > 0;
+            && !selectionView.selectedFaces.empty();
         const bool drawVertices =
             meshSettings.showSelectionVertices
             && m_selectionVerticesPipeline
-            && selectionView.selectedVerticesBuffer
-            && selectionView.selectedVerticesVertexCount > 0;
+            && !selectionView.selectedVertices.empty();
         bool drawEdges =
             meshSettings.showSelectionEdges
             && m_selectionEdgesPipeline
