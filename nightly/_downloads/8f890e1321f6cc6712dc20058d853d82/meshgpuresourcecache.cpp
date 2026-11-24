@@ -64,9 +64,6 @@ constexpr size_t kMaxExpandedFillBatchFaces =
     kMaxExpandedFillBatchBytes / kExpandedFillTriangleBytes;
 static_assert(kMaxExpandedFillBatchFaces > 0);
 static_assert(kMaxExpandedFillBatchBytes <= std::numeric_limits<quint32>::max());
-// The wire batches by the same byte budget: 3 corners of position + barycentric per face.
-constexpr size_t kWireTriangleBytes = 3u * 6u * sizeof(float);
-constexpr size_t kMaxWireBatchFaces = kMaxExpandedFillBatchBytes / kWireTriangleBytes;
 
 int fillVariantIndex(MeshGpuResourceCache::FillVariant variant)
 {
@@ -132,6 +129,17 @@ std::uint64_t colorSourceRevision(const MeshGpuResourceCache::MeshSource &source
 
 struct MeshGpuResourceCache::CacheState
 {
+    // The buffers of one batched vertex stream, and the views handed to the draw code.
+    struct BatchedBuffer {
+        std::vector<std::unique_ptr<QRhiBuffer>> vbufs;
+        std::vector<MeshGpuResourceCache::BufferBatchView> views; // one per buffer in vbufs
+        void clear() { vbufs.clear(); views.clear(); }
+        MeshGpuResourceCache::BufferBatches batches() const
+        {
+            return { views.data(), int(views.size()) };
+        }
+    };
+
     struct FillBatchGpu {
         std::unique_ptr<QRhiBuffer> vbuf;
         std::unique_ptr<QRhiBuffer> ibuf;
@@ -164,8 +172,7 @@ struct MeshGpuResourceCache::CacheState
         std::uint64_t geometryRevision = 0;
         bool wireRespectFaux = true;
         bool valid = false;
-        std::vector<std::unique_ptr<QRhiBuffer>> vbufs;
-        std::vector<MeshGpuResourceCache::WireBatchView> views; // one per buffer in vbufs
+        BatchedBuffer buffer;
     };
 
     struct EdgeGpu {
@@ -182,8 +189,7 @@ struct MeshGpuResourceCache::CacheState
         std::uint64_t geometryRevision = 0;
         std::uint64_t colorSourceRevision = 0;
         bool valid = false;
-        std::unique_ptr<QRhiBuffer> vbuf;
-        int vertexCount = 0;
+        BatchedBuffer buffer;
     };
 
     struct BBoxGpu {
@@ -198,10 +204,8 @@ struct MeshGpuResourceCache::CacheState
         std::uint64_t materialRevision = 0;
         std::uint64_t selectionRevision = 0;
         bool valid = false;
-        std::unique_ptr<QRhiBuffer> selectedFacesVbuf;
-        int selectedFacesVertexCount = 0;
-        std::unique_ptr<QRhiBuffer> selectedVerticesVbuf;
-        int selectedVerticesVertexCount = 0;
+        BatchedBuffer selectedFaces;
+        BatchedBuffer selectedVertices;
         std::unique_ptr<QRhiBuffer> selectedEdgesVbuf;
         int selectedEdgesVertexCount = 0;
         std::unique_ptr<QRhiBuffer> selectedEdgesFatVbuf;
@@ -211,14 +215,10 @@ struct MeshGpuResourceCache::CacheState
     struct DecoratorNormalsGpu {
         std::uint64_t geometryRevision = 0;
         bool valid = false;
-        std::unique_ptr<QRhiBuffer> vertexNormalsVbuf;
-        int vertexNormalsVertexCount = 0;
-        std::unique_ptr<QRhiBuffer> faceNormalsVbuf;
-        int faceNormalsVertexCount = 0;
-        std::unique_ptr<QRhiBuffer> curvatureDirPD1Vbuf;
-        int curvatureDirPD1VertexCount = 0;
-        std::unique_ptr<QRhiBuffer> curvatureDirPD2Vbuf;
-        int curvatureDirPD2VertexCount = 0;
+        BatchedBuffer vertexNormals;
+        BatchedBuffer faceNormals;
+        BatchedBuffer curvatureDirPD1;
+        BatchedBuffer curvatureDirPD2;
     };
 
     struct DecoratorBoundaryGpu {
@@ -260,6 +260,67 @@ MeshGpuResourceCache::MeshGpuResourceCache()
 }
 
 MeshGpuResourceCache::~MeshGpuResourceCache() = default;
+
+// Adds the bytes of one mesh's buffers and textures, by product, to `s`. A template only
+// because the cache's state is private to the class: the members calling it deduce the type.
+template <class MeshGpu>
+static void addMeshGpuBytes(MeshGpuResourceCache::GpuMeshMemoryStats &s, const MeshGpu &meshGpu)
+{
+    auto bufBytes = [](const std::unique_ptr<QRhiBuffer> &buf) -> qint64 {
+        return buf ? qint64(buf->size()) : 0LL;
+    };
+    auto batchedBytes = [&](const auto &buffer) -> qint64 {
+        qint64 bytes = 0;
+        for (const auto &vbuf : buffer.vbufs)
+            bytes += bufBytes(vbuf);
+        return bytes;
+    };
+    auto texBytes = [](const std::unique_ptr<QRhiTexture> &tex) -> qint64 {
+        if (!tex)
+            return 0LL;
+        const QSize sz = tex->pixelSize();
+        return qint64(sz.width()) * sz.height() * 4; // RGBA8 = 4 bytes/pixel, 1 mip level
+    };
+
+    for (const auto &fv : meshGpu.fill) {
+        if (!fv.valid)
+            continue;
+        for (const auto &batch : fv.batches) {
+            s.fillBufferBytes += bufBytes(batch.vbuf) + bufBytes(batch.ibuf);
+            s.textureBytes += texBytes(batch.baseColorTexture)
+                            + texBytes(batch.normalTexture)
+                            + texBytes(batch.occlusionTexture)
+                            + texBytes(batch.roughnessTexture);
+        }
+    }
+    if (meshGpu.wire.valid)
+        s.wireBufferBytes += batchedBytes(meshGpu.wire.buffer);
+    if (meshGpu.edges.valid)
+        s.edgeBufferBytes += bufBytes(meshGpu.edges.vbuf) + bufBytes(meshGpu.edges.fatVbuf);
+    for (const auto &pv : meshGpu.points) {
+        if (pv.valid)
+            s.pointsBufferBytes += batchedBytes(pv.buffer);
+    }
+    if (meshGpu.bbox.valid)
+        s.bboxBufferBytes += bufBytes(meshGpu.bbox.vbuf);
+    if (meshGpu.selection.valid)
+        s.selectionBufferBytes += batchedBytes(meshGpu.selection.selectedFaces)
+                                + batchedBytes(meshGpu.selection.selectedVertices);
+    if (meshGpu.decoratorNormals.valid)
+        s.decoratorNormalsBytes += batchedBytes(meshGpu.decoratorNormals.vertexNormals)
+                                 + batchedBytes(meshGpu.decoratorNormals.faceNormals)
+                                 + batchedBytes(meshGpu.decoratorNormals.curvatureDirPD1)
+                                 + batchedBytes(meshGpu.decoratorNormals.curvatureDirPD2);
+    if (meshGpu.decoratorBoundaries.valid)
+        s.decoratorBoundariesBytes +=
+            bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesFatVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.textureSeamsVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.textureSeamsFatVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesFatVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.nonManifoldVerticesVbuf);
+}
 
 MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     QRhi *rhi,
@@ -507,7 +568,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
                 auto packExpandedFace =
                     [&](const VCGFace &f,
-                        std::vector<float> &groupData,
+                        float *groupData,
                         size_t startBase,
                         bool useTextureForFace) {
                         QVector3D faceRgb(1.0f, 1.0f, 1.0f);
@@ -584,12 +645,15 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                      firstFace += kMaxExpandedFillBatchFaces) {
                     const size_t lastFace = firstFace + std::min(
                         kMaxExpandedFillBatchFaces, faceContainerSize - firstFace);
-                    std::map<int, std::vector<float>> groupedTriangles;
+                    // Built as QByteArrays so each one is moved into the upload, not copied.
+                    std::map<int, QByteArray> groupedTriangles;
 
                     if (!useTextureColor && compactFaces) {
-                        std::vector<float> &groupData = groupedTriangles[-1];
-                        groupData.resize(
-                            (lastFace - firstFace) * 3u * size_t(kFillVertexStrideFloats));
+                        QByteArray &groupBytes = groupedTriangles[-1];
+                        groupBytes = QByteArray(
+                            qsizetype((lastFace - firstFace) * kExpandedFillTriangleBytes),
+                            Qt::Uninitialized);
+                        float *groupData = reinterpret_cast<float *>(groupBytes.data());
                         parallelFor(lastFace - firstFace, [&](size_t first, size_t last) {
                             for (size_t localFi = first; localFi < last; ++localFi) {
                                 packExpandedFace(
@@ -621,24 +685,25 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                                 }
                             }
 
-                            std::vector<float> &groupData = groupedTriangles[textureGroup];
-                            const size_t startBase = groupData.size();
-                            groupData.resize(
-                                groupData.size() + 3u * size_t(kFillVertexStrideFloats));
+                            QByteArray &groupBytes = groupedTriangles[textureGroup];
+                            const size_t startBase = size_t(groupBytes.size()) / sizeof(float);
+                            groupBytes.resize(
+                                groupBytes.size() + qsizetype(kExpandedFillTriangleBytes));
                             packExpandedFace(
-                                f, groupData, startBase, useTextureForFace);
+                                f, reinterpret_cast<float *>(groupBytes.data()), startBase,
+                                useTextureForFace);
                         }
                     }
 
                     for (auto &groupEntry : groupedTriangles) {
-                        if (groupEntry.second.empty())
+                        if (groupEntry.second.isEmpty())
                             continue;
 
-                        const size_t bufferBytes = groupEntry.second.size() * sizeof(float);
+                        const size_t bufferBytes = size_t(groupEntry.second.size());
                         CacheState::FillBatchGpu batch;
                         batch.textureGroupIndex = groupEntry.first;
-                        batch.vertexCount =
-                            static_cast<int>(groupEntry.second.size() / kFillVertexStrideFloats);
+                        batch.vertexCount = static_cast<int>(
+                            bufferBytes / (sizeof(float) * kFillVertexStrideFloats));
                         batch.indexCount = 0;
                         batch.vbuf.reset(
                             rhi->newBuffer(
@@ -650,7 +715,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                             continue;
                         }
                         ensureUpdates()->uploadStaticBuffer(
-                            batch.vbuf.get(), groupEntry.second.data());
+                            batch.vbuf.get(), std::move(groupEntry.second));
 
                         QImage baseTextureUploadImage;
                         QImage normalTextureUploadImage;
@@ -838,84 +903,182 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     }
                 }
             } else {
-                CacheState::FillBatchGpu batch;
-                const int vertexCount = meshData.VN();
-                const int indexCount = meshData.FN() * 3;
-                if (vertexCount <= 0 || indexCount <= 0)
+                if (meshData.VN() <= 0 || meshData.FN() <= 0)
                     return true;
 
-                std::vector<float> vdata(
-                    size_t(vertexCount) * size_t(kFillVertexStrideFloats));
                 const float useMeshColor = useVertexStyleColor ? 1.0f : 0.0f;
-                parallelFor(size_t(vertexCount), [&](size_t first, size_t last) {
-                    for (size_t vi = first; vi < last; ++vi) {
-                        const auto &v = meshData.vert[vi];
-                        QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
-                        if (useVertexColor) {
-                            const auto vc = v.cC();
-                            vertexRgb = QVector3D(
-                                static_cast<float>(vc[0]) / 255.0f,
-                                static_cast<float>(vc[1]) / 255.0f,
-                                static_cast<float>(vc[2]) / 255.0f);
-                        }
-                        const size_t base = vi * size_t(kFillVertexStrideFloats);
-                        vdata[base + 0] = v.cP()[0];
-                        vdata[base + 1] = v.cP()[1];
-                        vdata[base + 2] = v.cP()[2];
-                        vdata[base + 3] = v.cN()[0];
-                        vdata[base + 4] = v.cN()[1];
-                        vdata[base + 5] = v.cN()[2];
-                        if (useVertexQuality) {
-                            writeQualitySlots(&vdata[base + 6], float(v.cQ()), false);
-                        } else {
-                            vdata[base + 6] = vertexRgb.x();
-                            vdata[base + 7] = vertexRgb.y();
-                            vdata[base + 8] = vertexRgb.z();
-                            vdata[base + 9] = useMeshColor;
-                        }
-                        vdata[base + 10] = 0.0f;
-                        vdata[base + 11] = 0.0f;
-                        vdata[base + 12] = 0.0f;
+                auto packVertex = [&](const VCGVertex &v, float *out) {
+                    QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                    if (useVertexColor) {
+                        const auto vc = v.cC();
+                        vertexRgb = QVector3D(
+                            static_cast<float>(vc[0]) / 255.0f,
+                            static_cast<float>(vc[1]) / 255.0f,
+                            static_cast<float>(vc[2]) / 255.0f);
+                    }
+                    out[0] = v.cP()[0];
+                    out[1] = v.cP()[1];
+                    out[2] = v.cP()[2];
+                    out[3] = v.cN()[0];
+                    out[4] = v.cN()[1];
+                    out[5] = v.cN()[2];
+                    if (useVertexQuality) {
+                        writeQualitySlots(out + 6, float(v.cQ()), false);
+                    } else {
+                        out[6] = vertexRgb.x();
+                        out[7] = vertexRgb.y();
+                        out[8] = vertexRgb.z();
+                        out[9] = useMeshColor;
+                    }
+                    out[10] = 0.0f;
+                    out[11] = 0.0f;
+                    out[12] = 0.0f;
+                };
+
+                // One vertex buffer for the whole mesh wrapped its quint32 size above about 82M
+                // vertices. The faces are cut, in order, into batches whose vertices and indices
+                // each fit the fill's byte budget; every batch has its own vertex buffer and its
+                // faces are re-indexed into it, so a vertex used on both sides of a cut is
+                // stored twice. In a scan's face order a batch's faces are close together and
+                // few vertices repeat. Built as QByteArrays, moved into the upload.
+                constexpr quint32 kNoIndex = std::numeric_limits<quint32>::max();
+                const size_t vertexBytes = size_t(kFillVertexStrideFloats) * sizeof(float);
+                const size_t faceBytes = 3u * sizeof(quint32);
+                const size_t maxBatchVertices = kMaxExpandedFillBatchBytes / vertexBytes;
+                const size_t maxBatchFaces = kMaxExpandedFillBatchBytes / faceBytes;
+                std::vector<quint32> localIndex(meshData.vert.size(), kNoIndex);
+                std::vector<size_t> batchVertices; // the mesh index of each batch vertex
+                const size_t faceCount = meshData.face.size();
+                // The faces' vertex indices, read in parallel: the remapping below has to run
+                // in order, and over the faces themselves it was bound by one thread's memory
+                // bandwidth. A deleted face is marked by kNoIndex in its first corner.
+                std::vector<quint32> corners(faceCount * 3u);
+                parallelFor(faceCount, [&](size_t first, size_t last) {
+                    for (size_t i = first; i < last; ++i) {
+                        const VCGFace &f = meshData.face[i];
+                        for (int c = 0; c < 3; ++c)
+                            corners[i * 3 + c] = f.IsD()
+                                ? kNoIndex
+                                : quint32(vcg::tri::Index(meshData, f.cV(c)));
                     }
                 });
-
-                std::vector<quint32> idata(static_cast<size_t>(indexCount));
-                parallelFor(size_t(meshData.FN()), [&](size_t first, size_t last) {
-                    for (size_t fi = first; fi < last; ++fi) {
-                        const auto &f = meshData.face[fi];
-                        idata[fi * 3 + 0] =
-                            static_cast<quint32>(vcg::tri::Index(meshData, f.cV(0)));
-                        idata[fi * 3 + 1] =
-                            static_cast<quint32>(vcg::tri::Index(meshData, f.cV(1)));
-                        idata[fi * 3 + 2] =
-                            static_cast<quint32>(vcg::tri::Index(meshData, f.cV(2)));
+                size_t fi = 0;
+                while (fi < faceCount) {
+                    batchVertices.clear();
+                    QByteArray ibytes(
+                        qsizetype(std::min(maxBatchFaces, faceCount - fi) * faceBytes),
+                        Qt::Uninitialized);
+                    quint32 *idata = reinterpret_cast<quint32 *>(ibytes.data());
+                    size_t batchFaces = 0;
+                    for (; fi < faceCount; ++fi) {
+                        const quint32 *vi = &corners[fi * 3];
+                        if (vi[0] == kNoIndex)
+                            continue;
+                        size_t fresh = 0;
+                        for (int c = 0; c < 3; ++c)
+                            fresh += localIndex[vi[c]] == kNoIndex;
+                        if (batchFaces == maxBatchFaces
+                            || batchVertices.size() + fresh > maxBatchVertices)
+                            break;
+                        for (int c = 0; c < 3; ++c) {
+                            if (localIndex[vi[c]] == kNoIndex) {
+                                localIndex[vi[c]] = quint32(batchVertices.size());
+                                batchVertices.push_back(vi[c]);
+                            }
+                            idata[batchFaces * 3 + c] = localIndex[vi[c]];
+                        }
+                        ++batchFaces;
                     }
-                });
+                    for (const size_t vi : batchVertices)
+                        localIndex[vi] = kNoIndex;
+                    if (batchFaces == 0)
+                        continue;
+                    ibytes.resize(qsizetype(batchFaces * faceBytes));
 
-                batch.vbuf.reset(
-                    rhi->newBuffer(
-                        QRhiBuffer::Immutable,
-                        QRhiBuffer::VertexBuffer,
-                        static_cast<quint32>(vdata.size() * sizeof(float))));
-                batch.ibuf.reset(
-                    rhi->newBuffer(
-                        QRhiBuffer::Immutable,
-                        QRhiBuffer::IndexBuffer,
-                        static_cast<quint32>(idata.size() * sizeof(quint32))));
-                    if (!batch.vbuf || !batch.ibuf || !batch.vbuf->create() || !batch.ibuf->create()) {
-                        batch.vbuf.reset();
-                        batch.ibuf.reset();
+                    QByteArray vbytes(qsizetype(batchVertices.size() * vertexBytes),
+                                      Qt::Uninitialized);
+                    float *vdata = reinterpret_cast<float *>(vbytes.data());
+                    parallelFor(batchVertices.size(), [&](size_t first, size_t last) {
+                        for (size_t i = first; i < last; ++i)
+                            packVertex(meshData.vert[batchVertices[i]],
+                                       vdata + i * size_t(kFillVertexStrideFloats));
+                    });
+
+                    CacheState::FillBatchGpu batch;
+                    batch.vbuf.reset(rhi->newBuffer(
+                        QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, quint32(vbytes.size())));
+                    batch.ibuf.reset(rhi->newBuffer(
+                        QRhiBuffer::Immutable, QRhiBuffer::IndexBuffer, quint32(ibytes.size())));
+                    if (!batch.vbuf || !batch.ibuf || !batch.vbuf->create()
+                        || !batch.ibuf->create()) {
+                        dst.batches.clear();
                         return true;
                     }
-
-                ensureUpdates()->uploadStaticBuffer(batch.vbuf.get(), vdata.data());
-                ensureUpdates()->uploadStaticBuffer(batch.ibuf.get(), idata.data());
-                batch.vertexCount = vertexCount;
-                batch.indexCount = indexCount;
-                dst.batches.push_back(std::move(batch));
+                    batch.vertexCount = int(batchVertices.size());
+                    batch.indexCount = int(size_t(ibytes.size()) / sizeof(quint32));
+                    ensureUpdates()->uploadStaticBuffer(batch.vbuf.get(), std::move(vbytes));
+                    ensureUpdates()->uploadStaticBuffer(batch.ibuf.get(), std::move(ibytes));
+                    dst.batches.push_back(std::move(batch));
+                }
             }
             return true;
         };
+
+    // Packs `count` items into vertex buffers of at most kMaxExpandedFillBatchBytes, the
+    // fill's budget: a QRhi buffer size is a quint32, and one buffer for a large mesh wrapped.
+    // Each item is `itemFloats` floats and `itemVertices` vertices; pack(i, out) writes item i
+    // to out and returns false to leave it out. A dense stream keeps every item and packs in
+    // parallel; a sparse one appends what it keeps, so its memory follows what is kept. Each
+    // batch is built in a QByteArray and moved into the update batch, since QRhi copies the
+    // data of the pointer overload.
+    auto buildBatched = [&](CacheState::BatchedBuffer &dst, size_t count, size_t itemFloats,
+                            int itemVertices, bool dense, auto &&pack) {
+        dst.clear();
+        const size_t itemBytes = itemFloats * sizeof(float);
+        const size_t perBatch = kMaxExpandedFillBatchBytes / itemBytes;
+        QByteArray bytes;
+        size_t packed = 0;
+        auto flush = [&]() -> bool {
+            if (packed == 0)
+                return true;
+            std::unique_ptr<QRhiBuffer> vbuf(rhi->newBuffer(
+                QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, quint32(bytes.size())));
+            if (!vbuf || !vbuf->create()) {
+                dst.clear();
+                return false;
+            }
+            ensureUpdates()->uploadStaticBuffer(vbuf.get(), std::move(bytes));
+            dst.views.push_back({ vbuf.get(), int(packed) * itemVertices });
+            dst.vbufs.push_back(std::move(vbuf));
+            bytes = QByteArray();
+            packed = 0;
+            return true;
+        };
+        if (dense) {
+            for (size_t first = 0; first < count; first += perBatch) {
+                const size_t n = std::min(perBatch, count - first);
+                bytes = QByteArray(qsizetype(n * itemBytes), Qt::Uninitialized);
+                float *out = reinterpret_cast<float *>(bytes.data());
+                parallelFor(n, [&](size_t a, size_t b) {
+                    for (size_t i = a; i < b; ++i)
+                        pack(first + i, out + i * itemFloats);
+                });
+                packed = n;
+                if (!flush())
+                    return;
+            }
+            return;
+        }
+        std::vector<float> item(itemFloats);
+        for (size_t i = 0; i < count; ++i) {
+            if (!pack(i, item.data()))
+                continue;
+            bytes.append(reinterpret_cast<const char *>(item.data()), qsizetype(itemBytes));
+            if (++packed == perBatch && !flush())
+                return;
+        }
+        flush();
+    };
 
     auto rebuildWire = [&](CacheState::WireGpu &dst) -> bool {
         if (dst.valid && dst.geometryRevision == source.geometryRevision
@@ -925,14 +1088,16 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
         dst.wireRespectFaux = source.wireRespectFaux;
-        dst.vbufs.clear();
-        dst.views.clear();
+        dst.buffer.clear();
 
         if (meshData.FN() <= 0)
             return true;
 
-        std::vector<float> vdata;
-        auto packFace = [&](const VCGFace &f, size_t outFi) {
+        // Three corners of position + barycentric coordinates per face.
+        auto packFace = [&](size_t fi, float *out) -> bool {
+            const VCGFace &f = meshData.face[fi];
+            if (f.IsD())
+                return false;
             // Standard barycentric assignment: corner k → (0…1…0) with 1 at position k.
             // To suppress a FAUX edge e (between corners e and (e+1)%3):
             // set component (e+2)%3 to 1.0 at both those corners, so that
@@ -953,51 +1118,18 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             }
             for (int corner = 0; corner < 3; ++corner) {
                 const auto *vertex = f.cV(corner);
-                const size_t base = (outFi * 3u + size_t(corner)) * 6u;
-                vdata[base + 0] = vertex->cP()[0];
-                vdata[base + 1] = vertex->cP()[1];
-                vdata[base + 2] = vertex->cP()[2];
-                vdata[base + 3] = bary[corner][0];
-                vdata[base + 4] = bary[corner][1];
-                vdata[base + 5] = bary[corner][2];
+                float *o = out + corner * 6;
+                o[0] = vertex->cP()[0];
+                o[1] = vertex->cP()[1];
+                o[2] = vertex->cP()[2];
+                o[3] = bary[corner][0];
+                o[4] = bary[corner][1];
+                o[5] = bary[corner][2];
             }
+            return true;
         };
-
-        const size_t faceContainerSize = meshData.face.size();
-        const bool compactFaces = faceContainerSize == size_t(meshData.FN());
-        for (size_t firstFace = 0; firstFace < faceContainerSize; firstFace += kMaxWireBatchFaces) {
-            const size_t lastFace =
-                firstFace + std::min(kMaxWireBatchFaces, faceContainerSize - firstFace);
-            vdata.resize((lastFace - firstFace) * 3u * 6u);
-            size_t packed = 0;
-            if (compactFaces) {
-                parallelFor(lastFace - firstFace, [&](size_t first, size_t last) {
-                    for (size_t localFi = first; localFi < last; ++localFi)
-                        packFace(meshData.face[firstFace + localFi], localFi);
-                });
-                packed = lastFace - firstFace;
-            } else {
-                for (size_t fi = firstFace; fi < lastFace; ++fi) {
-                    if (!meshData.face[fi].IsD())
-                        packFace(meshData.face[fi], packed++);
-                }
-            }
-            if (packed == 0)
-                continue;
-
-            std::unique_ptr<QRhiBuffer> vbuf(rhi->newBuffer(
-                QRhiBuffer::Immutable,
-                QRhiBuffer::VertexBuffer,
-                static_cast<quint32>(packed * kWireTriangleBytes)));
-            if (!vbuf || !vbuf->create()) {
-                dst.vbufs.clear();
-                dst.views.clear();
-                return true;
-            }
-            ensureUpdates()->uploadStaticBuffer(vbuf.get(), vdata.data());
-            dst.views.push_back({ vbuf.get(), int(packed * 3u) });
-            dst.vbufs.push_back(std::move(vbuf));
-        }
+        const bool compactFaces = meshData.face.size() == size_t(meshData.FN());
+        buildBatched(dst.buffer, meshData.face.size(), 18, 3, compactFaces, packFace);
         return true;
     };
 
@@ -1011,8 +1143,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             dst.valid = true;
             dst.geometryRevision = source.geometryRevision;
             dst.colorSourceRevision = colorRevision;
-            dst.vbuf.reset();
-            dst.vertexCount = 0;
+            dst.buffer.clear();
 
             if (meshData.VN() <= 0)
                 return true;
@@ -1028,58 +1159,44 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const bool useVertexStyleColor = useVertexColor || useVertexQuality;
             const float useMeshColor = useVertexStyleColor ? 1.0f : 0.0f;
 
-            std::vector<float> pdata(
-                size_t(meshData.VN()) * size_t(kPointsVertexStrideFloats));
-            parallelFor(size_t(meshData.VN()), [&](size_t first, size_t last) {
-                for (size_t vi = first; vi < last; ++vi) {
-                    const auto &v = meshData.vert[vi];
-                    QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
-                    if (useVertexColor) {
-                        const auto vc = v.cC();
-                        vertexRgb = QVector3D(
-                            static_cast<float>(vc[0]) / 255.0f,
-                            static_cast<float>(vc[1]) / 255.0f,
-                            static_cast<float>(vc[2]) / 255.0f);
-                    }
-                    const size_t base = vi * size_t(kPointsVertexStrideFloats);
-                    pdata[base + 0] = v.cP()[0];
-                    pdata[base + 1] = v.cP()[1];
-                    pdata[base + 2] = v.cP()[2];
-                    if (useVertexQuality) {
-                        writeQualitySlots(&pdata[base + 3], float(v.cQ()), false);
-                    } else {
-                        pdata[base + 3] = vertexRgb.x();
-                        pdata[base + 4] = vertexRgb.y();
-                        pdata[base + 5] = vertexRgb.z();
-                        pdata[base + 6] = useMeshColor;
-                    }
-                    const float nx = v.cN()[0];
-                    const float ny = v.cN()[1];
-                    const float nz = v.cN()[2];
-                    const float nLen2 = nx * nx + ny * ny + nz * nz;
-                    const bool normalFinite =
-                        std::isfinite(nx) && std::isfinite(ny) && std::isfinite(nz);
-                    const bool hasUsableNormal =
-                        meshHasVertexNormal && normalFinite
-                        && nLen2 > 1e-12f && nLen2 < 1e12f;
-                    pdata[base + 7] = hasUsableNormal ? nx : 0.0f;
-                    pdata[base + 8] = hasUsableNormal ? ny : 0.0f;
-                    pdata[base + 9] = hasUsableNormal ? nz : 1.0f;
-                    pdata[base + 10] = hasUsableNormal ? 1.0f : 0.0f;
+            auto packVertex = [&](size_t vi, float *out) -> bool {
+                const auto &v = meshData.vert[vi];
+                QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                if (useVertexColor) {
+                    const auto vc = v.cC();
+                    vertexRgb = QVector3D(
+                        static_cast<float>(vc[0]) / 255.0f,
+                        static_cast<float>(vc[1]) / 255.0f,
+                        static_cast<float>(vc[2]) / 255.0f);
                 }
-            });
-
-            dst.vbuf.reset(
-                rhi->newBuffer(
-                    QRhiBuffer::Immutable,
-                    QRhiBuffer::VertexBuffer,
-                    static_cast<quint32>(pdata.size() * sizeof(float))));
-            if (!dst.vbuf || !dst.vbuf->create()) {
-                dst.vbuf.reset();
+                out[0] = v.cP()[0];
+                out[1] = v.cP()[1];
+                out[2] = v.cP()[2];
+                if (useVertexQuality) {
+                    writeQualitySlots(out + 3, float(v.cQ()), false);
+                } else {
+                    out[3] = vertexRgb.x();
+                    out[4] = vertexRgb.y();
+                    out[5] = vertexRgb.z();
+                    out[6] = useMeshColor;
+                }
+                const float nx = v.cN()[0];
+                const float ny = v.cN()[1];
+                const float nz = v.cN()[2];
+                const float nLen2 = nx * nx + ny * ny + nz * nz;
+                const bool normalFinite =
+                    std::isfinite(nx) && std::isfinite(ny) && std::isfinite(nz);
+                const bool hasUsableNormal =
+                    meshHasVertexNormal && normalFinite
+                    && nLen2 > 1e-12f && nLen2 < 1e12f;
+                out[7] = hasUsableNormal ? nx : 0.0f;
+                out[8] = hasUsableNormal ? ny : 0.0f;
+                out[9] = hasUsableNormal ? nz : 1.0f;
+                out[10] = hasUsableNormal ? 1.0f : 0.0f;
                 return true;
-            }
-            ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), pdata.data());
-            dst.vertexCount = meshData.VN();
+            };
+            buildBatched(dst.buffer, size_t(meshData.VN()), kPointsVertexStrideFloats, 1, true,
+                         packVertex);
             return true;
         };
 
@@ -1240,10 +1357,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.geometryRevision = source.geometryRevision;
         dst.materialRevision = source.materialRevision;
         dst.selectionRevision = source.selectionRevision;
-        dst.selectedFacesVbuf.reset();
-        dst.selectedFacesVertexCount = 0;
-        dst.selectedVerticesVbuf.reset();
-        dst.selectedVerticesVertexCount = 0;
+        dst.selectedFaces.clear();
+        dst.selectedVertices.clear();
         dst.selectedEdgesVbuf.reset();
         dst.selectedEdgesVertexCount = 0;
         dst.selectedEdgesFatVbuf.reset();
@@ -1252,66 +1367,32 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         if (meshData.VN() <= 0)
             return true;
 
-        std::vector<float> selectedFaceTriangles;
-        // Sized to the selection, not the mesh: reserving for every face cost hundreds of
-        // MB on a large scan for each selection change, however little was selected.
-        selectedFaceTriangles.reserve(vcg::tri::UpdateSelection<VCGMesh>::FaceCount(meshData) * 9);
-        for (int fi = 0; fi < meshData.FN(); ++fi) {
+        // Batched and appended as kept, so the memory follows the selection, not the mesh.
+        buildBatched(dst.selectedFaces, size_t(meshData.FN()), 9, 3, false,
+                     [&](size_t fi, float *out) {
             const auto &f = meshData.face[fi];
             if (f.IsD() || !f.IsS())
-                continue;
+                return false;
             for (int corner = 0; corner < 3; ++corner) {
                 const auto *v = f.cV(corner);
                 if (!v)
-                    continue;
-                selectedFaceTriangles.push_back(v->cP()[0]);
-                selectedFaceTriangles.push_back(v->cP()[1]);
-                selectedFaceTriangles.push_back(v->cP()[2]);
+                    return false;
+                out[corner * 3 + 0] = v->cP()[0];
+                out[corner * 3 + 1] = v->cP()[1];
+                out[corner * 3 + 2] = v->cP()[2];
             }
-        }
-
-        if (!selectedFaceTriangles.empty()) {
-            dst.selectedFacesVbuf.reset(
-                rhi->newBuffer(
-                    QRhiBuffer::Immutable,
-                    QRhiBuffer::VertexBuffer,
-                    static_cast<quint32>(selectedFaceTriangles.size() * sizeof(float))));
-            if (!dst.selectedFacesVbuf || !dst.selectedFacesVbuf->create()) {
-                dst.selectedFacesVbuf.reset();
-            } else {
-                ensureUpdates()->uploadStaticBuffer(
-                    dst.selectedFacesVbuf.get(), selectedFaceTriangles.data());
-                dst.selectedFacesVertexCount =
-                    static_cast<int>(selectedFaceTriangles.size() / 3);
-            }
-        }
-
-        std::vector<float> selectedVertices;
-        selectedVertices.reserve(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(meshData) * 3);
-        for (int vi = 0; vi < meshData.VN(); ++vi) {
+            return true;
+        });
+        buildBatched(dst.selectedVertices, size_t(meshData.VN()), 3, 1, false,
+                     [&](size_t vi, float *out) {
             const auto &v = meshData.vert[vi];
             if (v.IsD() || !v.IsS())
-                continue;
-            selectedVertices.push_back(v.cP()[0]);
-            selectedVertices.push_back(v.cP()[1]);
-            selectedVertices.push_back(v.cP()[2]);
-        }
-
-        if (!selectedVertices.empty()) {
-            dst.selectedVerticesVbuf.reset(
-                rhi->newBuffer(
-                    QRhiBuffer::Immutable,
-                    QRhiBuffer::VertexBuffer,
-                    static_cast<quint32>(selectedVertices.size() * sizeof(float))));
-            if (!dst.selectedVerticesVbuf || !dst.selectedVerticesVbuf->create()) {
-                dst.selectedVerticesVbuf.reset();
-            } else {
-                ensureUpdates()->uploadStaticBuffer(
-                    dst.selectedVerticesVbuf.get(), selectedVertices.data());
-                dst.selectedVerticesVertexCount =
-                    static_cast<int>(selectedVertices.size() / 3);
-            }
-        }
+                return false;
+            out[0] = v.cP()[0];
+            out[1] = v.cP()[1];
+            out[2] = v.cP()[2];
+            return true;
+        });
 
         // Selected edges come from two unrelated places. A triangle mesh keeps them as
         // per-face bits, duplicated on both faces of an interior edge, so they have to
@@ -1407,14 +1488,10 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
-        dst.vertexNormalsVbuf.reset();
-        dst.vertexNormalsVertexCount = 0;
-        dst.faceNormalsVbuf.reset();
-        dst.faceNormalsVertexCount = 0;
-        dst.curvatureDirPD1Vbuf.reset();
-        dst.curvatureDirPD1VertexCount = 0;
-        dst.curvatureDirPD2Vbuf.reset();
-        dst.curvatureDirPD2VertexCount = 0;
+        dst.vertexNormals.clear();
+        dst.faceNormals.clear();
+        dst.curvatureDirPD1.clear();
+        dst.curvatureDirPD2.clear();
 
         if (meshData.VN() <= 0)
             return true;
@@ -1422,9 +1499,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         const float diag = meshData.bbox.Diag();
         const float normalLength = std::max(1e-4f, diag * 0.02f);
 
-        std::vector<float> vertexNormalLines;
-        vertexNormalLines.reserve(static_cast<size_t>(meshData.VN()) * 6);
-        for (int vi = 0; vi < meshData.VN(); ++vi) {
+        buildBatched(dst.vertexNormals, size_t(meshData.VN()), 6, 2, false,
+                     [&](size_t vi, float *out) {
             const auto &v = meshData.vert[vi];
             const float nx = v.cN()[0];
             const float ny = v.cN()[1];
@@ -1433,7 +1509,7 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 std::isfinite(nx) && std::isfinite(ny) && std::isfinite(nz);
             const float nLen2 = nx * nx + ny * ny + nz * nz;
             if (!finite || nLen2 < 1e-12f || nLen2 > 1e12f)
-                continue;
+                return false;
 
             const float invLen = 1.0f / std::sqrt(nLen2);
             const float dx = nx * invLen * normalLength;
@@ -1442,19 +1518,17 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const float px = v.cP()[0];
             const float py = v.cP()[1];
             const float pz = v.cP()[2];
-            vertexNormalLines.push_back(px);
-            vertexNormalLines.push_back(py);
-            vertexNormalLines.push_back(pz);
-            vertexNormalLines.push_back(px + dx);
-            vertexNormalLines.push_back(py + dy);
-            vertexNormalLines.push_back(pz + dz);
-        }
-        uploadLineBuffer(
-            vertexNormalLines, dst.vertexNormalsVbuf, dst.vertexNormalsVertexCount);
+            out[0] = px;
+            out[1] = py;
+            out[2] = pz;
+            out[3] = px + dx;
+            out[4] = py + dy;
+            out[5] = pz + dz;
+            return true;
+        });
 
-        std::vector<float> faceNormalLines;
-        faceNormalLines.reserve(static_cast<size_t>(meshData.FN()) * 6);
-        for (int fi = 0; fi < meshData.FN(); ++fi) {
+        buildBatched(dst.faceNormals, size_t(meshData.FN()), 6, 2, false,
+                     [&](size_t fi, float *out) {
             const auto &f = meshData.face[fi];
             const auto *v0 = f.cV(0);
             const auto *v1 = f.cV(1);
@@ -1481,64 +1555,46 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             }
             const float finalLen2 = nx * nx + ny * ny + nz * nz;
             if (finalLen2 < 1e-12f || finalLen2 > 1e12f)
-                continue;
+                return false;
             const float invLen = 1.0f / std::sqrt(finalLen2);
             const float dx = nx * invLen * normalLength;
             const float dy = ny * invLen * normalLength;
             const float dz = nz * invLen * normalLength;
-            faceNormalLines.push_back(cx);
-            faceNormalLines.push_back(cy);
-            faceNormalLines.push_back(cz);
-            faceNormalLines.push_back(cx + dx);
-            faceNormalLines.push_back(cy + dy);
-            faceNormalLines.push_back(cz + dz);
-        }
-        uploadLineBuffer(faceNormalLines, dst.faceNormalsVbuf, dst.faceNormalsVertexCount);
+            out[0] = cx;
+            out[1] = cy;
+            out[2] = cz;
+            out[3] = cx + dx;
+            out[4] = cy + dy;
+            out[5] = cz + dz;
+            return true;
+        });
 
         // Curvature principal directions (PD1 = max, PD2 = min), drawn symmetrically.
         if (meshData.VN() > 0 && !meshData.vert.empty()
             && meshData.vert[0].IsCurvatureDirEnabled()) {
-            std::vector<float> pd1Lines, pd2Lines;
-            pd1Lines.reserve(static_cast<size_t>(meshData.VN()) * 6);
-            pd2Lines.reserve(static_cast<size_t>(meshData.VN()) * 6);
-            for (int vi = 0; vi < meshData.VN(); ++vi) {
-                const auto &v = meshData.vert[vi];
-                if (v.IsD())
-                    continue;
-                const float px = v.cP()[0];
-                const float py = v.cP()[1];
-                const float pz = v.cP()[2];
-                // PD1 (max curvature direction)
-                const float d1x = v.cPD1()[0];
-                const float d1y = v.cPD1()[1];
-                const float d1z = v.cPD1()[2];
-                const float d1Len2 = d1x*d1x + d1y*d1y + d1z*d1z;
-                if (std::isfinite(d1x) && std::isfinite(d1y) && std::isfinite(d1z)
-                    && d1Len2 > 1e-12f && d1Len2 < 1e12f) {
-                    const float inv = 1.0f / std::sqrt(d1Len2);
-                    const float ex = d1x * inv * normalLength;
-                    const float ey = d1y * inv * normalLength;
-                    const float ez = d1z * inv * normalLength;
-                    pd1Lines.push_back(px - ex); pd1Lines.push_back(py - ey); pd1Lines.push_back(pz - ez);
-                    pd1Lines.push_back(px + ex); pd1Lines.push_back(py + ey); pd1Lines.push_back(pz + ez);
-                }
-                // PD2 (min curvature direction)
-                const float d2x = v.cPD2()[0];
-                const float d2y = v.cPD2()[1];
-                const float d2z = v.cPD2()[2];
-                const float d2Len2 = d2x*d2x + d2y*d2y + d2z*d2z;
-                if (std::isfinite(d2x) && std::isfinite(d2y) && std::isfinite(d2z)
-                    && d2Len2 > 1e-12f && d2Len2 < 1e12f) {
-                    const float inv = 1.0f / std::sqrt(d2Len2);
-                    const float ex = d2x * inv * normalLength;
-                    const float ey = d2y * inv * normalLength;
-                    const float ez = d2z * inv * normalLength;
-                    pd2Lines.push_back(px - ex); pd2Lines.push_back(py - ey); pd2Lines.push_back(pz - ez);
-                    pd2Lines.push_back(px + ex); pd2Lines.push_back(py + ey); pd2Lines.push_back(pz + ez);
-                }
-            }
-            uploadLineBuffer(pd1Lines, dst.curvatureDirPD1Vbuf, dst.curvatureDirPD1VertexCount);
-            uploadLineBuffer(pd2Lines, dst.curvatureDirPD2Vbuf, dst.curvatureDirPD2VertexCount);
+            // A segment along the direction, centered on the vertex.
+            auto packDirection = [&](bool pd1) {
+                return [&, pd1](size_t vi, float *out) {
+                    const auto &v = meshData.vert[vi];
+                    if (v.IsD())
+                        return false;
+                    const auto d = pd1 ? v.cPD1() : v.cPD2();
+                    const float dLen2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+                    if (!(std::isfinite(d[0]) && std::isfinite(d[1]) && std::isfinite(d[2]))
+                        || dLen2 <= 1e-12f || dLen2 >= 1e12f)
+                        return false;
+                    const float scale = normalLength / std::sqrt(dLen2);
+                    for (int k = 0; k < 3; ++k) {
+                        out[k] = v.cP()[k] - d[k] * scale;
+                        out[3 + k] = v.cP()[k] + d[k] * scale;
+                    }
+                    return true;
+                };
+            };
+            buildBatched(dst.curvatureDirPD1, size_t(meshData.VN()), 6, 2, false,
+                         packDirection(true));
+            buildBatched(dst.curvatureDirPD2, size_t(meshData.VN()), 6, 2, false,
+                         packDirection(false));
         }
         return true;
     };
@@ -1868,6 +1924,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         cb->resourceUpdate(updates);
 
     stats.elapsedMs = float(timer.nsecsElapsed() / 1000000.0);
+    stats.bytes.meshId = source.meshId;
+    addMeshGpuBytes(stats.bytes, meshCache);
     return stats;
 }
 
@@ -1937,6 +1995,15 @@ MeshGpuResourceCache::FillPassView MeshGpuResourceCache::fillPassView(
     return view;
 }
 
+void MeshGpuResourceCache::BufferBatches::draw(QRhiCommandBuffer *cb) const
+{
+    for (const BufferBatchView &batch : *this) {
+        const QRhiCommandBuffer::VertexInput binding(batch.vertexBuffer, 0);
+        cb->setVertexInput(0, 1, &binding);
+        cb->draw(quint32(batch.vertexCount));
+    }
+}
+
 MeshGpuResourceCache::WirePassView MeshGpuResourceCache::wirePassView(QRhi *rhi, std::uint64_t meshId) const
 {
     if (!m_state || !rhi || meshId == 0)
@@ -1953,7 +2020,7 @@ MeshGpuResourceCache::WirePassView MeshGpuResourceCache::wirePassView(QRhi *rhi,
     if (!wire.valid)
         return {};
 
-    return { wire.views.data(), int(wire.views.size()), true };
+    return { wire.buffer.batches(), true };
 }
 
 MeshGpuResourceCache::EdgePassView MeshGpuResourceCache::edgePassView(
@@ -2015,7 +2082,7 @@ MeshGpuResourceCache::PointsPassView MeshGpuResourceCache::pointsPassView(
     if (!points.valid)
         return {};
 
-    return { points.vbuf.get(), points.vertexCount, true };
+    return { points.buffer.batches(), true };
 }
 
 MeshGpuResourceCache::BBoxPassView MeshGpuResourceCache::bboxPassView(QRhi *rhi, std::uint64_t meshId) const
@@ -2056,10 +2123,8 @@ MeshGpuResourceCache::SelectionPassView MeshGpuResourceCache::selectionPassView(
 
     SelectionPassView view;
     view.valid = true;
-    view.selectedFacesBuffer = selection.selectedFacesVbuf.get();
-    view.selectedFacesVertexCount = selection.selectedFacesVertexCount;
-    view.selectedVerticesBuffer = selection.selectedVerticesVbuf.get();
-    view.selectedVerticesVertexCount = selection.selectedVerticesVertexCount;
+    view.selectedFaces = selection.selectedFaces.batches();
+    view.selectedVertices = selection.selectedVertices.batches();
     view.selectedEdgesBuffer = selection.selectedEdgesVbuf.get();
     view.selectedEdgesVertexCount = selection.selectedEdgesVertexCount;
     view.selectedEdgesFatBuffer = selection.selectedEdgesFatVbuf.get();
@@ -2087,14 +2152,10 @@ MeshGpuResourceCache::DecoratorPassView MeshGpuResourceCache::decoratorPassView(
 
     DecoratorPassView view;
     view.valid = true;
-    view.vertexNormalsBuffer = normalDecor.vertexNormalsVbuf.get();
-    view.vertexNormalsVertexCount = normalDecor.vertexNormalsVertexCount;
-    view.faceNormalsBuffer = normalDecor.faceNormalsVbuf.get();
-    view.faceNormalsVertexCount = normalDecor.faceNormalsVertexCount;
-    view.curvatureDirPD1Buffer = normalDecor.curvatureDirPD1Vbuf.get();
-    view.curvatureDirPD1VertexCount = normalDecor.curvatureDirPD1VertexCount;
-    view.curvatureDirPD2Buffer = normalDecor.curvatureDirPD2Vbuf.get();
-    view.curvatureDirPD2VertexCount = normalDecor.curvatureDirPD2VertexCount;
+    view.vertexNormals = normalDecor.vertexNormals.batches();
+    view.faceNormals = normalDecor.faceNormals.batches();
+    view.curvatureDirPD1 = normalDecor.curvatureDirPD1.batches();
+    view.curvatureDirPD2 = normalDecor.curvatureDirPD2.batches();
     view.boundaryEdgesBuffer = boundaryDecor.boundaryEdgesVbuf.get();
     view.boundaryEdgesVertexCount = boundaryDecor.boundaryEdgesVertexCount;
     view.boundaryEdgesFatBuffer = boundaryDecor.boundaryEdgesFatVbuf.get();
@@ -2130,61 +2191,11 @@ void MeshGpuResourceCache::releaseRhiResources(QRhi *rhi)
 std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> MeshGpuResourceCache::gpuMemoryStats() const
 {
     std::map<std::uint64_t, GpuMeshMemoryStats> byMesh;
-
-    auto bufBytes = [](const std::unique_ptr<QRhiBuffer> &buf) -> qint64 {
-        return buf ? qint64(buf->size()) : 0LL;
-    };
-    auto texBytes = [](const std::unique_ptr<QRhiTexture> &tex) -> qint64 {
-        if (!tex)
-            return 0LL;
-        const QSize sz = tex->pixelSize();
-        return qint64(sz.width()) * sz.height() * 4; // RGBA8 = 4 bytes/pixel, 1 mip level
-    };
-
     for (const auto &[rhi, byId] : m_state->byRhi) {
         for (const auto &[meshId, meshGpu] : byId) {
             auto &s = byMesh[meshId];
             s.meshId = meshId;
-
-            for (const auto &fv : meshGpu.fill) {
-                if (!fv.valid)
-                    continue;
-                for (const auto &batch : fv.batches) {
-                    s.fillBufferBytes += bufBytes(batch.vbuf) + bufBytes(batch.ibuf);
-                    s.textureBytes += texBytes(batch.baseColorTexture)
-                                    + texBytes(batch.normalTexture)
-                                    + texBytes(batch.occlusionTexture)
-                                    + texBytes(batch.roughnessTexture);
-                }
-            }
-            if (meshGpu.wire.valid)
-                for (const auto &vbuf : meshGpu.wire.vbufs)
-                    s.wireBufferBytes += bufBytes(vbuf);
-            if (meshGpu.edges.valid)
-                s.edgeBufferBytes += bufBytes(meshGpu.edges.vbuf) + bufBytes(meshGpu.edges.fatVbuf);
-            for (const auto &pv : meshGpu.points) {
-                if (pv.valid)
-                    s.pointsBufferBytes += bufBytes(pv.vbuf);
-            }
-            if (meshGpu.bbox.valid)
-                s.bboxBufferBytes += bufBytes(meshGpu.bbox.vbuf);
-            if (meshGpu.selection.valid)
-                s.selectionBufferBytes += bufBytes(meshGpu.selection.selectedFacesVbuf)
-                                        + bufBytes(meshGpu.selection.selectedVerticesVbuf);
-            if (meshGpu.decoratorNormals.valid)
-                s.decoratorBufferBytes += bufBytes(meshGpu.decoratorNormals.vertexNormalsVbuf)
-                                        + bufBytes(meshGpu.decoratorNormals.faceNormalsVbuf)
-                                        + bufBytes(meshGpu.decoratorNormals.curvatureDirPD1Vbuf)
-                                        + bufBytes(meshGpu.decoratorNormals.curvatureDirPD2Vbuf);
-            if (meshGpu.decoratorBoundaries.valid)
-                s.decoratorBufferBytes +=
-                    bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesFatVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.textureSeamsVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.textureSeamsFatVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesFatVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.nonManifoldVerticesVbuf);
+            addMeshGpuBytes(s, meshGpu);
         }
     }
 

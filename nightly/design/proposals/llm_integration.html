@@ -247,22 +247,15 @@
           <section class="tex2jax_ignore mathjax_ignore" id="llm-integration">
 <h1>LLM Integration<a class="headerlink" href="#llm-integration" title="Link to this heading">¶</a></h1>
 <p>This document maps the option space for driving MeshLab from a large language
-model. <strong>Nothing described here is implemented.</strong> It exists to make the design
-choices explicit before any code is written, and to record which of MeshLab’s
-existing mechanisms are already load-bearing for this purpose.</p>
+model and says which path we would take. <strong>Nothing described here is
+implemented, and none of it is scheduled.</strong> It exists to make the design choices
+explicit before any code is written, and to name which of MeshLab’s existing
+mechanisms are already load-bearing for this purpose.</p>
 <p>See also: <a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a> (layers and ownership),
-<a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the current <code class="docutils literal notranslate"><span class="pre">ms</span></code> / <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> surface in the app),
+<a class="reference internal" href="../../python_scripting.html"><span class="std std-doc">Python Scripting</span></a> (the <code class="docutils literal notranslate"><span class="pre">ms</span></code> / <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> surface),
 <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> (the naming grammar that makes filters machine-legible),
 <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a> and <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>
 (descriptor schema).</p>
-<section id="status">
-<h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
-<p>As of 2026-11-03: no LLM integration exists, and none is scheduled. Two of the
-prerequisites in <a class="reference internal" href="#staging"><span class="xref myst">Staging</span></a> have since landed for their own reasons —
-descriptor and naming discipline, and the convergence of the headless wheel
-build with the application build. The first step that is actually about models
-(a headless tool server) has not been started.</p>
-</section>
 <section id="the-substrate-that-already-exists">
 <h2>The substrate that already exists<a class="headerlink" href="#the-substrate-that-already-exists" title="Link to this heading">¶</a></h2>
 <p>MeshLab is closer to being model-drivable than it looks. The relevant assets:</p>
@@ -275,7 +268,7 @@ build with the application build. The first step that is actually about models
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p><strong>403 filters / 38 plugins</strong>, 1381 declared parameters</p></td>
+<tr class="row-even"><td><p><strong>423 filters / 39 plugins</strong>, 1473 declared parameters</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">plugins/*/filters.json</span></code></p></td>
 <td><p>Each descriptor carries <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">pythonName</span></code>, <code class="docutils literal notranslate"><span class="pre">shortDescription</span></code>, <code class="docutils literal notranslate"><span class="pre">longDescriptionMarkdown</span></code>, <code class="docutils literal notranslate"><span class="pre">tags</span></code>, <code class="docutils literal notranslate"><span class="pre">categories</span></code>, <code class="docutils literal notranslate"><span class="pre">inputDomain</span></code>/<code class="docutils literal notranslate"><span class="pre">outputDomain</span></code>, <code class="docutils literal notranslate"><span class="pre">inputRequirements</span></code>, and typed <code class="docutils literal notranslate"><span class="pre">parameters</span></code> with <code class="docutils literal notranslate"><span class="pre">default</span></code>/<code class="docutils literal notranslate"><span class="pre">min</span></code>/<code class="docutils literal notranslate"><span class="pre">max</span></code>/<code class="docutils literal notranslate"><span class="pre">help</span></code>. This is a tool schema already; converting it to JSON Schema is mechanical.</p></td>
 </tr>
@@ -296,7 +289,7 @@ build with the application build. The first step that is actually about models
 <td><p>The observation half of an act/observe loop.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Declared input requirements</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">requireFaces</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertices</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextureCoordinates</span></code>, <code class="docutils literal notranslate"><span class="pre">requirePerWedgeTexCoords</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextures</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaceQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaceColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireEdges</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">requireFaces</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertices</span></code>, <code class="docutils literal notranslate"><span class="pre">requireEdges</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaceQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireEdgeQuality</span></code>, <code class="docutils literal notranslate"><span class="pre">requireVertexColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireFaceColor</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextureCoordinates</span></code>, <code class="docutils literal notranslate"><span class="pre">requirePerVertexTexCoords</span></code>, <code class="docutils literal notranslate"><span class="pre">requirePerWedgeTexCoords</span></code>, <code class="docutils literal notranslate"><span class="pre">requireTextures</span></code></p></td>
 <td><p>Machine-checkable preconditions — a caller can repair state instead of guessing.</p></td>
 </tr>
 <tr class="row-even"><td><p><strong>20 measurement / information filters</strong></p></td>
@@ -308,7 +301,7 @@ build with the application build. The first step that is actually about models
 <td><p>Visual feedback for a multimodal model.</p></td>
 </tr>
 <tr class="row-even"><td><p>Scale-relative parameter types</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">absperc</span></code>, <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code> expressions</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">absperc</span></code> (97 parameters), <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiag</span></code> expressions</p></td>
 <td><p>Directly addresses the hardest grounding problem (see below).</p></td>
 </tr>
 <tr class="row-odd"><td><p>Reproducibility</p></td>
@@ -316,8 +309,12 @@ build with the application build. The first step that is actually about models
 <td><p>Audit trail, single-step rollback, and a replayable transcript, all free.</p></td>
 </tr>
 <tr class="row-even"><td><p>Seed discipline</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code> declared by 50 filters across 12 plugins, resolved via <code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">randomSeed</span></code> declared by 52 filters across 13 plugins, resolved via <code class="docutils literal notranslate"><span class="pre">FilterParams::getRandomSeed()</span></code></p></td>
 <td><p>Randomized filters can be made deterministic on demand.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Importable headless package</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> wheels, built from this repository’s build graph and binding sources for CPython 3.10–3.14 on macOS arm64 and Windows x64</p></td>
+<td><p>A tool server can <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">pymeshlab2</span></code> with no GUI. The wheel links the whole plugin set, so it exposes the same filters as the application.</p></td>
 </tr>
 </tbody>
 </table>
@@ -325,86 +322,25 @@ build with the application build. The first step that is actually about models
 </section>
 <section id="what-is-missing">
 <h2>What is missing<a class="headerlink" href="#what-is-missing" title="Link to this heading">¶</a></h2>
-<p>One substantial gap, and one that has closed.</p>
-<section id="closed-the-headless-build-now-follows-the-application-build">
-<h3>Closed: the headless build now follows the application build<a class="headerlink" href="#closed-the-headless-build-now-follows-the-application-build" title="Link to this heading">¶</a></h3>
-<p>This was previously the largest obstacle. The fix first landed in the separate
-wheel repository <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>, now archived, and came here with the wheel
-itself (see <a class="reference internal" href="#packaging-location"><span class="xref myst">Packaging location</span></a>). The arrangement today:</p>
 <ul class="simple">
-<li><p><em>Bindings</em> are shared by construction. <code class="docutils literal notranslate"><span class="pre">src/python/bindings/sources.cmake</span></code>
-defines <code class="docutils literal notranslate"><span class="pre">MESHLAB2_PYTHON_BINDING_SOURCES</span></code>, and both consumers include it:
-this repository’s static <code class="docutils literal notranslate"><span class="pre">_meshlab2_bindings</span></code> (embedded console) and the
-wheel’s <code class="docutils literal notranslate"><span class="pre">nanobind_add_module(_meshlab</span> <span class="pre">NB_STATIC</span> <span class="pre">…)</span></code>.</p></li>
-<li><p><em>The build graph</em> is no longer restated. The wheel is built from this
-repository’s root <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> and links the whole <code class="docutils literal notranslate"><span class="pre">MeshLab2Plugins</span></code>
-target, so a plugin added here appears there without edits; the plugin
-opt-outs the separate repository carried are gone.</p></li>
-<li><p><em>Packaging</em> exists: <code class="docutils literal notranslate"><span class="pre">cibuildwheel</span></code> for CPython 3.10–3.14 on macOS arm64 and
-Windows x64, <code class="docutils literal notranslate"><span class="pre">delvewheel</span></code> / a macOS repair script, and bundling of the geogram
-runtime and the QuadWild and TextureConsolidation helper programs.</p></li>
+<li><p><strong>No IPC of any kind.</strong> No <code class="docutils literal notranslate"><span class="pre">QLocalServer</span></code>, no socket, no RPC. Driving the
+<em>live</em> document from outside the process requires new plumbing plus thread
+marshalling onto the GUI thread, and has to interact correctly with the
+existing “block UI while filters run” behaviour.</p></li>
+<li><p><strong>No batch command line.</strong> The executable accepts only <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code> and
+<code class="docutils literal notranslate"><span class="pre">--capture-window</span></code>; there is no <code class="docutils literal notranslate"><span class="pre">meshlab</span> <span class="pre">--script</span> <span class="pre">foo.py</span></code>.</p></li>
+<li><p><strong>The wheel is not on PyPI</strong>, and there are no Linux wheels. An out-of-tree
+server is easy to install only once <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">pymeshlab2</span></code> works.</p></li>
 </ul>
-<p>Two consequences remain, and both matter for a model-facing catalogue:</p>
-<ol class="arabic simple">
-<li><p><strong>The wheel’s filter set is a subset, and its size is not pinned.</strong> The
-opt-outs above are deliberate, but <code class="docutils literal notranslate"><span class="pre">MESHLAB2_REQUIRE_VCPKG_DEPS</span> <span class="pre">OFF</span></code> also
-lets plugins drop out silently when an optional dependency is unavailable in
-the wheel environment. A build is therefore not self-describing: the only way
-to know what a given wheel exposes is to ask it. A locally built extension
-checked during this review reported <strong>304 filters against 403 declared in
-<code class="docutils literal notranslate"><span class="pre">plugins/*/filters.json</span></code></strong> — part stale build, part disabled plugins, with
-nothing distinguishing the two. Built in-tree (2026-11-03, with
-<code class="docutils literal notranslate"><span class="pre">REQUIRE_VCPKG_DEPS</span></code> back on and the opt-outs dropped) the wheel lists 405,
-the application’s exact set — but the rule below stands, since an
-installed wheel can still lag the tree it is compared against.</p></li>
-<li><p><em>Resolved:</em> <strong>the submodule pin was a standing source of staleness.</strong> The
-separate wheel repository pinned MeshLab as a submodule, and that pin
-trailed <code class="docutils literal notranslate"><span class="pre">devel</span></code> by 135 commits when this was written. Folding the wheel into
-this repository removed the pin; see <a class="reference internal" href="#packaging-location"><span class="xref myst">Packaging location</span></a>
-below.</p></li>
-</ol>
-<p>A model that is told “these are MeshLab’s filters” should be told so by the
-build it is actually talking to. Any tool server must enumerate filters from the
-live <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code>, never from this repository’s descriptors, and should report the
-backing version alongside.</p>
 </section>
-<section id="open-no-ipc-of-any-kind">
-<h3>Open: no IPC of any kind<a class="headerlink" href="#open-no-ipc-of-any-kind" title="Link to this heading">¶</a></h3>
-<p>No <code class="docutils literal notranslate"><span class="pre">QLocalServer</span></code>, no socket, no RPC. Driving the <em>live</em> document from outside
-the process requires new plumbing plus thread marshalling onto the GUI thread,
-and has to interact correctly with the existing “block UI while filters run”
-behaviour. Nothing here has changed.</p>
-</section>
-</section>
-<section id="packaging-location">
-<h2>Packaging location<a class="headerlink" href="#packaging-location" title="Link to this heading">¶</a></h2>
-<p>Decided 2026-11-03: the wheel folds into this repository, ahead of step 2.
-Carried out by 2026-11-22: the <code class="docutils literal notranslate"><span class="pre">2026.11</span></code> release built the wheels from its tag and
-the old repository is archived. The record is
-<a class="reference internal" href="../history/pymeshlab_merge.html"><span class="std std-doc">Folding the pymeshlab2 wheel into this repository</span></a>;
-what follows is the reasoning that led there, as written before the move.</p>
-<p>The wheel lived in <code class="docutils literal notranslate"><span class="pre">cignoni/pymeshlab2</span></code>, which held 23 files outside the
-submodule: a <code class="docutils literal notranslate"><span class="pre">cibuildwheel</span></code> workflow, <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> (mostly the toggles
-above), <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>, <code class="docutils literal notranslate"><span class="pre">vcpkg.json</span></code>, a ~35-line <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> of runtime
-library shims, a macOS wheel-repair script, six examples and five test files.
-Everything else it builds comes from the submodule.</p>
-<p>The duplication is in CI rather than in code. This repository’s workflows
-already install Qt, bootstrap vcpkg pinned to the manifest baseline, apply the
-overlay triplets in <code class="docutils literal notranslate"><span class="pre">ci/vcpkg-triplets</span></code>, and cache vcpkg artifacts across jobs,
-on both macOS arm64 and Windows x64. <code class="docutils literal notranslate"><span class="pre">wheels.yml</span></code> re-implements that sequence,
-and already reaches back through the submodule for the triplets
-(<code class="docutils literal notranslate"><span class="pre">VCPKG_OVERLAY_TRIPLETS:</span> <span class="pre">…/external/meshlab2/ci/vcpkg-triplets</span></code>).</p>
-<p>Folding the wheel in — a root <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code> for scikit-build-core, plus a
-tag-triggered workflow reusing the existing Qt and vcpkg steps — deletes
-the submodule pin, the second vcpkg manifest, and the duplicated CI setup. The
-arguments for keeping it separate are release cadence (a wheel release need not
-be an application release), CI budget, and PyPI project identity; the first two
-are solvable with a separate workflow trigger, and the third is settled by the
-name below.</p>
-<p>The name is settled as <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>, for the wheel and for the in-app facade
-(renamed from <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> 2026-11-03); <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> on PyPI stays with the
-legacy PyMeshLab, which a calendar-versioned <code class="docutils literal notranslate"><span class="pre">2026.11</span></code> would otherwise
-overwrite as an ordinary <code class="docutils literal notranslate"><span class="pre">pip</span></code> upgrade.</p>
+<section id="the-catalogue-comes-from-the-build">
+<h2>The catalogue comes from the build<a class="headerlink" href="#the-catalogue-comes-from-the-build" title="Link to this heading">¶</a></h2>
+<p>A model that is told “these are MeshLab’s filters” should be told so by the build
+it is actually talking to. Any tool server enumerates filters from the live
+<code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> (<code class="docutils literal notranslate"><span class="pre">list_filters()</span></code>), never from this repository’s descriptors, and
+reports the backing version alongside. Today the wheel and the application carry
+the same set, but an installed wheel can lag the tree it is compared against, and
+a build without an optional dependency drops that plugin’s filters.</p>
 </section>
 <section id="four-independent-axes">
 <h2>Four independent axes<a class="headerlink" href="#four-independent-axes" title="Link to this heading">¶</a></h2>
@@ -428,7 +364,7 @@ than a shipped dependency.</p></li>
 <li><p><strong>Code generation.</strong> The model writes Python; the existing console runs it.
 One integration point, very large reach, no new schema work. Weakness: no
 structured error recovery unless a loop is built around it.</p></li>
-<li><p><strong>One tool per filter.</strong> Precise and fully validated, but 403 tools with 1381
+<li><p><strong>One tool per filter.</strong> Precise and fully validated, but 423 tools with 1473
 parameters exceeds the practical tool budget of every current model.</p></li>
 <li><p><strong>Search / describe / apply.</strong> A small fixed tool set over dynamic discovery
 in the descriptors. Almost certainly the right shape; the vocabulary work is
@@ -439,9 +375,9 @@ what makes the search leg viable.</p></li>
 <section id="c-how-it-is-wired">
 <h3>C. How it is wired<a class="headerlink" href="#c-how-it-is-wired" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p><strong>Out-of-process, headless.</strong> An MCP (or similar) server over an importable
-<code class="docutils literal notranslate"><span class="pre">_meshlab</span></code>. No GUI, no C++ changes beyond the extension-module packaging.
-Testable in CI, safe to iterate on, works with existing model clients.</p></li>
+<li><p><strong>Out-of-process, headless.</strong> An MCP (or similar) server over <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>.
+No GUI and no C++ changes. Testable in CI, safe to iterate on, works with
+existing model clients.</p></li>
 <li><p><strong>Out-of-process, live document.</strong> The same server attached to a running
 MeshLab over <code class="docutils literal notranslate"><span class="pre">QLocalServer</span></code>. Substantially more valuable — the user watches
 the mesh change, edits land in the undo graph, the viewport is the feedback —
@@ -450,8 +386,7 @@ and the only option needing real new plumbing.</p></li>
 re-implementing an agent harness (streaming, tool loop, provider config,
 cancellation, cost accounting) that existing clients already provide.</p></li>
 <li><p><strong>CLI batch mode</strong> (<code class="docutils literal notranslate"><span class="pre">meshlab</span> <span class="pre">--script</span> <span class="pre">foo.py</span></code>). Not LLM-specific, but the
-substrate for headless automation and CI. Currently only <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code>
-exists.</p></li>
+substrate for headless automation and CI.</p></li>
 </ul>
 </section>
 <section id="d-what-it-is-for">
@@ -480,8 +415,8 @@ with the filter set reached through discovery rather than enumeration:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>        model
           │
    ┌──────┴───────────────────────────────────────────┐
-   │  search_filters(query)      → ranked descriptors │  descriptors
-   │  describe_filter(name)      → full param schema  │  (filters.json)
+   │  search_filters(query)      → ranked descriptors │  MeshSet::list_filters()
+   │  describe_filter(name)      → full param schema  │  (live build)
    │  apply_filter(name, params) → FilterRunResult    │  Document::runFilter
    │  get_document_state()       → layers, bbox, caps │  Document
    │  measure(kind)              → outputValues       │  Measurement/* filters
@@ -502,7 +437,7 @@ Every result must carry scale context, and callers should be steered toward
 <code class="docutils literal notranslate"><span class="pre">absperc</span></code> parameters rather than absolute ones.</p></li>
 <li><p><strong>Descriptor quality is the actual bottleneck.</strong> Model competence is bounded
 by the quality of <code class="docutils literal notranslate"><span class="pre">help</span></code> and <code class="docutils literal notranslate"><span class="pre">shortDescription</span></code>. The vocabulary, naming, and
-classification work already underway <em>is</em> the enabling work here.</p></li>
+classification work <em>is</em> the enabling work here, and it is never finished.</p></li>
 <li><p><strong>Long-running calls.</strong> Filters can run for minutes; agent clients assume fast
 tools. Needs progress, cancellation, and an async contract.</p></li>
 <li><p><strong>Safety gates.</strong> File writes, <code class="docutils literal notranslate"><span class="pre">clear()</span></code>, destructive topology changes need
@@ -520,24 +455,18 @@ transcript replays identically.</p></li>
 </section>
 <section id="staging">
 <h2>Staging<a class="headerlink" href="#staging" title="Link to this heading">¶</a></h2>
-<p>Ordered by risk and by what each step unblocks.</p>
-<ol class="arabic simple" start="0">
-<li><p><strong>Descriptor and naming quality.</strong> <em>Done, and ongoing.</em> Pursued for its own
-reasons; it remains the prerequisite regardless of which path is taken, and
-its quality still bounds everything downstream.</p></li>
-<li><p><strong>Converge the headless build with the application build.</strong> <em>Done</em> — see
-<a class="reference internal" href="#closed-the-headless-build-now-follows-the-application-build"><span class="xref myst">What is missing</span></a>.
-The wheel consumes this repository’s build graph and binding sources rather
-than restating them, and ships through <code class="docutils literal notranslate"><span class="pre">cibuildwheel</span></code>. What remains is
-bookkeeping, not structure: the submodule pin, and making a build state which
-filters it actually carries.</p></li>
-<li><p><strong>Headless tool server</strong> over that package, out of tree. <em>Next.</em> Find out
+<p>Ordered by risk and by what each step unblocks. Descriptor and naming quality
+is the standing prerequisite for all of them: whichever path is taken, its
+quality bounds everything downstream.</p>
+<ol class="arabic simple">
+<li><p><strong>Headless tool server</strong> over <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code>, out of tree. Find out
 empirically where a model goes wrong before designing around assumptions.
-Must enumerate filters from the live <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code>, not from <code class="docutils literal notranslate"><span class="pre">plugins/*.json</span></code>.</p></li>
+Enumerates filters from the live <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> and reports the wheel’s version.
+Publishing the wheel to PyPI makes it installable by anyone.</p></li>
 <li><p><strong>Sensor and vision tools</strong> in the same server, closing the act/observe loop.</p></li>
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">QLocalServer</span></code> bridge</strong> so the same server can attach to a running GUI
 session.</p></li>
-<li><p><strong>In-app chat dock</strong> — only if 1–4 prove out and the goal shifts from a
+<li><p><strong>In-app chat dock</strong> — only if 1–3 prove out and the goal shifts from a
 power-user capability to a shipped feature.</p></li>
 </ol>
 </section>
@@ -590,14 +519,9 @@ power-user capability to a shipped feature.</p></li>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">LLM Integration</a><ul>
-<li><a class="reference internal" href="#status">Status</a></li>
 <li><a class="reference internal" href="#the-substrate-that-already-exists">The substrate that already exists</a></li>
-<li><a class="reference internal" href="#what-is-missing">What is missing</a><ul>
-<li><a class="reference internal" href="#closed-the-headless-build-now-follows-the-application-build">Closed: the headless build now follows the application build</a></li>
-<li><a class="reference internal" href="#open-no-ipc-of-any-kind">Open: no IPC of any kind</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#packaging-location">Packaging location</a></li>
+<li><a class="reference internal" href="#what-is-missing">What is missing</a></li>
+<li><a class="reference internal" href="#the-catalogue-comes-from-the-build">The catalogue comes from the build</a></li>
 <li><a class="reference internal" href="#four-independent-axes">Four independent axes</a><ul>
 <li><a class="reference internal" href="#a-where-the-model-runs">A. Where the model runs</a></li>
 <li><a class="reference internal" href="#b-what-the-model-manipulates">B. What the model manipulates</a></li>

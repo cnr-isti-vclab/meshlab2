@@ -18,6 +18,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QStyle>
+#include <QLineEdit>
 #include <QShortcut>
 #include <QImageReader>
 #include <QImageWriter>
@@ -1375,6 +1376,10 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
     treeSplitter->addWidget(m_meshTree);
 
     connect(m_meshTree, &QTreeWidget::itemChanged, this, &LayerWidget::onTreeItemChanged);
+    connect(m_meshTree, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem *item) {
+        if (item && item->data(0, kRoleTextureIndex).isValid())
+            editTextureName(item);
+    });
     connect(m_meshTree, &QTreeWidget::currentItemChanged, this, &LayerWidget::onTreeCurrentItemChanged);
 
     auto *rasterTree = new LayerTreeWidget(kRoleRasterIndex, this);
@@ -1985,7 +1990,9 @@ void LayerWidget::rebuildTree()
             item->setData(0, kRoleLayerKind, kLayerKindMesh);
             item->setData(0, kRoleMeshIndex, i);
             item->setData(0, kRoleMeshId, qulonglong(entry.meshId));
-            item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+            // Editable: typing a name renames the layer (onTreeItemChanged).
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable
+                           | Qt::ItemIsEnabled | Qt::ItemIsEditable);
             item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
             item->setFirstColumnSpanned(true);
 
@@ -2134,7 +2141,8 @@ void LayerWidget::rebuildTree()
             item->setData(0, kRoleLayerKind, kLayerKindRaster);
             item->setData(0, kRoleRasterIndex, i);
             item->setData(0, kRoleRasterId, qulonglong(entry.rasterId));
-            item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+            item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsSelectable
+                           | Qt::ItemIsEnabled | Qt::ItemIsEditable);
             item->setCheckState(0, entry.visible ? Qt::Checked : Qt::Unchecked);
             item->setFirstColumnSpanned(true);
 
@@ -2410,6 +2418,13 @@ void LayerWidget::onTreeItemChanged(QTreeWidgetItem *item, int column)
     if (ref.index < 0)
         return;
 
+    // The name and the eye share the column: a text that is not the layer's name is a rename.
+    const QString name = ref.kind == LayerItemKind::Mesh ? m_doc->mesh(ref.index).name
+                                                         : m_doc->raster(ref.index).name;
+    if (item->text(0) != name) {
+        renameLayer(ref, item->text(0));
+        return;
+    }
     const bool visible = (item->checkState(0) == Qt::Checked);
     if (ref.kind == LayerItemKind::Mesh)
         m_doc->setMeshVisible(ref.index, visible);
@@ -2469,35 +2484,15 @@ void LayerWidget::onMeshTableCellChanged(QTableWidgetItem *item)
         return;
     }
 
-    // A rename is the Rename Current Mesh Layer filter, run on this row's layer, so it is
-    // an entry in the action history and in a generated script like any other rename.
-    const QString newName = item->text().trimmed();
-    if (newName.isEmpty() || newName == m_doc->mesh(index).name) {
-        scheduleRebuild(); // puts the name back
-        return;
-    }
-    QString renameKey;
-    for (const Document::FilterInfo &info : m_doc->filterInfos()) {
-        if (info.descriptor.id == QLatin1String("rename_current_mesh_layer")) {
-            renameKey = info.key;
-            break;
-        }
-    }
-    if (renameKey.isEmpty()) {
-        scheduleRebuild();
-        return;
-    }
-    m_doc->setCurrentMeshIndex(index);
-    emit filterRunRequested(renameKey, tr("Rename Current Mesh Layer"),
-                            QVariantMap{ { QStringLiteral("newName"), newName } });
+    renameLayer({ LayerItemKind::Mesh, index }, item->text());
 }
 
 void LayerWidget::onRasterTableCellChanged(QTableWidgetItem *item)
 {
     if (m_rebuilding || !item)
         return;
-    // Only the eye column (0) is checkable
-    if (item->column() != 0)
+    // The eye (0) is checkable and the name (2) is editable; nothing else changes by hand.
+    if (item->column() != 0 && item->column() != 2)
         return;
 
     bool ok = false;
@@ -2505,8 +2500,82 @@ void LayerWidget::onRasterTableCellChanged(QTableWidgetItem *item)
     if (!ok || index < 0 || index >= m_doc->rasterCount())
         return;
 
+    if (item->column() == 2) {
+        renameLayer({ LayerItemKind::Raster, index }, item->text());
+        return;
+    }
     const bool visible = (item->checkState() == Qt::Checked);
     m_doc->setRasterVisible(index, visible);
+}
+
+void LayerWidget::requestFilterRun(const QString &filterId, const QVariantMap &parameters)
+{
+    for (const Document::FilterInfo &info : m_doc->filterInfos()) {
+        if (info.descriptor.id == filterId) {
+            emit filterRunRequested(info.key, info.descriptor.name, parameters);
+            return;
+        }
+    }
+    scheduleRebuild(); // no such filter in this build: put the old name back
+}
+
+void LayerWidget::renameLayer(LayerItemRef ref, const QString &typedName)
+{
+    const QString newName = typedName.trimmed();
+    const bool isMesh = ref.kind == LayerItemKind::Mesh;
+    const QString oldName = isMesh ? m_doc->mesh(ref.index).name : m_doc->raster(ref.index).name;
+    if (newName.isEmpty() || newName == oldName) {
+        scheduleRebuild();
+        return;
+    }
+    // The rename filters act on the current layer.
+    if (isMesh)
+        m_doc->setCurrentMeshIndex(ref.index);
+    else
+        m_doc->setCurrentRasterIndex(ref.index);
+    requestFilterRun(isMesh ? QStringLiteral("rename_current_mesh_layer")
+                            : QStringLiteral("rename_current_raster"),
+                     QVariantMap{ { QStringLiteral("newName"), newName } });
+}
+
+void LayerWidget::editTextureName(QTreeWidgetItem *textureItem)
+{
+    bool ok = false;
+    const int assetIndex = textureItem->data(0, kRoleTextureIndex).toInt(&ok);
+    const LayerItemRef ref = layerRefForItem(textureItem->parent());
+    // A texture with no asset of its own (assetIndex -1) is not one Rename Texture can reach.
+    if (!ok || assetIndex < 0 || ref.kind != LayerItemKind::Mesh || ref.index < 0)
+        return;
+
+    const int meshIndex = ref.index;
+    const QString oldName =
+        Document::meshTextureDisplayName(m_doc->mesh(meshIndex), assetIndex);
+    auto *edit = new QLineEdit(oldName, m_meshTree);
+    edit->selectAll();
+    // The thumbnail and its details come back with the rebuild either way.
+    m_meshTree->setItemWidget(textureItem, 2, edit);
+    edit->setFocus();
+    auto finish = [this, edit, meshIndex, assetIndex, oldName](bool apply) {
+        // editingFinished also comes when the focus leaves; act once.
+        if (edit->property("finished").toBool())
+            return;
+        edit->setProperty("finished", true);
+        const QString newName = edit->text().trimmed();
+        if (!apply || newName.isEmpty() || newName == oldName
+            || meshIndex >= m_doc->meshCount()) {
+            scheduleRebuild();
+            return;
+        }
+        m_doc->setCurrentMeshIndex(meshIndex);
+        // The filter numbers textures from 1, as the texture list shows them.
+        requestFilterRun(QStringLiteral("rename_texture"),
+                         QVariantMap{ { QStringLiteral("texture"), assetIndex + 1 },
+                                      { QStringLiteral("textureName"), newName } });
+    };
+    connect(edit, &QLineEdit::editingFinished, this, [finish] { finish(true); });
+    auto *cancel = new QShortcut(QKeySequence::Cancel, edit);
+    cancel->setContext(Qt::WidgetShortcut);
+    connect(cancel, &QShortcut::activated, this, [finish] { finish(false); });
 }
 
 void LayerWidget::onMeshTableCurrentItemChanged(QTableWidgetItem *current, QTableWidgetItem *)
