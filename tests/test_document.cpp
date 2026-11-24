@@ -8,6 +8,8 @@
 #include <QScopeGuard>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <vcg/complex/algorithms/update/normal.h>
+#include <vcg/complex/algorithms/create/platonic.h>
 #include <cmath>
 #include <clocale>
 
@@ -146,6 +148,7 @@ private slots:
     void plyEdgeScalarsRoundTrip();
     void polygonalOffExportSurvivesMalformedFaces();
     void saveAndLoadEmbeddedGLBTexture();
+    void saveAndLoadDracoGLB();
     void savingWritesTheTexturesNoFileHolds();
     void savingNamesTheLayersFileAndUndoKeepsIt();
     void savingOneTextureOrPlaneNamesItsFile();
@@ -4322,6 +4325,63 @@ void DocumentTests::saveAndLoadEmbeddedGLBTexture()
     QCOMPARE(loadedAsset->image.size(), QSize(2, 1));
     QCOMPARE(loadedAsset->image.pixelColor(0, 0), QColor(Qt::red));
     QCOMPARE(loadedAsset->image.pixelColor(1, 0), QColor(Qt::green));
+}
+
+// A Draco-compressed glb of a 20 x 20 grid with normals and per-corner UVs equal to the position,
+// at compression levels 0, 7 and 10, reads back with every face, every vertex on the grid and
+// every corner's UV matching its position, within Draco's quantization. Every save used to crash
+// inside Draco's attribute encoders: the Draco mesh was given no point count, so they read and
+// wrote through empty buffers.
+void DocumentTests::saveAndLoadDracoGLB()
+{
+    const int n = 20;
+    VCGMesh mesh;
+    vcg::tri::Grid<VCGMesh>(mesh, n + 1, n + 1, 1.0f, 1.0f);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFace(mesh);
+    mesh.face.EnableWedgeTexCoord();
+    for (VCGFace &f : mesh.face)
+        for (int corner = 0; corner < 3; ++corner) {
+            f.WT(corner).U() = f.cP(corner).X();
+            f.WT(corner).V() = f.cP(corner).Y();
+            f.WT(corner).N() = 0;
+        }
+    const int faces = mesh.FN();
+    Document source;
+    const int meshIndex = source.addMesh(mesh, QStringLiteral("grid"),
+                                         vcg::tri::io::Mask::IOM_VERTNORMAL | vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    for (int level : { 0, 7, 10 }) {
+        const QString path = dir.filePath(QStringLiteral("draco%1.glb").arg(level));
+        MeshIOSaveOptions options;
+        options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX
+            | vcg::tri::io::Mask::IOM_VERTNORMAL | vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
+        options.dracoCompression = true;
+        options.dracoCompressionLevel = level;
+        QCOMPARE(source.saveMesh(meshIndex, path, options), 0);
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        if (!file.readAll().contains("KHR_draco_mesh_compression"))
+            QSKIP("This build saves glTF without Draco.");
+
+        Document loaded;
+        QCOMPARE(loaded.loadMesh(path), 0);
+        const VCGMesh &m = loaded.mesh(0).mesh;
+        QCOMPARE(m.FN(), faces);
+        QVERIFY(m.face.IsWedgeTexCoordEnabled());
+        // Draco quantizes positions to 14 bits and UVs to 12 over their ranges: a 1/20 grid is
+        // far coarser than either.
+        const float tolerance = 1e-3f;
+        for (const VCGFace &f : m.face)
+            for (int corner = 0; corner < 3; ++corner) {
+                const vcg::Point3f &p = f.cV(corner)->cP();
+                QVERIFY(std::abs(p.X() * n - std::round(p.X() * n)) < tolerance * n);
+                QVERIFY(std::abs(p.Y() * n - std::round(p.Y() * n)) < tolerance * n);
+                QVERIFY(std::abs(p.Z()) < tolerance);
+                QVERIFY(std::abs(f.cWT(corner).U() - p.X()) < tolerance);
+                QVERIFY(std::abs(f.cWT(corner).V() - p.Y()) < tolerance);
+            }
+    }
 }
 
 // A layer whose first texture exists only in memory -- what Texture Defragmentation leaves --

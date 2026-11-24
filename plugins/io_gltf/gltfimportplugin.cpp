@@ -424,7 +424,11 @@ bool encodePrimitiveWithDraco(
     if (vertexCount == 0 || triangleCount == 0)
         return false;
 
+    // The point count must be set before the attributes are added: the encoder sizes its value
+    // buffers from it, and with none set every attribute encoder read and wrote through empty
+    // (null) buffers while the faces named points 0..vertexCount-1, a crash at every level.
     draco::Mesh mesh;
+    mesh.set_num_points(vertexCount);
     mesh.SetNumFaces(triangleCount);
     for (uint32_t ti = 0; ti < triangleCount; ++ti) {
         const uint32_t i0 = prim.indices[size_t(ti) * 3 + 0];
