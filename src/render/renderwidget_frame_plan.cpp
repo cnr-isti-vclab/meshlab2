@@ -537,14 +537,15 @@ void RenderWidget::planSimpleBufferPasses(
         if (meshRequest.wire) {
             const MeshGpuResourceCache::WirePassView wireView =
                 m_doc->gpuCache().wirePassView(m_rhi, m_doc->mesh(mi).meshId);
-            if (wireView.valid) {
+            QRhiGraphicsPipeline *wirePipeline = wirePipelineForSettings(meshSettings);
+            for (int bi = 0; wireView.valid && bi < wireView.batchCount; ++bi) {
                 appendBufferDrawItem(
                     plan.wireItems,
                     mi,
-                    wirePipelineForSettings(meshSettings),
+                    wirePipeline,
                     meshSettings,
-                    wireView.vertexBuffer,
-                    wireView.vertexCount);
+                    wireView.batches[bi].vertexBuffer,
+                    wireView.batches[bi].vertexCount);
             }
         }
 

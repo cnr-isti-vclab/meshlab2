@@ -81,9 +81,16 @@ public:
         bool valid = false;
     };
 
-    struct WirePassView {
+    // The wire is split like the fill: one non-indexed buffer per batch of faces, because a
+    // QRhi buffer size is a quint32 and a large mesh's wire does not fit in one.
+    struct WireBatchView {
         QRhiBuffer *vertexBuffer = nullptr;
         int vertexCount = 0;
+    };
+
+    struct WirePassView {
+        const WireBatchView *batches = nullptr;
+        int batchCount = 0;
         bool valid = false;
     };
 

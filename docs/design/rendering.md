@@ -72,7 +72,7 @@ Entries are released when their layer leaves the document (`removeMesh`, `clearA
 Cached outputs:
 
 - **fill**: one or more batches — vertex/index buffers, optional base/normal/occlusion/roughness textures and per-batch PBR factors. Variants: `Constant`, `PerVertex`, `PerFace`, `PerVertexQuality`, `PerFaceQuality`, `Texture`. Texture lookup can use legacy texture paths, `MeshIOTextureAsset` entries, and material slots. PBR normal textures can be interpreted as tangent-space maps or object-space maps according to `fillPbr.normalMapSpace`.
-- **wire**: barycentric-expanded triangle buffer, optionally honoring faux-edge bits for polygonal faces.
+- **wire**: barycentric-expanded triangle buffers, optionally honoring faux-edge bits for polygonal faces. Split into batches of at most 256 MB like the expanded fill: a QRhi buffer size is a `quint32`, and at 72 bytes per face one buffer wrapped past 60M faces and drew only the first faces of the mesh.
 - **edges**: line buffer + fat-line buffer from explicit mesh edges. Each expanded vertex stores packed endpoint RGBA and packed edge RGBA; the shader selects constant, interpolated per-vertex, or flat per-edge color without rebuilding geometry.
 - **points**: position/color/normal payload + normal-valid flag. Variants: `Constant`, `PerVertex`, `PerVertexQuality`.
 - **bbox**: line buffer.

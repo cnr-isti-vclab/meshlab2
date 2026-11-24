@@ -968,9 +968,11 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             updateStyleUbuf(wireSettings);
             cb->setGraphicsPipeline(wirePipeline);
             setShaderResourcesWithOffset(cb, m_srb.get(), 0);
-            const QRhiCommandBuffer::VertexInput binding(wireView.vertexBuffer, 0);
-            cb->setVertexInput(0, 1, &binding);
-            cb->draw(quint32(wireView.vertexCount));
+            for (int bi = 0; bi < wireView.batchCount; ++bi) {
+                const QRhiCommandBuffer::VertexInput binding(wireView.batches[bi].vertexBuffer, 0);
+                cb->setVertexInput(0, 1, &binding);
+                cb->draw(quint32(wireView.batches[bi].vertexCount));
+            }
         };
         if (meshSettings.showWire)
             drawWire(meshSettings.wireColor, meshSettings.wireSize);

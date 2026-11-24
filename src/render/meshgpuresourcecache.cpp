@@ -64,6 +64,9 @@ constexpr size_t kMaxExpandedFillBatchFaces =
     kMaxExpandedFillBatchBytes / kExpandedFillTriangleBytes;
 static_assert(kMaxExpandedFillBatchFaces > 0);
 static_assert(kMaxExpandedFillBatchBytes <= std::numeric_limits<quint32>::max());
+// The wire batches by the same byte budget: 3 corners of position + barycentric per face.
+constexpr size_t kWireTriangleBytes = 3u * 6u * sizeof(float);
+constexpr size_t kMaxWireBatchFaces = kMaxExpandedFillBatchBytes / kWireTriangleBytes;
 
 int fillVariantIndex(MeshGpuResourceCache::FillVariant variant)
 {
@@ -161,8 +164,8 @@ struct MeshGpuResourceCache::CacheState
         std::uint64_t geometryRevision = 0;
         bool wireRespectFaux = true;
         bool valid = false;
-        std::unique_ptr<QRhiBuffer> vbuf;
-        int vertexCount = 0;
+        std::vector<std::unique_ptr<QRhiBuffer>> vbufs;
+        std::vector<MeshGpuResourceCache::WireBatchView> views; // one per buffer in vbufs
     };
 
     struct EdgeGpu {
@@ -922,14 +925,13 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
         dst.wireRespectFaux = source.wireRespectFaux;
-        dst.vbuf.reset();
-        dst.vertexCount = 0;
+        dst.vbufs.clear();
+        dst.views.clear();
 
         if (meshData.FN() <= 0)
             return true;
 
-        const int vertexCount = meshData.FN() * 3;
-        std::vector<float> vdata(size_t(vertexCount) * 6u);
+        std::vector<float> vdata;
         auto packFace = [&](const VCGFace &f, size_t outFi) {
             // Standard barycentric assignment: corner k → (0…1…0) with 1 at position k.
             // To suppress a FAUX edge e (between corners e and (e+1)%3):
@@ -961,31 +963,41 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             }
         };
 
-        if (meshData.face.size() == size_t(meshData.FN())) {
-            parallelFor(meshData.face.size(), [&](size_t first, size_t last) {
-                for (size_t fi = first; fi < last; ++fi)
-                    packFace(meshData.face[fi], fi);
-            });
-        } else {
-            size_t outFi = 0;
-            for (const auto &f : meshData.face) {
-                if (!f.IsD())
-                    packFace(f, outFi++);
+        const size_t faceContainerSize = meshData.face.size();
+        const bool compactFaces = faceContainerSize == size_t(meshData.FN());
+        for (size_t firstFace = 0; firstFace < faceContainerSize; firstFace += kMaxWireBatchFaces) {
+            const size_t lastFace =
+                firstFace + std::min(kMaxWireBatchFaces, faceContainerSize - firstFace);
+            vdata.resize((lastFace - firstFace) * 3u * 6u);
+            size_t packed = 0;
+            if (compactFaces) {
+                parallelFor(lastFace - firstFace, [&](size_t first, size_t last) {
+                    for (size_t localFi = first; localFi < last; ++localFi)
+                        packFace(meshData.face[firstFace + localFi], localFi);
+                });
+                packed = lastFace - firstFace;
+            } else {
+                for (size_t fi = firstFace; fi < lastFace; ++fi) {
+                    if (!meshData.face[fi].IsD())
+                        packFace(meshData.face[fi], packed++);
+                }
             }
-        }
+            if (packed == 0)
+                continue;
 
-        dst.vbuf.reset(
-            rhi->newBuffer(
+            std::unique_ptr<QRhiBuffer> vbuf(rhi->newBuffer(
                 QRhiBuffer::Immutable,
                 QRhiBuffer::VertexBuffer,
-                static_cast<quint32>(vdata.size() * sizeof(float))));
-        if (!dst.vbuf || !dst.vbuf->create()) {
-            dst.vbuf.reset();
-            return true;
+                static_cast<quint32>(packed * kWireTriangleBytes)));
+            if (!vbuf || !vbuf->create()) {
+                dst.vbufs.clear();
+                dst.views.clear();
+                return true;
+            }
+            ensureUpdates()->uploadStaticBuffer(vbuf.get(), vdata.data());
+            dst.views.push_back({ vbuf.get(), int(packed * 3u) });
+            dst.vbufs.push_back(std::move(vbuf));
         }
-
-        ensureUpdates()->uploadStaticBuffer(dst.vbuf.get(), vdata.data());
-        dst.vertexCount = vertexCount;
         return true;
     };
 
@@ -1941,7 +1953,7 @@ MeshGpuResourceCache::WirePassView MeshGpuResourceCache::wirePassView(QRhi *rhi,
     if (!wire.valid)
         return {};
 
-    return { wire.vbuf.get(), wire.vertexCount, true };
+    return { wire.views.data(), int(wire.views.size()), true };
 }
 
 MeshGpuResourceCache::EdgePassView MeshGpuResourceCache::edgePassView(
@@ -2146,7 +2158,8 @@ std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> MeshGpuResourceCache::gpuM
                 }
             }
             if (meshGpu.wire.valid)
-                s.wireBufferBytes += bufBytes(meshGpu.wire.vbuf);
+                for (const auto &vbuf : meshGpu.wire.vbufs)
+                    s.wireBufferBytes += bufBytes(vbuf);
             if (meshGpu.edges.valid)
                 s.edgeBufferBytes += bufBytes(meshGpu.edges.vbuf) + bufBytes(meshGpu.edges.fatVbuf);
             for (const auto &pv : meshGpu.points) {
