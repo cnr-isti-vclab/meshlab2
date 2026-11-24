@@ -41,6 +41,12 @@ MeshLab is closer to being model-drivable than it looks. The relevant assets:
   `--capture-window`; there is no `meshlab --script foo.py`.
 - **The wheel is not on PyPI**, and there are no Linux wheels. An out-of-tree
   server is easy to install only once `pip install pymeshlab2` works.
+- **Python sees filter names, not filter knowledge.** Every plugin's manifest is
+  compiled into the binary (`:/filters/<pluginId>/filters.json`), but
+  `MeshSet.list_filters()` returns only `id`, `name`, `python_name`, the plugin and
+  applicability. Descriptions, parameter schemas, tags, categories and references
+  are out of Python's reach; `docs/generate_api.py` reads them from the source
+  tree instead. One binding returning a filter's descriptor as a dict closes this.
 
 ## The catalogue comes from the build
 
@@ -50,6 +56,73 @@ it is actually talking to. Any tool server enumerates filters from the live
 reports the backing version alongside. Today the wheel and the application carry
 the same set, but an installed wheel can lag the tree it is compared against, and
 a build without an optional dependency drops that plugin's filters.
+
+## Feeding filter knowledge to the client
+
+The client learns about filters only through what the server sends it, and the
+whole catalogue is too large to send at once: the manifests total 1.1 MB, around
+300k tokens, and even a one-line index of names and short descriptions is around
+16k tokens, beyond what a small local model can spend before it starts working. So
+the knowledge goes in layers, each pulled only when needed:
+
+1. **Orientation, sent once.** The descriptions of the fixed tools, plus the
+   server's `instructions` (MCP sends them when the client connects): what MeshLab
+   is, the `Verb Object [(Backend)]` naming grammar, the 11 categories, that
+   parameters scale with the mesh (`absperc`, the bounding box), and to measure
+   before and after changing anything. A few hundred tokens, written by hand.
+2. **Discovery, per question.** `search_filters` returns a few ranked matches:
+   name, `pythonName`, short description, categories, tags, and whether each can
+   run on the current document and if not why. Search runs in the server.
+   Lexical matching over names, tags and descriptions comes first, expanded with
+   the rejected synonyms of [Vocabulary](../vocabulary.md), which map a user's
+   `delete` or `decimate` onto `Remove` and `Simplify`; embeddings only if
+   measurement shows lexical search missing.
+3. **Detail, per filter.** `describe_filter` returns the full descriptor: the
+   long description, every parameter with type, default, range and help, input
+   requirements, and references.
+4. **Browsable material.** The vocabulary, the category tree and one page per
+   filter as MCP resources (`meshlab://filter/<id>`), for clients that let the
+   user or model browse. Many clients support only tools, so nothing essential
+   lives only here.
+5. **Recipes.** How filters combine — clean a scan, simplify under a Hausdorff
+   bound, bake a texture from photos — is the knowledge no descriptor holds.
+   Written as MCP prompts or as short `pymeshlab2` example scripts, it is new
+   content rather than an export, and the place where MeshLab's experience would
+   go.
+
+Layers 2 and 3 come from the running build (see the previous section), so they
+are only as good as the descriptors; layers 1 and 5 are written for the purpose.
+
+## Distribution and clients
+
+An MCP server is a program the client starts and talks to, usually over
+stdin/stdout. It does not need a new native executable:
+
+- **Headless.** A Python module over `pymeshlab2`, using the official `mcp`
+  Python SDK, shipped as an optional extra of the wheel (`pip install
+  pymeshlab2[mcp]`) and started as `python -m pymeshlab2.mcp`. Everything native
+  is already in the wheel.
+- **Live document.** A mode of the existing executable (`MeshLab --mcp`), or a
+  `QLocalServer` inside the running application with a small stdio shim
+  forwarding MCP messages to it, so edits are visible and land in the undo graph.
+
+The model is chosen by the user's client, not by MeshLab. A local runtime such as
+Ollama serves the model and its tool calling but does not speak MCP itself: a client
+sits between them, running the model, starting the server and relaying the calls.
+Goose, mcphost and Open WebUI do this with Ollama; LM Studio does it with its own
+local runtime. The client is configured with an entry such as
+
+```json
+{ "command": "python", "args": ["-m", "pymeshlab2.mcp"] }
+```
+
+and the same server works unchanged with cloud clients. Run locally, the model,
+the server and the mesh all stay on the user's machine.
+
+Choosing among 423 filters is the hard part for a small model. The small fixed tool
+set and the predictable names are what make it workable; a mid-size model with
+good tool calling is the realistic floor, to be confirmed by the benchmark below
+rather than assumed.
 
 ## Four independent axes
 
@@ -164,6 +237,7 @@ quality bounds everything downstream.
 1. **Headless tool server** over `pymeshlab2`, out of tree. Find out
    empirically where a model goes wrong before designing around assumptions.
    Enumerates filters from the live `MeshSet` and reports the wheel's version.
+   Needs one binding first, exposing each filter's descriptor to Python.
    Publishing the wheel to PyPI makes it installable by anyone.
 2. **Sensor and vision tools** in the same server, closing the act/observe loop.
 3. **`QLocalServer` bridge** so the same server can attach to a running GUI
