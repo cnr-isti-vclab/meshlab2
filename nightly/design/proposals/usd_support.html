@@ -1,0 +1,752 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>USD Support - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/usd_support.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="usd-support">
+<h1>USD Support<a class="headerlink" href="#usd-support" title="Link to this heading">¶</a></h1>
+<p>This document proposes reading and writing Pixar’s Universal Scene Description (<code class="docutils literal notranslate"><span class="pre">.usda</span></code>,
+<code class="docutils literal notranslate"><span class="pre">.usdc</span></code>, <code class="docutils literal notranslate"><span class="pre">.usdz</span></code>) in MeshLab, with its materials, and exporting a set of layers to one USD
+file. <strong>Nothing described here is implemented.</strong> Decided 2026-11-23 (Paolo): the library is
+LightUSD, and import starts flattened, as glTF’s does.</p>
+<p>See also: <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (layers, materials, units),
+<a class="reference internal" href="../history/project_persistence.html"><span class="std std-doc">Project persistence</span></a> (how saving works, and why a save is
+not a filter), <a class="reference internal" href="../third_party.html"><span class="std std-doc">Third-Party Code</span></a>, <a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a> (the
+material channels the renderer reads), <code class="docutils literal notranslate"><span class="pre">plugins/io_gltf</span></code> (the precedent for materials and
+for flattening a scene).</p>
+<section id="status">
+<h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Stage</p></th>
+<th class="head"><p>What</p></th>
+<th class="head"><p>State</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0</p></td>
+<td><p>LightUSD as a submodule; read and write the stage-0 fixtures; check against OpenUSD</p></td>
+<td><p>not started</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">io_usd</span></code>: flattened import, single-layer export, four material channels, units and up axis</p></td>
+<td><p>not started</p></td>
+</tr>
+<tr class="row-even"><td><p>2</p></td>
+<td><p>Scene I/O: export visible layers to one file, import as separate layers</p></td>
+<td><p>not started; needs approval of the interface</p></td>
+</tr>
+<tr class="row-odd"><td><p>3</p></td>
+<td><p>The material model, extended once for USD and glTF</p></td>
+<td><p>not started; needs its own mapping table</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="what-usd-asks-of-meshlab">
+<h2>1. What USD asks of MeshLab<a class="headerlink" href="#what-usd-asks-of-meshlab" title="Link to this heading">¶</a></h2>
+<p>A USD file is a <strong>scene</strong>, not a mesh: a tree of prims with transforms, many meshes,
+instances, materials bound per face subset, cameras, and composition arcs (references,
+payloads, variants, sublayers) that assemble a stage from several files. Five properties
+matter for us:</p>
+<ul class="simple">
+<li><p><strong>Geometry</strong> is <code class="docutils literal notranslate"><span class="pre">UsdGeomMesh</span></code> with <code class="docutils literal notranslate"><span class="pre">faceVertexCounts</span></code> and <code class="docutils literal notranslate"><span class="pre">faceVertexIndices</span></code>: polygons of
+any size, not triangles. Attributes are <strong>primvars</strong> with an interpolation each: <code class="docutils literal notranslate"><span class="pre">constant</span></code>,
+<code class="docutils literal notranslate"><span class="pre">uniform</span></code> (per face), <code class="docutils literal notranslate"><span class="pre">vertex</span></code>, <code class="docutils literal notranslate"><span class="pre">varying</span></code> and <code class="docutils literal notranslate"><span class="pre">faceVarying</span></code> (per corner). Texture
+coordinates are usually <code class="docutils literal notranslate"><span class="pre">primvars:st</span></code>, faceVarying, with v up as in MeshLab and OBJ. A mesh
+can be <code class="docutils literal notranslate"><span class="pre">leftHanded</span></code>, which reverses the winding.</p></li>
+<li><p><strong>Materials</strong> are bound to a whole mesh, or to the faces of a <code class="docutils literal notranslate"><span class="pre">UsdGeomSubset</span></code> (family
+<code class="docutils literal notranslate"><span class="pre">materialBind</span></code>). The portable surface is <code class="docutils literal notranslate"><span class="pre">UsdPreviewSurface</span></code>, fed by <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> nodes,
+each of which reads one or more channels of an image, with a scale and a bias.</p></li>
+<li><p><strong>Units and orientation</strong> are stage metadata: <code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code>, whose fallback by the
+specification is 0.01 (centimeters), and <code class="docutils literal notranslate"><span class="pre">upAxis</span></code>, whose fallback is <strong>Y</strong>. MeshLab is
+Z-up.</p></li>
+<li><p><strong>Packaging</strong>: <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> is an uncompressed zip with the stage and its textures inside, the
+form Apple’s Quick Look, Blender, Omniverse and Houdini exchange.</p></li>
+<li><p><strong>Composition</strong>: a file can be a root layer that references others; what the user sees is
+the composed stage.</p></li>
+</ul>
+</section>
+<section id="the-library-lightusd">
+<h2>2. The library: LightUSD<a class="headerlink" href="#the-library-lightusd" title="Link to this heading">¶</a></h2>
+<p>Decided 2026-11-23. LightUSD is lighttransport’s C++ USD library, called TinyUSDZ until its
+1.0 (by the author of tinygltf, which <code class="docutils literal notranslate"><span class="pre">io_gltf</span></code> uses).</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>LightUSD</p></th>
+<th class="head"><p>OpenUSD (Pixar)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Licence</p></td>
+<td><p>Apache 2.0 (some helpers MIT)</p></td>
+<td><p>Tomorrow Open Source Technology License 1.0: Apache 2.0 with a changed trademark clause</p></td>
+</tr>
+<tr class="row-odd"><td><p>Dependencies</p></td>
+<td><p>none; C++17</p></td>
+<td><p>TBB (already ours)</p></td>
+</tr>
+<tr class="row-even"><td><p>Reads</p></td>
+<td><p>USDA, USDC, USDZ</p></td>
+<td><p>all; the reference implementation</p></td>
+</tr>
+<tr class="row-odd"><td><p>Writes</p></td>
+<td><p>USDA, USDC, USDZ</p></td>
+<td><p>all</p></td>
+</tr>
+<tr class="row-even"><td><p>Composition</p></td>
+<td><p>sublayers, references, payloads, variants, inherits, specializes, by eager flattening; prototypes are copied, not shared</p></td>
+<td><p>complete</p></td>
+</tr>
+<tr class="row-odd"><td><p>How it comes in</p></td>
+<td><p>no vcpkg port: a <strong>pinned submodule</strong> under <code class="docutils literal notranslate"><span class="pre">external/</span></code>, by the rule of <a class="reference internal" href="../third_party.html#choosing-how-to-bring-third-party-code-in"><span class="std std-ref">Third-Party Code</span></a></p></td>
+<td><p>vcpkg <code class="docutils literal notranslate"><span class="pre">usd</span></code> 26.8, which builds <strong>shared libraries only</strong> (“a true static usd build is left as a future port improvement”)</p></td>
+</tr>
+<tr class="row-even"><td><p>Packaging</p></td>
+<td><p>compiled into the plugin</p></td>
+<td><p>its plugin registry finds <code class="docutils literal notranslate"><span class="pre">plugInfo.json</span></code> files at run time, and the shared libraries must be bundled and signed on three platforms; a static build needs the monolithic library linked whole-archive</p></td>
+</tr>
+<tr class="row-odd"><td><p>Maturity</p></td>
+<td><p>1.0.0, “first stable release”, November 2026</p></td>
+<td><p>the industry reference</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>OpenUSD’s packaging is at odds with a statically linked application; LightUSD is the kind of
+dependency MeshLab already takes. Its risk is youth: a rename and a 1.0 weeks old. Stage 0
+measures it before anything depends on it, and the tests check what it writes with OpenUSD’s
+own <code class="docutils literal notranslate"><span class="pre">usdchecker</span></code> (section 7), used as a tool, never linked.</p>
+<p><strong>Not confirmed from its documentation</strong>, and the first thing stage 0 tests: per-face material
+binding through <code class="docutils literal notranslate"><span class="pre">GeomSubset</span></code>, and faceVarying primvars (texture coordinates, normals) in its
+render-scene conversion (Tydra). Its schema table marks <code class="docutils literal notranslate"><span class="pre">UsdGeom</span></code> (Mesh and GeomSubset
+included), <code class="docutils literal notranslate"><span class="pre">UsdPreviewSurface</span></code>, <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code>, <code class="docutils literal notranslate"><span class="pre">UsdTransform2d</span></code> and the primvar readers done.</p>
+</section>
+<section id="stage-0-measuring-lightusd">
+<h2>3. Stage 0: measuring LightUSD<a class="headerlink" href="#stage-0-measuring-lightusd" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>The submodule at a release tag, built into a throwaway target; build time and the size it
+adds to the application.</p></li>
+<li><p>Read: the fixtures of section 7, and a few public USDZ assets (Apple’s AR Quick Look
+gallery, Pixar’s Kitchen Set), through Tydra’s render scene; check subsets, faceVarying
+texture coordinates, <code class="docutils literal notranslate"><span class="pre">leftHanded</span></code>, instancing and a referenced file.</p></li>
+<li><p>Write a mesh with two materials and faceVarying coordinates as <code class="docutils literal notranslate"><span class="pre">.usda</span></code>, <code class="docutils literal notranslate"><span class="pre">.usdc</span></code> and
+<code class="docutils literal notranslate"><span class="pre">.usdz</span></code>; <code class="docutils literal notranslate"><span class="pre">usdchecker</span></code> and <code class="docutils literal notranslate"><span class="pre">usdcat</span></code> must accept all three, and <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> must open in Quick
+Look.</p></li>
+<li><p>Outcome: go, or go with patches upstreamed first, or reconsider.</p></li>
+</ul>
+</section>
+<section id="stage-1-the-io-usd-plugin">
+<h2>4. Stage 1: the <code class="docutils literal notranslate"><span class="pre">io_usd</span></code> plugin<a class="headerlink" href="#stage-1-the-io-usd-plugin" title="Link to this heading">¶</a></h2>
+<p>A <code class="docutils literal notranslate"><span class="pre">MeshIOPlugin</span></code>, as <code class="docutils literal notranslate"><span class="pre">io_gltf</span></code> is, for <code class="docutils literal notranslate"><span class="pre">usda</span></code>, <code class="docutils literal notranslate"><span class="pre">usdc</span></code>, <code class="docutils literal notranslate"><span class="pre">usd</span></code> and <code class="docutils literal notranslate"><span class="pre">usdz</span></code>.</p>
+<section id="import-flattened">
+<h3>4.1 Import, flattened<a class="headerlink" href="#import-flattened" title="Link to this heading">¶</a></h3>
+<p>The composed stage becomes <strong>one layer</strong>, as a glTF scene does: every mesh’s world transform is
+baked into its positions and normals, instances are expanded, and the meshes are appended.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>USD</p></th>
+<th class="head"><p>MeshLab</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UsdGeomMesh</span></code> under the default prim (or the root)</p></td>
+<td><p>faces of the one layer</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">purpose</span></code> <code class="docutils literal notranslate"><span class="pre">default</span></code> and <code class="docutils literal notranslate"><span class="pre">render</span></code> only; <code class="docutils literal notranslate"><span class="pre">proxy</span></code> and <code class="docutils literal notranslate"><span class="pre">guide</span></code> are skipped, as are prims made <code class="docutils literal notranslate"><span class="pre">invisible</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>polygons (<code class="docutils literal notranslate"><span class="pre">faceVertexCounts</span></code>)</p></td>
+<td><p>triangles, with faux edges marking each polygon (<code class="docutils literal notranslate"><span class="pre">IOM_BITPOLYGONAL</span></code>), the form <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code>’s PLY and OBJ paths carry</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">leftHanded</span></code></p></td>
+<td><p>winding reversed</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">points</span></code>, world transform</p></td>
+<td><p>vertex positions</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">normals</span></code> / <code class="docutils literal notranslate"><span class="pre">primvars:normals</span></code></p></td>
+<td><p>vertex normals; faceVarying ones as wedge normals (<code class="docutils literal notranslate"><span class="pre">IOM_WEDGNORMAL</span></code>, as <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code>’s OBJ path writes them)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">primvars:st</span></code> (or the name the material’s primvar reader asks for)</p></td>
+<td><p>vertex or wedge texture coordinates, by interpolation</p></td>
+<td><p>v up already; no flip</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">primvars:displayColor</span></code> / <code class="docutils literal notranslate"><span class="pre">displayOpacity</span></code></p></td>
+<td><p>vertex or face color, by interpolation; constant ones to vertex color</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GeomSubset</span></code> (<code class="docutils literal notranslate"><span class="pre">materialBind</span></code>) and the mesh’s own binding</p></td>
+<td><p>each face’s texture slot index (wedge <code class="docutils literal notranslate"><span class="pre">N()</span></code>), one slot per material</p></td>
+<td><p>as glTF’s primitives</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">UsdGeomPoints</span></code></p></td>
+<td><p>vertices with no faces</p></td>
+<td><p>a point cloud</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">UsdGeomBasisCurves</span></code>, cameras, lights, skinning, blend shapes</p></td>
+<td><p>not read in stage 1; the log says what was skipped</p></td>
+<td><p>curves and cameras come in stage 2</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code></p></td>
+<td><p>the document unit, through <code class="docutils literal notranslate"><span class="pre">outUnit</span></code></p></td>
+<td><p>see question 2</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">upAxis</span></code> <code class="docutils literal notranslate"><span class="pre">Y</span></code></p></td>
+<td><p>a rotation of +90° about X on the <strong>layer matrix</strong>; the coordinates are kept</p></td>
+<td><p>nothing is baked, and Freeze Matrix bakes it when the user wants</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="materials-stage-1">
+<h3>4.2 Materials, stage 1<a class="headerlink" href="#materials-stage-1" title="Link to this heading">¶</a></h3>
+<p>Only what <code class="docutils literal notranslate"><span class="pre">MeshIOMaterialSlot</span></code> can hold today, the four channels glTF fills:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>UsdPreviewSurface input</p></th>
+<th class="head"><p>MeshLab slot field</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">diffuseColor</span></code> from a <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">baseColorTexture</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">diffuseColor</span></code> constant</p></td>
+<td><p>vertex color, as glTF does with its base color factor</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">normal</span></code> from a texture (<code class="docutils literal notranslate"><span class="pre">sourceColorSpace</span></code> raw, scale 2, bias −1)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normalTexture</span></code>; <code class="docutils literal notranslate"><span class="pre">normalScale</span></code> 1</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">occlusion</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">occlusionTexture</span></code>; <code class="docutils literal notranslate"><span class="pre">occlusionStrength</span></code> 1</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">roughness</span></code>, texture or constant</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">roughnessTexture</span></code> / <code class="docutils literal notranslate"><span class="pre">roughnessFactor</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">metallic</span></code>, <code class="docutils literal notranslate"><span class="pre">emissiveColor</span></code>, <code class="docutils literal notranslate"><span class="pre">opacity</span></code>, <code class="docutils literal notranslate"><span class="pre">opacityThreshold</span></code>, <code class="docutils literal notranslate"><span class="pre">clearcoat</span></code>, <code class="docutils literal notranslate"><span class="pre">ior</span></code>, the specular workflow</p></td>
+<td><p>dropped, with a log line naming them</p></td>
+</tr>
+<tr class="row-even"><td><p>other surfaces (MaterialX, renderer-specific shaders)</p></td>
+<td><p>not interpreted; the mesh keeps <code class="docutils literal notranslate"><span class="pre">displayColor</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Textures come from files beside the stage or from inside the <code class="docutils literal notranslate"><span class="pre">.usdz</span></code>; the latter load as
+in-memory assets with no file, as a <code class="docutils literal notranslate"><span class="pre">.glb</span></code>’s do, and Save Mesh to <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> keeps them inside.
+UDIM paths (<code class="docutils literal notranslate"><span class="pre">&lt;UDIM&gt;</span></code>) are not supported in stage 1, and say so.</p>
+<p><strong>A known limit that stage 1 inherits.</strong> <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> reads named channels: roughness is
+often the green channel of a packed image whose blue is metallic, as in glTF. The renderer
+reads the roughness texture as the <strong>mean of its three channels</strong> (<code class="docutils literal notranslate"><span class="pre">fill_smooth.frag</span></code>,
+<code class="docutils literal notranslate"><span class="pre">roughSample</span></code>), so a packed texture already renders wrong roughness from glTF today. Stage 3
+adds the channel; stage 1 records the image and logs the channel it ignored.</p>
+</section>
+<section id="export-one-layer">
+<h3>4.3 Export, one layer<a class="headerlink" href="#export-one-layer" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>MeshLab</p></th>
+<th class="head"><p>USD</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>the layer</p></td>
+<td><p>one <code class="docutils literal notranslate"><span class="pre">UsdGeomMesh</span></code> under <code class="docutils literal notranslate"><span class="pre">/World</span></code>, named from the file</p></td>
+</tr>
+<tr class="row-odd"><td><p>faces (polygons where faux edges mark them)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">faceVertexCounts</span></code>, <code class="docutils literal notranslate"><span class="pre">faceVertexIndices</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>vertex normals</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">normals</span></code>, vertex interpolation</p></td>
+</tr>
+<tr class="row-odd"><td><p>vertex or wedge texture coordinates</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">primvars:st</span></code>, vertex or faceVarying</p></td>
+</tr>
+<tr class="row-even"><td><p>vertex or face color</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">primvars:displayColor</span></code> (and <code class="docutils literal notranslate"><span class="pre">displayOpacity</span></code>), vertex or uniform</p></td>
+</tr>
+<tr class="row-odd"><td><p>vertex scalar</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">primvars:scalar</span></code>, float, vertex (by the vocabulary’s user-facing word)</p></td>
+</tr>
+<tr class="row-even"><td><p>texture slots</p></td>
+<td><p>one <code class="docutils literal notranslate"><span class="pre">UsdShadeMaterial</span></code> per slot with a <code class="docutils literal notranslate"><span class="pre">UsdPreviewSurface</span></code> and a <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> per channel present (base color, normal, occlusion, roughness), bound by one <code class="docutils literal notranslate"><span class="pre">GeomSubset</span></code> per slot</p></td>
+</tr>
+<tr class="row-odd"><td><p>document unit</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code>; nothing authored while the unit is not set</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">upAxis</span></code> <code class="docutils literal notranslate"><span class="pre">Z</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">.usda</span></code> is text, <code class="docutils literal notranslate"><span class="pre">.usdc</span></code> binary, <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> packs the textures. Textures follow the Save Mesh
+rule: stored and unchanged ones are referred to or copied byte for byte, new ones written
+next to the file, or inside it for <code class="docutils literal notranslate"><span class="pre">.usdz</span></code>. Unlike glTF’s saver, which writes only the base
+color texture, all four channels are written.</p>
+</section>
+</section>
+<section id="stage-2-scenes">
+<h2>5. Stage 2: scenes<a class="headerlink" href="#stage-2-scenes" title="Link to this heading">¶</a></h2>
+<section id="the-interface">
+<h3>5.1 The interface<a class="headerlink" href="#the-interface" title="Link to this heading">¶</a></h3>
+<p>A plugin returns one mesh. A scene needs the layers, each with its matrix, label, visibility
+and material set. The proposal is the smallest addition that carries that: two optional calls
+on <code class="docutils literal notranslate"><span class="pre">MeshIOPlugin</span></code>, <code class="docutils literal notranslate"><span class="pre">loadScene</span></code> and <code class="docutils literal notranslate"><span class="pre">saveScene</span></code>, taking a list of layer views
+(mesh, matrix, label, visible, material set and texture context), and a capability flag.
+<code class="docutils literal notranslate"><span class="pre">Document</span></code> drives them as it drives <code class="docutils literal notranslate"><span class="pre">load</span></code> and <code class="docutils literal notranslate"><span class="pre">save</span></code>. glTF can implement them later; nothing
+else changes. <strong>This is new framework code and needs approval before it is written.</strong></p>
+</section>
+<section id="export-visible-layers-as-usd">
+<h3>5.2 Export Visible Layers as USD<a class="headerlink" href="#export-visible-layers-as-usd" title="Link to this heading">¶</a></h3>
+<p>A document operation beside Save Project, not a filter: saving changes the disk, not the
+document, by the project-persistence rules. One self-contained file, <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> to send, <code class="docutils literal notranslate"><span class="pre">.usdc</span></code>
+or <code class="docutils literal notranslate"><span class="pre">.usda</span></code> to work with.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>MeshLab</p></th>
+<th class="head"><p>USD</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>each visible layer</p></td>
+<td><p>a prim under <code class="docutils literal notranslate"><span class="pre">/World</span></code>: <code class="docutils literal notranslate"><span class="pre">UsdGeomMesh</span></code>; a point cloud as <code class="docutils literal notranslate"><span class="pre">UsdGeomPoints</span></code>; a polyline layer as linear <code class="docutils literal notranslate"><span class="pre">UsdGeomBasisCurves</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>the layer matrix</p></td>
+<td><p>the prim’s <code class="docutils literal notranslate"><span class="pre">xformOp:transform</span></code>, <strong>not baked</strong>: moving a layer in another tool moves it as in MeshLab</p></td>
+</tr>
+<tr class="row-even"><td><p>the label</p></td>
+<td><p>the prim name, made a valid identifier and unique, and the label itself as <code class="docutils literal notranslate"><span class="pre">displayName</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>visibility</p></td>
+<td><p>only visible layers are written, as the name says</p></td>
+</tr>
+<tr class="row-even"><td><p>materials and textures</p></td>
+<td><p>as in 4.3, under <code class="docutils literal notranslate"><span class="pre">/World/Looks</span></code>, shared textures written once</p></td>
+</tr>
+<tr class="row-odd"><td><p>rasters</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">UsdGeomCamera</span></code> prims from the shot and lens; the images have no standard place and are not written</p></td>
+</tr>
+<tr class="row-even"><td><p>document unit</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>what USD has no place for</p></td>
+<td><p>undo history, selection, render settings, the raster images: the <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> keeps them</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> stays MeshLab’s project. A second form, a root file referencing one USD file per
+layer (what a <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> does), is possible and not proposed: it would be a second project format
+to keep in step.</p>
+</section>
+<section id="import-as-separate-layers">
+<h3>5.3 Import as Separate Layers<a class="headerlink" href="#import-as-separate-layers" title="Link to this heading">¶</a></h3>
+<p>The other half: each <code class="docutils literal notranslate"><span class="pre">UsdGeomMesh</span></code>, <code class="docutils literal notranslate"><span class="pre">UsdGeomPoints</span></code> and <code class="docutils literal notranslate"><span class="pre">UsdGeomBasisCurves</span></code> prim becomes a
+layer, its world transform the layer matrix and its prim name (or <code class="docutils literal notranslate"><span class="pre">displayName</span></code>) the label;
+cameras become rasters without images. A file written by 5.2 then comes back as the layers
+that wrote it. A menu entry beside Import Mesh; plain Open keeps flattening.</p>
+</section>
+</section>
+<section id="stage-3-the-material-model">
+<h2>6. Stage 3: the material model<a class="headerlink" href="#stage-3-the-material-model" title="Link to this heading">¶</a></h2>
+<p>Extended once, for USD and glTF together, since both carry what MeshLab drops today:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Channel</p></th>
+<th class="head"><p>glTF</p></th>
+<th class="head"><p>USD</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>base color factor</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">baseColorFactor</span></code> (now baked into vertex color)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">diffuseColor</span></code> constant</p></td>
+</tr>
+<tr class="row-odd"><td><p>metallic, texture and factor</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">metallicFactor</span></code>, blue of <code class="docutils literal notranslate"><span class="pre">metallicRoughnessTexture</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">metallic</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>emissive, texture and factor</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">emissiveTexture</span></code>, <code class="docutils literal notranslate"><span class="pre">emissiveFactor</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">emissiveColor</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>opacity and its mode</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">alphaMode</span></code> (<code class="docutils literal notranslate"><span class="pre">OPAQUE</span></code>, <code class="docutils literal notranslate"><span class="pre">MASK</span></code> with <code class="docutils literal notranslate"><span class="pre">alphaCutoff</span></code>, <code class="docutils literal notranslate"><span class="pre">BLEND</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">opacity</span></code>, <code class="docutils literal notranslate"><span class="pre">opacityThreshold</span></code>, <code class="docutils literal notranslate"><span class="pre">opacityMode</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>the channel a texture is read from</p></td>
+<td><p>fixed by the specification (roughness green, metallic blue, occlusion red)</p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> output connected</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>This touches <code class="docutils literal notranslate"><span class="pre">MeshIOMaterialSlot</span></code>, undo snapshots, the GPU cache, the fill shaders and the
+glTF plugin, so by the mapping-table rule it gets its own table, field by field, approved
+before code. It also fixes the roughness averaging of 4.2.</p>
+</section>
+<section id="validation">
+<h2>7. Validation<a class="headerlink" href="#validation" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Fixtures written by us</strong>, small <code class="docutils literal notranslate"><span class="pre">.usda</span></code> files committed under <code class="docutils literal notranslate"><span class="pre">tests/sample_mesh/usd/</span></code>: a
+quad and a triangle with faceVarying coordinates; two materials by subsets; a <code class="docutils literal notranslate"><span class="pre">leftHanded</span></code>
+mesh; a Y-up stage in centimeters; an instanced and a referenced mesh. Ours, so no licence
+question; public assets only in the local dataset, by <a class="reference internal" href="../test_data.html"><span class="std std-doc">test_data.md</span></a>.</p></li>
+<li><p><strong>Round trips</strong> in <code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code>, beside the glTF ones: save a layer, load it
+back, compare positions, coordinates, slot indices and the four material channels.</p></li>
+<li><p><strong>OpenUSD as a checker</strong>: when <code class="docutils literal notranslate"><span class="pre">usdchecker</span></code> (pip <code class="docutils literal notranslate"><span class="pre">usd-core</span></code>) is on the path, every file the
+tests write must pass it; skipped otherwise, as the datasets are.</p></li>
+<li><p>By hand, once per stage: the <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> opens in Quick Look and in Blender.</p></li>
+</ul>
+</section>
+<section id="cost">
+<h2>8. Cost<a class="headerlink" href="#cost" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">io_gltf</span></code> is about 2,000 lines; <code class="docutils literal notranslate"><span class="pre">io_usd</span></code> is expected to be similar, plus about 150 for the scene
+interface of stage 2 and the two document operations. Stage 3 is a change across five places
+whose size its mapping table will tell.</p>
+</section>
+<section id="open-questions">
+<h2>9. Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Up axis.</strong> A rotation on the layer matrix (proposed), or baked into the coordinates as
+glTF’s node transforms are?</p></li>
+<li><p><strong>Unit fallback.</strong> A stage that does not author <code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code> is in centimeters by the
+specification. Report centimeters (by definition, as glTF’s meters), or Unknown (as for a
+format that does not say)?</p></li>
+<li><p><strong>Scene interface</strong> (5.1): approve the two optional calls, or another shape?</p></li>
+<li><p><strong>Stage 3 timing</strong>: right after stage 1, or after stage 2?</p></li>
+</ol>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">USD Support</a><ul>
+<li><a class="reference internal" href="#status">Status</a></li>
+<li><a class="reference internal" href="#what-usd-asks-of-meshlab">1. What USD asks of MeshLab</a></li>
+<li><a class="reference internal" href="#the-library-lightusd">2. The library: LightUSD</a></li>
+<li><a class="reference internal" href="#stage-0-measuring-lightusd">3. Stage 0: measuring LightUSD</a></li>
+<li><a class="reference internal" href="#stage-1-the-io-usd-plugin">4. Stage 1: the <code class="docutils literal notranslate"><span class="pre">io_usd</span></code> plugin</a><ul>
+<li><a class="reference internal" href="#import-flattened">4.1 Import, flattened</a></li>
+<li><a class="reference internal" href="#materials-stage-1">4.2 Materials, stage 1</a></li>
+<li><a class="reference internal" href="#export-one-layer">4.3 Export, one layer</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#stage-2-scenes">5. Stage 2: scenes</a><ul>
+<li><a class="reference internal" href="#the-interface">5.1 The interface</a></li>
+<li><a class="reference internal" href="#export-visible-layers-as-usd">5.2 Export Visible Layers as USD</a></li>
+<li><a class="reference internal" href="#import-as-separate-layers">5.3 Import as Separate Layers</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#stage-3-the-material-model">6. Stage 3: the material model</a></li>
+<li><a class="reference internal" href="#validation">7. Validation</a></li>
+<li><a class="reference internal" href="#cost">8. Cost</a></li>
+<li><a class="reference internal" href="#open-questions">9. Open questions</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>
