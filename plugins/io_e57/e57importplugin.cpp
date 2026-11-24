@@ -234,12 +234,6 @@ public:
         double xMax = -std::numeric_limits<double>::infinity();
         double yMax = -std::numeric_limits<double>::infinity();
         double zMax = -std::numeric_limits<double>::infinity();
-        uint16_t cMinR = std::numeric_limits<uint16_t>::max();
-        uint16_t cMinG = std::numeric_limits<uint16_t>::max();
-        uint16_t cMinB = std::numeric_limits<uint16_t>::max();
-        uint16_t cMaxR = 0;
-        uint16_t cMaxG = 0;
-        uint16_t cMaxB = 0;
         double iMin = std::numeric_limits<double>::infinity();
         double iMax = -std::numeric_limits<double>::infinity();
 
@@ -271,18 +265,9 @@ public:
 
             if (exportColors) {
                 const auto c = v.cC();
-                const uint16_t cr = uint16_t(c[0]) * uint16_t(257);
-                const uint16_t cg = uint16_t(c[1]) * uint16_t(257);
-                const uint16_t cbv = uint16_t(c[2]) * uint16_t(257);
-                colorR[outIndex] = cr;
-                colorG[outIndex] = cg;
-                colorB[outIndex] = cbv;
-                cMinR = std::min(cMinR, cr);
-                cMinG = std::min(cMinG, cg);
-                cMinB = std::min(cMinB, cbv);
-                cMaxR = std::max(cMaxR, cr);
-                cMaxG = std::max(cMaxG, cg);
-                cMaxB = std::max(cMaxB, cbv);
+                colorR[outIndex] = uint16_t(c[0]) * uint16_t(257);
+                colorG[outIndex] = uint16_t(c[1]) * uint16_t(257);
+                colorB[outIndex] = uint16_t(c[2]) * uint16_t(257);
             }
 
             if (exportNormals) {
@@ -337,12 +322,16 @@ public:
                 data3D.pointFields.colorRedField = true;
                 data3D.pointFields.colorGreenField = true;
                 data3D.pointFields.colorBlueField = true;
-                data3D.colorLimits.colorRedMinimum = cMinR;
-                data3D.colorLimits.colorRedMaximum = cMaxR;
-                data3D.colorLimits.colorGreenMinimum = cMinG;
-                data3D.colorLimits.colorGreenMaximum = cMaxG;
-                data3D.colorLimits.colorBlueMinimum = cMinB;
-                data3D.colorLimits.colorBlueMaximum = cMaxB;
+                // The limits are the range a color can take, as the E57 standard defines them, not
+                // the data's: 8-bit colors scaled to 16 bits. The data's own range, used before,
+                // collapsed to a single value on a channel that never changes (an all-white
+                // mesh), and libE57Format then refused to write it (ErrorValueOutOfBounds).
+                data3D.colorLimits.colorRedMinimum = 0;
+                data3D.colorLimits.colorRedMaximum = 65535;
+                data3D.colorLimits.colorGreenMinimum = 0;
+                data3D.colorLimits.colorGreenMaximum = 65535;
+                data3D.colorLimits.colorBlueMinimum = 0;
+                data3D.colorLimits.colorBlueMaximum = 65535;
             }
 
             if (exportNormals) {
@@ -382,6 +371,15 @@ public:
             writer.Close();
             reportProgress(cb, 100, QObject::tr("Saved E57: %1").arg(QFileInfo(filename).fileName()), true);
             return 0;
+        } catch (const e57::E57Exception &e) {
+            // libE57Format says what it refused in the exception; keep it for the log.
+            const QString why = QStringLiteral("%1 (%2)").arg(QString::fromStdString(e.errorStr()), QString::fromStdString(e.context()));
+            reportProgress(cb, 100, QObject::tr("E57 export failed: %1").arg(why), true);
+            return kErrSaveWriteFailed;
+        } catch (const std::exception &e) {
+            // libE57Format reports what it refused in the exception; keep it for the log.
+            reportProgress(cb, 100, QObject::tr("E57 export failed: %1").arg(QString::fromLocal8Bit(e.what())), true);
+            return kErrSaveWriteFailed;
         } catch (...) {
             return kErrSaveWriteFailed;
         }

@@ -149,6 +149,10 @@ private slots:
     void polygonalOffExportSurvivesMalformedFaces();
     void saveAndLoadEmbeddedGLBTexture();
     void saveAndLoadDracoGLB();
+    void polygonExportKeepsAQuadWithItsOtherHalfDeleted();
+    void savingIgnoresTextureCoordinatesTheMeshLacks();
+    void gltfPolylineRoundTrips();
+    void e57SavesAConstantColor();
     void savingWritesTheTexturesNoFileHolds();
     void savingNamesTheLayersFileAndUndoKeepsIt();
     void savingOneTextureOrPlaneNamesItsFile();
@@ -4382,6 +4386,101 @@ void DocumentTests::saveAndLoadDracoGLB()
                 QVERIFY(std::abs(f.cWT(corner).V() - p.Y()) < tolerance);
             }
     }
+}
+
+// A grid of quads (two triangles each, the diagonal faux) with one triangle deleted, compacted,
+// saved as polygons. The surviving half kept its faux diagonal, now on a border: OBJ, OFF and PLY
+// wrote it as a quad with a repeated corner, OFF and PLY under a face count one short, and OBJ
+// and OFF lost faces reading it back (48 became 46 and 44 on a 5 x 5 grid).
+void DocumentTests::polygonExportKeepsAQuadWithItsOtherHalfDeleted()
+{
+    VCGMesh mesh;
+    vcg::tri::Grid<VCGMesh>(mesh, 6, 6, 1.0f, 1.0f);
+    vcg::tri::Allocator<VCGMesh>::DeleteFace(mesh, mesh.face[3]);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(mesh);
+    const int faces = mesh.FN();
+    Document source;
+    const int index = source.addMesh(mesh, QStringLiteral("quads"), vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    for (const QString ext : { QStringLiteral("obj"), QStringLiteral("off"), QStringLiteral("ply") }) {
+        const QString path = dir.filePath(QStringLiteral("quads.") + ext);
+        MeshIOSaveOptions options;
+        options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX
+            | vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+        options.binary = false;
+        QCOMPARE(source.saveMesh(index, path, options), 0);
+        Document loaded;
+        QCOMPARE(loaded.loadMesh(path), 0);
+        QVERIFY2(loaded.mesh(0).mesh.FN() == faces,
+                 qPrintable(QStringLiteral("%1: %2 faces read back of %3").arg(ext).arg(loaded.mesh(0).mesh.FN()).arg(faces)));
+    }
+}
+
+// A mask asking for texture coordinates a mesh does not have: the glTF writer read the
+// unallocated per-wedge coordinates and crashed. Document::saveMesh now drops those bits.
+void DocumentTests::savingIgnoresTextureCoordinatesTheMeshLacks()
+{
+    VCGMesh mesh;
+    vcg::tri::Grid<VCGMesh>(mesh, 3, 3, 1.0f, 1.0f);
+    QVERIFY(!mesh.face.IsWedgeTexCoordEnabled());
+    Document source;
+    const int index = source.addMesh(mesh, QStringLiteral("plain"), 0);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("plain.glb"));
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX
+        | vcg::tri::io::Mask::IOM_WEDGTEXCOORD | vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+    QCOMPARE(source.saveMesh(index, path, options), 0);
+    Document loaded;
+    QCOMPARE(loaded.loadMesh(path), 0);
+    QCOMPARE(loaded.mesh(0).mesh.FN(), 8);
+}
+
+// The glTF writer saves a polyline as a LINES primitive, which the reader used to skip, so the
+// file it had just written could not be opened ("no supported geometry").
+void DocumentTests::gltfPolylineRoundTrips()
+{
+    VCGMesh mesh;
+    for (int i = 0; i < 10; ++i)
+        vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(float(i), float(i % 2), 0));
+    for (int i = 0; i + 1 < 10; ++i)
+        vcg::tri::Allocator<VCGMesh>::AddEdge(mesh, size_t(i), size_t(i + 1));
+    Document source;
+    const int index = source.addMesh(mesh, QStringLiteral("polyline"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("polyline.glb"));
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_EDGEINDEX;
+    QCOMPARE(source.saveMesh(index, path, options), 0);
+    Document loaded;
+    QCOMPARE(loaded.loadMesh(path), 0);
+    QCOMPARE(loaded.mesh(0).mesh.EN(), 9);
+    QVERIFY(loaded.mesh(0).ioMask & vcg::tri::io::Mask::IOM_EDGEINDEX);
+}
+
+// Points of one color: the E57 writer declared each channel's limits as the data's own range,
+// which collapsed to a single value, and libE57Format refused to write it.
+void DocumentTests::e57SavesAConstantColor()
+{
+    VCGMesh mesh;
+    for (int i = 0; i < 5; ++i)
+        vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(float(i), 0, 0))->C() = vcg::Color4b::White;
+    Document source;
+    const int index = source.addMesh(mesh, QStringLiteral("white"), vcg::tri::io::Mask::IOM_VERTCOLOR);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("white.e57"));
+    if (source.saveMaskCapability(path) == 0)
+        QSKIP("This build has no E57 support.");
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR;
+    QCOMPARE(source.saveMesh(index, path, options), 0);
+    Document loaded;
+    QCOMPARE(loaded.loadMesh(path), 0);
+    QCOMPARE(loaded.mesh(0).mesh.VN(), 5);
 }
 
 // A layer whose first texture exists only in memory -- what Texture Defragmentation leaves --

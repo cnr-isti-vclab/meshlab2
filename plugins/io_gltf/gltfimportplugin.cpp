@@ -1057,6 +1057,7 @@ public:
 
         int loadMask = 0;
         bool hasVertexNormals = false;
+        bool hasEdges = false;
         bool hasVertexColors = false;
         bool hasWedgeTexCoords = false;
         int skippedUnsupportedPrimitiveCount = 0;
@@ -1297,7 +1298,12 @@ public:
                 for (int pi = 0; pi < primitiveCount; ++pi) {
                     const tinygltf::Primitive &prim = srcMesh.primitives[size_t(pi)];
                     const int mode = prim.mode;
-                    if (mode != TINYGLTF_MODE_TRIANGLES && mode != TINYGLTF_MODE_POINTS) {
+                    // Lines are read as polyline edges: the writer saves a layer's edges as a LINES
+                    // primitive, which this reader used to skip, so a polyline it wrote came back as
+                    // "no supported geometry".
+                    const bool lines = mode == TINYGLTF_MODE_LINE || mode == TINYGLTF_MODE_LINE_STRIP
+                        || mode == TINYGLTF_MODE_LINE_LOOP;
+                    if (mode != TINYGLTF_MODE_TRIANGLES && mode != TINYGLTF_MODE_POINTS && !lines) {
                         ++skippedUnsupportedPrimitiveCount;
                         continue;
                     }
@@ -1380,8 +1386,32 @@ public:
                         }
                     }
 
+                    if (lines) {
+                        // LINES pairs the indices; LINE_STRIP joins each to the next, and LINE_LOOP
+                        // also the last to the first.
+                        std::vector<std::pair<int, int>> segments;
+                        const size_t step = mode == TINYGLTF_MODE_LINE ? 2 : 1;
+                        const size_t last = mode == TINYGLTF_MODE_LINE_LOOP ? totalIdxCount : totalIdxCount - 1;
+                        for (size_t i = 0; totalIdxCount >= 2 && i < last; i += step) {
+                            uint32_t a = 0, b = 0;
+                            if (!indexAt(i, a) || !indexAt((i + 1) % totalIdxCount, b) || a >= posView.count || b >= posView.count)
+                                continue;
+                            if (srcToLocal[a] >= 0 && srcToLocal[b] >= 0 && a != b)
+                                segments.emplace_back(baseVert + srcToLocal[a], baseVert + srcToLocal[b]);
+                        }
+                        if (!segments.empty()) {
+                            auto ei = vcg::tri::Allocator<VCGMesh>::AddEdges(mesh, segments.size());
+                            for (const auto &segment : segments) {
+                                ei->V(0) = &mesh.vert[size_t(segment.first)];
+                                ei->V(1) = &mesh.vert[size_t(segment.second)];
+                                ++ei;
+                            }
+                            hasEdges = true;
+                        }
+                    }
+
                     // Batch-allocate faces (triangles only).
-                    if (mode != TINYGLTF_MODE_POINTS) {
+                    if (mode == TINYGLTF_MODE_TRIANGLES) {
                         const size_t triCount = totalIdxCount / 3;
                         if (triCount > 0) {
                             const int baseFace = mesh.FN();
@@ -1462,6 +1492,8 @@ public:
 
         mesh.textures = textureFiles;
 
+        if (hasEdges)
+            loadMask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
         if (hasVertexNormals)
             loadMask |= vcg::tri::io::Mask::IOM_VERTNORMAL;
         if (hasVertexColors)

@@ -656,6 +656,13 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
     // The formats that record a unit get the document's.
     MeshIOSaveOptions saveOptions = options;
     saveOptions.unit = m_unit;
+    // Texture coordinates are optional components: a mask asking for ones the mesh has not
+    // allocated made an exporter read storage that does not exist (the glTF writer crashed on
+    // a mesh with faces and no UVs). The bits for them are dropped here, for every exporter.
+    if (!vcg::tri::HasPerVertexTexCoord(entry.mesh))
+        saveOptions.mask &= ~vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+    if (!vcg::tri::HasPerWedgeTexCoord(entry.mesh))
+        saveOptions.mask &= ~(vcg::tri::io::Mask::IOM_WEDGTEXCOORD | vcg::tri::io::Mask::IOM_WEDGTEXMULTI);
     const int err = plugin->save(
         normalizedFilename,
         entry.mesh,
