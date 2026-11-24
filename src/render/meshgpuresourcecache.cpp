@@ -261,6 +261,67 @@ MeshGpuResourceCache::MeshGpuResourceCache()
 
 MeshGpuResourceCache::~MeshGpuResourceCache() = default;
 
+// Adds the bytes of one mesh's buffers and textures, by product, to `s`. A template only
+// because the cache's state is private to the class: the members calling it deduce the type.
+template <class MeshGpu>
+static void addMeshGpuBytes(MeshGpuResourceCache::GpuMeshMemoryStats &s, const MeshGpu &meshGpu)
+{
+    auto bufBytes = [](const std::unique_ptr<QRhiBuffer> &buf) -> qint64 {
+        return buf ? qint64(buf->size()) : 0LL;
+    };
+    auto batchedBytes = [&](const auto &buffer) -> qint64 {
+        qint64 bytes = 0;
+        for (const auto &vbuf : buffer.vbufs)
+            bytes += bufBytes(vbuf);
+        return bytes;
+    };
+    auto texBytes = [](const std::unique_ptr<QRhiTexture> &tex) -> qint64 {
+        if (!tex)
+            return 0LL;
+        const QSize sz = tex->pixelSize();
+        return qint64(sz.width()) * sz.height() * 4; // RGBA8 = 4 bytes/pixel, 1 mip level
+    };
+
+    for (const auto &fv : meshGpu.fill) {
+        if (!fv.valid)
+            continue;
+        for (const auto &batch : fv.batches) {
+            s.fillBufferBytes += bufBytes(batch.vbuf) + bufBytes(batch.ibuf);
+            s.textureBytes += texBytes(batch.baseColorTexture)
+                            + texBytes(batch.normalTexture)
+                            + texBytes(batch.occlusionTexture)
+                            + texBytes(batch.roughnessTexture);
+        }
+    }
+    if (meshGpu.wire.valid)
+        s.wireBufferBytes += batchedBytes(meshGpu.wire.buffer);
+    if (meshGpu.edges.valid)
+        s.edgeBufferBytes += bufBytes(meshGpu.edges.vbuf) + bufBytes(meshGpu.edges.fatVbuf);
+    for (const auto &pv : meshGpu.points) {
+        if (pv.valid)
+            s.pointsBufferBytes += batchedBytes(pv.buffer);
+    }
+    if (meshGpu.bbox.valid)
+        s.bboxBufferBytes += bufBytes(meshGpu.bbox.vbuf);
+    if (meshGpu.selection.valid)
+        s.selectionBufferBytes += batchedBytes(meshGpu.selection.selectedFaces)
+                                + batchedBytes(meshGpu.selection.selectedVertices);
+    if (meshGpu.decoratorNormals.valid)
+        s.decoratorNormalsBytes += batchedBytes(meshGpu.decoratorNormals.vertexNormals)
+                                 + batchedBytes(meshGpu.decoratorNormals.faceNormals)
+                                 + batchedBytes(meshGpu.decoratorNormals.curvatureDirPD1)
+                                 + batchedBytes(meshGpu.decoratorNormals.curvatureDirPD2);
+    if (meshGpu.decoratorBoundaries.valid)
+        s.decoratorBoundariesBytes +=
+            bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesFatVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.textureSeamsVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.textureSeamsFatVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesFatVbuf)
+            + bufBytes(meshGpu.decoratorBoundaries.nonManifoldVerticesVbuf);
+}
+
 MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
     QRhi *rhi,
     QRhiCommandBuffer *cb,
@@ -842,86 +903,123 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     }
                 }
             } else {
-                CacheState::FillBatchGpu batch;
-                const int vertexCount = meshData.VN();
-                const int indexCount = meshData.FN() * 3;
-                if (vertexCount <= 0 || indexCount <= 0)
+                if (meshData.VN() <= 0 || meshData.FN() <= 0)
                     return true;
 
-                // Built as QByteArrays so they are moved into the upload, not copied.
-                QByteArray vbytes(
-                    qsizetype(size_t(vertexCount) * kFillVertexStrideFloats * sizeof(float)),
-                    Qt::Uninitialized);
-                float *vdata = reinterpret_cast<float *>(vbytes.data());
                 const float useMeshColor = useVertexStyleColor ? 1.0f : 0.0f;
-                parallelFor(size_t(vertexCount), [&](size_t first, size_t last) {
-                    for (size_t vi = first; vi < last; ++vi) {
-                        const auto &v = meshData.vert[vi];
-                        QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
-                        if (useVertexColor) {
-                            const auto vc = v.cC();
-                            vertexRgb = QVector3D(
-                                static_cast<float>(vc[0]) / 255.0f,
-                                static_cast<float>(vc[1]) / 255.0f,
-                                static_cast<float>(vc[2]) / 255.0f);
-                        }
-                        const size_t base = vi * size_t(kFillVertexStrideFloats);
-                        vdata[base + 0] = v.cP()[0];
-                        vdata[base + 1] = v.cP()[1];
-                        vdata[base + 2] = v.cP()[2];
-                        vdata[base + 3] = v.cN()[0];
-                        vdata[base + 4] = v.cN()[1];
-                        vdata[base + 5] = v.cN()[2];
-                        if (useVertexQuality) {
-                            writeQualitySlots(&vdata[base + 6], float(v.cQ()), false);
-                        } else {
-                            vdata[base + 6] = vertexRgb.x();
-                            vdata[base + 7] = vertexRgb.y();
-                            vdata[base + 8] = vertexRgb.z();
-                            vdata[base + 9] = useMeshColor;
-                        }
-                        vdata[base + 10] = 0.0f;
-                        vdata[base + 11] = 0.0f;
-                        vdata[base + 12] = 0.0f;
+                auto packVertex = [&](const VCGVertex &v, float *out) {
+                    QVector3D vertexRgb(1.0f, 1.0f, 1.0f);
+                    if (useVertexColor) {
+                        const auto vc = v.cC();
+                        vertexRgb = QVector3D(
+                            static_cast<float>(vc[0]) / 255.0f,
+                            static_cast<float>(vc[1]) / 255.0f,
+                            static_cast<float>(vc[2]) / 255.0f);
+                    }
+                    out[0] = v.cP()[0];
+                    out[1] = v.cP()[1];
+                    out[2] = v.cP()[2];
+                    out[3] = v.cN()[0];
+                    out[4] = v.cN()[1];
+                    out[5] = v.cN()[2];
+                    if (useVertexQuality) {
+                        writeQualitySlots(out + 6, float(v.cQ()), false);
+                    } else {
+                        out[6] = vertexRgb.x();
+                        out[7] = vertexRgb.y();
+                        out[8] = vertexRgb.z();
+                        out[9] = useMeshColor;
+                    }
+                    out[10] = 0.0f;
+                    out[11] = 0.0f;
+                    out[12] = 0.0f;
+                };
+
+                // One vertex buffer for the whole mesh wrapped its quint32 size above about 82M
+                // vertices. The faces are cut, in order, into batches whose vertices and indices
+                // each fit the fill's byte budget; every batch has its own vertex buffer and its
+                // faces are re-indexed into it, so a vertex used on both sides of a cut is
+                // stored twice. In a scan's face order a batch's faces are close together and
+                // few vertices repeat. Built as QByteArrays, moved into the upload.
+                constexpr quint32 kNoIndex = std::numeric_limits<quint32>::max();
+                const size_t vertexBytes = size_t(kFillVertexStrideFloats) * sizeof(float);
+                const size_t faceBytes = 3u * sizeof(quint32);
+                const size_t maxBatchVertices = kMaxExpandedFillBatchBytes / vertexBytes;
+                const size_t maxBatchFaces = kMaxExpandedFillBatchBytes / faceBytes;
+                std::vector<quint32> localIndex(meshData.vert.size(), kNoIndex);
+                std::vector<size_t> batchVertices; // the mesh index of each batch vertex
+                const size_t faceCount = meshData.face.size();
+                // The faces' vertex indices, read in parallel: the remapping below has to run
+                // in order, and over the faces themselves it was bound by one thread's memory
+                // bandwidth. A deleted face is marked by kNoIndex in its first corner.
+                std::vector<quint32> corners(faceCount * 3u);
+                parallelFor(faceCount, [&](size_t first, size_t last) {
+                    for (size_t i = first; i < last; ++i) {
+                        const VCGFace &f = meshData.face[i];
+                        for (int c = 0; c < 3; ++c)
+                            corners[i * 3 + c] = f.IsD()
+                                ? kNoIndex
+                                : quint32(vcg::tri::Index(meshData, f.cV(c)));
                     }
                 });
-
-                QByteArray ibytes(
-                    qsizetype(size_t(indexCount) * sizeof(quint32)), Qt::Uninitialized);
-                quint32 *idata = reinterpret_cast<quint32 *>(ibytes.data());
-                parallelFor(size_t(meshData.FN()), [&](size_t first, size_t last) {
-                    for (size_t fi = first; fi < last; ++fi) {
-                        const auto &f = meshData.face[fi];
-                        idata[fi * 3 + 0] =
-                            static_cast<quint32>(vcg::tri::Index(meshData, f.cV(0)));
-                        idata[fi * 3 + 1] =
-                            static_cast<quint32>(vcg::tri::Index(meshData, f.cV(1)));
-                        idata[fi * 3 + 2] =
-                            static_cast<quint32>(vcg::tri::Index(meshData, f.cV(2)));
+                size_t fi = 0;
+                while (fi < faceCount) {
+                    batchVertices.clear();
+                    QByteArray ibytes(
+                        qsizetype(std::min(maxBatchFaces, faceCount - fi) * faceBytes),
+                        Qt::Uninitialized);
+                    quint32 *idata = reinterpret_cast<quint32 *>(ibytes.data());
+                    size_t batchFaces = 0;
+                    for (; fi < faceCount; ++fi) {
+                        const quint32 *vi = &corners[fi * 3];
+                        if (vi[0] == kNoIndex)
+                            continue;
+                        size_t fresh = 0;
+                        for (int c = 0; c < 3; ++c)
+                            fresh += localIndex[vi[c]] == kNoIndex;
+                        if (batchFaces == maxBatchFaces
+                            || batchVertices.size() + fresh > maxBatchVertices)
+                            break;
+                        for (int c = 0; c < 3; ++c) {
+                            if (localIndex[vi[c]] == kNoIndex) {
+                                localIndex[vi[c]] = quint32(batchVertices.size());
+                                batchVertices.push_back(vi[c]);
+                            }
+                            idata[batchFaces * 3 + c] = localIndex[vi[c]];
+                        }
+                        ++batchFaces;
                     }
-                });
+                    for (const size_t vi : batchVertices)
+                        localIndex[vi] = kNoIndex;
+                    if (batchFaces == 0)
+                        continue;
+                    ibytes.resize(qsizetype(batchFaces * faceBytes));
 
-                batch.vbuf.reset(
-                    rhi->newBuffer(
-                        QRhiBuffer::Immutable,
-                        QRhiBuffer::VertexBuffer,
-                        static_cast<quint32>(vbytes.size())));
-                batch.ibuf.reset(
-                    rhi->newBuffer(
-                        QRhiBuffer::Immutable,
-                        QRhiBuffer::IndexBuffer,
-                        static_cast<quint32>(ibytes.size())));
-                    if (!batch.vbuf || !batch.ibuf || !batch.vbuf->create() || !batch.ibuf->create()) {
-                        batch.vbuf.reset();
-                        batch.ibuf.reset();
+                    QByteArray vbytes(qsizetype(batchVertices.size() * vertexBytes),
+                                      Qt::Uninitialized);
+                    float *vdata = reinterpret_cast<float *>(vbytes.data());
+                    parallelFor(batchVertices.size(), [&](size_t first, size_t last) {
+                        for (size_t i = first; i < last; ++i)
+                            packVertex(meshData.vert[batchVertices[i]],
+                                       vdata + i * size_t(kFillVertexStrideFloats));
+                    });
+
+                    CacheState::FillBatchGpu batch;
+                    batch.vbuf.reset(rhi->newBuffer(
+                        QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer, quint32(vbytes.size())));
+                    batch.ibuf.reset(rhi->newBuffer(
+                        QRhiBuffer::Immutable, QRhiBuffer::IndexBuffer, quint32(ibytes.size())));
+                    if (!batch.vbuf || !batch.ibuf || !batch.vbuf->create()
+                        || !batch.ibuf->create()) {
+                        dst.batches.clear();
                         return true;
                     }
-
-                ensureUpdates()->uploadStaticBuffer(batch.vbuf.get(), std::move(vbytes));
-                ensureUpdates()->uploadStaticBuffer(batch.ibuf.get(), std::move(ibytes));
-                batch.vertexCount = vertexCount;
-                batch.indexCount = indexCount;
-                dst.batches.push_back(std::move(batch));
+                    batch.vertexCount = int(batchVertices.size());
+                    batch.indexCount = int(size_t(ibytes.size()) / sizeof(quint32));
+                    ensureUpdates()->uploadStaticBuffer(batch.vbuf.get(), std::move(vbytes));
+                    ensureUpdates()->uploadStaticBuffer(batch.ibuf.get(), std::move(ibytes));
+                    dst.batches.push_back(std::move(batch));
+                }
             }
             return true;
         };
@@ -1826,6 +1924,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
         cb->resourceUpdate(updates);
 
     stats.elapsedMs = float(timer.nsecsElapsed() / 1000000.0);
+    stats.bytes.meshId = source.meshId;
+    addMeshGpuBytes(stats.bytes, meshCache);
     return stats;
 }
 
@@ -2091,66 +2191,11 @@ void MeshGpuResourceCache::releaseRhiResources(QRhi *rhi)
 std::vector<MeshGpuResourceCache::GpuMeshMemoryStats> MeshGpuResourceCache::gpuMemoryStats() const
 {
     std::map<std::uint64_t, GpuMeshMemoryStats> byMesh;
-
-    auto bufBytes = [](const std::unique_ptr<QRhiBuffer> &buf) -> qint64 {
-        return buf ? qint64(buf->size()) : 0LL;
-    };
-    auto batchedBytes = [&](const CacheState::BatchedBuffer &buffer) -> qint64 {
-        qint64 bytes = 0;
-        for (const auto &vbuf : buffer.vbufs)
-            bytes += bufBytes(vbuf);
-        return bytes;
-    };
-    auto texBytes = [](const std::unique_ptr<QRhiTexture> &tex) -> qint64 {
-        if (!tex)
-            return 0LL;
-        const QSize sz = tex->pixelSize();
-        return qint64(sz.width()) * sz.height() * 4; // RGBA8 = 4 bytes/pixel, 1 mip level
-    };
-
     for (const auto &[rhi, byId] : m_state->byRhi) {
         for (const auto &[meshId, meshGpu] : byId) {
             auto &s = byMesh[meshId];
             s.meshId = meshId;
-
-            for (const auto &fv : meshGpu.fill) {
-                if (!fv.valid)
-                    continue;
-                for (const auto &batch : fv.batches) {
-                    s.fillBufferBytes += bufBytes(batch.vbuf) + bufBytes(batch.ibuf);
-                    s.textureBytes += texBytes(batch.baseColorTexture)
-                                    + texBytes(batch.normalTexture)
-                                    + texBytes(batch.occlusionTexture)
-                                    + texBytes(batch.roughnessTexture);
-                }
-            }
-            if (meshGpu.wire.valid)
-                s.wireBufferBytes += batchedBytes(meshGpu.wire.buffer);
-            if (meshGpu.edges.valid)
-                s.edgeBufferBytes += bufBytes(meshGpu.edges.vbuf) + bufBytes(meshGpu.edges.fatVbuf);
-            for (const auto &pv : meshGpu.points) {
-                if (pv.valid)
-                    s.pointsBufferBytes += batchedBytes(pv.buffer);
-            }
-            if (meshGpu.bbox.valid)
-                s.bboxBufferBytes += bufBytes(meshGpu.bbox.vbuf);
-            if (meshGpu.selection.valid)
-                s.selectionBufferBytes += batchedBytes(meshGpu.selection.selectedFaces)
-                                        + batchedBytes(meshGpu.selection.selectedVertices);
-            if (meshGpu.decoratorNormals.valid)
-                s.decoratorBufferBytes += batchedBytes(meshGpu.decoratorNormals.vertexNormals)
-                                        + batchedBytes(meshGpu.decoratorNormals.faceNormals)
-                                        + batchedBytes(meshGpu.decoratorNormals.curvatureDirPD1)
-                                        + batchedBytes(meshGpu.decoratorNormals.curvatureDirPD2);
-            if (meshGpu.decoratorBoundaries.valid)
-                s.decoratorBufferBytes +=
-                    bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.boundaryEdgesFatVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.textureSeamsVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.textureSeamsFatVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.nonManifoldEdgesFatVbuf)
-                    + bufBytes(meshGpu.decoratorBoundaries.nonManifoldVerticesVbuf);
+            addMeshGpuBytes(s, meshGpu);
         }
     }
 

@@ -832,15 +832,22 @@ void RenderWidget::ensureMeshGpu(
     if (!stats.anyRebuilt())
         return;
     QStringList rebuilt;
-    const std::pair<bool, const char *> products[] = {
-        { stats.rebuiltFill, "fill" }, { stats.rebuiltWire, "wire" },
-        { stats.rebuiltEdges, "edges" }, { stats.rebuiltPoints, "points" },
-        { stats.rebuiltBoundingBox, "bbox" }, { stats.rebuiltSelection, "selection" },
-        { stats.rebuiltDecoratorNormals, "decorator normals" },
-        { stats.rebuiltDecoratorBoundaries, "decorator boundaries" } };
-    for (const auto &[built, name] : products) {
+    // Each product with the size of its buffers: the fill counts every color variant the
+    // cache holds for the mesh, and its textures.
+    const MeshGpuResourceCache::GpuMeshMemoryStats &b = stats.bytes;
+    const std::tuple<bool, const char *, qint64> products[] = {
+        { stats.rebuiltFill, "fill", b.fillBufferBytes + b.textureBytes },
+        { stats.rebuiltWire, "wire", b.wireBufferBytes },
+        { stats.rebuiltEdges, "edges", b.edgeBufferBytes },
+        { stats.rebuiltPoints, "points", b.pointsBufferBytes },
+        { stats.rebuiltBoundingBox, "bbox", b.bboxBufferBytes },
+        { stats.rebuiltSelection, "selection", b.selectionBufferBytes },
+        { stats.rebuiltDecoratorNormals, "decorator normals", b.decoratorNormalsBytes },
+        { stats.rebuiltDecoratorBoundaries, "decorator boundaries", b.decoratorBoundariesBytes } };
+    for (const auto &[built, name, bytes] : products) {
         if (built)
-            rebuilt << QString::fromLatin1(name);
+            rebuilt << QStringLiteral("%1 (%2)").arg(QString::fromLatin1(name),
+                                                     QLocale::c().formattedDataSize(bytes));
     }
     m_doc->writeLog(tr("GPU buffers built for '%1': %2 in %3 ms")
                         .arg(entry.name, rebuilt.join(QStringLiteral(", ")),

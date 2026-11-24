@@ -3095,8 +3095,9 @@ void MainWindow::showMemoryInfo()
             addRow(meshItem, tr("BBox buffer"),         s.bboxBufferBytes);
         if (s.selectionBufferBytes > 0)
             addRow(meshItem, tr("Selection buffers"),   s.selectionBufferBytes);
-        if (s.decoratorBufferBytes > 0)
-            addRow(meshItem, tr("Decorator buffers"),   s.decoratorBufferBytes);
+        if (s.decoratorNormalsBytes + s.decoratorBoundariesBytes > 0)
+            addRow(meshItem, tr("Decorator buffers"),
+                   s.decoratorNormalsBytes + s.decoratorBoundariesBytes);
     }
 
     tree->resizeColumnToContents(1);

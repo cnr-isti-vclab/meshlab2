@@ -160,6 +160,25 @@ public:
         bool valid = false;
     };
 
+    struct GpuMeshMemoryStats {
+        std::uint64_t meshId = 0;
+        qint64 fillBufferBytes = 0;
+        qint64 textureBytes = 0;
+        qint64 wireBufferBytes = 0;
+        qint64 edgeBufferBytes = 0;
+        qint64 pointsBufferBytes = 0;
+        qint64 bboxBufferBytes = 0;
+        qint64 selectionBufferBytes = 0;
+        qint64 decoratorNormalsBytes = 0;
+        qint64 decoratorBoundariesBytes = 0;
+        qint64 totalBytes() const
+        {
+            return fillBufferBytes + textureBytes + wireBufferBytes + edgeBufferBytes
+                + pointsBufferBytes + bboxBufferBytes + selectionBufferBytes
+                + decoratorNormalsBytes + decoratorBoundariesBytes;
+        }
+    };
+
     struct EnsureStats {
         bool rebuiltFill = false;
         bool rebuiltWire = false;
@@ -170,28 +189,13 @@ public:
         bool rebuiltDecoratorNormals = false;
         bool rebuiltDecoratorBoundaries = false;
         float elapsedMs = 0.0f;
+        // The mesh's buffers after the call, by product, for reporting what was built.
+        GpuMeshMemoryStats bytes;
 
         bool anyRebuilt() const
         {
             return rebuiltFill || rebuiltWire || rebuiltEdges || rebuiltPoints || rebuiltBoundingBox
                 || rebuiltSelection || rebuiltDecoratorNormals || rebuiltDecoratorBoundaries;
-        }
-    };
-
-    struct GpuMeshMemoryStats {
-        std::uint64_t meshId = 0;
-        qint64 fillBufferBytes = 0;
-        qint64 textureBytes = 0;
-        qint64 wireBufferBytes = 0;
-        qint64 edgeBufferBytes = 0;
-        qint64 pointsBufferBytes = 0;
-        qint64 bboxBufferBytes = 0;
-        qint64 selectionBufferBytes = 0;
-        qint64 decoratorBufferBytes = 0;
-        qint64 totalBytes() const
-        {
-            return fillBufferBytes + textureBytes + wireBufferBytes + edgeBufferBytes
-                + pointsBufferBytes + bboxBufferBytes + selectionBufferBytes + decoratorBufferBytes;
         }
     };
 
