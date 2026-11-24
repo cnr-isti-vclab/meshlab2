@@ -419,8 +419,153 @@ application resources and refreshed at each release.</p>
 by the users who opted in comes back as a feature that works for everyone, including
 those who did not, and no individual’s data moves anywhere to make it happen.</p>
 </section>
+<section id="seeing-it">
+<h2>5. Seeing it<a class="headerlink" href="#seeing-it" title="Link to this heading">¶</a></h2>
+<p>Three different jobs hide under “show the user their data”, and conflating them is how
+this becomes a dashboard nobody opens twice:</p>
+<ul class="simple">
+<li><p><strong>transparency</strong> — <em>what does MeshLab know about me?</em> Complete, plain, verifiable.</p></li>
+<li><p><strong>self-knowledge</strong> — <em>what do I actually do?</em> Worth building only where it answers a
+question a user would really ask.</p></li>
+<li><p><strong>action</strong> — <em>turn what I did into something I can run again.</em> Where most of the value
+is, and what makes the subsystem read as a tool rather than as surveillance.</p></li>
+</ul>
+<section id="session-recap-as-a-script">
+<h3>5.1 Session recap, as a script<a class="headerlink" href="#session-recap-as-a-script" title="Link to this heading">¶</a></h3>
+<p>“Your last session: 23 actions across 3 documents”, with the reconstructed
+<code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> script and one click into the script editor (<code class="docutils literal notranslate"><span class="pre">src/ui/scripteditor.h</span></code>).
+Almost entirely reuse: <code class="docutils literal notranslate"><span class="pre">compactPythonCall</span></code> is already stored per action. Offered when
+asked for and at the end of a session, never as a modal.</p>
+<p>This is the view to build first. It makes the journal useful before a single statistic
+exists, which is also the honest order to earn the feature’s keep.</p>
+</section>
+<section id="per-document-provenance">
+<h3>5.2 Per-document provenance<a class="headerlink" href="#per-document-provenance" title="Link to this heading">¶</a></h3>
+<p>The journal filtered to one document: every session in which this mesh was worked on,
+and exactly what was applied, in order.</p>
+<p>For the cultural-heritage and archaeology users this is not a convenience. Documenting
+what processing a scan has been through is a publication requirement, and today that
+record lives in somebody’s notebook or nowhere. Reachable from the layer’s context menu
+and from a <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> project, and exportable (§6) as the provenance paragraph of a methods
+section.</p>
+</section>
+<section id="your-filters-against-everyone-s">
+<h3>5.3 Your filters, against everyone’s<a class="headerlink" href="#your-filters-against-everyone-s" title="Link to this heading">¶</a></h3>
+<p>A ranked list of what this user runs — whose interesting column is the comparison with
+the shipped prior of §4: <em>people who use the filters you use also run X often, and you
+have never run it.</em></p>
+<p>Across 423 filters, discovery is a real problem, and this is a discovery mechanism
+wearing a statistics view’s clothes. It needs no server: the prior is in the application
+resources. It is also the view that most needs k-anonymity to have been done properly
+upstream — a comparison is only publishable as a prior if no cell in it is traceable to
+a handful of people.</p>
+</section>
+<section id="repeated-pipelines">
+<h3>5.4 Repeated pipelines<a class="headerlink" href="#repeated-pipelines" title="Link to this heading">¶</a></h3>
+<p>The n-grams of §3.5 as a list: the sequence, how often it recurred, and <em>Save as script</em>
+on each row. Selecting rows and re-running them against the current layer is the same
+machinery pointed the other way, and is the most direct answer to “what is this journal
+for”.</p>
+</section>
+<section id="where-the-time-goes">
+<h3>5.5 Where the time goes<a class="headerlink" href="#where-the-time-goes" title="Link to this heading">¶</a></h3>
+<p>Count × median runtime per filter, ranked. Answers <em>what is actually slow for me</em>, which
+is a different question from what is slow in general, and it leads somewhere — simplify
+before running that one. The numbers are already measured in <code class="docutils literal notranslate"><span class="pre">runFilter</span></code>.</p>
+</section>
+<section id="parameter-drift">
+<h3>5.6 Parameter drift<a class="headerlink" href="#parameter-drift" title="Link to this heading">¶</a></h3>
+<p>For one filter, the values this user has used for each parameter against the declared
+default. “You have changed <code class="docutils literal notranslate"><span class="pre">targetFaceNum</span></code> every single time” is precisely the signal
+that tells a maintainer a default is wrong; shown to the user, it tells them they could
+pin their own — so the view carries <em>Make this my default</em>, which writes the learned
+value of §3.2 as an explicit preference rather than an inferred one. For parameters with
+a bound token the pinned value is the ratio, so it keeps working on the next mesh.</p>
+</section>
+<section id="the-transparency-table">
+<h3>5.7 The transparency table<a class="headerlink" href="#the-transparency-table" title="Link to this heading">¶</a></h3>
+<p>Mandatory, and deliberately plain: the journal as rows, newest first, filterable, with
+record count, date range, <em>Clear</em> and <em>Export</em> — in Preferences, beside the switch,
+because that is where someone goes to check.</p>
+<p>The version that actually convinces people shows <strong>both sides</strong>: what is kept locally,
+and beside it the aggregate that would be transmitted under
+<a class="reference internal" href="usage_statistics.html"><span class="std std-doc">Usage Statistics</span></a>. That diff is the most persuasive privacy
+artifact this project can produce, and it is the same content that document’s consent
+dialog renders (its §3.10), so it is built once.</p>
+</section>
+<section id="every-suggestion-explains-itself">
+<h3>5.8 Every suggestion explains itself<a class="headerlink" href="#every-suggestion-explains-itself" title="Link to this heading">¶</a></h3>
+<p>Any prediction surfaced anywhere — a reordered search result, a learned default, a
+suggested next filter — carries a one-line <em>why</em> (“because you ran this after that 7
+times”) that links into the journal view filtered to exactly those records.</p>
+<p>This is what separates a helpful prediction from an arbitrary one, and once the journal
+view exists it is nearly free. A model whose output cannot be traced back to the records
+that produced it should not be shipped.</p>
+</section>
+<section id="what-not-to-build-and-where-these-live">
+<h3>5.9 What not to build, and where these live<a class="headerlink" href="#what-not-to-build-and-where-these-live" title="Link to this heading">¶</a></h3>
+<p><strong>Not</strong> activity heatmaps, calendars, totals or streaks. Fun once, then dead, and they
+drag the feature toward vanity metrics — which is also what makes users suspicious of a
+thing that is watching them.</p>
+<p>The transparency table lives in Preferences. The exploratory views share <strong>one dialog</strong>
+reached from a menu, not a dock: they are not consulted while working, and a dock costs
+screen space permanently. <code class="docutils literal notranslate"><span class="pre">src/ui/filterpluginsinfodialog.h</span></code> is the existing precedent
+for a browse-a-table dialog. The session recap is contextual; the next-filter suggestion
+stays in the filter panel where §3.4 puts it.</p>
+<p>Most of these are ranked lists and tables and should stay so. Where a distribution
+genuinely needs plotting — §5.6, perhaps §5.5 — note that <code class="docutils literal notranslate"><span class="pre">external/jkqtplotter</span></code> is
+already a submodule, added <code class="docutils literal notranslate"><span class="pre">EXCLUDE_FROM_ALL</span></code>, with only <code class="docutils literal notranslate"><span class="pre">JKQTMathText6</span></code> linked today
+(<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt:334</span></code>). Linking <code class="docutils literal notranslate"><span class="pre">JKQTPlotter6::JKQTPlotter6</span></code> is one more line, so a real
+chart costs a CMake line and not a new dependency. Tables first regardless.</p>
+</section>
+</section>
+<section id="exporting-it">
+<h2>6. Exporting it<a class="headerlink" href="#exporting-it" title="Link to this heading">¶</a></h2>
+<p>Four artifacts, four different jobs:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Artifact</p></th>
+<th class="head"><p>For</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>The journal, JSONL</p></td>
+<td><p>transparency, the user’s own tooling, seeding another machine</p></td>
+<td><p><strong>the stored file itself</strong>, not a re-encoding, so “what is kept” and “what I exported” are provably the same bytes</p></td>
+</tr>
+<tr class="row-odd"><td><p>A <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> script</p></td>
+<td><p>re-running a session, a selection, or one document’s history</p></td>
+<td><p>the one real decision is paths — see below</p></td>
+</tr>
+<tr class="row-even"><td><p>CSV aggregate</p></td>
+<td><p>pivoting in a spreadsheet: per filter, count, median ms, failure rate</p></td>
+<td><p>costs nothing to allow, and someone always wants it</p></td>
+</tr>
+<tr class="row-odd"><td><p>The contribution bundle</p></td>
+<td><p>“exactly what would be sent”, as a file</p></td>
+<td><p>see below</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Paths in an exported script.</strong> Offer <em>paths as arguments</em> alongside the literal form:
+a script whose inputs are parameters is reusable against other meshes, while one with
+absolute paths baked in runs on exactly one machine and quietly carries a directory
+layout to whoever receives it. Default to parameterized.</p>
+<p><strong>The contribution bundle</strong> is the interesting one. Beyond being the honest version of
+the consent preview, it is an <strong>air-gapped contribution path</strong>: a lab with no outbound
+connectivity — common enough in heritage and archaeology — can inspect an aggregate and
+send it by hand. That reaches the cohort that will never enable a network feature at all,
+and it costs nothing extra, because the bundle is the payload the digest builder already
+produces.</p>
+<p><strong>One caution worth a line in the export dialog:</strong> an exported journal is the same data
+outside the application’s control, and the script export in particular carries file
+paths by construction. Say so once, at the point of export, and not again.</p>
+</section>
 <section id="the-boundary-with-usage-statistics">
-<h2>5. The boundary with Usage Statistics<a class="headerlink" href="#the-boundary-with-usage-statistics" title="Link to this heading">¶</a></h2>
+<h2>7. The boundary with Usage Statistics<a class="headerlink" href="#the-boundary-with-usage-statistics" title="Link to this heading">¶</a></h2>
 <p>The journal holds file paths and real parameter values. Locally that is correct — it is
 the user’s own work — and in a transmitted payload it would be a disaster. So the
 relationship is one-way and lossy by construction:</p>
@@ -439,7 +584,7 @@ statistics proposal — local collection, no network code — is exactly this jo
 projection.</p>
 </section>
 <section id="the-journal-is-still-a-privacy-surface">
-<h2>6. The journal is still a privacy surface<a class="headerlink" href="#the-journal-is-still-a-privacy-surface" title="Link to this heading">¶</a></h2>
+<h2>8. The journal is still a privacy surface<a class="headerlink" href="#the-journal-is-still-a-privacy-surface" title="Link to this heading">¶</a></h2>
 <p>Nothing is transmitted, but the file records what the user worked on, by name. On a
 shared machine, in a cloud-synced home directory, or in a backup, that is worth treating
 seriously:</p>
@@ -453,7 +598,7 @@ reason the statistics are not: there is no one present whose habits these are.</
 </ul>
 </section>
 <section id="phasing">
-<h2>7. Phasing<a class="headerlink" href="#phasing" title="Link to this heading">¶</a></h2>
+<h2>9. Phasing<a class="headerlink" href="#phasing" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -477,20 +622,34 @@ reason the statistics are not: there is no one present whose habits these are.</
 </tr>
 <tr class="row-odd"><td><p>3</p></td>
 <td><p>Next-filter suggestion (§3.4) with a shipped prior</p></td>
-<td><p>phase 0, and Usage Statistics phase 2 for a real prior</p></td>
+<td><p>phase 0, and Usage Statistics phase 3 for a real prior</p></td>
 </tr>
 <tr class="row-even"><td><p>4</p></td>
-<td><p>Repeated-pipeline detection (§3.5)</p></td>
+<td><p>Repeated-pipeline detection (§3.5) and its view (§5.4)</p></td>
 <td><p>phase 0</p></td>
+</tr>
+<tr class="row-odd"><td><p>5</p></td>
+<td><p>Session recap (§5.1), the transparency table (§5.7), JSONL and script export (§6)</p></td>
+<td><p>phase 0</p></td>
+</tr>
+<tr class="row-even"><td><p>6</p></td>
+<td><p>Per-document provenance (§5.2), time breakdown (§5.5), parameter drift (§5.6)</p></td>
+<td><p>phase 0; §5.6 also phase 1</p></td>
+</tr>
+<tr class="row-odd"><td><p>7</p></td>
+<td><p>Comparison against the prior (§5.3), the contribution bundle (§6)</p></td>
+<td><p>Usage Statistics phase 3</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p>Phases 1 and 2 are small and independent; 3 and 4 are where the UI questions are, and
-neither is required for the first two to be worth shipping.</p>
+neither is required for the first two to be worth shipping. Phase 5 is the one to pull
+forward if the feature needs to justify itself early — §5.1 and §5.7 together are what
+make the journal read as a tool the user owns rather than as a record kept about them.</p>
 </section>
 <section id="open-questions">
-<h2>8. Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
+<h2>10. Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Names.</strong> <em>Usage history</em>, <em>Clear usage history</em>, the “next” row — all user-visible,
 so they need <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> approval rather than being invented here.
@@ -498,8 +657,15 @@ The constraint is distinctness from <em>Action History</em>, which already means
 else.</p></li>
 <li><p><strong>How much UI the suggestions deserve.</strong> A row in the filter panel is the conservative
 answer; anything more prominent risks being the feature users turn off first.</p></li>
-<li><p><strong>Whether the journal should be user-exportable</strong> — probably yes, since it is a mine of
-ready-made <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> scripts, but that makes its format a compatibility surface.</p></li>
+<li><p><strong>Whether exporting the journal verbatim (§6) pins its format</strong> as a compatibility
+surface. Exporting the stored file unchanged is what makes the transparency claim
+checkable, and it is also a promise about the schema; a version field in every record
+is the cheap hedge.</p></li>
+<li><p><strong>Script export defaults</strong> — parameterized paths or literal ones, and whether a
+provenance export (§5.2) should be prose for a methods section rather than code.</p></li>
+<li><p><strong>Whether the views justify linking the plotter</strong> (§5.9), or whether tables carry
+all of them. Least code says tables; §5.6 is the one view with a real case for a
+distribution.</p></li>
 <li><p><strong>Whether learned defaults apply silently or on confirmation.</strong> Silent is smoother and
 harder to debug; the marker in §3.2 is the minimum either way.</p></li>
 </ol>
@@ -561,10 +727,23 @@ past the point of identification, and the only part that is ever transmitted.
 </ul>
 </li>
 <li><a class="reference internal" href="#cold-start-and-where-the-prior-comes-from">4. Cold start, and where the prior comes from</a></li>
-<li><a class="reference internal" href="#the-boundary-with-usage-statistics">5. The boundary with Usage Statistics</a></li>
-<li><a class="reference internal" href="#the-journal-is-still-a-privacy-surface">6. The journal is still a privacy surface</a></li>
-<li><a class="reference internal" href="#phasing">7. Phasing</a></li>
-<li><a class="reference internal" href="#open-questions">8. Open questions</a></li>
+<li><a class="reference internal" href="#seeing-it">5. Seeing it</a><ul>
+<li><a class="reference internal" href="#session-recap-as-a-script">5.1 Session recap, as a script</a></li>
+<li><a class="reference internal" href="#per-document-provenance">5.2 Per-document provenance</a></li>
+<li><a class="reference internal" href="#your-filters-against-everyone-s">5.3 Your filters, against everyone’s</a></li>
+<li><a class="reference internal" href="#repeated-pipelines">5.4 Repeated pipelines</a></li>
+<li><a class="reference internal" href="#where-the-time-goes">5.5 Where the time goes</a></li>
+<li><a class="reference internal" href="#parameter-drift">5.6 Parameter drift</a></li>
+<li><a class="reference internal" href="#the-transparency-table">5.7 The transparency table</a></li>
+<li><a class="reference internal" href="#every-suggestion-explains-itself">5.8 Every suggestion explains itself</a></li>
+<li><a class="reference internal" href="#what-not-to-build-and-where-these-live">5.9 What not to build, and where these live</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#exporting-it">6. Exporting it</a></li>
+<li><a class="reference internal" href="#the-boundary-with-usage-statistics">7. The boundary with Usage Statistics</a></li>
+<li><a class="reference internal" href="#the-journal-is-still-a-privacy-surface">8. The journal is still a privacy surface</a></li>
+<li><a class="reference internal" href="#phasing">9. Phasing</a></li>
+<li><a class="reference internal" href="#open-questions">10. Open questions</a></li>
 <li><a class="reference internal" href="#related">Related</a></li>
 </ul>
 </li>
