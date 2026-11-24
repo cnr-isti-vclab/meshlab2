@@ -334,6 +334,26 @@ undo path into the script editor.</p></li>
 exact replay, while compact scripts omit parameters that matched the descriptor
 defaults at the time each action was recorded.</p>
 </section>
+<section id="running-scripts-from-the-command-line">
+<h2>Running Scripts from the Command Line<a class="headerlink" href="#running-scripts-from-the-command-line" title="Link to this heading">¶</a></h2>
+<p>The application runs a script with no window and exits:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>MeshLab<span class="w"> </span>--script<span class="w"> </span>clean.py<span class="w"> </span>input.ply<span class="w"> </span>output.ply
+</pre></div>
+</div>
+<p>On macOS the executable is <code class="docutils literal notranslate"><span class="pre">MeshLab.app/Contents/MacOS/MeshLab</span></code>. The script runs as
+<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">clean.py</span></code> would run it: as <code class="docutils literal notranslate"><span class="pre">__main__</span></code>, with its arguments in <code class="docutils literal notranslate"><span class="pre">sys.argv</span></code> and
+its own directory first on <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>. As in the console, <code class="docutils literal notranslate"><span class="pre">ms</span></code> is a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> on a
+fresh, empty document, with the per-filter methods attached, and <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">pymeshlab2</span></code>
+works, so a script exported from the undo graph runs unchanged, and so does one
+written for the <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> wheel. Output goes to the terminal; the exit status is
+<code class="docutils literal notranslate"><span class="pre">sys.exit()</span></code>’s, or 1 when the script raises. There is no <code class="docutils literal notranslate"><span class="pre">mlgui</span></code>, since there is no
+view.</p>
+<p>It uses the application’s own interpreter and plugins, so it needs no Python install,
+and filters read the preferences saved by the application. On Linux with no display
+it runs offscreen; <code class="docutils literal notranslate"><span class="pre">render_snapshot()</span></code> still needs a GPU and a window server there.
+On Windows the console prompt returns before the script finishes, since <code class="docutils literal notranslate"><span class="pre">MeshLab.exe</span></code>
+is a GUI program; <code class="docutils literal notranslate"><span class="pre">start</span> <span class="pre">/wait</span> <span class="pre">MeshLab.exe</span> <span class="pre">--script</span> <span class="pre">...</span></code> waits for it.</p>
+</section>
 <section id="available-module-objects">
 <h2>Available Module Objects<a class="headerlink" href="#available-module-objects" title="Link to this heading">¶</a></h2>
 <p>The public <code class="docutils literal notranslate"><span class="pre">pymeshlab2</span></code> facade exposes:</p>
@@ -650,6 +670,7 @@ when you need exact parameter names.</p></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#console-and-script-editor">Console and Script Editor</a></li>
+<li><a class="reference internal" href="#running-scripts-from-the-command-line">Running Scripts from the Command Line</a></li>
 <li><a class="reference internal" href="#available-module-objects">Available Module Objects</a></li>
 <li><a class="reference internal" href="#meshset-basics">MeshSet Basics</a><ul>
 <li><a class="reference internal" href="#mesh-index-vs-mesh-id">Mesh index vs mesh id</a></li>

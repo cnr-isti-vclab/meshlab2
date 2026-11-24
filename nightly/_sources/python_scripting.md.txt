@@ -101,6 +101,29 @@ History export offers two styles: full scripts keep every recorded parameter for
 exact replay, while compact scripts omit parameters that matched the descriptor
 defaults at the time each action was recorded.
 
+## Running Scripts from the Command Line
+
+The application runs a script with no window and exits:
+
+```bash
+MeshLab --script clean.py input.ply output.ply
+```
+
+On macOS the executable is `MeshLab.app/Contents/MacOS/MeshLab`. The script runs as
+`python clean.py` would run it: as `__main__`, with its arguments in `sys.argv` and
+its own directory first on `sys.path`. As in the console, `ms` is a `MeshSet` on a
+fresh, empty document, with the per-filter methods attached, and `import pymeshlab2`
+works, so a script exported from the undo graph runs unchanged, and so does one
+written for the `pymeshlab2` wheel. Output goes to the terminal; the exit status is
+`sys.exit()`'s, or 1 when the script raises. There is no `mlgui`, since there is no
+view.
+
+It uses the application's own interpreter and plugins, so it needs no Python install,
+and filters read the preferences saved by the application. On Linux with no display
+it runs offscreen; `render_snapshot()` still needs a GPU and a window server there.
+On Windows the console prompt returns before the script finishes, since `MeshLab.exe`
+is a GUI program; `start /wait MeshLab.exe --script ...` waits for it.
+
 ## Available Module Objects
 
 The public `pymeshlab2` facade exposes:

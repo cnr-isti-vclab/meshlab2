@@ -38,8 +38,6 @@ MeshLab is closer to being model-drivable than it looks. The relevant assets:
   *live* document from outside the process requires new plumbing plus thread
   marshalling onto the GUI thread, and has to interact correctly with the
   existing "block UI while filters run" behaviour.
-- **No batch command line.** The executable accepts only `--generate-docs` and
-  `--capture-window`; there is no `meshlab --script foo.py`.
 - **The wheel is not on PyPI**, and there are no Linux wheels. An out-of-tree
   server is easy to install only once `pip install pymeshlab2` works.
 
@@ -158,8 +156,9 @@ chosen separately.
 - **In-app chat dock.** Most product-like, most code. Amounts to
   re-implementing an agent harness (streaming, tool loop, provider config,
   cancellation, cost accounting) that existing clients already provide.
-- **CLI batch mode** (`meshlab --script foo.py`). Not LLM-specific, but the
-  substrate for headless automation and CI.
+- **CLI batch mode** (`MeshLab --script foo.py`, which exists). Not LLM-specific,
+  but it runs a model-written script with the application's own interpreter and
+  plugins, with no Python install and on platforms the wheel does not cover.
 
 ### D. What it is for
 

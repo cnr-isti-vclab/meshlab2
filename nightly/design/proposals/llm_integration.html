@@ -331,8 +331,6 @@ mechanisms are already load-bearing for this purpose.</p>
 <em>live</em> document from outside the process requires new plumbing plus thread
 marshalling onto the GUI thread, and has to interact correctly with the
 existing “block UI while filters run” behaviour.</p></li>
-<li><p><strong>No batch command line.</strong> The executable accepts only <code class="docutils literal notranslate"><span class="pre">--generate-docs</span></code> and
-<code class="docutils literal notranslate"><span class="pre">--capture-window</span></code>; there is no <code class="docutils literal notranslate"><span class="pre">meshlab</span> <span class="pre">--script</span> <span class="pre">foo.py</span></code>.</p></li>
 <li><p><strong>The wheel is not on PyPI</strong>, and there are no Linux wheels. An out-of-tree
 server is easy to install only once <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">pymeshlab2</span></code> works.</p></li>
 </ul>
@@ -452,8 +450,9 @@ and the only option needing real new plumbing.</p></li>
 <li><p><strong>In-app chat dock.</strong> Most product-like, most code. Amounts to
 re-implementing an agent harness (streaming, tool loop, provider config,
 cancellation, cost accounting) that existing clients already provide.</p></li>
-<li><p><strong>CLI batch mode</strong> (<code class="docutils literal notranslate"><span class="pre">meshlab</span> <span class="pre">--script</span> <span class="pre">foo.py</span></code>). Not LLM-specific, but the
-substrate for headless automation and CI.</p></li>
+<li><p><strong>CLI batch mode</strong> (<code class="docutils literal notranslate"><span class="pre">MeshLab</span> <span class="pre">--script</span> <span class="pre">foo.py</span></code>, which exists). Not LLM-specific,
+but it runs a model-written script with the application’s own interpreter and
+plugins, with no Python install and on platforms the wheel does not cover.</p></li>
 </ul>
 </section>
 <section id="d-what-it-is-for">
