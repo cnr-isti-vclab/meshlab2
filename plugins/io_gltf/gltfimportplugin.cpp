@@ -27,6 +27,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -340,6 +341,10 @@ struct PrimitivePayload {
     std::vector<float> colors;
     std::vector<float> texcoords;
     std::vector<uint32_t> indices;
+    // Output index of each distinct corner already written: the source vertex plus the
+    // per-corner values that can split it (UV bits, override color). Without it every
+    // face corner became its own glTF vertex and the file read back as a triangle soup.
+    std::map<std::tuple<const VCGVertex *, uint32_t, uint32_t, uint32_t>, uint32_t> written;
 };
 
 constexpr int kDracoPositionQuantizationBits = 14;
@@ -545,7 +550,19 @@ uint32_t appendPrimitiveVertex(
     float texU,
     float texV)
 {
+    uint32_t uBits = 0, vBits = 0;
+    if (writeTexcoord) {
+        std::memcpy(&uBits, &texU, sizeof(uBits));
+        std::memcpy(&vBits, &texV, sizeof(vBits));
+    }
+    uint32_t colorBits = 0;
+    if (writeColor && useOverrideColor)
+        std::memcpy(&colorBits, &overrideColor[0], sizeof(colorBits));
     const uint32_t idx = uint32_t(payload.positions.size() / 3);
+    const auto [it, inserted] = payload.written.try_emplace({v, uBits, vBits, colorBits}, idx);
+    if (!inserted)
+        return it->second;
+
     const auto p = v->cP();
     payload.positions.push_back(float(p[0]));
     payload.positions.push_back(float(p[1]));

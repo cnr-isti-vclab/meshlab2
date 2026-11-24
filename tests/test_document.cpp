@@ -4372,6 +4372,7 @@ void DocumentTests::saveAndLoadDracoGLB()
         QCOMPARE(loaded.loadMesh(path), 0);
         const VCGMesh &m = loaded.mesh(0).mesh;
         QCOMPARE(m.FN(), faces);
+        QCOMPARE(m.VN(), (n + 1) * (n + 1)); // corners sharing vertex and UV stay one vertex
         QVERIFY(m.face.IsWedgeTexCoordEnabled());
         // Draco quantizes positions to 14 bits and UVs to 12 over their ranges: a 1/20 grid is
         // far coarser than either.
@@ -4436,6 +4437,7 @@ void DocumentTests::savingIgnoresTextureCoordinatesTheMeshLacks()
     Document loaded;
     QCOMPARE(loaded.loadMesh(path), 0);
     QCOMPARE(loaded.mesh(0).mesh.FN(), 8);
+    QCOMPARE(loaded.mesh(0).mesh.VN(), 9); // not one vertex per face corner
 }
 
 // The glTF writer saves a polyline as a LINES primitive, which the reader used to skip, so the
@@ -4458,6 +4460,7 @@ void DocumentTests::gltfPolylineRoundTrips()
     Document loaded;
     QCOMPARE(loaded.loadMesh(path), 0);
     QCOMPARE(loaded.mesh(0).mesh.EN(), 9);
+    QCOMPARE(loaded.mesh(0).mesh.VN(), 10); // not two vertices per edge
     QVERIFY(loaded.mesh(0).ioMask & vcg::tri::io::Mask::IOM_EDGEINDEX);
 }
 
