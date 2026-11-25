@@ -529,14 +529,6 @@ near plane pushed in front of an object cuts the object on Metal.</p>
 <li><p>Run the radiance-scaling gradient pre-pass (if any planned fill or point item has the radiance-scaling option on).</p></li>
 <li><p>Run main onscreen pass.</p></li>
 </ol>
-<p>Every pass opens with <code class="docutils literal notranslate"><span class="pre">setPassViewport</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_internal.h</span></code>): a pipeline is bound
-before the first <code class="docutils literal notranslate"><span class="pre">setViewport</span></code>. On Vulkan, QRhi records a pipeline’s scissor (dynamic state
-there) only in <code class="docutils literal notranslate"><span class="pre">setViewport</span></code>, and only while a pipeline is bound, so a pass that set its
-viewport first drew with no scissor. That is undefined: Intel’s driver crashed on it in the
-highlight masks, the first passes of a frame (2026-11, a capture with two layers), while
-MoltenVK and the other backends let it pass. The validation layer reports it as
-<code class="docutils literal notranslate"><span class="pre">VUID-vkCmdDraw-None-07832</span></code>; see <a class="reference internal" href="#diagnosing-another-machine"><span class="xref myst">Diagnosing Another Machine</span></a>
-for running with it.</p>
 <p>Main pass draw order: scene background · fill · solid cut · wire · edges · bbox · points · reference grid · raster camera frustums · decorators · depth-cued tool guides · raster image (<code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> mode only: an overlay with no depth test, faded by the raster opacity) · trackball gizmo · current-mesh outline/debug composite · selection overlay · tool loupes · 2D informational/tool overlays.</p>
 </section>
 <section id="scene3d-pass-details">
@@ -810,20 +802,6 @@ to the log: the API, the device and its kind, and on OpenGL the driver’s versi
 environment, the screens, the API, device and driver (OpenGL’s version, renderer, vendor, GLSL
 version and profile), the QRhi features and limits the renderer leans on, and the recent
 warnings; <em>Copy System Information</em> puts it all on the clipboard for a bug report.</p>
-<p>Vulkan misuse that one driver forgives and another crashes on can be caught on a Mac with the
-validation layer. <code class="docutils literal notranslate"><span class="pre">QSG_RHI_DEBUG_LAYER</span></code> does not reach a <code class="docutils literal notranslate"><span class="pre">QRhiWidget</span></code>, so the loader enables
-it. With Homebrew’s <code class="docutils literal notranslate"><span class="pre">vulkan-loader</span></code> and <code class="docutils literal notranslate"><span class="pre">vulkan-validationlayers</span></code>, and an ICD JSON pointing at
-a <code class="docutils literal notranslate"><span class="pre">libMoltenVK.dylib</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">VK_LOADER_LAYERS_ENABLE</span><span class="o">=</span><span class="s1">'*validation'</span><span class="w"> </span><span class="nv">VK_DRIVER_FILES</span><span class="o">=</span>&lt;MoltenVK_icd.json&gt;<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="nv">VK_LAYER_PATH</span><span class="o">=</span>/opt/homebrew/share/vulkan/explicit_layer.d<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="nv">QT_VULKAN_LIB</span><span class="o">=</span>/opt/homebrew/lib/libvulkan.1.dylib<span class="w"> </span><span class="nv">MESHLAB2_GRAPHICS_API</span><span class="o">=</span>vulkan<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>build-release/MeshLab.app/Contents/MacOS/MeshLab<span class="w"> </span>--generate-docs<span class="w"> </span>tests/render_probes/&lt;probe&gt;
-</pre></div>
-</div>
-<p>Messages arrive as <code class="docutils literal notranslate"><span class="pre">vkDebug:</span></code> lines on stderr. <code class="docutils literal notranslate"><span class="pre">VUID-VkImageCreateInfo-initialLayout-12478</span></code>
-comes from Qt’s own textures. The probes draw through <code class="docutils literal notranslate"><span class="pre">grabFramebuffer</span></code>, the same path as a
-snapshot or an undo-history thumbnail. <code class="docutils literal notranslate"><span class="pre">--capture-window</span></code> hangs on MoltenVK while the file is
-still loading (the window waits on a drawable), so use a probe.</p>
 </section>
 <section id="frame-timing">
 <h2>Frame Timing<a class="headerlink" href="#frame-timing" title="Link to this heading">¶</a></h2>
