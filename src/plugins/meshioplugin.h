@@ -2,6 +2,7 @@
 
 #include "lengthunit.h"
 #include "vcgmesh.h"
+#include <vcg/math/shot.h>
 #include <QImage>
 #include <QString>
 #include <QStringList>
@@ -96,6 +97,15 @@ struct MeshIOTextureContext
     QStringList *savedTexturePaths = nullptr;
 };
 
+// An image a mesh file carries with the camera that took it, in the coordinates load() gives
+// the mesh: E57 holds a scan's photos this way. Document::loadMesh makes each a raster.
+struct MeshIORaster
+{
+    QString name;
+    QImage image;
+    vcg::Shot<float> shot;
+};
+
 struct MeshIOCapabilities
 {
     int mask = 0;
@@ -164,6 +174,16 @@ public:
     {
         (void) outUnit;
         return load(filename, mesh, cb, outLoadMask, outMaterialSet);
+    }
+
+    // The images the file holds with their cameras, read after a successful load(). Most
+    // formats have none. What could not be read goes to warnings, for the log: it never
+    // fails the mesh load.
+    virtual std::vector<MeshIORaster> loadRasters(const QString &filename, QStringList &warnings) const
+    {
+        (void) filename;
+        (void) warnings;
+        return {};
     }
 
     // Qt file dialog filter string for this plugin's formats, e.g. "Mesh Files (*.ply *.obj)".

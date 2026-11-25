@@ -356,6 +356,19 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
 
     emit meshAdded(index);
     setCurrentMeshIndex(index);
+    // The photos the file holds become rasters, in this undo step. Not inside a project: it
+    // lists its rasters itself, these among them once it has been saved with them.
+    if (!m_bulkLoading) {
+        QStringList warnings;
+        const std::vector<MeshIORaster> rasters = plugin->loadRasters(filename, warnings);
+        for (const QString &warning : warnings)
+            writeLog(warning, LogSource::Application, LogLevel::Warning);
+        for (const MeshIORaster &raster : rasters)
+            addRasterImage(raster.image, raster.name, QString(), CameraShot::fromVcgShot(raster.shot));
+        if (!rasters.empty())
+            writeLog(tr("Added %n raster(s) from '%1'", nullptr, int(rasters.size())).arg(meshEntry.name),
+                LogSource::Application);
+    }
     emit loadProgressUpdated(100, tr("Loaded %1").arg(meshEntry.name));
     emit loadProgressFinished(true, tr("Loaded %1").arg(meshEntry.name));
     if (ownUndoStep)

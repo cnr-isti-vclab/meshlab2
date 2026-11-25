@@ -12,12 +12,14 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <memory>
 #include <vector>
 
 #include <E57SimpleReader.h>
 #include <E57SimpleWriter.h>
 #include <vcg/complex/allocate.h>
+#include <vcg/math/matrix33.h>
 #include <vcg/math/quaternion.h>
 
 namespace {
@@ -240,6 +242,101 @@ public:
         if (outLoadMask)
             *outLoadMask = loadMask;
         return 0;
+    }
+
+    // The pinhole photos, as rasters in the coordinates load() places the points in.
+    //
+    // The image pose is read as measured on a Leica ScanStation 2 file (parking-lot-updated.e57,
+    // whose image names give each photo's azimuth and elevation, matched by all 285 of them to
+    // 0.55 degrees): it takes a point from the associated scan's own frame into the camera's,
+    // p_cam = R(q) (p_scan - t), the camera looking down +z with image x right and y down, rows
+    // from the top. libE57's notes describe the inverse, an image-to-file pose with z < 0 in
+    // front; the file's scan poses do follow the standard, its image poses this. A pixel
+    // centre is at an integer coordinate (511.5 is the centre of a 1024-pixel image); vcg puts
+    // it at k + 0.5 with rows from the bottom.
+    // Spherical and cylindrical images are skipped: their mapping is not settled yet.
+    std::vector<MeshIORaster> loadRasters(const QString &filename, QStringList &warnings) const override
+    {
+        std::vector<MeshIORaster> rasters;
+        try {
+            e57::Reader reader(filename.toStdString(), {});
+            if (!reader.IsOpen() || reader.GetImage2DCount() <= 0)
+                return rasters;
+            auto rotation = [](const e57::Quaternion &q) {
+                const vcg::Quaterniond r(q.w, q.x, q.y, q.z);
+                vcg::Matrix33d m;
+                for (int c = 0; c < 3; ++c) {
+                    vcg::Point3d axis(0, 0, 0);
+                    axis[c] = 1;
+                    m.SetColumn(c, r.Rotate(axis));
+                }
+                return m;
+            };
+            auto translation = [](const e57::Translation &t) { return vcg::Point3d(t.x, t.y, t.z); };
+            std::map<std::string, e57::RigidBodyTransform> scanPose;
+            for (int64_t i = 0; i < reader.GetData3DCount(); ++i) {
+                e57::Data3D scan;
+                if (reader.ReadData3D(i, scan))
+                    scanPose[scan.guid] = scan.pose;
+            }
+            int skipped = 0;
+            for (int64_t i = 0; i < reader.GetImage2DCount(); ++i) {
+                e57::Image2D header;
+                e57::Image2DProjection projection;
+                e57::Image2DType type, maskType, visualType;
+                int64_t width = 0, height = 0, size = 0;
+                if (!reader.ReadImage2D(i, header)
+                    || !reader.GetImage2DSizes(i, projection, type, width, height, size, maskType, visualType))
+                    continue;
+                if (projection != e57::ProjectionPinhole) {
+                    ++skipped;
+                    continue;
+                }
+                QByteArray bytes(qsizetype(size), Qt::Uninitialized);
+                reader.ReadImage2DData(i, projection, type, bytes.data(), 0, size);
+                MeshIORaster raster;
+                raster.name = QString::fromStdString(header.name);
+                if (raster.name.isEmpty())
+                    raster.name = QObject::tr("Image %1").arg(i);
+                if (!raster.image.loadFromData(bytes)) {
+                    warnings << QObject::tr("E57 image '%1' could not be decoded.").arg(raster.name);
+                    continue;
+                }
+
+                const auto scan = scanPose.find(header.associatedData3DGuid);
+                const e57::RigidBodyTransform pose = scan != scanPose.end() ? scan->second : e57::RigidBodyTransform{};
+                const vcg::Matrix33d scanRotation = rotation(pose.rotation);
+                const vcg::Matrix33d worldToCamera = rotation(header.pose.rotation) * scanRotation.transpose();
+                const vcg::Point3d centre = translation(pose.translation)
+                    + scanRotation * translation(header.pose.translation);
+                // vcg's camera looks down -z with y up: flip y and z of the camera frame.
+                vcg::Matrix44f rot;
+                rot.SetIdentity();
+                for (int r = 0; r < 3; ++r)
+                    for (int c = 0; c < 3; ++c)
+                        rot[r][c] = float(r == 0 ? worldToCamera[r][c] : -worldToCamera[r][c]);
+                raster.shot.Extrinsics.SetRot(rot);
+                raster.shot.Extrinsics.SetTra(vcg::Point3f::Construct(centre));
+                const e57::PinholeRepresentation &pinhole = header.pinholeRepresentation;
+                vcg::Camera<float> &camera = raster.shot.Intrinsics;
+                camera.cameraType = vcg::Camera<float>::PERSPECTIVE;
+                camera.FocalMm = float(pinhole.focalLength * 1000);
+                camera.PixelSizeMm = vcg::Point2f(float(pinhole.pixelWidth * 1000), float(pinhole.pixelHeight * 1000));
+                camera.ViewportPx = vcg::Point2i(int(width), int(height));
+                camera.CenterPx = vcg::Point2f(float(pinhole.principalPointX + 0.5),
+                    float(height - pinhole.principalPointY - 0.5));
+                rasters.push_back(std::move(raster));
+            }
+            if (skipped > 0)
+                warnings << QObject::tr("%n spherical or cylindrical E57 image(s) skipped: only pinhole images become rasters.",
+                    nullptr, skipped);
+        } catch (const e57::E57Exception &e) {
+            warnings << QObject::tr("E57 images could not be read: %1 (%2)")
+                .arg(QString::fromStdString(e.errorStr()), QString::fromStdString(e.context()));
+        } catch (const std::exception &e) {
+            warnings << QObject::tr("E57 images could not be read: %1").arg(QString::fromLocal8Bit(e.what()));
+        }
+        return rasters;
     }
 
     QString filterString() const override

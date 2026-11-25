@@ -1,5 +1,6 @@
 #include <QtTest/QtTest>
 #include <QSignalSpy>
+#include <QBuffer>
 #include <QDataStream>
 #include <QFile>
 #include <QTextStream>
@@ -30,6 +31,9 @@
 #include <wrap/io_trimesh/export_stl.h>
 #include <wrap/io_trimesh/import_obj.h>
 #include <wrap/io_trimesh/io_mask.h>
+#if __has_include(<E57SimpleWriter.h>)
+#include <E57SimpleWriter.h>
+#endif
 
 namespace {
 
@@ -154,6 +158,7 @@ private slots:
     void gltfPolylineRoundTrips();
     void e57SavesAConstantColor();
     void e57RoundTripsPointAttributes();
+    void e57PinholeImagesBecomeRasters();
     void savingWritesTheTexturesNoFileHolds();
     void savingNamesTheLayersFileAndUndoKeepsIt();
     void savingOneTextureOrPlaneNamesItsFile();
@@ -4522,6 +4527,86 @@ void DocumentTests::e57RoundTripsPointAttributes()
         QCOMPARE(v.cN(), mesh.vert[size_t(i)].cN());
         QCOMPARE(v.cQ(), mesh.vert[size_t(i)].cQ());
     }
+}
+
+// A posed scan with one pinhole photo, itself posed relative to the scan (tilted 30 degrees
+// about x, 1 m up): opening the file adds the photo as a raster whose camera sends file points
+// to the pixels the E57 pinhole model gives, under the convention measured on a Leica file,
+// p_cam = R_image (R_scan^T (p - t_scan) - t_image), +z forward, rows from the top.
+void DocumentTests::e57PinholeImagesBecomeRasters()
+{
+#if !__has_include(<E57SimpleWriter.h>)
+    QSKIP("This build has no E57 support.");
+#else
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("photo.e57"));
+    const double half = std::sqrt(0.5), c15 = std::cos(M_PI / 12), s15 = std::sin(M_PI / 12);
+    const int width = 64, height = 48;
+    const double focal = 0.01, pixel = 0.0001, cx = 31.5, cy = 23.5;
+    {
+        e57::Writer writer(path.toStdString(), e57::WriterOptions{});
+        e57::Data3D scan;
+        scan.guid = "scan";
+        scan.pointCount = 3;
+        scan.pointFields.cartesianXField = scan.pointFields.cartesianYField = scan.pointFields.cartesianZField = true;
+        scan.pose.rotation = { half, 0, 0, half };
+        scan.pose.translation = { 5, 0, 0 };
+        double x[3] = { 0, 1, 2 }, y[3] = { 0, 1, 0 }, z[3] = { 0, 0, 1 };
+        e57::Data3DPointsDouble points;
+        points.cartesianX = x;
+        points.cartesianY = y;
+        points.cartesianZ = z;
+        writer.WriteData3DData(scan, points);
+
+        QImage image(width, height, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        QByteArray jpeg;
+        QBuffer buffer(&jpeg);
+        QVERIFY(image.save(&buffer, "JPG"));
+        e57::Image2D photo;
+        photo.guid = "photo";
+        photo.name = "photo";
+        photo.associatedData3DGuid = "scan";
+        photo.pose.rotation = { c15, s15, 0, 0 };
+        photo.pose.translation = { 0, 0, 1 };
+        photo.pinholeRepresentation.jpegImageSize = jpeg.size();
+        photo.pinholeRepresentation.imageWidth = width;
+        photo.pinholeRepresentation.imageHeight = height;
+        photo.pinholeRepresentation.focalLength = focal;
+        photo.pinholeRepresentation.pixelWidth = photo.pinholeRepresentation.pixelHeight = pixel;
+        photo.pinholeRepresentation.principalPointX = cx;
+        photo.pinholeRepresentation.principalPointY = cy;
+        const int64_t index = writer.NewImage2D(photo);
+        writer.WriteImage2DData(index, e57::ImageJPEG, e57::ProjectionPinhole, jpeg.data(), 0, jpeg.size());
+        writer.Close();
+    }
+
+    Document document;
+    QCOMPARE(document.loadMesh(path), 0);
+    QCOMPARE(document.rasterCount(), 1);
+    const Document::RasterEntry &raster = document.raster(0);
+    QCOMPARE(raster.name, QStringLiteral("photo"));
+    QVERIFY(raster.currentPlane() && raster.currentPlane()->image.size() == QSize(width, height));
+
+    // The E57 pixel of a file point, by the convention above.
+    const vcg::Quaterniond scanRotation(half, 0, 0, half), photoRotation(c15, s15, 0, 0);
+    auto e57Pixel = [&](const vcg::Point3d &p) {
+        vcg::Quaterniond inverse = scanRotation;
+        inverse.Invert();
+        const vcg::Point3d cam = photoRotation.Rotate(inverse.Rotate(p - vcg::Point3d(5, 0, 0)) - vcg::Point3d(0, 0, 1));
+        return vcg::Point2d(cx + focal / pixel * cam[0] / cam[2], cy + focal / pixel * cam[1] / cam[2]);
+    };
+    const CameraShot::VcgShot shot = raster.shot.toVcgShot();
+    for (const vcg::Point3d &p : { vcg::Point3d(3, 0, 4.46), vcg::Point3d(2.8, 0.3, 4.2), vcg::Point3d(3.3, -0.2, 4.9) }) {
+        const vcg::Point2d expected = e57Pixel(p);
+        QVERIFY2(expected[0] > 0 && expected[0] < width && expected[1] > 0 && expected[1] < height, "test point out of view");
+        const vcg::Point2f vcgPixel = shot.Project(vcg::Point3f::Construct(p));
+        // vcg puts pixel centres at k + 0.5 and counts rows from the bottom.
+        QVERIFY(std::abs((vcgPixel[0] - 0.5) - expected[0]) < 1e-3);
+        QVERIFY(std::abs((height - vcgPixel[1] - 0.5) - expected[1]) < 1e-3);
+    }
+#endif
 }
 
 // A layer whose first texture exists only in memory -- what Texture Defragmentation leaves --
