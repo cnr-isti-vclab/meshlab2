@@ -1995,12 +1995,15 @@ MeshGpuResourceCache::FillPassView MeshGpuResourceCache::fillPassView(
     return view;
 }
 
-void MeshGpuResourceCache::BufferBatches::draw(QRhiCommandBuffer *cb) const
+void MeshGpuResourceCache::BufferBatches::draw(QRhiCommandBuffer *cb, bool pointQuads) const
 {
     for (const BufferBatchView &batch : *this) {
         const QRhiCommandBuffer::VertexInput binding(batch.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &binding);
-        cb->draw(quint32(batch.vertexCount));
+        if (pointQuads)
+            cb->draw(4, quint32(batch.vertexCount));
+        else
+            cb->draw(quint32(batch.vertexCount));
     }
 }
 

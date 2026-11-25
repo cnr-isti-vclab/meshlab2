@@ -425,6 +425,30 @@ nothing at zero gain, keeps the colour proportions of vertex colours, works with
 clouds, survives the buffer being replaced under 81 layers, evens out with the resolution bias, and the refusal) and
 by <code class="docutils literal notranslate"><span class="pre">RenderSettingsJsonTests</span></code>.</p>
 </section>
+<section id="sized-points">
+<h2>Sized points<a class="headerlink" href="#sized-points" title="Link to this heading">¶</a></h2>
+<p>Direct3D 11 and 12 draw every point primitive one pixel across: they have no programmable point
+size, and QRhi reports <code class="docutils literal notranslate"><span class="pre">VertexShaderPointSize</span></code> unsupported, so <code class="docutils literal notranslate"><span class="pre">gl_PointSize</span></code> is ignored. Where it
+is, the sized-point passes draw each point as a screen-aligned quad instead: the point buffer is
+bound per instance and a 4-vertex triangle strip drawn per point, its corner taken from
+<code class="docutils literal notranslate"><span class="pre">gl_VertexIndex</span></code> and pushed out by the size in pixels (<code class="docutils literal notranslate"><span class="pre">shaders/point_quad.glsl</span></code>), with the dot’s
+coordinate passed as a varying in place of <code class="docutils literal notranslate"><span class="pre">gl_PointCoord</span></code>. The shaders involved are compiled a
+second time with <code class="docutils literal notranslate"><span class="pre">POINT_QUADS</span></code> defined (<code class="docutils literal notranslate"><span class="pre">overlay_points</span></code>, <code class="docutils literal notranslate"><span class="pre">points_radscale_buf</span></code>, <code class="docutils literal notranslate"><span class="pre">depth_pick</span></code>,
+<code class="docutils literal notranslate"><span class="pre">overlay_decorator</span></code>; the <code class="docutils literal notranslate"><span class="pre">*_quads</span></code> outputs of <code class="docutils literal notranslate"><span class="pre">shaders_point_quads</span></code> in <code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code>), and the
+five sized-point pipelines – the points pass, its radiance-scaling twin, depth picking, decorator
+markers and selected vertices – are built one way or the other (<code class="docutils literal notranslate"><span class="pre">RenderWidget::loadPointShader</span></code>,
+<code class="docutils literal notranslate"><span class="pre">setPointGeometry</span></code>, <code class="docutils literal notranslate"><span class="pre">drawPoints</span></code>, <code class="docutils literal notranslate"><span class="pre">BufferBatches::draw(cb,</span> <span class="pre">pointQuads)</span></code>). The decorator block
+carries the viewport (<code class="docutils literal notranslate"><span class="pre">kDecoratorUbufSize</span></code>) for the 6-pixel markers; the main block has it in
+<code class="docutils literal notranslate"><span class="pre">wireParams.zw</span></code>. The one-pixel selection masks stay points.</p>
+<p>The preference <code class="docutils literal notranslate"><span class="pre">render.pointPrimitive</span></code> chooses – <code class="docutils literal notranslate"><span class="pre">auto</span></code> (quads only where points cannot be
+sized), <code class="docutils literal notranslate"><span class="pre">points</span></code>, <code class="docutils literal notranslate"><span class="pre">quads</span></code> – and <code class="docutils literal notranslate"><span class="pre">MESHLAB2_POINT_PRIMITIVE</span></code> overrides it; a change rebuilds the
+pipelines at the next frame. Auto keeps native points elsewhere because quads cost more where the
+pass is vertex-bound: measured on a Mac (Metal, Release, GPU timestamps, 2026-11-25), the points
+pass took 1.4-1.6x as long on a 1.1M-point scan and 1.5-2x on a 30M-point cloud, and 1.1-1.2x on a
+4M-point scan dominated by overdraw. Quads take a fractional size exactly, while native points round
+it by driver (OpenGL on a Mac draws 5.5 px as 6); at whole sizes the two match to the pixel, which
+<code class="docutils literal notranslate"><span class="pre">tests/render_probes/point_quads</span></code> checks on both paths.</p>
+</section>
 <section id="back-lighting">
 <h2>Back lighting<a class="headerlink" href="#back-lighting" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">PerMeshRenderSettings::fillBackLighting</span></code> (<code class="docutils literal notranslate"><span class="pre">Single</span></code>, <code class="docutils literal notranslate"><span class="pre">Double</span></code>, <code class="docutils literal notranslate"><span class="pre">Fancy</span></code>; JSON <code class="docutils literal notranslate"><span class="pre">fill_back_lighting</span></code>; <em>Back lighting</em>
@@ -732,7 +756,7 @@ application’s own <code class="docutils literal notranslate"><span class="pre"
 with a render-state JSON, and asserts on the returned raw RGBA8888.</p>
 <p><code class="docutils literal notranslate"><span class="pre">tests/render_probes/</span></code> holds these – <code class="docutils literal notranslate"><span class="pre">clip_plane</span></code> for the clipping plane and solid cut,
 <code class="docutils literal notranslate"><span class="pre">clip_space</span></code> for the backend correction of clip space, <code class="docutils literal notranslate"><span class="pre">radiance_scaling</span></code> for the radiance-scaling option, <code class="docutils literal notranslate"><span class="pre">reference_grid</span></code> for the reference grid, <code class="docutils literal notranslate"><span class="pre">orthographic</span></code> for the orthographic camera through snapshots and projection filters, <code class="docutils literal notranslate"><span class="pre">boundary_decorators</span></code> for what the boundary decorator marks and in which colors,
-<code class="docutils literal notranslate"><span class="pre">quality_histogram_layout</span></code> for captures staying full-frame while the histogram is open, <code class="docutils literal notranslate"><span class="pre">current_layer_outline</span></code> for the current-layer outline landing round the current layer (not mirrored top to bottom). Each is a
+<code class="docutils literal notranslate"><span class="pre">quality_histogram_layout</span></code> for captures staying full-frame while the histogram is open, <code class="docutils literal notranslate"><span class="pre">current_layer_outline</span></code> for the current-layer outline landing round the current layer (not mirrored top to bottom), <code class="docutils literal notranslate"><span class="pre">point_quads</span></code> for points drawn as quads matching points drawn as points. Each is a
 directory with a <code class="docutils literal notranslate"><span class="pre">generate_api.py</span></code>, because that is the filename the hook runs:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">build</span><span class="o">-</span><span class="n">release</span><span class="o">/</span><span class="n">MeshLab</span><span class="o">.</span><span class="n">app</span><span class="o">/</span><span class="n">Contents</span><span class="o">/</span><span class="n">MacOS</span><span class="o">/</span><span class="n">MeshLab</span> <span class="o">--</span><span class="n">generate</span><span class="o">-</span><span class="n">docs</span> <span class="n">tests</span><span class="o">/</span><span class="n">render_probes</span><span class="o">/</span><span class="n">clip_plane</span>
 </pre></div>
@@ -833,6 +857,7 @@ warnings; <em>Copy System Information</em> puts it all on the clipboard for a bu
 </ul>
 </li>
 <li><a class="reference internal" href="#radiance-scaling">Radiance scaling</a></li>
+<li><a class="reference internal" href="#sized-points">Sized points</a></li>
 <li><a class="reference internal" href="#back-lighting">Back lighting</a></li>
 <li><a class="reference internal" href="#reference-grid">Reference grid</a></li>
 <li><a class="reference internal" href="#clip-space-convention">Clip-space convention</a></li>

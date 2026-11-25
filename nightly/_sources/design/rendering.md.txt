@@ -198,6 +198,31 @@ nothing at zero gain, keeps the colour proportions of vertex colours, works with
 clouds, survives the buffer being replaced under 81 layers, evens out with the resolution bias, and the refusal) and
 by `RenderSettingsJsonTests`.
 
+## Sized points
+
+Direct3D 11 and 12 draw every point primitive one pixel across: they have no programmable point
+size, and QRhi reports `VertexShaderPointSize` unsupported, so `gl_PointSize` is ignored. Where it
+is, the sized-point passes draw each point as a screen-aligned quad instead: the point buffer is
+bound per instance and a 4-vertex triangle strip drawn per point, its corner taken from
+`gl_VertexIndex` and pushed out by the size in pixels (`shaders/point_quad.glsl`), with the dot's
+coordinate passed as a varying in place of `gl_PointCoord`. The shaders involved are compiled a
+second time with `POINT_QUADS` defined (`overlay_points`, `points_radscale_buf`, `depth_pick`,
+`overlay_decorator`; the `*_quads` outputs of `shaders_point_quads` in `CMakeLists.txt`), and the
+five sized-point pipelines -- the points pass, its radiance-scaling twin, depth picking, decorator
+markers and selected vertices -- are built one way or the other (`RenderWidget::loadPointShader`,
+`setPointGeometry`, `drawPoints`, `BufferBatches::draw(cb, pointQuads)`). The decorator block
+carries the viewport (`kDecoratorUbufSize`) for the 6-pixel markers; the main block has it in
+`wireParams.zw`. The one-pixel selection masks stay points.
+
+The preference `render.pointPrimitive` chooses -- `auto` (quads only where points cannot be
+sized), `points`, `quads` -- and `MESHLAB2_POINT_PRIMITIVE` overrides it; a change rebuilds the
+pipelines at the next frame. Auto keeps native points elsewhere because quads cost more where the
+pass is vertex-bound: measured on a Mac (Metal, Release, GPU timestamps, 2026-11-25), the points
+pass took 1.4-1.6x as long on a 1.1M-point scan and 1.5-2x on a 30M-point cloud, and 1.1-1.2x on a
+4M-point scan dominated by overdraw. Quads take a fractional size exactly, while native points round
+it by driver (OpenGL on a Mac draws 5.5 px as 6); at whole sizes the two match to the pixel, which
+`tests/render_probes/point_quads` checks on both paths.
+
 ## Back lighting
 
 `PerMeshRenderSettings::fillBackLighting` (`Single`, `Double`, `Fancy`; JSON `fill_back_lighting`; *Back lighting*
@@ -528,7 +553,7 @@ with a render-state JSON, and asserts on the returned raw RGBA8888.
 
 `tests/render_probes/` holds these -- `clip_plane` for the clipping plane and solid cut,
 `clip_space` for the backend correction of clip space, `radiance_scaling` for the radiance-scaling option, `reference_grid` for the reference grid, `orthographic` for the orthographic camera through snapshots and projection filters, `boundary_decorators` for what the boundary decorator marks and in which colors,
-`quality_histogram_layout` for captures staying full-frame while the histogram is open, `current_layer_outline` for the current-layer outline landing round the current layer (not mirrored top to bottom). Each is a
+`quality_histogram_layout` for captures staying full-frame while the histogram is open, `current_layer_outline` for the current-layer outline landing round the current layer (not mirrored top to bottom), `point_quads` for points drawn as quads matching points drawn as points. Each is a
 directory with a `generate_api.py`, because that is the filename the hook runs:
 
 ```
