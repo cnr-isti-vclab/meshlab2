@@ -759,7 +759,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
     }
 
     cb->beginPass(renderTarget(), QColor(40, 40, 40), { 1.0f, 0 }, nullptr);
-    cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+    setPassViewport(cb, m_uvBackgroundPipeline.get(), { 0, 0, float(sz.width()), float(sz.height()) });
 
     if (m_uvBackgroundPipeline && m_uvBackgroundSrb) {
         cb->setGraphicsPipeline(m_uvBackgroundPipeline.get());

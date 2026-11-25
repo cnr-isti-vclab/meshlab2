@@ -465,6 +465,20 @@ inline void drawBatchGeometry(QRhiCommandBuffer *cb, const Batch &batch)
     }
 }
 
+// Sets the viewport at the start of a pass, binding `pipeline` first. QRhi gives a pipeline
+// without UsesScissor a scissor matching the viewport, but on Vulkan (where every pipeline's
+// scissor is dynamic state) it records it in setViewport, and only while a pipeline is bound.
+// A pass that set its viewport before its first pipeline drew with no scissor at all, which
+// is undefined: Intel's driver crashed on it, MoltenVK let it pass. `pipeline` is any
+// pipeline made for the pass's render target; binding it without drawing costs nothing.
+inline void setPassViewport(QRhiCommandBuffer *cb, QRhiGraphicsPipeline *pipeline,
+                            const QRhiViewport &viewport)
+{
+    if (pipeline)
+        cb->setGraphicsPipeline(pipeline);
+    cb->setViewport(viewport);
+}
+
 inline QVector3D toVec3(const VCGMesh::CoordType &p)
 {
     return QVector3D(p[0], p[1], p[2]);

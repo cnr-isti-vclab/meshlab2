@@ -298,8 +298,7 @@ void RenderWidget::renderRadianceScalingPrepass(
 
     cb->beginPass(m_rsGradRt.get(), QColor(0, 0, 0, 0), { 1.0f, 0 }, nullptr);
     for (const RenderFramePlan &plan : plans) {
-        cb->setViewport(plan.rhiViewport());
-        cb->setGraphicsPipeline(m_rsGradPipeline.get());
+        setPassViewport(cb, m_rsGradPipeline.get(), plan.rhiViewport());
         for (const SceneFillDrawItem &item : plan.sceneFill.fillItems) {
             for (int bi = 0; bi < item.fillView.batchCount; ++bi) {
                 const auto &batch = item.fillView.batches[bi];

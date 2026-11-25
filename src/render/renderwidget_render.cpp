@@ -699,7 +699,9 @@ void RenderWidget::render(QRhiCommandBuffer *cb)
     // Stencil starts at the solid cut's bias, not zero: see kSolidCutStencilBias. Nothing
     // else in this pass uses stencil, so the value is otherwise inert.
     cb->beginPass(renderTarget(), clearColor, { 1.0f, kSolidCutStencilBias }, u);
-    cb->setViewport({ 0, 0, float(sz.width()), float(sz.height()) });
+    // Bound even when the backdrop is not drawn (a transparent capture): every later viewport
+    // in the pass then carries its scissor too.
+    setPassViewport(cb, m_sceneBackgroundPipeline.get(), { 0, 0, float(sz.width()), float(sz.height()) });
 
     // The backdrop is a full-screen quad shaded from its own interpolated clip coordinates,
     // so drawing it once per tile viewport gives every tile the whole gradient rather than

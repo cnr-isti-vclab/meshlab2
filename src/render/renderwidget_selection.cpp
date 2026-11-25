@@ -169,7 +169,8 @@ void RenderWidget::executePendingDepthPick(
     }
 
     cb->beginPass(m_depthPickRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-    cb->setViewport(rhiViewportFor(tile.rect, pixelSize));
+    setPassViewport(cb, m_depthPickFillPipeline ? m_depthPickFillPipeline.get() : m_depthPickPointsPipeline.get(),
+                    rhiViewportFor(tile.rect, pixelSize));
 
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         if (!meshVisible(mi) || !tileShowsMesh(tile, mi))
@@ -420,7 +421,7 @@ void RenderWidget::renderCurrentMeshMask(
     if (!currentHasFill && !currentHasEdges && currentHasPoints) {
         // Keep the point-cloud outline path unchanged.
         cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-        cb->setViewport(tileViewport);
+        setPassViewport(cb, m_currentMaskPointsPipeline.get(), tileViewport);
         if (m_currentMaskPointsPipeline) {
             const quint32 ubufOffset = allocateDynamicUbufOffset(m_mainUbufAllocator, "main");
             uploadMainUbufForMesh(
@@ -550,9 +551,20 @@ void RenderWidget::renderCurrentMeshMask(
         pointsView.batches.draw(cb);
     };
 
+    // Passes 1 and 3 draw with whichever of these the layers need; all are made for the mask
+    // targets, so any of them can open the pass (setPassViewport).
+    QRhiGraphicsPipeline *anyDepthPipeline = nullptr;
+    for (QRhiGraphicsPipeline *p : { m_currentMaskFillDepthOnlyPipeline.get(),
+                                     m_currentMaskFatEdgesDepthOnlyPipeline.get(),
+                                     m_currentMaskEdgesDepthOnlyPipeline.get(),
+                                     m_currentMaskPointsDepthOnlyPipeline.get() }) {
+        if (!anyDepthPipeline)
+            anyDepthPipeline = p;
+    }
+
     // 1) Render current mesh into buffer A (encoded depth in color, depth test/write enabled).
     cb->beginPass(m_currentMaskBaseRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-    cb->setViewport(tileViewport);
+    setPassViewport(cb, anyDepthPipeline, tileViewport);
     if (currentHasFill) {
         drawFillDepth(currentMeshIndex, currentMeshSettings, currentFillView);
     } else if (currentHasEdges) {
@@ -564,7 +576,8 @@ void RenderWidget::renderCurrentMeshMask(
 
     // 2) Compute outline boundary O from A by removing pixels surrounded by 8 neighbors.
     cb->beginPass(m_currentMaskWorkRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-    cb->setViewport({ 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
+    setPassViewport(cb, m_outlineExtractPipeline.get(),
+                    { 0, 0, float(pixelSize.width()), float(pixelSize.height()) });
     if (m_outlineExtractPipeline && m_outlineExtractSrb && m_outlineExtractUbuf) {
         const float extractData[4] = {
             1.0f / float(qMax(1, pixelSize.width())),
@@ -585,7 +598,7 @@ void RenderWidget::renderCurrentMeshMask(
     // 3) Render whole scene depth into a second depth-encoded buffer. In the grid the tile
     // holds only the current layer, so nothing occludes it and this draws nothing.
     cb->beginPass(m_currentMaskRt.get(), Qt::transparent, { 1.0f, 0 }, nullptr);
-    cb->setViewport(tileViewport);
+    setPassViewport(cb, anyDepthPipeline, tileViewport);
     for (int mi = 0; mi < m_doc->meshCount(); ++mi) {
         if (!meshVisible(mi) || !tileShowsMesh(tile, mi))
             continue;
