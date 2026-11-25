@@ -153,6 +153,7 @@ private slots:
     void savingIgnoresTextureCoordinatesTheMeshLacks();
     void gltfPolylineRoundTrips();
     void e57SavesAConstantColor();
+    void e57RoundTripsPointAttributes();
     void savingWritesTheTexturesNoFileHolds();
     void savingNamesTheLayersFileAndUndoKeepsIt();
     void savingOneTextureOrPlaneNamesItsFile();
@@ -4484,6 +4485,43 @@ void DocumentTests::e57SavesAConstantColor()
     Document loaded;
     QCOMPARE(loaded.loadMesh(path), 0);
     QCOMPARE(loaded.mesh(0).mesh.VN(), 5);
+}
+
+// Colors, normals and intensity (vertex quality) written to E57 come back, with the load mask
+// saying so: the reader used to read positions only and report a mask of 0.
+void DocumentTests::e57RoundTripsPointAttributes()
+{
+    VCGMesh mesh;
+    for (int i = 0; i < 5; ++i) {
+        auto v = vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(float(i), 1, 2));
+        v->C() = vcg::Color4b(50 * i, 255 - 50 * i, 7, 255);
+        v->N() = vcg::Point3f(0, i % 2, 1 - i % 2);
+        v->Q() = 0.25f * i;
+    }
+    Document source;
+    const int index = source.addMesh(mesh, QStringLiteral("attributes"),
+        vcg::tri::io::Mask::IOM_VERTCOLOR | vcg::tri::io::Mask::IOM_VERTNORMAL | vcg::tri::io::Mask::IOM_VERTQUALITY);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("attributes.e57"));
+    if (source.saveMaskCapability(path) == 0)
+        QSKIP("This build has no E57 support.");
+    MeshIOSaveOptions options;
+    options.mask = vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTCOLOR
+        | vcg::tri::io::Mask::IOM_VERTNORMAL | vcg::tri::io::Mask::IOM_VERTQUALITY;
+    QCOMPARE(source.saveMesh(index, path, options), 0);
+    Document loaded;
+    QCOMPARE(loaded.loadMesh(path), 0);
+    const auto &entry = loaded.mesh(0);
+    QCOMPARE(entry.mesh.VN(), 5);
+    QCOMPARE(entry.ioMask & options.mask, options.mask);
+    for (int i = 0; i < 5; ++i) {
+        const VCGVertex &v = entry.mesh.vert[size_t(i)];
+        QCOMPARE(v.cP(), mesh.vert[size_t(i)].cP());
+        QCOMPARE(v.cC(), mesh.vert[size_t(i)].cC());
+        QCOMPARE(v.cN(), mesh.vert[size_t(i)].cN());
+        QCOMPARE(v.cQ(), mesh.vert[size_t(i)].cQ());
+    }
 }
 
 // A layer whose first texture exists only in memory -- what Texture Defragmentation leaves --

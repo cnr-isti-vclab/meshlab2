@@ -18,11 +18,13 @@
 #include <E57SimpleReader.h>
 #include <E57SimpleWriter.h>
 #include <vcg/complex/allocate.h>
+#include <vcg/math/quaternion.h>
 
 namespace {
 constexpr int kErrSaveUnsupportedFormat = -1000;
 constexpr int kErrSaveNoPoints = -1001;
 constexpr int kErrSaveWriteFailed = -1002;
+constexpr int kErrLoadLibrary = -5;
 
 QString normalizedExtension(const QString &filename)
 {
@@ -89,7 +91,7 @@ public:
 
     MeshIOCapabilities loadCapabilities(const QString &) const override
     {
-        return { vcg::tri::io::Mask::IOM_VERTCOORD, false, false };
+        return { saveMaskCapabilityForExtension(QStringLiteral("e57")), false, false };
     }
 
     int load(
@@ -113,73 +115,130 @@ public:
     {
         if (outLoadMask)
             *outLoadMask = 0;
+        try {
+            return loadScans(filename, mesh, cb, outLoadMask);
+        } catch (const e57::E57Exception &e) {
+            reportProgress(cb, 100, QObject::tr("E57 import failed: %1 (%2)")
+                .arg(QString::fromStdString(e.errorStr()), QString::fromStdString(e.context())), true);
+        } catch (const std::exception &e) {
+            reportProgress(cb, 100, QObject::tr("E57 import failed: %1").arg(QString::fromLocal8Bit(e.what())), true);
+        }
+        mesh.Clear();
+        return kErrLoadLibrary;
+    }
 
+    // Every scan of the file into one point cloud, placed by its pose (the standard's
+    // rigid-body transform from the scan's own frame to the file's). Each scan contributes
+    // the fields it has: Cartesian or spherical coordinates, color, intensity (into vertex
+    // quality, unscaled, as the writer stores it) and surface normals (E57_EXT_surface_normals).
+    // A field only some scans have is defaulted on the others: white, zero, no normal.
+    static int loadScans(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask)
+    {
         e57::Reader reader(filename.toStdString(), {});
         if (!reader.IsOpen())
             return -1;
 
         const int64_t scanCount = reader.GetData3DCount();
-        if (scanCount <= 0) {
-            reader.Close();
+        if (scanCount <= 0)
             return -2;
-        }
 
         mesh.Clear();
+        int loadMask = vcg::tri::io::Mask::IOM_VERTCOORD;
 
         for (int64_t scanIndex = 0; scanIndex < scanCount; ++scanIndex) {
-            e57::Data3D scanHeader{};
-            if (!reader.ReadData3D(scanIndex, scanHeader)) {
-                reader.Close();
+            e57::Data3D header;
+            if (!reader.ReadData3D(scanIndex, header))
                 return -3;
-            }
-
-            int64_t rowCount = 0, colCount = 0, pointCount = 0, groupCount = 0, countSize = 0;
-            bool columnIndex = false;
-            if (!reader.GetData3DSizes(scanIndex, rowCount, colCount, pointCount, groupCount, countSize, columnIndex)) {
-                reader.Close();
-                return -4;
-            }
-
-            if (pointCount <= 0)
+            const e57::PointStandardizedFieldsAvailable &fields = header.pointFields;
+            const bool cartesian = fields.cartesianXField && fields.cartesianYField && fields.cartesianZField;
+            const bool spherical = !cartesian && fields.sphericalRangeField
+                && fields.sphericalAzimuthField && fields.sphericalElevationField;
+            if ((!cartesian && !spherical) || header.pointCount <= 0)
                 continue;
+            const bool color = fields.colorRedField && fields.colorGreenField && fields.colorBlueField;
+            const bool normal = fields.normalXField && fields.normalYField && fields.normalZField;
+            const bool intensity = fields.intensityField;
+            if (color)
+                loadMask |= vcg::tri::io::Mask::IOM_VERTCOLOR;
+            if (normal)
+                loadMask |= vcg::tri::io::Mask::IOM_VERTNORMAL;
+            if (intensity)
+                loadMask |= vcg::tri::io::Mask::IOM_VERTQUALITY;
 
-            std::vector<double> cartesianX(static_cast<size_t>(pointCount));
-            std::vector<double> cartesianY(static_cast<size_t>(pointCount));
-            std::vector<double> cartesianZ(static_cast<size_t>(pointCount));
-            std::vector<int8_t> cartesianInvalid(scanHeader.pointFields.cartesianInvalidStateField
-                ? static_cast<size_t>(pointCount)
-                : 0);
+            // Read in chunks: a whole scan in one buffer doubled the memory of a large file.
+            const size_t chunk = std::min<size_t>(size_t(header.pointCount), size_t(1) << 20);
+            auto buffer = [chunk](auto &v, bool active) {
+                v.resize(active ? chunk : 0);
+                return active ? v.data() : nullptr;
+            };
+            std::vector<double> a, b, c, inten;
+            std::vector<float> nx, ny, nz;
+            std::vector<uint16_t> red, green, blue;
+            std::vector<int8_t> invalid, colorInvalid, intensityInvalid;
+            e57::Data3DPointsDouble data;
+            (cartesian ? data.cartesianX : data.sphericalRange) = buffer(a, true);
+            (cartesian ? data.cartesianY : data.sphericalAzimuth) = buffer(b, true);
+            (cartesian ? data.cartesianZ : data.sphericalElevation) = buffer(c, true);
+            (cartesian ? data.cartesianInvalidState : data.sphericalInvalidState) = buffer(invalid,
+                cartesian ? fields.cartesianInvalidStateField : fields.sphericalInvalidStateField);
+            data.colorRed = buffer(red, color);
+            data.colorGreen = buffer(green, color);
+            data.colorBlue = buffer(blue, color);
+            data.isColorInvalid = buffer(colorInvalid, color && fields.isColorInvalidField);
+            data.intensity = buffer(inten, intensity);
+            data.isIntensityInvalid = buffer(intensityInvalid, intensity && fields.isIntensityInvalidField);
+            data.normalX = buffer(nx, normal);
+            data.normalY = buffer(ny, normal);
+            data.normalZ = buffer(nz, normal);
 
-            e57::Data3DPointsData_t<double> pointsData{};
-            pointsData.cartesianX = cartesianX.data();
-            pointsData.cartesianY = cartesianY.data();
-            pointsData.cartesianZ = cartesianZ.data();
-            if (scanHeader.pointFields.cartesianInvalidStateField)
-                pointsData.cartesianInvalidState = cartesianInvalid.data();
+            // Colors are given within the scan's color limits; without them, assume 8 bits.
+            const e57::ColorLimits &limits = header.colorLimits;
+            auto toByte = [](uint16_t value, double lo, double hi) {
+                if (hi <= lo) { lo = 0; hi = 255; }
+                return (unsigned char)(std::clamp((double(value) - lo) * 255.0 / (hi - lo), 0.0, 255.0) + 0.5);
+            };
+            const e57::Quaternion &q = header.pose.rotation;
+            const vcg::Quaterniond rotation(q.w, q.x, q.y, q.z);
+            const vcg::Point3d translation(header.pose.translation.x, header.pose.translation.y,
+                header.pose.translation.z);
 
-            e57::CompressedVectorReader dataReader = reader.SetUpData3DPointsData(scanIndex, pointCount, pointsData);
-
+            e57::CompressedVectorReader dataReader = reader.SetUpData3DPointsData(scanIndex, chunk, data);
             size_t readCount = 0;
             while ((readCount = dataReader.read()) > 0) {
+                // A point with any invalid coordinate (direction only, or none) has no position.
+                size_t valid = readCount;
+                if (!invalid.empty())
+                    valid = size_t(std::count(invalid.begin(), invalid.begin() + readCount, int8_t(0)));
+                auto vi = vcg::tri::Allocator<VCGMesh>::AddVertices(mesh, valid);
                 for (size_t i = 0; i < readCount; ++i) {
-                    if (!cartesianInvalid.empty() && cartesianInvalid[i] != 0)
+                    if (!invalid.empty() && invalid[i] != 0)
                         continue;
-
-                    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(
-                        static_cast<float>(cartesianX[i]),
-                        static_cast<float>(cartesianY[i]),
-                        static_cast<float>(cartesianZ[i])));
+                    vcg::Point3d p(a[i], b[i], c[i]);
+                    if (spherical) {
+                        const double r = a[i], az = b[i], el = c[i];
+                        p = vcg::Point3d(r * std::cos(el) * std::cos(az), r * std::cos(el) * std::sin(az),
+                            r * std::sin(el));
+                    }
+                    vi->P() = vcg::Point3f::Construct(rotation.Rotate(p) + translation);
+                    vi->C() = vcg::Color4b::White;
+                    if (color && (colorInvalid.empty() || colorInvalid[i] == 0))
+                        vi->C() = vcg::Color4b(toByte(red[i], limits.colorRedMinimum, limits.colorRedMaximum),
+                            toByte(green[i], limits.colorGreenMinimum, limits.colorGreenMaximum),
+                            toByte(blue[i], limits.colorBlueMinimum, limits.colorBlueMaximum), 255);
+                    vi->Q() = intensity && (intensityInvalid.empty() || intensityInvalid[i] == 0)
+                        ? float(inten[i]) : 0.0f;
+                    vi->N() = normal ? vcg::Point3f::Construct(rotation.Rotate(vcg::Point3d(nx[i], ny[i], nz[i])))
+                                     : vcg::Point3f(0, 0, 0);
+                    ++vi;
                 }
             }
             dataReader.close();
-
-            if (cb != nullptr) {
-                const int progress = int((scanIndex + 1) * 100 / scanCount);
-                cb(progress, "Loading E57 points\r");
-            }
+            reportProgress(cb, int((scanIndex + 1) * 100 / scanCount), QObject::tr("Loading E57 points"), true);
         }
 
         reader.Close();
+        if (outLoadMask)
+            *outLoadMask = loadMask;
         return 0;
     }
 
@@ -401,7 +460,7 @@ public:
         case -1: return QObject::tr("Cannot open E57 file.");
         case -2: return QObject::tr("No point clouds found in E57 file.");
         case -3: return QObject::tr("Failed to read E57 scan metadata.");
-        case -4: return QObject::tr("Failed to read E57 scan sizes.");
+        case kErrLoadLibrary: return QObject::tr("The E57 library could not read the file (see the log).");
         case kErrSaveUnsupportedFormat: return QObject::tr("Unsupported E57 export format.");
         case kErrSaveNoPoints: return QObject::tr("Cannot save E57: mesh has no valid points.");
         case kErrSaveWriteFailed: return QObject::tr("Failed to write E57 file.");
