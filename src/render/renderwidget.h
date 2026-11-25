@@ -509,6 +509,17 @@ struct SceneRasterProjectedDrawItem {
     void syncOverlaySettingsToCurrentMesh();
     void refreshColorSourceAvailability();
     void ensureRenderResources();
+    // Sized points (the points pass, its radiance-scaling twin, depth picking, decorator markers,
+    // selected vertices) are point primitives, or screen-aligned quads where the backend cannot
+    // size a point: Direct3D draws every point one pixel across. The render.pointPrimitive
+    // preference chooses; by default, quads only where needed, native points being faster.
+    bool wantPointQuads() const;
+    // A sized-point shader of either kind: name is e.g. "overlay_points.vert".
+    QShader loadPointShader(const QString &name) const;
+    // Topology and vertex input of a sized-point pipeline: one vertex per point, or one
+    // instance per point drawn as a 4-vertex strip.
+    void setPointGeometry(QRhiGraphicsPipeline *pipeline, QRhiVertexInputLayout layout) const;
+    void drawPoints(QRhiCommandBuffer *cb, quint32 count, quint32 first = 0) const;
     void ensureCurrentMeshMaskResources(const QSize &pixelSize);
     void ensureDepthPickResources(const QSize &pixelSize);
     void ensureRsGradResources(const QSize &pixelSize);
@@ -644,7 +655,8 @@ struct SceneRasterProjectedDrawItem {
         const SceneBufferDrawItem &item,
         QRhiGraphicsPipeline *pipeline,
         const PerMeshRenderSettings &settings,
-        QRhiShaderResourceBindings *srb);
+        QRhiShaderResourceBindings *srb,
+        bool points = false);
     void renderSceneBufferItems(
         QRhiCommandBuffer *cb,
         const RenderFramePlan &plan,
@@ -921,6 +933,8 @@ struct SceneRasterProjectedDrawItem {
     std::unordered_map<int, std::unique_ptr<QRhiGraphicsPipeline>> m_fatEdgesPipelinesByKey;
     std::unique_ptr<QRhiGraphicsPipeline> m_bboxPipeline;
     std::unique_ptr<QRhiGraphicsPipeline> m_pointsPipeline;
+    // Whether the sized-point pipelines were built as quads (wantPointQuads).
+    bool m_pointQuads = false;
     std::array<std::unique_ptr<QRhiBuffer>, RenderWidgetInternal::kDecoratorSlotCount> m_decoratorUbufs;
     std::array<DynamicUbufAllocator, RenderWidgetInternal::kDecoratorSlotCount> m_decoratorUbufAllocators;
     std::array<std::unique_ptr<QRhiShaderResourceBindings>, RenderWidgetInternal::kDecoratorSlotCount> m_decoratorSrbs;

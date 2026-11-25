@@ -329,7 +329,7 @@ void RenderWidget::renderRadianceScalingPrepass(
         }
         for (const SceneBufferDrawItem &item : plan.pointItems) {
             drawSceneBufferItem(
-                cb, plan, item, m_rsGradPointsPipeline.get(), item.meshSettings, m_rsGradSrb.get());
+                cb, plan, item, m_rsGradPointsPipeline.get(), item.meshSettings, m_rsGradSrb.get(), true);
         }
     }
     cb->endPass();

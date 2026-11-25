@@ -565,6 +565,26 @@ qt_add_shaders(MeshLab2 "shaders"
         shaders/uv_fill_texture.vert
 )
 
+# The shaders that draw sized points, again with POINT_QUADS: each point a screen-aligned quad,
+# for the backends that cannot size a point primitive (Direct3D; see shaders/point_quad.glsl).
+qt_add_shaders(MeshLab2 "shaders_point_quads"
+    PREFIX "/"
+    GLSL "150"
+    DEFINES "POINT_QUADS=1"
+    FILES
+        shaders/overlay_points.vert
+        shaders/overlay_points.frag
+        shaders/points_radscale_buf.frag
+        shaders/depth_pick.vert
+        shaders/overlay_decorator.vert
+    OUTPUTS
+        shaders/overlay_points_quads.vert.qsb
+        shaders/overlay_points_quads.frag.qsb
+        shaders/points_radscale_buf_quads.frag.qsb
+        shaders/depth_pick_quads.vert.qsb
+        shaders/overlay_decorator_quads.vert.qsb
+)
+
 qt_add_resources(MeshLab2 "icons"
     PREFIX "/"
     FILES

@@ -3,6 +3,7 @@
 #include "meshgpuresourcecache.h"
 #include "linerenderer.h"
 #include "renderwidget_internal.h"
+#include "preferences.h"
 #include <QElapsedTimer>
 #include <QImage>
 #include <QVector4D>
@@ -373,7 +374,7 @@ void RenderWidget::ensureDepthPickResources(const QSize &pixelSize)
 
     if (m_depthPickSrb && !m_depthPickPointsPipeline) {
         m_depthPickPointsPipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/depth_pick.vert.qsb"));
+        QShader vs = loadPointShader(QStringLiteral("depth_pick.vert"));
         QShader fs = loadShader(QStringLiteral(":/shaders/depth_pick.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load depth-pick points shaders");
@@ -383,14 +384,13 @@ void RenderWidget::ensureDepthPickResources(const QSize &pixelSize)
                 { QRhiShaderStage::Vertex, vs },
                 { QRhiShaderStage::Fragment, fs }
             });
-            m_depthPickPointsPipeline->setTopology(QRhiGraphicsPipeline::Points);
             m_depthPickPointsPipeline->setDepthTest(true);
             m_depthPickPointsPipeline->setDepthWrite(true);
             m_depthPickPointsPipeline->setCullMode(QRhiGraphicsPipeline::None);
             QRhiVertexInputLayout layout;
             layout.setBindings({ { kPointsVertexStrideFloats * sizeof(float) } });
             layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
-            m_depthPickPointsPipeline->setVertexInputLayout(layout);
+            setPointGeometry(m_depthPickPointsPipeline.get(), layout);
             m_depthPickPointsPipeline->setShaderResourceBindings(m_depthPickSrb.get());
             m_depthPickPointsPipeline->setRenderPassDescriptor(m_depthPickRp.get());
             if (!m_depthPickPointsPipeline->create()) {
@@ -401,6 +401,48 @@ void RenderWidget::ensureDepthPickResources(const QSize &pixelSize)
     }
 
     m_depthPickSize = pixelSize;
+}
+
+bool RenderWidget::wantPointQuads() const
+{
+    // MESHLAB2_POINT_PRIMITIVE (auto, points or quads) overrides the preference: for trying the
+    // other path on any API, and for the render probes, which run without the user's settings.
+    const QString override = qEnvironmentVariable("MESHLAB2_POINT_PRIMITIVE");
+    const QString choice = !override.isEmpty()
+        ? override
+        : Preferences::instance().stringValue(QStringLiteral("render.pointPrimitive"));
+    if (choice == QLatin1String("quads"))
+        return true;
+    if (choice == QLatin1String("points"))
+        return false;
+    return m_rhi && !m_rhi->isFeatureSupported(QRhi::VertexShaderPointSize);
+}
+
+QShader RenderWidget::loadPointShader(const QString &name) const
+{
+    // overlay_points.vert -> :/shaders/overlay_points_quads.vert.qsb (CMakeLists.txt)
+    const qsizetype dot = name.lastIndexOf(u'.');
+    return loadShader(QStringLiteral(":/shaders/%1%2%3.qsb")
+        .arg(name.left(dot), m_pointQuads ? QStringLiteral("_quads") : QString(), name.mid(dot)));
+}
+
+void RenderWidget::setPointGeometry(QRhiGraphicsPipeline *pipeline, QRhiVertexInputLayout layout) const
+{
+    if (m_pointQuads) {
+        pipeline->setTopology(QRhiGraphicsPipeline::TriangleStrip);
+        layout.setBindings({ { layout.cbeginBindings()->stride(), QRhiVertexInputBinding::PerInstance } });
+    } else {
+        pipeline->setTopology(QRhiGraphicsPipeline::Points);
+    }
+    pipeline->setVertexInputLayout(layout);
+}
+
+void RenderWidget::drawPoints(QRhiCommandBuffer *cb, quint32 count, quint32 first) const
+{
+    if (m_pointQuads)
+        cb->draw(4, count, 0, first);
+    else
+        cb->draw(count, 1, first);
 }
 
 // Points vertex layout: position(3f) + meshColor(3f) + useMeshColorFlag(1f)
@@ -527,8 +569,8 @@ void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
     // The same buffer for point clouds: overlay_points.vert + points_radscale_buf.frag, over the
     // vertex layout of the points pipeline.
     m_rsGradPointsPipeline.reset(m_rhi->newGraphicsPipeline());
-    QShader pointsVs = loadShader(QStringLiteral(":/shaders/overlay_points.vert.qsb"));
-    QShader pointsFs = loadShader(QStringLiteral(":/shaders/points_radscale_buf.frag.qsb"));
+    QShader pointsVs = loadPointShader(QStringLiteral("overlay_points.vert"));
+    QShader pointsFs = loadPointShader(QStringLiteral("points_radscale_buf.frag"));
     if (!pointsVs.isValid() || !pointsFs.isValid()) {
         qWarning("Failed to load RS gradient buffer points shaders");
         reset();
@@ -538,11 +580,10 @@ void RenderWidget::ensureRsGradResources(const QSize &pixelSize)
         { QRhiShaderStage::Vertex, pointsVs },
         { QRhiShaderStage::Fragment, pointsFs }
     });
-    m_rsGradPointsPipeline->setTopology(QRhiGraphicsPipeline::Points);
     m_rsGradPointsPipeline->setDepthTest(true);
     m_rsGradPointsPipeline->setDepthWrite(true);
     m_rsGradPointsPipeline->setCullMode(QRhiGraphicsPipeline::None);
-    m_rsGradPointsPipeline->setVertexInputLayout(pointsVertexInputLayout());
+    setPointGeometry(m_rsGradPointsPipeline.get(), pointsVertexInputLayout());
     m_rsGradPointsPipeline->setShaderResourceBindings(m_rsGradSrb.get());
     m_rsGradPointsPipeline->setRenderPassDescriptor(m_rsGradRp.get());
     if (!m_rsGradPointsPipeline->create()) {
@@ -717,6 +758,17 @@ void RenderWidget::ensureRenderResources()
         for (auto &srb : m_uvLineSrbs)
             srb.reset();
         m_uvLinePipelinesByKey.clear();
+    }
+
+    // The sized-point pipelines follow the preference, and are rebuilt when it changes. The depth
+    // pick and radiance-scaling targets rebuild theirs when their size no longer matches.
+    if (const bool pointQuads = wantPointQuads(); pointQuads != m_pointQuads) {
+        m_pointQuads = pointQuads;
+        m_pointsPipeline.reset();
+        m_decoratorPointPipeline.reset();
+        m_selectionVerticesPipeline.reset();
+        m_depthPickSize = QSize();
+        m_rsGradSize = QSize();
     }
 
     if (!m_rhi || !renderTarget())
@@ -1553,8 +1605,8 @@ void RenderWidget::ensureRenderResources()
     if (!m_pointsPipeline) {
         m_pointsPipeline.reset(m_rhi->newGraphicsPipeline());
 
-        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_points.vert.qsb"));
-        QShader fs = loadShader(QStringLiteral(":/shaders/overlay_points.frag.qsb"));
+        QShader vs = loadPointShader(QStringLiteral("overlay_points.vert"));
+        QShader fs = loadPointShader(QStringLiteral("overlay_points.frag"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load points shaders");
             m_pointsPipeline.reset();
@@ -1565,12 +1617,11 @@ void RenderWidget::ensureRenderResources()
             { QRhiShaderStage::Vertex, vs },
             { QRhiShaderStage::Fragment, fs }
         });
-        m_pointsPipeline->setTopology(QRhiGraphicsPipeline::Points);
         m_pointsPipeline->setDepthTest(true);
         m_pointsPipeline->setDepthWrite(true);
         m_pointsPipeline->setCullMode(QRhiGraphicsPipeline::None);
 
-        m_pointsPipeline->setVertexInputLayout(pointsVertexInputLayout());
+        setPointGeometry(m_pointsPipeline.get(), pointsVertexInputLayout());
         m_pointsPipeline->setShaderResourceBindings(m_srb.get());
         m_pointsPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
 
@@ -1616,7 +1667,7 @@ void RenderWidget::ensureRenderResources()
 
     if (!m_decoratorPointPipeline && m_decoratorSrbs[kDecoratorSlotNonManifoldVertices]) {
         m_decoratorPointPipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_decorator.vert.qsb"));
+        QShader vs = loadPointShader(QStringLiteral("overlay_decorator.vert"));
         QShader fs = loadShader(QStringLiteral(":/shaders/overlay_decorator.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load decorator point shaders");
@@ -1626,7 +1677,6 @@ void RenderWidget::ensureRenderResources()
                 { QRhiShaderStage::Vertex, vs },
                 { QRhiShaderStage::Fragment, fs }
             });
-            m_decoratorPointPipeline->setTopology(QRhiGraphicsPipeline::Points);
             m_decoratorPointPipeline->setDepthTest(true);
             m_decoratorPointPipeline->setDepthWrite(false);
             m_decoratorPointPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
@@ -1636,7 +1686,7 @@ void RenderWidget::ensureRenderResources()
             QRhiVertexInputLayout layout;
             layout.setBindings({ { 3 * sizeof(float) } });
             layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
-            m_decoratorPointPipeline->setVertexInputLayout(layout);
+            setPointGeometry(m_decoratorPointPipeline.get(), layout);
             m_decoratorPointPipeline->setShaderResourceBindings(
                 m_decoratorSrbs[kDecoratorSlotNonManifoldVertices].get());
             m_decoratorPointPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
@@ -1715,7 +1765,7 @@ void RenderWidget::ensureRenderResources()
     }
     if (!m_selectionVerticesPipeline && m_selectionSrb) {
         m_selectionVerticesPipeline.reset(m_rhi->newGraphicsPipeline());
-        QShader vs = loadShader(QStringLiteral(":/shaders/overlay_decorator.vert.qsb"));
+        QShader vs = loadPointShader(QStringLiteral("overlay_decorator.vert"));
         QShader fs = loadShader(QStringLiteral(":/shaders/overlay_decorator.frag.qsb"));
         if (!vs.isValid() || !fs.isValid()) {
             qWarning("Failed to load selection vertex shaders");
@@ -1725,7 +1775,6 @@ void RenderWidget::ensureRenderResources()
                 { QRhiShaderStage::Vertex, vs },
                 { QRhiShaderStage::Fragment, fs }
             });
-            m_selectionVerticesPipeline->setTopology(QRhiGraphicsPipeline::Points);
             m_selectionVerticesPipeline->setDepthTest(true);
             m_selectionVerticesPipeline->setDepthWrite(false);
             m_selectionVerticesPipeline->setDepthOp(QRhiGraphicsPipeline::LessOrEqual);
@@ -1742,7 +1791,7 @@ void RenderWidget::ensureRenderResources()
             QRhiVertexInputLayout layout;
             layout.setBindings({ { 3 * sizeof(float) } });
             layout.setAttributes({ { 0, 0, QRhiVertexInputAttribute::Float3, 0 } });
-            m_selectionVerticesPipeline->setVertexInputLayout(layout);
+            setPointGeometry(m_selectionVerticesPipeline.get(), layout);
             m_selectionVerticesPipeline->setShaderResourceBindings(m_selectionSrb.get());
             m_selectionVerticesPipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
             if (!m_selectionVerticesPipeline->create()) {

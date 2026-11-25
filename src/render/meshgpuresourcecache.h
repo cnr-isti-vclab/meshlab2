@@ -95,8 +95,10 @@ public:
         const BufferBatchView *begin() const { return data; }
         const BufferBatchView *end() const { return data + count; }
         bool empty() const { return count == 0; }
-        // Binds each batch as vertex input 0 and draws it, with whatever pipeline is set.
-        void draw(QRhiCommandBuffer *cb) const;
+        // Binds each batch as vertex input 0 and draws it, with whatever pipeline is set. With
+        // pointQuads the batch holds points drawn as instanced quads, 4 vertices each (see
+        // RenderWidget::wantPointQuads).
+        void draw(QRhiCommandBuffer *cb, bool pointQuads = false) const;
     };
 
     struct WirePassView {

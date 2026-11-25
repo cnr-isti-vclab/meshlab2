@@ -206,7 +206,7 @@ void RenderWidget::executePendingDepthPick(
             if (pointsView.valid && !pointsView.batches.empty()) {
                 cb->setGraphicsPipeline(m_depthPickPointsPipeline.get());
                 setShaderResourcesWithOffset(cb, m_depthPickSrb.get(), ubufOffset);
-                pointsView.batches.draw(cb);
+                pointsView.batches.draw(cb, m_pointQuads);
             }
         }
     }

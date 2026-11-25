@@ -334,6 +334,28 @@
       "decimals": 1
     },
     {
+      "id": "render.pointPrimitive",
+      "label": "Point drawing",
+      "help": "How points are drawn on the GPU. **Automatic** uses the graphics API's own sized points wherever it has them, and draws each point as a small square of two triangles where it does not: Direct3D, the default on Windows, draws every point one pixel across whatever its size. **Sized points** always uses the API's points, the faster way, but sizes are then ignored on Direct3D. **Quads** always uses the squares, which look the same everywhere but are slower on very large point clouds. Applies to the points pass, picking, decorator markers and selected vertices.",
+      "group": "render",
+      "type": "enum",
+      "default": "auto",
+      "enumOptions": [
+        {
+          "id": "auto",
+          "label": "Automatic"
+        },
+        {
+          "id": "points",
+          "label": "Sized points"
+        },
+        {
+          "id": "quads",
+          "label": "Quads"
+        }
+      ]
+    },
+    {
       "id": "render.edgeSize",
       "label": "Edge width",
       "help": "Width, in pixels, of the explicit edges of a newly loaded layer that also has faces. A layer made only of edges takes the next preference instead.",

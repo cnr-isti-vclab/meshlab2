@@ -12,7 +12,8 @@ void RenderWidget::drawSceneBufferItem(
     const SceneBufferDrawItem &item,
     QRhiGraphicsPipeline *pipeline,
     const PerMeshRenderSettings &settings,
-    QRhiShaderResourceBindings *srb)
+    QRhiShaderResourceBindings *srb,
+    bool points)
 {
     if (!pipeline || !item.vertexBuffer || item.vertexCount <= 0)
         return;
@@ -36,7 +37,10 @@ void RenderWidget::drawSceneBufferItem(
     setShaderResourcesWithOffset(cb, srb, ubufOffset);
     const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
     cb->setVertexInput(0, 1, &binding);
-    cb->draw(quint32(item.vertexCount), 1, quint32(item.firstVertex));
+    if (points)
+        drawPoints(cb, quint32(item.vertexCount), quint32(item.firstVertex));
+    else
+        cb->draw(quint32(item.vertexCount), 1, quint32(item.firstVertex));
 }
 
 void RenderWidget::renderSceneBufferItems(
@@ -74,7 +78,7 @@ void RenderWidget::renderScenePointItems(
                 settings.fillPlain.radianceScaling = false;
             }
         }
-        drawSceneBufferItem(cb, plan, item, item.pipeline, settings, srb);
+        drawSceneBufferItem(cb, plan, item, item.pipeline, settings, srb, true);
     }
 }
 
@@ -111,6 +115,8 @@ void RenderWidget::renderSceneDecoratorItems(
         decoratorData[21] = localClip.y();
         decoratorData[22] = localClip.z();
         decoratorData[23] = localClip.w();
+        decoratorData[24] = 1.0f / float(qMax(1, sz.width()));
+        decoratorData[25] = 1.0f / float(qMax(1, sz.height()));
         QRhiResourceUpdateBatch *uDecor = m_rhi->nextResourceUpdateBatch();
         uDecor->updateDynamicBuffer(
             decoratorUbuf, ubufOffset, kDecoratorUbufSize, decoratorData);
@@ -180,7 +186,10 @@ void RenderWidget::renderSceneDecoratorItems(
 
         const QRhiCommandBuffer::VertexInput binding(item.vertexBuffer, 0);
         cb->setVertexInput(0, 1, &binding);
-        cb->draw(item.vertexCount);
+        if (item.kind == SceneDecoratorDrawKind::Point)
+            drawPoints(cb, quint32(item.vertexCount));
+        else
+            cb->draw(item.vertexCount);
     }
 }
 
@@ -218,6 +227,8 @@ void RenderWidget::renderSceneSelectionItems(
         selectionData[21] = localClip.y();
         selectionData[22] = localClip.z();
         selectionData[23] = localClip.w();
+        selectionData[24] = 1.0f / float(qMax(1, sz.width()));
+        selectionData[25] = 1.0f / float(qMax(1, sz.height()));
         QRhiResourceUpdateBatch *uSel = m_rhi->nextResourceUpdateBatch();
         uSel->updateDynamicBuffer(
             m_selectionUbuf.get(), ubufOffset, kDecoratorUbufSize, selectionData);
@@ -233,7 +244,7 @@ void RenderWidget::renderSceneSelectionItems(
             && !selectionView.selectedVertices.empty()) {
             cb->setGraphicsPipeline(m_selectionVerticesPipeline.get());
             setShaderResourcesWithOffset(cb, m_selectionSrb.get(), ubufOffset);
-            selectionView.selectedVertices.draw(cb);
+            selectionView.selectedVertices.draw(cb, m_pointQuads);
         }
 
         if (item.drawEdges

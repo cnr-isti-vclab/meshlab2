@@ -31,6 +31,9 @@ layout(std140, binding = 0) uniform buf {
 layout(location = 0) in vec4 vMeshColor;
 layout(location = 1) in vec4 vNormalAndFlag;
 layout(location = 2) in vec3 vViewPos;
+#ifdef POINT_QUADS
+layout(location = 3) in vec2 vPointCoord;   // the dot's gl_PointCoord (point_quad.glsl)
+#endif
 layout(binding = 2) uniform sampler2D qualityLutTex;
 // Where the fill shaders keep their normal map; points have none, so with radiance scaling on it
 // holds the gradient buffer (points_radscale_buf.frag).
@@ -51,7 +54,11 @@ vec3 towardsEye(vec3 viewPos)
 void main()
 {
     // Discard corners to produce round dots
+    #ifdef POINT_QUADS
+    vec2 coord = vPointCoord - vec2(0.5);
+#else
     vec2 coord = gl_PointCoord - vec2(0.5);
+#endif
     if (dot(coord, coord) > 0.25)
         discard;
 

@@ -96,7 +96,9 @@ inline constexpr int kClipPlaneGizmoRasterIndex = -2;
 // cap is drawn where the count is above the bias, i.e. where more surfaces behind the
 // plane face away from the camera than towards it.
 inline constexpr quint32 kSolidCutStencilBias = 128;
-inline constexpr int kDecoratorUbufSize = 96; // mat4 mvp + vec4 color + vec4 clipPlane
+// mat4 mvp + vec4 color + vec4 clipPlane + vec4 viewport (xy = 1 / its size in pixels, which
+// points drawn as quads need)
+inline constexpr int kDecoratorUbufSize = 112;
 inline constexpr int kDecoratorFatUbufSize = 112; // + vec4(width, invW, invH, _) + vec4 clipPlane
 inline constexpr int kDecoratorClipPlaneOffset = 80 / sizeof(float);
 inline constexpr int kDecoratorFatClipPlaneOffset = 96 / sizeof(float);

@@ -1,4 +1,5 @@
 #version 440
+#extension GL_GOOGLE_include_directive : enable
 
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec4 inMeshColor;
@@ -32,7 +33,9 @@ layout(std140, binding = 0) uniform buf {
 
 out gl_PerVertex {
     vec4 gl_Position;
+#ifndef POINT_QUADS
     float gl_PointSize;
+#endif
     // Redeclaring the block means listing every built-in the shader writes, and this one
     // writes a clip distance now.
     float gl_ClipDistance[1];
@@ -40,6 +43,11 @@ out gl_PerVertex {
 layout(location = 0) out vec4 vMeshColor;
 layout(location = 1) out vec4 vNormalAndFlag;
 layout(location = 2) out vec3 vViewPos;
+#ifdef POINT_QUADS
+// Across the dot, as gl_PointCoord is for a point (point_quad.glsl).
+layout(location = 3) out vec2 vPointCoord;
+#include "point_quad.glsl"
+#endif
 
 // pointParams.x is a diameter in pixels when positive, and minus a diameter in the mesh's
 // own units when negative. The latter is measured by projecting an offset of that length
@@ -71,7 +79,13 @@ void main()
     gl_ClipDistance[0] = dot(vec4(inPos, 1.0), ub.clipPlane);
     vec4 viewPos = ub.modelView * vec4(inPos, 1.0);
     gl_Position = ub.mvp * vec4(inPos, 1.0);
+#ifdef POINT_QUADS
+    // wireParams.zw is 1 / the viewport size in pixels.
+    gl_Position = pointQuadPosition(gl_Position, pointSizePixels(inPos, gl_Position), ub.wireParams.zw);
+    vPointCoord = pointQuadCorner();
+#else
     gl_PointSize = pointSizePixels(inPos, gl_Position);
+#endif
     vMeshColor = inMeshColor;
     // Keep raw transformed normal; normalize safely in fragment stage.
     vNormalAndFlag = vec4(ub.normalMatrix * inNormalAndFlag.xyz, inNormalAndFlag.w);

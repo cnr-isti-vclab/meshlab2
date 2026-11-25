@@ -999,7 +999,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
                 updateStyleUbuf(pointSettings);
                 cb->setGraphicsPipeline(m_pointsPipeline.get());
                 setShaderResourcesWithOffset(cb, m_srb.get(), 0);
-                pointsView.batches.draw(cb);
+                pointsView.batches.draw(cb, m_pointQuads);
             }
         }
 
@@ -1017,6 +1017,8 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             selData[17] = 0.0f;
             selData[18] = 0.0f;
             selData[19] = 0.5f;
+            selData[24] = 1.0f / float(qMax(1, sz.width()));
+            selData[25] = 1.0f / float(qMax(1, sz.height()));
             QRhiResourceUpdateBatch *uSel = m_rhi->nextResourceUpdateBatch();
             uSel->updateDynamicBuffer(m_selectionUbuf.get(), selOffset, kDecoratorUbufSize, selData);
             cb->resourceUpdate(uSel);
@@ -1028,7 +1030,7 @@ void RenderWidget::renderParametrization(QRhiCommandBuffer *cb)
             if (hasSelVerts && m_selectionVerticesPipeline) {
                 cb->setGraphicsPipeline(m_selectionVerticesPipeline.get());
                 setShaderResourcesWithOffset(cb, m_selectionSrb.get(), selOffset);
-                selection.selectedVertices.draw(cb);
+                selection.selectedVertices.draw(cb, m_pointQuads);
             }
         }
     }

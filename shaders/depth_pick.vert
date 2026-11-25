@@ -1,4 +1,5 @@
 #version 440
+#extension GL_GOOGLE_include_directive : enable
 
 layout(location = 0) in vec3 position;
 
@@ -25,10 +26,16 @@ layout(std140, binding = 0) uniform buf {
     vec4 clipRim;
 } ub;
 
+#ifdef POINT_QUADS
+#include "point_quad.glsl"
+#endif
+
 
 out gl_PerVertex {
     vec4 gl_Position;
+#ifndef POINT_QUADS
     float gl_PointSize;
+#endif
     // Redeclaring the block means listing every built-in the shader writes, and this one
     // writes a clip distance now.
     float gl_ClipDistance[1];
@@ -63,5 +70,10 @@ void main()
 {
     gl_ClipDistance[0] = dot(vec4(position, 1.0), ub.clipPlane);
     gl_Position = ub.mvp * vec4(position, 1.0);
+#ifdef POINT_QUADS
+    // wireParams.zw is 1 / the viewport size in pixels.
+    gl_Position = pointQuadPosition(gl_Position, max(1.0, pointSizePixels(position, gl_Position)), ub.wireParams.zw);
+#else
     gl_PointSize = max(1.0, pointSizePixels(position, gl_Position));
+#endif
 }

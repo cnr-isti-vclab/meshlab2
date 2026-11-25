@@ -537,7 +537,7 @@ RenderWidget::RenderWidget(Document *doc, QWidget *parent)
     // dialog show without waiting for something else to repaint.
     connect(&Preferences::instance(), &Preferences::changed, this,
             [this](const QString &id, const QVariant &) {
-        if (id.startsWith(QLatin1String("view.grid.")))
+        if (id.startsWith(QLatin1String("view.grid.")) || id == QLatin1String("render.pointPrimitive"))
             update();
     });
 
