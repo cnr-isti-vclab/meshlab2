@@ -6,11 +6,13 @@
 #include <wrap/io_trimesh/io_mask.h>
 
 #include <QFileInfo>
+#include <QImage>
 #include <QObject>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
@@ -61,6 +63,129 @@ void reportProgress(vcg::CallBackPos *cb, int pos, const QString &msg, bool repl
         ? (msg + QStringLiteral("\r")).toLocal8Bit()
         : msg.toLocal8Bit();
     cb(pos, raw.constData());
+}
+
+// A pinhole shot at centre, its camera frame given as OpenCV has it (x right, y down, looking
+// down +z) by the rows of worldToCamera. vcg's camera looks down -z with y up, and puts pixel
+// centres at k + 0.5 with rows from the bottom; centerPx is already in that convention.
+vcg::Shot<float> pinholeShot(const vcg::Matrix33d &worldToCamera, const vcg::Point3d &centre, double focalMm,
+    const vcg::Point2d &pixelSizeMm, const vcg::Point2i &size, const vcg::Point2d &centerPx)
+{
+    vcg::Shot<float> shot;
+    vcg::Matrix44f rot;
+    rot.SetIdentity();
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 3; ++c)
+            rot[r][c] = float(r == 0 ? worldToCamera[r][c] : -worldToCamera[r][c]);
+    shot.Extrinsics.SetRot(rot);
+    shot.Extrinsics.SetTra(vcg::Point3f::Construct(centre));
+    vcg::Camera<float> &camera = shot.Intrinsics;
+    camera.cameraType = vcg::Camera<float>::PERSPECTIVE;
+    camera.FocalMm = float(focalMm);
+    camera.PixelSizeMm = vcg::Point2f::Construct(pixelSizeMm);
+    camera.ViewportPx = size;
+    camera.CenterPx = vcg::Point2f::Construct(centerPx);
+    return shot;
+}
+
+// A spherical (equirectangular) E57 image resampled into pinhole views of about 90 degrees,
+// which MeshLab's rasters can hold: one row of views along a band, the six faces of a cube for
+// a full sphere. Pixels the panorama does not cover are left transparent.
+//
+// The mapping was measured on two files whose panoramas are posed as the standard says,
+// p_file = R p_image + t. On a full sphere whose points are colored from it (Station018.e57),
+// it matches to 0.2 degrees: azimuth theta and elevation in the image frame give
+// col = W/2 - (theta - 90 deg) / pixelWidth, row = H/2 - elevation / pixelHeight,
+// so the centre column looks along the image's +y and columns turn clockwise. On 44.5 degree
+// bands (manitou.e57) the image frame is tilted about its x axis by the band's own pitch, the
+// photos are level: elevation is measured from the scanner's up, and the band's centre row is
+// at the elevation of the image's +y.
+std::vector<MeshIORaster> panoramaViews(const QImage &panorama, const QString &name, const vcg::Matrix33d &imageRotation,
+    const vcg::Point3d &centre, const vcg::Point3d &up, double pixelWidth, double pixelHeight)
+{
+    const QImage source = panorama.convertToFormat(QImage::Format_ARGB32);
+    const int W = source.width(), H = source.height();
+    const vcg::Point3d forward0 = imageRotation.GetColumn(1);
+    const double bandPitch = std::asin(std::clamp(forward0 * up, -1.0, 1.0));
+    const vcg::Point3d heading = (forward0 - up * (forward0 * up)).Normalize();
+    const vcg::Point3d side = heading ^ up;   // azimuth 0, with heading at 90 degrees
+    const double turn = W * pixelWidth, band = H * pixelHeight;
+    const bool fullTurn = turn > 2 * M_PI - 2 * pixelWidth;
+    // The views' axes (forward, right). A sphere, or nearly, is the six faces of a cube, which
+    // tile it exactly; a band is one row of views as wide as 90 degrees at most, each tall enough
+    // for its corners to reach the band's edges, where a pinhole's elevation span is narrowest.
+    std::vector<std::pair<vcg::Point3d, vcg::Point3d>> axes;
+    auto level = [&](double azimuth, double pitch) {
+        const vcg::Point3d forward = (side * std::cos(azimuth) + heading * std::sin(azimuth)) * std::cos(pitch)
+            + up * std::sin(pitch);
+        axes.emplace_back(forward, (forward ^ up).Normalize());
+    };
+    double hfov = M_PI / 2, vfov = M_PI / 2;
+    if (band > 0.8 * M_PI) {
+        for (int k = 0; k < 4; ++k)
+            level(M_PI / 2 - k * M_PI / 2, 0);
+        axes.emplace_back(up, side);
+        axes.emplace_back(-up, side);
+    } else {
+        const int columns = std::max(1, int(std::ceil(turn / (M_PI / 2) - 1e-6)));
+        hfov = turn / columns;
+        vfov = std::min(2 * std::atan(1.1 * std::tan(band / 2 + std::abs(bandPitch) / 4) / std::cos(hfov / 2)), 0.8 * M_PI);
+        for (int c = 0; c < columns; ++c)
+            level(M_PI / 2 + turn / 2 - (c + 0.5) * hfov, bandPitch);
+    }
+    const double focalPx = 1.0 / std::min(pixelWidth, pixelHeight);
+    const int w = int(std::lround(2 * focalPx * std::tan(hfov / 2)));
+    const int h = int(std::lround(2 * focalPx * std::tan(vfov / 2)));
+
+    // Bilinear sample at a continuous panorama coordinate (pixel k spans [k, k + 1)).
+    auto sample = [&](double col, double row) -> QRgb {
+        if (row < 0 || row >= H || (!fullTurn && (col < 0 || col >= W)))
+            return qRgba(0, 0, 0, 0);
+        const double x = col - 0.5, y = std::clamp(row - 0.5, 0.0, H - 1.0);
+        const int x0 = int(std::floor(x)), y0 = int(y), y1 = std::min(y0 + 1, H - 1);
+        const double fx = x - x0, fy = y - y0;
+        auto at = [&](int cx, int cy) {
+            cx = fullTurn ? ((cx % W) + W) % W : std::clamp(cx, 0, W - 1);
+            return reinterpret_cast<const QRgb *>(source.constScanLine(cy))[cx];
+        };
+        const QRgb p00 = at(x0, y0), p10 = at(x0 + 1, y0), p01 = at(x0, y1), p11 = at(x0 + 1, y1);
+        auto mix = [&](int (*channel)(QRgb)) {
+            return int(std::lround((channel(p00) * (1 - fx) + channel(p10) * fx) * (1 - fy)
+                + (channel(p01) * (1 - fx) + channel(p11) * fx) * fy));
+        };
+        return qRgba(mix(qRed), mix(qGreen), mix(qBlue), mix(qAlpha));
+    };
+
+    std::vector<MeshIORaster> views;
+    for (const auto &[forward, right] : axes) {
+        const vcg::Point3d down = forward ^ right;
+        QImage image(w, h, QImage::Format_ARGB32);
+        for (int j = 0; j < h; ++j) {
+            QRgb *line = reinterpret_cast<QRgb *>(image.scanLine(j));
+            for (int i = 0; i < w; ++i) {
+                const vcg::Point3d d = forward + right * ((i + 0.5 - w / 2.0) / focalPx)
+                    + down * ((j + 0.5 - h / 2.0) / focalPx);
+                const double theta = std::atan2(d * heading, d * side);
+                const double elevation = std::atan2(d * up, (d - up * (d * up)).Norm());
+                double col = W / 2.0 - std::remainder(theta - M_PI / 2, 2 * M_PI) / pixelWidth;
+                if (fullTurn)
+                    col = std::fmod(col + W, double(W));
+                line[i] = sample(col, H / 2.0 - (elevation - bandPitch) / pixelHeight);
+            }
+        }
+        MeshIORaster view;
+        view.name = axes.size() > 1 ? QObject::tr("%1 (view %2)").arg(name).arg(views.size() + 1) : name;
+        view.image = std::move(image);
+        vcg::Matrix33d worldToCamera;
+        worldToCamera.SetRow(0, right);
+        worldToCamera.SetRow(1, down);
+        worldToCamera.SetRow(2, forward);
+        const double pixelSizeMm = 0.01;   // only its ratio to the focal length matters
+        view.shot = pinholeShot(worldToCamera, centre, focalPx * pixelSizeMm, vcg::Point2d(pixelSizeMm, pixelSizeMm),
+            vcg::Point2i(w, h), vcg::Point2d(w / 2.0, h / 2.0));
+        views.push_back(std::move(view));
+    }
+    return views;
 }
 
 class E57ImportPlugin final : public MeshIOPlugin
@@ -244,7 +369,9 @@ public:
         return 0;
     }
 
-    // The pinhole photos, as rasters in the coordinates load() places the points in.
+    // The photos, as rasters in the coordinates load() places the points in.
+    //
+    // Pinhole images:
     //
     // The image pose is read as measured on a Leica ScanStation 2 file (parking-lot-updated.e57,
     // whose image names give each photo's azimuth and elevation, matched by all 285 of them to
@@ -252,9 +379,8 @@ public:
     // p_cam = R(q) (p_scan - t), the camera looking down +z with image x right and y down, rows
     // from the top. libE57's notes describe the inverse, an image-to-file pose with z < 0 in
     // front; the file's scan poses do follow the standard, its image poses this. A pixel
-    // centre is at an integer coordinate (511.5 is the centre of a 1024-pixel image); vcg puts
-    // it at k + 0.5 with rows from the bottom.
-    // Spherical and cylindrical images are skipped: their mapping is not settled yet.
+    // centre is at an integer coordinate (511.5 is the centre of a 1024-pixel image).
+    // Spherical images become pinhole views (panoramaViews); cylindrical ones are skipped.
     std::vector<MeshIORaster> loadRasters(const QString &filename, QStringList &warnings) const override
     {
         std::vector<MeshIORaster> rasters;
@@ -288,47 +414,45 @@ public:
                 if (!reader.ReadImage2D(i, header)
                     || !reader.GetImage2DSizes(i, projection, type, width, height, size, maskType, visualType))
                     continue;
-                if (projection != e57::ProjectionPinhole) {
+                if (projection != e57::ProjectionPinhole && projection != e57::ProjectionSpherical) {
                     ++skipped;
                     continue;
                 }
                 QByteArray bytes(qsizetype(size), Qt::Uninitialized);
                 reader.ReadImage2DData(i, projection, type, bytes.data(), 0, size);
-                MeshIORaster raster;
-                raster.name = QString::fromStdString(header.name);
-                if (raster.name.isEmpty())
-                    raster.name = QObject::tr("Image %1").arg(i);
-                if (!raster.image.loadFromData(bytes)) {
-                    warnings << QObject::tr("E57 image '%1' could not be decoded.").arg(raster.name);
+                QString name = QString::fromStdString(header.name);
+                if (name.isEmpty())
+                    name = QObject::tr("Image %1").arg(i);
+                QImage image;
+                if (!image.loadFromData(bytes)) {
+                    warnings << QObject::tr("E57 image '%1' could not be decoded.").arg(name);
                     continue;
                 }
 
                 const auto scan = scanPose.find(header.associatedData3DGuid);
                 const e57::RigidBodyTransform pose = scan != scanPose.end() ? scan->second : e57::RigidBodyTransform{};
                 const vcg::Matrix33d scanRotation = rotation(pose.rotation);
-                const vcg::Matrix33d worldToCamera = rotation(header.pose.rotation) * scanRotation.transpose();
-                const vcg::Point3d centre = translation(pose.translation)
-                    + scanRotation * translation(header.pose.translation);
-                // vcg's camera looks down -z with y up: flip y and z of the camera frame.
-                vcg::Matrix44f rot;
-                rot.SetIdentity();
-                for (int r = 0; r < 3; ++r)
-                    for (int c = 0; c < 3; ++c)
-                        rot[r][c] = float(r == 0 ? worldToCamera[r][c] : -worldToCamera[r][c]);
-                raster.shot.Extrinsics.SetRot(rot);
-                raster.shot.Extrinsics.SetTra(vcg::Point3f::Construct(centre));
+                if (projection == e57::ProjectionSpherical) {
+                    const e57::SphericalRepresentation &sphere = header.sphericalRepresentation;
+                    std::vector<MeshIORaster> views = panoramaViews(image, name, rotation(header.pose.rotation),
+                        translation(header.pose.translation), scanRotation.GetColumn(2),
+                        sphere.pixelWidth, sphere.pixelHeight);
+                    std::move(views.begin(), views.end(), std::back_inserter(rasters));
+                    continue;
+                }
                 const e57::PinholeRepresentation &pinhole = header.pinholeRepresentation;
-                vcg::Camera<float> &camera = raster.shot.Intrinsics;
-                camera.cameraType = vcg::Camera<float>::PERSPECTIVE;
-                camera.FocalMm = float(pinhole.focalLength * 1000);
-                camera.PixelSizeMm = vcg::Point2f(float(pinhole.pixelWidth * 1000), float(pinhole.pixelHeight * 1000));
-                camera.ViewportPx = vcg::Point2i(int(width), int(height));
-                camera.CenterPx = vcg::Point2f(float(pinhole.principalPointX + 0.5),
-                    float(height - pinhole.principalPointY - 0.5));
+                MeshIORaster raster;
+                raster.name = name;
+                raster.image = std::move(image);
+                raster.shot = pinholeShot(rotation(header.pose.rotation) * scanRotation.transpose(),
+                    translation(pose.translation) + scanRotation * translation(header.pose.translation),
+                    pinhole.focalLength * 1000, vcg::Point2d(pinhole.pixelWidth * 1000, pinhole.pixelHeight * 1000),
+                    vcg::Point2i(int(width), int(height)),
+                    vcg::Point2d(pinhole.principalPointX + 0.5, height - pinhole.principalPointY - 0.5));
                 rasters.push_back(std::move(raster));
             }
             if (skipped > 0)
-                warnings << QObject::tr("%n spherical or cylindrical E57 image(s) skipped: only pinhole images become rasters.",
+                warnings << QObject::tr("%n cylindrical E57 image(s) skipped: their mapping is not supported yet.",
                     nullptr, skipped);
         } catch (const e57::E57Exception &e) {
             warnings << QObject::tr("E57 images could not be read: %1 (%2)")

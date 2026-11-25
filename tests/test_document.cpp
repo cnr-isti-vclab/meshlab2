@@ -159,6 +159,7 @@ private slots:
     void e57SavesAConstantColor();
     void e57RoundTripsPointAttributes();
     void e57PinholeImagesBecomeRasters();
+    void e57PanoramasBecomePinholeViews();
     void savingWritesTheTexturesNoFileHolds();
     void savingNamesTheLayersFileAndUndoKeepsIt();
     void savingOneTextureOrPlaneNamesItsFile();
@@ -4605,6 +4606,122 @@ void DocumentTests::e57PinholeImagesBecomeRasters()
         // vcg puts pixel centres at k + 0.5 and counts rows from the bottom.
         QVERIFY(std::abs((vcgPixel[0] - 0.5) - expected[0]) < 1e-3);
         QVERIFY(std::abs((height - vcgPixel[1] - 0.5) - expected[1]) < 1e-3);
+    }
+#endif
+}
+
+// Two panoramas of solid color blocks: a full sphere turned 30 degrees about z, and a 45-degree
+// band whose frame is also pitched 10 degrees down about its x axis, as a Leica file has its
+// bands. Opening the file resamples each into pinhole views; the centre of every block, as the
+// mapping measured on real files places it, must land on that block's color in a view that
+// sees it. The mapping: azimuth theta (from the image's x, about the scanner's up) and
+// elevation give col = W/2 - (theta - 90 deg) / pixelWidth and row = H/2 - (elevation -
+// pitch of the image's +y) / pixelHeight.
+void DocumentTests::e57PanoramasBecomePinholeViews()
+{
+#if !__has_include(<E57SimpleWriter.h>)
+    QSKIP("This build has no E57 support.");
+#else
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("panoramas.e57"));
+    const int block = 8, blocksX = 16;
+    auto blockColor = [](int bx, int by) { return qRgb(15 * bx, 60 + 40 * by, 255 - 15 * bx); };
+    struct Panorama { const char *guid; int blocksY; double bandDegrees; e57::Quaternion rotation; };
+    const double pitch = -10 * M_PI / 180;
+    const Panorama panoramas[] = {
+        { "sphere", 8, 180, { std::cos(M_PI / 12), 0, 0, std::sin(M_PI / 12) } },
+        // Turned 30 degrees about z, then pitched about the turned x: q = q_z * q_x
+        { "band", 4, 45, { std::cos(M_PI / 12) * std::cos(pitch / 2), std::cos(M_PI / 12) * std::sin(pitch / 2),
+                            std::sin(M_PI / 12) * std::sin(pitch / 2), std::sin(M_PI / 12) * std::cos(pitch / 2) } },
+    };
+    const vcg::Point3d centre(2, 3, 1);
+    {
+        e57::Writer writer(path.toStdString(), e57::WriterOptions{});
+        e57::Data3D scan;
+        scan.guid = "scan";
+        scan.pointCount = 1;
+        scan.pointFields.cartesianXField = scan.pointFields.cartesianYField = scan.pointFields.cartesianZField = true;
+        scan.pose.translation = { centre[0], centre[1], centre[2] };
+        double x = 0, y = 0, z = 0;
+        e57::Data3DPointsDouble points;
+        points.cartesianX = &x;
+        points.cartesianY = &y;
+        points.cartesianZ = &z;
+        writer.WriteData3DData(scan, points);
+        for (const Panorama &p : panoramas) {
+            QImage image(blocksX * block, p.blocksY * block, QImage::Format_RGB32);
+            for (int by = 0; by < p.blocksY; ++by)
+                for (int bx = 0; bx < blocksX; ++bx)
+                    for (int j = 0; j < block; ++j)
+                        for (int i = 0; i < block; ++i)
+                            image.setPixel(bx * block + i, by * block + j, blockColor(bx, by));
+            QByteArray png;
+            QBuffer buffer(&png);
+            QVERIFY(image.save(&buffer, "PNG"));
+            e57::Image2D header;
+            header.guid = std::string(p.guid);
+            header.name = std::string(p.guid);
+            header.associatedData3DGuid = "scan";
+            header.pose.rotation = p.rotation;
+            header.pose.translation = { centre[0], centre[1], centre[2] };
+            e57::SphericalRepresentation &sphere = header.sphericalRepresentation;
+            sphere.pngImageSize = png.size();
+            sphere.imageWidth = image.width();
+            sphere.imageHeight = image.height();
+            sphere.pixelWidth = 2 * M_PI / image.width();
+            sphere.pixelHeight = p.bandDegrees * M_PI / 180 / image.height();
+            const int64_t index = writer.NewImage2D(header);
+            writer.WriteImage2DData(index, e57::ImagePNG, e57::ProjectionSpherical, png.data(), 0, png.size());
+        }
+        writer.Close();
+    }
+
+    Document document;
+    QCOMPARE(document.loadMesh(path), 0);
+    QVERIFY(document.rasterCount() > 2);
+    for (const Panorama &p : panoramas) {
+        const QString name = QString::fromLatin1(p.guid);
+        // The level frame: the scanner's up is z, the image's +y gives the heading and the pitch.
+        const vcg::Quaterniond q(p.rotation.w, p.rotation.x, p.rotation.y, p.rotation.z);
+        const vcg::Point3d forward = q.Rotate(vcg::Point3d(0, 1, 0)), up(0, 0, 1);
+        const double bandPitch = std::asin(forward * up);
+        const vcg::Point3d heading = (forward - up * (forward * up)).Normalize(), side = heading ^ up;
+        const double pixelWidth = 2 * M_PI / (blocksX * block);
+        const double pixelHeight = p.bandDegrees * M_PI / 180 / (p.blocksY * block);
+        int checked = 0;
+        for (int by = 0; by < p.blocksY; ++by) {
+            for (int bx = 0; bx < blocksX; ++bx) {
+                const double col = (bx + 0.5) * block, row = (by + 0.5) * block;
+                const double theta = M_PI / 2 - (col - blocksX * block / 2.0) * pixelWidth;
+                const double elevation = bandPitch + (p.blocksY * block / 2.0 - row) * pixelHeight;
+                const vcg::Point3d direction = (side * std::cos(theta) + heading * std::sin(theta)) * std::cos(elevation)
+                    + up * std::sin(elevation);
+                const vcg::Point3f target = vcg::Point3f::Construct(centre + direction * 10.0);
+                bool seen = false;
+                for (int r = 0; r < document.rasterCount() && !seen; ++r) {
+                    const Document::RasterEntry &raster = document.raster(r);
+                    if (!raster.name.startsWith(name))
+                        continue;
+                    const CameraShot::VcgShot shot = raster.shot.toVcgShot();
+                    if (shot.ConvertWorldToCameraCoordinates(target)[2] <= 0)
+                        continue;   // behind this view (vcg turns camera z to point forward here)
+                    const vcg::Point2f px = shot.Project(target);
+                    const QImage &image = raster.currentPlane()->image;
+                    const int i = int(px[0]), j = int(image.height() - px[1]);
+                    if (i < 2 || j < 2 || i >= image.width() - 2 || j >= image.height() - 2)
+                        continue;
+                    seen = true;
+                    const QRgb got = image.pixel(i, j), want = blockColor(bx, by);
+                    QVERIFY2(qAbs(qRed(got) - qRed(want)) <= 2 && qAbs(qGreen(got) - qGreen(want)) <= 2
+                                 && qAbs(qBlue(got) - qBlue(want)) <= 2 && qAlpha(got) == 255,
+                             qPrintable(QStringLiteral("%1 block (%2, %3) in %4").arg(name).arg(bx).arg(by).arg(raster.name)));
+                }
+                QVERIFY2(seen, qPrintable(QStringLiteral("%1 block (%2, %3) is in no view").arg(name).arg(bx).arg(by)));
+                ++checked;
+            }
+        }
+        QCOMPARE(checked, blocksX * p.blocksY);
     }
 #endif
 }
