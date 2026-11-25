@@ -187,6 +187,23 @@ layer, its world transform the layer matrix and its prim name (or `displayName`)
 cameras become rasters without images. A file written by 5.2 then comes back as the layers
 that wrote it. A menu entry beside Import Mesh; plain Open keeps flattening.
 
+### 5.4 Other formats that would use the same interface
+
+The interface in 5.1 is not USD-specific. Three formats MeshLab already reads and writes can
+hold several layers, and each is flattened into one mesh today (measured 2026-11-23: glTF
+bakes every node transform, 3MF every build item and component, E57 merges every scan).
+
+| Format | Layers and matrices | Materials | Rasters | Unit | Use |
+|---|---|---|---|---|---|
+| glTF / GLB | named nodes with transforms | metallic-roughness, as USD | cameras carry a field of view and aspect only; intrinsics and images only through `extras` | meters by definition | the first one after USD: same material work, cross-check of the two exports |
+| E57 | one scan per point-cloud layer, with its pose | color only | **yes**: images with pinhole or spherical cameras and their poses | meters | scan projects: point clouds plus calibrated photos; points only, no meshes |
+| 3MF | build items with transforms, named objects | base materials, color groups, textures | no | stated in the file | 3D printing: several parts with their placement |
+
+Considered and not proposed: X3D/VRML and COLLADA (scene graphs, but superseded by glTF and
+inconsistent across tools), FBX (writing needs Autodesk's proprietary SDK; a ufbx-based import
+is possible), OBJ (named objects but no transforms). Bundler, NVM, COLMAP and Agisoft camera
+files are photo alignments rather than scenes: an import of rasters onto existing layers.
+
 ## 6. Stage 3: the material model
 
 Extended once, for USD and glTF together, since both carry what MeshLab drops today:
