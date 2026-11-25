@@ -308,6 +308,15 @@ near plane pushed in front of an object cuts the object on Metal.
 8. Run the radiance-scaling gradient pre-pass (if any planned fill or point item has the radiance-scaling option on).
 9. Run main onscreen pass.
 
+Every pass opens with `setPassViewport` (`renderwidget_internal.h`): a pipeline is bound
+before the first `setViewport`. On Vulkan, QRhi records a pipeline's scissor (dynamic state
+there) only in `setViewport`, and only while a pipeline is bound, so a pass that set its
+viewport first drew with no scissor. That is undefined: Intel's driver crashed on it in the
+highlight masks, the first passes of a frame (2026-11, a capture with two layers), while
+MoltenVK and the other backends let it pass. The validation layer reports it as
+`VUID-vkCmdDraw-None-07832`; see [Diagnosing Another Machine](#diagnosing-another-machine)
+for running with it.
+
 Main pass draw order: scene background · fill · solid cut · wire · edges · bbox · points · reference grid · raster camera frustums · decorators · depth-cued tool guides · raster image (`RasterImage` mode only: an overlay with no depth test, faded by the raster opacity) · trackball gizmo · current-mesh outline/debug composite · selection overlay · tool loupes · 2D informational/tool overlays.
 
 ## `Scene3D` Pass Details
@@ -606,6 +615,23 @@ to the log: the API, the device and its kind, and on OpenGL the driver's version
 environment, the screens, the API, device and driver (OpenGL's version, renderer, vendor, GLSL
 version and profile), the QRhi features and limits the renderer leans on, and the recent
 warnings; *Copy System Information* puts it all on the clipboard for a bug report.
+
+Vulkan misuse that one driver forgives and another crashes on can be caught on a Mac with the
+validation layer. `QSG_RHI_DEBUG_LAYER` does not reach a `QRhiWidget`, so the loader enables
+it. With Homebrew's `vulkan-loader` and `vulkan-validationlayers`, and an ICD JSON pointing at
+a `libMoltenVK.dylib`:
+
+```bash
+VK_LOADER_LAYERS_ENABLE='*validation' VK_DRIVER_FILES=<MoltenVK_icd.json> \
+  VK_LAYER_PATH=/opt/homebrew/share/vulkan/explicit_layer.d \
+  QT_VULKAN_LIB=/opt/homebrew/lib/libvulkan.1.dylib MESHLAB2_GRAPHICS_API=vulkan \
+  build-release/MeshLab.app/Contents/MacOS/MeshLab --generate-docs tests/render_probes/<probe>
+```
+
+Messages arrive as `vkDebug:` lines on stderr. `VUID-VkImageCreateInfo-initialLayout-12478`
+comes from Qt's own textures. The probes draw through `grabFramebuffer`, the same path as a
+snapshot or an undo-history thumbnail. `--capture-window` hangs on MoltenVK while the file is
+still loading (the window waits on a drawable), so use a probe.
 
 ## Frame Timing
 

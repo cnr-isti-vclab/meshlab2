@@ -1,0 +1,552 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Load Options - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/load_options.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="load-options">
+<h1>Load Options<a class="headerlink" href="#load-options" title="Link to this heading">¶</a></h1>
+<p>This document proposes letting a mesh importer declare options – what to read and how.
+<strong>Opening a file never asks</strong>: the layer is loaded with the default options, and <em>Reload with
+Options…</em> in the layer’s context menu reads its file again with different ones. <strong>Nothing
+described here is implemented.</strong></p>
+<p>See also: <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (Layer Provenance, the I/O model),
+<a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a> (the precedent for reusing the filter parameter schema),
+<a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a> (the schema itself),
+<a class="reference internal" href="las_support.html"><span class="std std-doc">LAS Support</span></a> and <a class="reference internal" href="usd_support.html"><span class="std std-doc">USD Support</span></a> (formats that need options).</p>
+<section id="status">
+<h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Stage</p></th>
+<th class="head"><p>What</p></th>
+<th class="head"><p>State</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Declared options, loaded with defaults, kept on the layer, <em>Reload with Options…</em>, recorded in the action history and in Python; STL’s merge moved onto them</p></td>
+<td><p>not started; needs approval of the interface and of the mapping table in §5</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>Options kept in the project</p></td>
+<td><p>not started</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Options that change how many layers a file gives (one per scan, per node)</p></td>
+<td><p>not started; depends on the scene interface of <a class="reference internal" href="usd_support.html#5-stage-2-scenes"><span class="std std-ref">USD Support §5</span></a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="why">
+<h2>1. Why<a class="headerlink" href="#why" title="Link to this heading">¶</a></h2>
+<p>Several formats have choices that only the user can make, and today each is either hard-coded
+in the importer or a global preference:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Format</p></th>
+<th class="head"><p>The choice</p></th>
+<th class="head"><p>Where it is today</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>STL</p></td>
+<td><p>merge the duplicated corners into shared vertices</p></td>
+<td><p>the global preference <code class="docutils literal notranslate"><span class="pre">document.mergeStlDuplicateVertices</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>E57</p></td>
+<td><p>which scans; intensity as scalar; open the photos as rasters; panoramas resampled into pinhole views</p></td>
+<td><p>all of it always done (<code class="docutils literal notranslate"><span class="pre">plugins/io_e57</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>LAS/LAZ</p></td>
+<td><p>keep every point or a subset; which per-point fields to keep; the coordinate offset</p></td>
+<td><p>not supported (<a class="reference internal" href="las_support.html"><span class="std std-doc">LAS Support</span></a>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>glTF, USD, 3MF, E57</p></td>
+<td><p>one layer, or one per node, item or scan</p></td>
+<td><p>always one layer (stage 3)</p></td>
+</tr>
+<tr class="row-even"><td><p>USD</p></td>
+<td><p>apply the up axis to the layer matrix or to the coordinates</p></td>
+<td><p>not supported (<a class="reference internal" href="usd_support.html#9-open-questions"><span class="std std-ref">USD Support §9</span></a>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>OBJ</p></td>
+<td><p>which of the three importers that accept <code class="docutils literal notranslate"><span class="pre">.obj</span></code> reads it</p></td>
+<td><p>the plugin order</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Legacy MeshLab had this mechanism (<code class="docutils literal notranslate"><span class="pre">IOPlugin::initPreOpenParameter</span></code>, in
+<code class="docutils literal notranslate"><span class="pre">.reference/meshlab/src/common/plugins/interfaces/io_plugin.h</span></code>). STL’s
+<code class="docutils literal notranslate"><span class="pre">unify_vertices</span></code>, glTF’s <code class="docutils literal notranslate"><span class="pre">load_in_a_single_layer</span></code>, 3MF’s <code class="docutils literal notranslate"><span class="pre">usecolors</span></code> and
+<code class="docutils literal notranslate"><span class="pre">forcetransform</span></code>, PTX’s culling options and the TXT column format were options there.
+Defaults came from the global settings, and a modal <em>Pre-Open Options</em> dialog opened on
+<strong>every</strong> load unless turned off per format. Two weaknesses are worth avoiding: the dialog stood
+between the user and every file, asking before the user had seen what the file holds, and a
+choice was final, since nothing remembered how a layer had been read.</p>
+<p>MeshLab now has what that version lacked. A layer knows its file (<code class="docutils literal notranslate"><span class="pre">MeshEntry::sourcePath</span></code>)
+and whether it still holds what the file gave it (<code class="docutils literal notranslate"><span class="pre">Document::meshStoredState</span></code>). The filter
+parameter schema already serves two clients, filters and preferences, with one form builder.</p>
+</section>
+<section id="the-interface">
+<h2>2. The interface<a class="headerlink" href="#the-interface" title="Link to this heading">¶</a></h2>
+<p>Options are declared with the <strong>filter parameter schema</strong> (<code class="docutils literal notranslate"><span class="pre">MeshFilterParameterDescriptor</span></code>),
+which makes load options its third client after filters and preferences. The form,
+the help, the reset buttons, the <code class="docutils literal notranslate"><span class="pre">enabledWhen</span></code> gating, validation and the Python names come
+for free.</p>
+<p>Two additions to <code class="docutils literal notranslate"><span class="pre">MeshIOPlugin</span></code>, both optional:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// The options a load of this file accepts. Called before load() with the file, so a plugin</span>
+<span class="c1">// may read the header cheaply and offer what the file has (an E57's scans, a LAS file's</span>
+<span class="c1">// extra fields). Empty, the default, means the format has no options.</span>
+<span class="k">virtual</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">MeshFilterParameterDescriptor</span><span class="o">&gt;</span><span class="w"> </span><span class="n">loadParameters</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">QString</span><span class="w"> </span><span class="o">&amp;</span><span class="n">filename</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="c1">// options holds every declared parameter, defaults filled in by the Document.</span>
+<span class="c1">// (One more overload; the alternative is a MeshIOLoadRequest struct, see §6.)</span>
+<span class="k">virtual</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">QString</span><span class="w"> </span><span class="o">&amp;</span><span class="n">filename</span><span class="p">,</span><span class="w"> </span><span class="n">VCGMesh</span><span class="w"> </span><span class="o">&amp;</span><span class="n">mesh</span><span class="p">,</span><span class="w"> </span><span class="n">vcg</span><span class="o">::</span><span class="n">CallBackPos</span><span class="w"> </span><span class="o">*</span><span class="n">cb</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">outLoadMask</span><span class="p">,</span>
+<span class="w">                 </span><span class="n">MeshIOMaterialSet</span><span class="w"> </span><span class="o">*</span><span class="n">outMaterialSet</span><span class="p">,</span><span class="w"> </span><span class="n">LengthUnit</span><span class="w"> </span><span class="o">*</span><span class="n">outUnit</span><span class="p">,</span>
+<span class="w">                 </span><span class="k">const</span><span class="w"> </span><span class="n">QVariantMap</span><span class="w"> </span><span class="o">&amp;</span><span class="n">options</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>A plugin with no options changes nothing. Declarations may live in the plugin’s JSON, read by
+<code class="docutils literal notranslate"><span class="pre">FilterDescriptorLoader::loadParameters()</span></code> as <code class="docutils literal notranslate"><span class="pre">preferences.json</span></code> is, or be built in code when they
+depend on the file.</p>
+<p><strong>Defaults</strong> are resolved in three steps, as for preferences:</p>
+<ol class="arabic simple">
+<li><p>the declared default;</p></li>
+<li><p>overridden by the value the user last chose for that plugin and parameter, stored under the
+plugin’s <code class="docutils literal notranslate"><span class="pre">pluginId()</span></code>, which the interface already reserves for settings;</p></li>
+<li><p>overridden by what the caller passes.</p></li>
+</ol>
+</section>
+<section id="load-first-choose-after">
+<h2>3. Load first, choose after<a class="headerlink" href="#load-first-choose-after" title="Link to this heading">¶</a></h2>
+<p><strong>Opening never asks.</strong> The file dialog, drag and drop, recent files, a project’s layers and
+scripts all load with the resolved defaults. When the format has options, one log line says
+which values were used and that <em>Reload with Options…</em> changes them. The user decides after
+seeing the layer, which is when the choice can be made well: whether the subsampled cloud is
+dense enough, or whether the photos are wanted.</p>
+<p><strong>Reload with Options…</strong> in a layer’s context menu opens a form of the options of the layer’s
+file, on the values the layer was loaded with. It uses <code class="docutils literal notranslate"><span class="pre">ParameterFormBuilder</span></code>, as the filter
+panel and the preferences dialog do. <em>Reload</em> reads the file again with the new values,
+keeping the layer’s identity, name, matrix and visibility, as one undo step (“Reload with
+Options”). <em>Remember for this format</em>, a checkbox in the form, writes the values as the
+defaults for later files (step 2 of §2). This is how a user who always wants, say, every point
+of a LAS file stops having to reload.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Layer state</p></th>
+<th class="head"><p><em>Reload with Options…</em></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Saved</strong>: the layer holds what its file gave it</p></td>
+<td><p>reloads with the new options</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Modified</strong>: changed since the file was read</p></td>
+<td><p>offered with a warning that the changes since will be discarded; the reload is undoable, so nothing is lost</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Not saved</strong>: no file</p></td>
+<td><p>not offered</p></td>
+</tr>
+<tr class="row-odd"><td><p>its file has no options</p></td>
+<td><p>not offered</p></td>
+</tr>
+<tr class="row-even"><td><p>the file is gone or changed on disk</p></td>
+<td><p>fails as <em>Reload</em> does; the layer is untouched</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The price is reading the file twice when the defaults were wrong. So a format whose defaults
+could be costly has to make them cheap rather than ask. For example, a LAS file’s default is to
+load at most a point budget, 30 million points to start, by an even stride
+(<a class="reference internal" href="las_support.html#4-import"><span class="std std-ref">LAS Support §4</span></a>). Scripts pay nothing: they pass the options to
+the load directly (§4).</p>
+</section>
+<section id="provenance-recorded-and-kept">
+<h2>4. Provenance: recorded and kept<a class="headerlink" href="#provenance-recorded-and-kept" title="Link to this heading">¶</a></h2>
+<p><strong>Recorded.</strong> The <code class="docutils literal notranslate"><span class="pre">load_mesh</span></code> <code class="docutils literal notranslate"><span class="pre">ScriptAction</span></code> already has a <code class="docutils literal notranslate"><span class="pre">params</span></code> field, documented as “empty
+for load/save”; it carries the resolved options. A reload with options is recorded as a load
+of that file with those options, so the generated script reads the file once, with the values
+the user ended with. Python gains keyword arguments:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ms</span><span class="o">.</span><span class="n">load_new_mesh</span><span class="p">(</span><span class="s2">"tile.laz"</span><span class="p">,</span> <span class="n">max_points</span><span class="o">=</span><span class="mi">20_000_000</span><span class="p">,</span> <span class="n">keep_fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"classification"</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Unknown names and bad values are refused as a filter’s are.</p>
+<p><strong>Kept.</strong> <code class="docutils literal notranslate"><span class="pre">MeshEntry</span></code> gets <code class="docutils literal notranslate"><span class="pre">loadOptions</span></code>, beside <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code>. Plain <em>Reload</em> reads the file
+with them, so it repeats the load the user ended with rather than a default one. A save that
+makes another file the layer’s own (<code class="docutils literal notranslate"><span class="pre">saveMesh</span></code>) clears them: the layer now comes from that
+file, read with its own format’s defaults.</p>
+<p><strong>In the project</strong> (stage 2). An <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> writes a layer’s options as a child of its <code class="docutils literal notranslate"><span class="pre">MLMesh</span></code>,
+after <code class="docutils literal notranslate"><span class="pre">MLMatrix44</span></code>, and loading the project passes them back. Legacy MeshLab looks up the
+children of <code class="docutils literal notranslate"><span class="pre">MLMesh</span></code> by name (<code class="docutils literal notranslate"><span class="pre">firstChildElement(&quot;MLMatrix44&quot;)</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;RenderingOption&quot;</span></code> in
+<code class="docutils literal notranslate"><span class="pre">.reference/meshlab/src/meshlabplugins/io_base/load_project.cpp</span></code>), so it skips this one.</p>
+</section>
+<section id="moving-stl-s-merge-onto-it">
+<h2>5. Moving STL’s merge onto it<a class="headerlink" href="#moving-stl-s-merge-onto-it" title="Link to this heading">¶</a></h2>
+<p>The one existing load choice moves first. Per the mapping-table rule:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Current</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Verdict</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>preference <code class="docutils literal notranslate"><span class="pre">document.mergeStlDuplicateVertices</span></code> (<code class="docutils literal notranslate"><span class="pre">resources/preferences.json</span></code>)</p></td>
+<td><p>the default of the STL load option <code class="docutils literal notranslate"><span class="pre">mergeDuplicateVertices</span></code></p></td>
+<td><p>read only in <code class="docutils literal notranslate"><span class="pre">src/ui/mainwindow.cpp</span></code> (lines 419 and 935), to call the setter below</p></td>
+<td><p>move; the stored preference value becomes the remembered default (step 2), migrated once</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Document::mergeStlDuplicateVertices()</span></code> / <code class="docutils literal notranslate"><span class="pre">setMergeStlDuplicateVertices()</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/document.h</span></code>)</p></td>
+<td><p>removed</p></td>
+<td><p>callers: those two lines, and <code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code> (4221, 4227, 4233), which would pass the option instead</p></td>
+<td><p>remove</p></td>
+</tr>
+<tr class="row-even"><td><p>the merge in <code class="docutils literal notranslate"><span class="pre">Document::loadMesh</span></code> (<code class="docutils literal notranslate"><span class="pre">document_io.cpp:113</span></code>)</p></td>
+<td><p>stays in <code class="docutils literal notranslate"><span class="pre">Document</span></code>, driven by the option</p></td>
+<td><p>it runs for every STL whichever of <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code> and <code class="docutils literal notranslate"><span class="pre">io_trueform</span></code> read it</p></td>
+<td><p>keep, read the option instead</p></td>
+</tr>
+<tr class="row-odd"><td><p>the mentions in <code class="docutils literal notranslate"><span class="pre">plugins/io_trueform/trueformioplugin.cpp:141</span></code> and <code class="docutils literal notranslate"><span class="pre">plugins/io_trueform/UPSTREAM.md:176</span></code></p></td>
+<td><p>name the option</p></td>
+<td><p>comments only</p></td>
+<td><p>reword</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>There is one move, one removal, one kept piece and one rewording, four rows in all. The STL option is
+declared once, by <code class="docutils literal notranslate"><span class="pre">Document</span></code>, for whichever STL importer runs, rather than by each plugin.
+That one exception is worth it: the merge is the Document’s, not the importer’s.</p>
+</section>
+<section id="open-questions">
+<h2>6. Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>An overload or a request struct.</strong> <code class="docutils literal notranslate"><span class="pre">MeshIOPlugin::load</span></code> already has three overloads,
+each adding one out-parameter, and <code class="docutils literal notranslate"><span class="pre">loadRasters</span></code> is a fourth call. A fourth overload is the
+smallest change. A <code class="docutils literal notranslate"><span class="pre">MeshIOLoadRequest</span></code> / <code class="docutils literal notranslate"><span class="pre">MeshIOLoadResult</span></code> pair would end the growth, but
+would mean touching six plugins, so it should be done only if a later need forces it.</p></li>
+<li><p><strong>Save options.</strong> <code class="docutils literal notranslate"><span class="pre">MeshIOSaveOptions</span></code> is a fixed struct holding glTF’s Draco settings for
+every format. Declared save parameters would be the same mechanism; they are not proposed
+here.</p></li>
+<li><p><strong>Several layers from one file</strong> (stage 3). Reloading needs the layers of one load
+grouped by file and load, and options that change the layer count need the scene interface.
+Until then an option may change what a layer holds, never how many layers there are.</p></li>
+<li><p><strong>OBJ importer choice.</strong> Is the importer itself an option (an enum of the plugins that
+accept the file, offered by <code class="docutils literal notranslate"><span class="pre">Document</span></code>), or a preference? It would be the only option
+not declared by a plugin.</p></li>
+</ol>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Load Options</a><ul>
+<li><a class="reference internal" href="#status">Status</a></li>
+<li><a class="reference internal" href="#why">1. Why</a></li>
+<li><a class="reference internal" href="#the-interface">2. The interface</a></li>
+<li><a class="reference internal" href="#load-first-choose-after">3. Load first, choose after</a></li>
+<li><a class="reference internal" href="#provenance-recorded-and-kept">4. Provenance: recorded and kept</a></li>
+<li><a class="reference internal" href="#moving-stl-s-merge-onto-it">5. Moving STL’s merge onto it</a></li>
+<li><a class="reference internal" href="#open-questions">6. Open questions</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

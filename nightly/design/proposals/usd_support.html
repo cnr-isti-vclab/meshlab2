@@ -601,6 +601,52 @@ layer, its world transform the layer matrix and its prim name (or <code class="d
 cameras become rasters without images. A file written by 5.2 then comes back as the layers
 that wrote it. A menu entry beside Import Mesh; plain Open keeps flattening.</p>
 </section>
+<section id="other-formats-that-would-use-the-same-interface">
+<h3>5.4 Other formats that would use the same interface<a class="headerlink" href="#other-formats-that-would-use-the-same-interface" title="Link to this heading">¶</a></h3>
+<p>The interface in 5.1 is not USD-specific. Three formats MeshLab already reads and writes can
+hold several layers, and each is flattened into one mesh today (measured 2026-11-23: glTF
+bakes every node transform, 3MF every build item and component, E57 merges every scan).</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Format</p></th>
+<th class="head"><p>Layers and matrices</p></th>
+<th class="head"><p>Materials</p></th>
+<th class="head"><p>Rasters</p></th>
+<th class="head"><p>Unit</p></th>
+<th class="head"><p>Use</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>glTF / GLB</p></td>
+<td><p>named nodes with transforms</p></td>
+<td><p>metallic-roughness, as USD</p></td>
+<td><p>cameras carry a field of view and aspect only; intrinsics and images only through <code class="docutils literal notranslate"><span class="pre">extras</span></code></p></td>
+<td><p>meters by definition</p></td>
+<td><p>the first one after USD: same material work, cross-check of the two exports</p></td>
+</tr>
+<tr class="row-odd"><td><p>E57</p></td>
+<td><p>one scan per point-cloud layer, with its pose</p></td>
+<td><p>color only</p></td>
+<td><p><strong>yes</strong>: images with pinhole or spherical cameras and their poses</p></td>
+<td><p>meters</p></td>
+<td><p>scan projects: point clouds plus calibrated photos; points only, no meshes</p></td>
+</tr>
+<tr class="row-even"><td><p>3MF</p></td>
+<td><p>build items with transforms, named objects</p></td>
+<td><p>base materials, color groups, textures</p></td>
+<td><p>no</p></td>
+<td><p>stated in the file</p></td>
+<td><p>3D printing: several parts with their placement</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Considered and not proposed: X3D/VRML and COLLADA (scene graphs, but superseded by glTF and
+inconsistent across tools), FBX (writing needs Autodesk’s proprietary SDK; a ufbx-based import
+is possible), OBJ (named objects but no transforms). Bundler, NVM, COLMAP and Agisoft camera
+files are photo alignments rather than scenes: an import of rasters onto existing layers.</p>
+</section>
 </section>
 <section id="stage-3-the-material-model">
 <h2>6. Stage 3: the material model<a class="headerlink" href="#stage-3-the-material-model" title="Link to this heading">¶</a></h2>
@@ -727,6 +773,7 @@ format that does not say)?</p></li>
 <li><a class="reference internal" href="#the-interface">5.1 The interface</a></li>
 <li><a class="reference internal" href="#export-visible-layers-as-usd">5.2 Export Visible Layers as USD</a></li>
 <li><a class="reference internal" href="#import-as-separate-layers">5.3 Import as Separate Layers</a></li>
+<li><a class="reference internal" href="#other-formats-that-would-use-the-same-interface">5.4 Other formats that would use the same interface</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#stage-3-the-material-model">6. Stage 3: the material model</a></li>

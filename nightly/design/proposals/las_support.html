@@ -1,0 +1,651 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>LAS/LAZ Support - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/proposals/las_support.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="las-laz-support">
+<h1>LAS/LAZ Support<a class="headerlink" href="#las-laz-support" title="Link to this heading">¶</a></h1>
+<p>This document proposes reading and writing ASPRS LAS point clouds and their compressed form,
+LAZ, in MeshLab. It also proposes the piece any georeferenced format needs and MeshLab lacks:
+a <strong>document origin</strong>, so that coordinates in the millions keep their precision. <strong>Nothing
+described here is implemented.</strong></p>
+<p>See also: <a class="reference internal" href="load_options.html"><span class="std std-doc">Load Options</span></a> (how the user chooses what to read),
+<a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (layers, units, provenance),
+<a class="reference internal" href="../memory_accounting.html"><span class="std std-doc">Memory Accounting</span></a>, <a class="reference internal" href="../third_party.html"><span class="std std-doc">Third-Party Code</span></a>,
+<code class="docutils literal notranslate"><span class="pre">plugins/io_e57</span></code> (the other point-cloud format, and the one that measured the problem).</p>
+<section id="status">
+<h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Stage</p></th>
+<th class="head"><p>What</p></th>
+<th class="head"><p>State</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>Document origin: offset subtracted in double precision on load, added back on save; E57 first</p></td>
+<td><p>not started; needs approval of §2</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">io_las</span></code>: LAS and LAZ through LASzip, read and write, fields as in §4 and §5</p></td>
+<td><p>not started</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>Load options for LAS: point budget, fields to keep (<a class="reference internal" href="load_options.html"><span class="std std-doc">Load Options</span></a>)</p></td>
+<td><p>not started; follows Load Options stage 1</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>COPC: load a chosen level of detail or region of a cloud-optimized file</p></td>
+<td><p>not started; optional</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="what-las-is">
+<h2>1. What LAS is<a class="headerlink" href="#what-las-is" title="Link to this heading">¶</a></h2>
+<p>The ASPRS LAS format (1.0 to 1.4) holds <strong>one point cloud</strong> and no faces. A header gives the
+bounds, point count, <strong>scale and offset</strong>: each coordinate is a 32-bit integer <code class="docutils literal notranslate"><span class="pre">X</span></code>, and the
+position is <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">*</span> <span class="pre">scale</span> <span class="pre">+</span> <span class="pre">offset</span></code> in double precision. Point records come in formats 0 to 10:</p>
+<ul class="simple">
+<li><p>every format has intensity, return number and count, classification, scan angle, user
+data and point source ID;</p></li>
+<li><p>GPS time from format 1 on, RGB (16 bits per channel) in 2, 3, 5, 7, 8 and 10, near-infrared
+in 8 and 10, and waveform packets in 4, 5, 9 and 10;</p></li>
+<li><p>from 1.4 on, extra per-point fields of any type (“extra bytes”, declared in a VLR). PDAL and
+others write normals there as <code class="docutils literal notranslate"><span class="pre">NormalX</span></code>/<code class="docutils literal notranslate"><span class="pre">NormalY</span></code>/<code class="docutils literal notranslate"><span class="pre">NormalZ</span></code>.</p></li>
+</ul>
+<p>The coordinate system is a variable-length record (WKT in 1.4, GeoTIFF keys before), whose
+linear unit is usually the meter and sometimes the US survey foot. LAZ is the same content
+compressed losslessly by LASzip. COPC (cloud-optimized point cloud) is a LAZ 1.4 file whose
+points are ordered in an octree described by an extra VLR. Any LAZ reader reads it whole.</p>
+</section>
+<section id="the-real-problem-precision">
+<h2>2. The real problem: precision<a class="headerlink" href="#the-real-problem-precision" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">VCGVertex</span></code> stores positions in float (<code class="docutils literal notranslate"><span class="pre">vcg::vertex::Coord3f</span></code>, <code class="docutils literal notranslate"><span class="pre">src/core/vcgmesh.h</span></code>), and the
+layer matrix is a float <code class="docutils literal notranslate"><span class="pre">QMatrix4x4</span></code> (<code class="docutils literal notranslate"><span class="pre">Document::meshTransform</span></code>). A float has a 24-bit mantissa.
+At a UTM northing of 5,000,000 m it can only store multiples of 0.5 m, and at an easting of
+500,000 m multiples of 3 cm. Most LAS files are in such coordinates. Moving the offset into the
+layer matrix does not help, because the matrix is float too.</p>
+<p><strong>Measured on E57</strong>, which MeshLab already reads, 2026-11-25. A 100 × 100 grid with 1 mm
+spacing was written as doubles with libE57Format and read back through <code class="docutils literal notranslate"><span class="pre">load_new_mesh</span></code>:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>File</p></th>
+<th class="head"><p>Distinct x</p></th>
+<th class="head"><p>Distinct y</p></th>
+<th class="head"><p>Largest error</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>grid at (10, 20, 1)</p></td>
+<td><p>100</p></td>
+<td><p>100</p></td>
+<td><p>0.0 mm</p></td>
+</tr>
+<tr class="row-odd"><td><p>grid at (500000, 5000000, 100), in the coordinates</p></td>
+<td><p>4</p></td>
+<td><p>1</p></td>
+<td><p>15.5 mm in x, 99.0 mm in y</p></td>
+</tr>
+<tr class="row-even"><td><p>grid at the origin, the scan pose translating it to (500000, 5000000, 100)</p></td>
+<td><p>4</p></td>
+<td><p>1</p></td>
+<td><p>15.5 mm in x, 99.0 mm in y</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The 10,000 points come back as 4 columns and 1 row: the survey is gone. The importer converts
+each point to float after applying the scan pose
+(<code class="docutils literal notranslate"><span class="pre">vcg::Point3f::Construct(rotation.Rotate(p)</span> <span class="pre">+</span> <span class="pre">translation)</span></code>, <code class="docutils literal notranslate"><span class="pre">plugins/io_e57/e57importplugin.cpp</span></code>)
+and subtracts no offset, so a scan placed by its pose loses precision exactly as one stored in
+absolute coordinates does.</p>
+<p><strong>The proposal: a document origin.</strong> <code class="docutils literal notranslate"><span class="pre">Document</span></code> gets an origin, a <code class="docutils literal notranslate"><span class="pre">vcg::Point3d</span></code> kept in double
+precision; every layer’s coordinates are relative to it.</p>
+<ul class="simple">
+<li><p><strong>On load</strong>, the importer subtracts the origin <strong>in double precision, before converting to
+float</strong>. This changes the importer, not <code class="docutils literal notranslate"><span class="pre">Document</span></code>: once the values are float the precision
+is already lost. The origin is one more input to <code class="docutils literal notranslate"><span class="pre">MeshIOPlugin::load</span></code>, the second after load
+options, which tips <a class="reference internal" href="load_options.html#6-open-questions"><span class="std std-ref">Load Options §6.1</span></a> toward a request
+struct.</p></li>
+<li><p><strong>Which origin.</strong> If the document has one, every new layer uses it, so layers still align.
+If it has none and the file’s coordinates are far from zero, the file proposes one and the
+document adopts it. “Far” means the bounding box centre is farther from zero than its
+diagonal is long. The proposed origin is the file’s own LAS offset, or the bounding box minimum
+rounded to whole units. A file near zero sets none, so everyday meshes are unaffected.</p></li>
+<li><p><strong>On save</strong>, formats that store doubles and are georeferenced by nature (LAS, E57) add the
+origin back, so a load and save round trip keeps the true coordinates. The others write
+local coordinates and log the origin (open question 2).</p></li>
+<li><p><strong>Shown</strong> wherever a position is shown to the user: the measuring and picking tools add the
+origin when it is set, and the status bar says it is in effect.</p></li>
+<li><p><strong>Kept</strong> in the project as <code class="docutils literal notranslate"><span class="pre">&lt;Origin</span> <span class="pre">x=&quot;...&quot;</span> <span class="pre">y=&quot;...&quot;</span> <span class="pre">z=&quot;...&quot;/&gt;</span></code>, a sibling of <code class="docutils literal notranslate"><span class="pre">&lt;LengthUnit&gt;</span></code>,
+which legacy MeshLab skips. <em>File &gt; New</em> clears it. It is not part of the undo state, because
+nothing but a load sets it: like the unit, it is adopted, never edited by a filter.</p></li>
+<li><p><strong>Python</strong>: <code class="docutils literal notranslate"><span class="pre">ms.document_origin()</span></code>.</p></li>
+</ul>
+<p>The fix is a few dozen lines in <code class="docutils literal notranslate"><span class="pre">Document</span></code> and the project reader and writer, and a few lines
+in each importer of a format that can be georeferenced: E57 now, then LAS, then glTF/USD if
+ever needed (both are usually local). E57 goes first, with its measured test as the
+regression test.</p>
+</section>
+<section id="the-library-laszip">
+<h2>3. The library: LASzip<a class="headerlink" href="#the-library-laszip" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p>LASzip 3.5</p></th>
+<th class="head"><p>PDAL</p></th>
+<th class="head"><p>LAStools (LASlib)</p></th>
+<th class="head"><p>libLAS</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Licence</p></td>
+<td><p>Apache-2.0</p></td>
+<td><p>BSD</p></td>
+<td><p>mixed, some parts proprietary</p></td>
+<td><p>BSD</p></td>
+</tr>
+<tr class="row-odd"><td><p>Dependencies</p></td>
+<td><p>none</p></td>
+<td><p>GDAL, PROJ, GeoTIFF, libxml2…</p></td>
+<td><p>none</p></td>
+<td><p>Boost, GDAL optional</p></td>
+</tr>
+<tr class="row-even"><td><p>Reads/writes LAS and LAZ, 1.4</p></td>
+<td><p>yes, through its C API (<code class="docutils literal notranslate"><span class="pre">laszip_api.h</span></code>)</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>no 1.4; abandoned</p></td>
+</tr>
+<tr class="row-odd"><td><p>Extra bytes</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-even"><td><p>vcpkg</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">laszip</span></code> 3.5.0</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pdal</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lastools</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">liblas</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>LASzip.</strong> It is a small library that reads and writes both plain LAS and LAZ through one API,
+which is all an importer needs. PDAL is a pipeline framework, and its dependency chain is
+far heavier than one file format justifies. The coordinate-system VLR is
+kept as text (WKT) for the round trip, so no PROJ is needed: MeshLab does not reproject.</p>
+</section>
+<section id="import">
+<h2>4. Import<a class="headerlink" href="#import" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>LAS</p></th>
+<th class="head"><p>MeshLab</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">*</span> <span class="pre">scale</span> <span class="pre">+</span> <span class="pre">offset</span></code>, in double</p></td>
+<td><p>position minus the document origin (§2), then float</p></td>
+</tr>
+<tr class="row-odd"><td><p>RGB, 16 bits per channel</p></td>
+<td><p>vertex color, scaled to 8 bits. Some writers store 0–255 in the 16-bit fields, so the scale is decided by the file’s maximum, as the E57 importer uses color limits</p></td>
+</tr>
+<tr class="row-even"><td><p>intensity</p></td>
+<td><p>vertex scalar (quality), so the color-map tools work on it immediately</p></td>
+</tr>
+<tr class="row-odd"><td><p>classification</p></td>
+<td><p>named <code class="docutils literal notranslate"><span class="pre">int</span></code> attribute <code class="docutils literal notranslate"><span class="pre">classification</span></code>, selectable by expression (<code class="docutils literal notranslate"><span class="pre">classification</span> <span class="pre">==</span> <span class="pre">2</span></code> selects ground)</p></td>
+</tr>
+<tr class="row-even"><td><p>return number, number of returns, scan angle, user data, point source ID</p></td>
+<td><p>named <code class="docutils literal notranslate"><span class="pre">int</span></code> attributes</p></td>
+</tr>
+<tr class="row-odd"><td><p>GPS time</p></td>
+<td><p>named attribute; <code class="docutils literal notranslate"><span class="pre">float</span></code> loses it (seconds since an epoch), so it is offset by its minimum like the coordinates, or dropped by default (open question 3)</p></td>
+</tr>
+<tr class="row-even"><td><p>near-infrared</p></td>
+<td><p>named <code class="docutils literal notranslate"><span class="pre">int</span></code> attribute</p></td>
+</tr>
+<tr class="row-odd"><td><p>extra bytes</p></td>
+<td><p>named attributes; three named as normals become vertex normals</p></td>
+</tr>
+<tr class="row-even"><td><p>synthetic, key-point, withheld and overlap flags</p></td>
+<td><p>withheld points dropped (the standard says to ignore them); the others as one named <code class="docutils literal notranslate"><span class="pre">int</span></code> attribute of bits</p></td>
+</tr>
+<tr class="row-odd"><td><p>waveform packets</p></td>
+<td><p>dropped, with a log line</p></td>
+</tr>
+<tr class="row-even"><td><p>coordinate system VLR</p></td>
+<td><p>the length unit through <code class="docutils literal notranslate"><span class="pre">outUnit</span></code> (meter, foot, US survey foot as foot, with a log line); the WKT kept as layer metadata, written back on save</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Expression filters already read named per-vertex <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">float</span></code> and <code class="docutils literal notranslate"><span class="pre">Point3f</span></code> attributes
+(<code class="docutils literal notranslate"><span class="pre">plugins/filter_expression/expressionfilterplugin.cpp</span></code>). Before relying on them, check
+that named attributes survive undo snapshots and <code class="docutils literal notranslate"><span class="pre">tri::Append</span></code>.</p>
+<p><strong>Size.</strong> One airborne tile is often 10 to 100 million points, a mobile or terrestrial
+survey more. A vertex takes about 40 bytes before named attributes, so 100 million points is
+about 4 GB. The default load is therefore not “everything” but <strong>at most a point budget</strong>,
+30 million points to start, by an even stride. The stride keeps the scan pattern and needs no
+second pass. Above the budget the log says how many points were skipped; <em>Reload with Options…</em> on
+the layer loads them all (<a class="reference internal" href="load_options.html"><span class="std std-doc">Load Options</span></a>). A spatially even subset is a filter’s job once the
+points are in.</p>
+</section>
+<section id="export">
+<h2>5. Export<a class="headerlink" href="#export" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>MeshLab</p></th>
+<th class="head"><p>LAS</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>a point-cloud layer (a mesh layer writes its vertices only, with a log line)</p></td>
+<td><p>one file; <code class="docutils literal notranslate"><span class="pre">.laz</span></code> compressed, <code class="docutils literal notranslate"><span class="pre">.las</span></code> not</p></td>
+</tr>
+<tr class="row-odd"><td><p>position plus the document origin</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">X</span></code> with scale 0.001 file units by default, offset the document origin, or the bounding box minimum when there is none</p></td>
+</tr>
+<tr class="row-even"><td><p>vertex color</p></td>
+<td><p>RGB, 8 bits scaled to 16</p></td>
+</tr>
+<tr class="row-odd"><td><p>scalar</p></td>
+<td><p>intensity when the layer’s scalar came from intensity, otherwise a <code class="docutils literal notranslate"><span class="pre">float</span></code> extra field <code class="docutils literal notranslate"><span class="pre">scalar</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>normals</p></td>
+<td><p>extra fields <code class="docutils literal notranslate"><span class="pre">NormalX/Y/Z</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>named attributes with the names of §4</p></td>
+<td><p>their standard fields</p></td>
+</tr>
+<tr class="row-even"><td><p>other named attributes</p></td>
+<td><p>extra fields</p></td>
+</tr>
+<tr class="row-odd"><td><p>unit and kept WKT</p></td>
+<td><p>the coordinate-system VLR</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The point format is the smallest that holds what is written: 6 without color, 7 with it, 8
+with near-infrared. This means LAS 1.4, which old readers do not open (open question 1).</p>
+</section>
+<section id="copc-stage-4">
+<h2>6. COPC (stage 4)<a class="headerlink" href="#copc-stage-4" title="Link to this heading">¶</a></h2>
+<p>A COPC file stores its points in octree order, and its hierarchy VLR gives the point range of
+each node. Reading a level of detail, or the nodes inside a box, is then a seek and a read per
+node, through LASzip’s seek. That turns the point budget of §4 from a stride into a spatially
+even subset, and lets a region of a national survey be opened without reading the rest. It is
+a few hundred lines of hierarchy parsing, worth doing once stage 2 is in use.</p>
+</section>
+<section id="validation">
+<h2>7. Validation<a class="headerlink" href="#validation" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Fixtures in <code class="docutils literal notranslate"><span class="pre">tests/sample_mesh/las/</span></code>: small LAS and LAZ files in formats 1, 3, 6, 7 and 8,
+one with extra bytes and one with RGB stored in 8 bits. Synthetic ones are generated with
+LASzip; one real airborne tile goes in the dataset manifest, not the repository
+(<a class="reference internal" href="../test_data.html"><span class="std std-doc">Test Data</span></a>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code>: a georeferenced round trip (load, save, load) that keeps every
+point within half the file’s scale, run on LAS and on E57; the E57 grid above as the
+regression test of stage 1.</p></li>
+<li><p>Descriptor and smoke tiers are unaffected, as for any importer.</p></li>
+</ul>
+</section>
+<section id="cost">
+<h2>8. Cost<a class="headerlink" href="#cost" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Piece</p></th>
+<th class="head"><p>Estimate</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Document origin, project element, Python, E57 adoption</p></td>
+<td><p>150–250 lines</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">io_las</span></code> read and write</p></td>
+<td><p>500–700 lines</p></td>
+</tr>
+<tr class="row-even"><td><p>Load options for LAS (with <a class="reference internal" href="load_options.html"><span class="std std-doc">Load Options</span></a> in place)</p></td>
+<td><p>under 100 lines</p></td>
+</tr>
+<tr class="row-odd"><td><p>COPC level of detail</p></td>
+<td><p>300 lines</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>One new vcpkg dependency, LASzip, with no further dependencies.</p>
+</section>
+<section id="open-questions">
+<h2>9. Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>LAS 1.4 or 1.2 on export.</strong> 1.4 holds 8-bit classification, extra bytes and the WKT, but
+some older tools refuse it. Should 1.4 be written always, or 1.2 when nothing needs 1.4?</p></li>
+<li><p><strong>Origin on non-georeferenced formats.</strong> Should PLY, OBJ and STL write true coordinates,
+losing precision in float formats, or local ones plus a log line? A save option, or never?</p></li>
+<li><p><strong>GPS time.</strong> Kept by default, offset by its minimum, or dropped unless asked for? It is
+8 bytes a point in double and useless to most users.</p></li>
+<li><p><strong>The point budget.</strong> Is 30 million points right, and should it follow the memory
+preferences rather than be fixed?</p></li>
+</ol>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">LAS/LAZ Support</a><ul>
+<li><a class="reference internal" href="#status">Status</a></li>
+<li><a class="reference internal" href="#what-las-is">1. What LAS is</a></li>
+<li><a class="reference internal" href="#the-real-problem-precision">2. The real problem: precision</a></li>
+<li><a class="reference internal" href="#the-library-laszip">3. The library: LASzip</a></li>
+<li><a class="reference internal" href="#import">4. Import</a></li>
+<li><a class="reference internal" href="#export">5. Export</a></li>
+<li><a class="reference internal" href="#copc-stage-4">6. COPC (stage 4)</a></li>
+<li><a class="reference internal" href="#validation">7. Validation</a></li>
+<li><a class="reference internal" href="#cost">8. Cost</a></li>
+<li><a class="reference internal" href="#open-questions">9. Open questions</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>
