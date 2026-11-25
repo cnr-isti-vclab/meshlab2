@@ -36,6 +36,7 @@
 #include "clipplane.h"
 
 #include <vcg/complex/algorithms/create/platonic.h>
+#include <vcg/complex/algorithms/refine.h>
 #include <vcg/complex/algorithms/implicit_smooth.h>
 #include <vcg/complex/algorithms/parametrization/texel_coverage.h>
 #include <vcg/complex/algorithms/update/quality.h>
@@ -562,6 +563,7 @@ private slots:
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
+    void voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners();
     void voronoiSolidWireframeRunsOnLoadedMesh();
     void icpBetweenPointCloudsUpdatesSourceTransform();
     void translateFilterMovesOnlyCurrentMesh();
@@ -10051,11 +10053,102 @@ void FilterTests::voronoiSurfaceSamplingRunsOnCube()
     QVERIFY(result.documentModified);
     QCOMPARE(result.newMeshIndices.size(), 2);
     QCOMPARE(doc.meshCount(), meshCountBefore + 2);
-    QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0);
+    // A scalar, not a color: the current mesh's colors stay as they were, and the view is asked
+    // to map the scalar instead.
+    QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) == 0);
     QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0);
+    QVERIFY(std::any_of(result.visualizationHints.cbegin(), result.visualizationHints.cend(),
+                        [](const auto &hint) {
+                            return hint.meshIndex == 0
+                                && hint.attribute == MeshFilterVisualizationAttribute::VertexQuality;
+                        }));
     for (int generatedIndex : result.newMeshIndices) {
         QVERIFY(generatedIndex >= 0 && generatedIndex < doc.meshCount());
         QVERIFY(doc.mesh(generatedIndex).mesh.VN() > 0);
+    }
+}
+
+// The cells were fans around each seed with the corners sorted by angle in a fitted plane: on
+// sharp corners the order folded and left holes, and the plane's arbitrary sign often inverted
+// the whole layer. A tetrahedron has the sharpest corners a closed mesh can.
+void FilterTests::voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners()
+{
+    Document doc;
+    VCGMesh tetra;
+    vcg::tri::Tetrahedron(tetra);
+    {
+        VCGMeshFFAdjScope ffAdj(tetra);
+        for (int i = 0; i < 5; ++i) {
+            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(tetra);
+            vcg::tri::Refine(tetra, vcg::tri::MidPoint<VCGMesh>(&tetra));
+        }
+    }
+    vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(tetra);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(tetra);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(tetra);
+    const vcg::Point3f center = tetra.bbox.Center();
+    const vcg::Color4b paint(10, 120, 200, 255);
+    for (auto &v : tetra.vert)
+        v.C() = paint;
+    QCOMPARE(doc.addMesh(tetra, QStringLiteral("Tetrahedron"),
+                         vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTNORMAL
+                             | vcg::tri::io::Mask::IOM_FACENORMAL | vcg::tri::io::Mask::IOM_VERTCOLOR),
+             0);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("sample_surface_by_voronoi_relaxation"));
+
+    for (int seed = 1; seed <= 3; ++seed) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("sampleNum"), 100);
+        params.insert(QStringLiteral("iterNum"), 5);
+        params.insert(QStringLiteral("randomSeed"), seed);
+        params.insert(QStringLiteral("preprocessFlag"), false);
+        doc.setCurrentMeshIndex(0);
+        const MeshFilterRunResult result = doc.runFilter(key, params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        QCOMPARE(result.newMeshIndices.size(), 2);
+
+        const Document::MeshEntry &cellsEntry = doc.mesh(result.newMeshIndices[0]);
+        QVERIFY2(cellsEntry.name.contains(QStringLiteral("(voronoi cells)")), qPrintable(cellsEntry.name));
+        QVERIFY(doc.mesh(result.newMeshIndices[1]).name.contains(QStringLiteral("(voronoi boundaries)")));
+        // One polygon per seed: each cell is a fan of faux-edged triangles around its seed. The
+        // cells layer carries no edges of its own; the boundaries are the other layer's.
+        // The filter computes a scalar and leaves color alone: the seeds sit at distance zero
+        // and every vertex keeps the color it came in with.
+        int seedCount = 0;
+        int repainted = 0;
+        for (const auto &v : doc.mesh(0).mesh.vert) {
+            if (v.IsD())
+                continue;
+            repainted += (v.cC() != paint) ? 1 : 0;
+            if (v.IsS()) {
+                ++seedCount;
+                QCOMPARE(v.cQ(), 0.0f);
+            }
+        }
+        QCOMPARE(repainted, 0);
+        QCOMPARE(cellsEntry.polygonFaceCount, seedCount);
+        QCOMPARE(cellsEntry.mesh.EN(), 0);
+
+        VCGMesh &cells = doc.mesh(result.newMeshIndices[0]).mesh;
+        QVERIFY(cells.FN() > 100);
+        VCGMeshFFAdjScope ffAdj(cells);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(cells);
+        int borderEdges = 0;
+        int facingIn = 0;
+        for (const auto &f : cells.face) {
+            if (f.IsD())
+                continue;
+            for (int i = 0; i < 3; ++i)
+                borderEdges += vcg::face::IsBorder(f, i) ? 1 : 0;
+            facingIn += (vcg::TriangleNormal(f) * (vcg::Barycenter(f) - center) < 0) ? 1 : 0;
+        }
+        QCOMPARE(borderEdges, 0);
+        // A straight fan triangle cutting a corner of the tetrahedron may tilt past it; a handful
+        // can, a flipped layer cannot.
+        QVERIFY2(facingIn * 100 < cells.FN(),
+                 qPrintable(QStringLiteral("seed %1: %2 of %3 cells faces face inward")
+                                .arg(seed).arg(facingIn).arg(cells.FN())));
     }
 }
 

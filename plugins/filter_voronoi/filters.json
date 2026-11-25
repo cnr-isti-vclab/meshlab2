@@ -7,7 +7,7 @@
       "name": "Sample Surface by Voronoi Relaxation",
       "pythonName": "sample_surface_by_voronoi_relaxation",
       "shortDescription": "Sample a surface and relax the samples with a geodesic Voronoi/Lloyd process.",
-      "longDescriptionMarkdown": "Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The selected vertices of the current mesh become the final seeds, and two additional layers are produced: a Voronoi region mesh and a polyline representation of the Voronoi boundaries.",
+      "longDescriptionMarkdown": "Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The selected vertices of the current mesh become the final seeds, and two additional layers are produced: a Voronoi region mesh and a polyline representation of the Voronoi boundaries. The current mesh keeps its colors: the chosen quantity of the final diagram (seed distance, border distance or region area) is stored as its vertex scalar.",
       "tags": [
         "sampling",
         "voronoi",
@@ -33,8 +33,8 @@
         }
       ],
       "outputTag": [
-        "voronoi samples",
-        "voronoi cells"
+        "voronoi cells",
+        "voronoi boundaries"
       ],
       "parameters": [
         {
@@ -69,17 +69,13 @@
           "decimals": 4
         },
         {
-          "id": "colorStrategy",
-          "label": "Color Strategy",
-          "help": "How the current mesh should be colored during Voronoi relaxation.",
+          "id": "scalarField",
+          "label": "Vertex Scalar",
+          "help": "Which quantity of the final Voronoi diagram is stored as the vertex scalar of the current mesh: the geodesic distance from the nearest seed, the geodesic distance from the region borders, or the area of the region the vertex belongs to.",
           "group": "main",
           "type": "enum",
           "default": "seed_distance",
           "enumOptions": [
-            {
-              "id": "none",
-              "label": "None"
-            },
             {
               "id": "seed_distance",
               "label": "Seed Distance"
@@ -120,9 +116,9 @@
           "id": "preprocessFlag",
           "label": "Preprocessing",
           "help": "Refine the current mesh before relaxation so the supporting triangulation is dense enough for the requested sample count.",
-          "group": "advanced",
+          "group": "main",
           "type": "bool",
-          "default": false
+          "default": true
         },
         {
           "id": "refineFactor",

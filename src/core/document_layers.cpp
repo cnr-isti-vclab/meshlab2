@@ -985,7 +985,10 @@ void Document::refreshMeshPolygonFaceCount(int index, bool fauxEdgesModified)
         return;
     }
 
-    const int count = vcg::tri::Clean<VCGMesh>::CountBitPolygons(entry.mesh);
+    // The large-polygon count also credits the vertices hidden inside a polygon (all their edges
+    // faux): a polygon stored as a fan around such a vertex, as Voronoi cells are, counts as
+    // zero polygons under CountBitPolygons.
+    const int count = vcg::tri::Clean<VCGMesh>::CountBitLargePolygons(entry.mesh);
     if (fauxEdgesModified && count == entry.mesh.FN()) {
         entry.ioMask &= ~polygonBit;
         entry.polygonFaceCount = -1;

@@ -102,15 +102,23 @@ float autoVolumePoissonRadius(const VCGMesh &mesh, int montecarloSampleCount)
     return std::max(spacing * 0.55f, diag * 1e-5f);
 }
 
-int colorStrategyId(const QString &id)
+// Leaves the chosen scalar in vertex quality, measured on the final diagram. What the relaxation
+// itself left there depends on how it stopped: the seed distance after its last pass, the border
+// distance when it converged early, and the region area was never stored at all.
+// Distances are geodesic over the surface, whatever metric drove the relaxation.
+void computeVoronoiScalar(VCGMesh &mesh, std::vector<VCGVertex *> &seeds, const QString &field)
 {
-    if (id == QStringLiteral("none"))
-        return vcg::tri::VoronoiProcessingParameter::None;
-    if (id == QStringLiteral("border_distance"))
-        return vcg::tri::VoronoiProcessingParameter::DistanceFromBorder;
-    if (id == QStringLiteral("region_area"))
-        return vcg::tri::VoronoiProcessingParameter::RegionArea;
-    return vcg::tri::VoronoiProcessingParameter::DistanceFromSeed;
+    auto sources = vcg::tri::Allocator<VCGMesh>::GetPerVertexAttribute<VCGVertex *>(mesh, std::string("sources"));
+    std::vector<std::pair<float, VCGVertex *>> regionArea(mesh.vert.size(), {0.0f, nullptr});
+    std::vector<VCGVertex *> frontier;
+    vcg::tri::VoronoiProcessing<VCGMesh>::GetAreaAndFrontier(mesh, sources, regionArea, frontier);
+    if (field == QStringLiteral("region_area")) {
+        for (auto &v : mesh.vert)
+            if (!v.IsD())
+                v.Q() = sources[v] ? regionArea[vcg::tri::Index(mesh, sources[v])].first : 0.0f;
+        return;
+    }
+    vcg::tri::Geodesic<VCGMesh>::Compute(mesh, field == QStringLiteral("border_distance") ? frontier : seeds);
 }
 
 int elementTypeId(const QString &id)
@@ -214,7 +222,6 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
         vcg::tri::VoronoiProcessingParameter vpp;
         const QString relaxType = params.getEnum(QStringLiteral("relaxType"));
         vpp.geodesicRelaxFlag = (relaxType == QStringLiteral("geodesic"));
-        vpp.colorStrategy = colorStrategyId(params.getEnum(QStringLiteral("colorStrategy")));
         vpp.deleteUnreachedRegionFlag = true;
         vpp.refinementRatio = float(params.getInt(QStringLiteral("refineFactor")));
         vpp.seedPerturbationAmount = float(params.getDouble(QStringLiteral("perturbAmount")));
@@ -305,6 +312,8 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
             }
         }
 
+        computeVoronoiScalar(mesh, seedVertices, params.getEnum(QStringLiteral("scalarField")));
+
         if (cb)
             (*cb)(84, "Converting Voronoi diagram to mesh layers...");
         VCGMesh voronoiMesh;
@@ -328,7 +337,7 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
         }
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
         vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
-        entry.ioMask |= Mask::IOM_VERTCOLOR | Mask::IOM_VERTQUALITY | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
+        entry.ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
         doc.markMeshGeometryChanged(
             meshIndex,
             QObject::tr("Computed Voronoi sampling with %1 seeds.").arg(seedVertices.size()));
@@ -350,7 +359,7 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
         }
 
         doc.finishFilterProgress(true, QObject::tr("Generated Voronoi sampling layers."));
-        return success(
+        MeshFilterRunResult result = success(
             {
                 QObject::tr("Generated %1 Voronoi seeds, %2 region vertices, and %3 polyline edges.")
                     .arg(seedVertices.size())
@@ -359,6 +368,8 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
                 seed.message()
             },
             { voronoiIndex, polyIndex });
+        result.visualizationHints.push_back({ meshIndex, MeshFilterVisualizationAttribute::VertexQuality });
+        return result;
     } catch (const std::exception &e) {
         const QString message =
             QObject::tr("Voronoi Sampling failed: %1").arg(QString::fromLocal8Bit(e.what()));
