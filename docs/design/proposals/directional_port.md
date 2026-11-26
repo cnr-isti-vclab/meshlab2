@@ -27,7 +27,7 @@ records the corrections rather than keeping a second, overlapping design:
 
 | Earlier assumption | Verified state and consequence |
 |---|---|
-| Per-face `PD1` is already available | `src/core/vcgmesh.h` has curvature directions on **vertices**, not faces. A generic vcglib exporter calling `face.PD1()` does not establish that `VCGFace` has that component. Field storage needs an explicit contract. |
+| Per-face `PD1` is already available | Not when surveyed: `src/core/vcgmesh.h` then had curvature directions on **vertices** only. Since 2026-11-13 `VCGFace` carries `CurvatureDirfOcf` too (filled by per-face curvature methods and the *Transfer Curvature Directions* filters), but a principal-curvature pair is one cross, not a stored field with its own symmetry and constraints. Field storage needs an explicit contract. |
 | Combing solves face-to-vertex transfer | `combing` cyclically reorders directions on the existing tangent bundle. It does not interpolate a face field onto vertices. Transport, interpolation and singularity checks remain necessary for Instant Meshes. |
 | No polygon/quad extraction | Current `setup_mesher.h`, `mesher.h`, `NFunctionMesher.h` and tutorial 505 implement polygon extraction from integrated functions. A third remeshing backend is a real candidate, subject to validation. |
 | Three C++20 substitutions suffice | Current tutorials require C++20; `std::numbers` is used in multiple active headers, including tangent bundles and field conversion. Prefer a private C++20 implementation target over an assumed three-line patch. |
@@ -378,11 +378,12 @@ The MeshLab integration therefore needs to:
 3. pass the `.rosy` path to the helper, together with feature data when required;
 4. describe the supplied-field path separately from the normal preprocessing path.
 
-The current `VCGFace` has no curvature-direction component, so
-`ExporterFIELD<VCGMesh>::Save4ROSY` cannot simply be instantiated on the document
-mesh. Use a dedicated writer over the backend-independent field view, or an
-appropriately equipped temporary mesh. Enabled vertex curvature data does not prove
-that a compatible face field exists.
+`VCGFace` now has an optional curvature-direction component, so
+`ExporterFIELD<VCGMesh>::Save4ROSY` compiles on the document mesh, but it would
+write face curvature directions, not the stored field. Use a dedicated writer over
+the backend-independent field view, or copy the field into a temporary mesh's face
+`PD1`. Enabled curvature data, per vertex or per face, does not prove that a
+compatible field exists.
 
 The supplied-field branch skips considerably more than field computation:
 

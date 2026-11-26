@@ -1,7 +1,7 @@
 # Gaussian Splatting
 
 This document evaluates adding 3D Gaussian splat loading, rendering and editing
-to MeshLab. **Nothing described here is implemented.** It records what the
+to MeshLab. **Nothing splat-specific is implemented**; only the core prerequisite has landed. It records what the
 technique demands, which of MeshLab's mechanisms already carry weight for it,
 which do not, and the design decisions already taken.
 
@@ -14,6 +14,9 @@ See also: [Rendering](../rendering.md) (the QRhi pipeline this would extend),
 As of 2026-09-10: nothing implemented, nothing scheduled. Three decisions have
 been taken in advance and the rest of this document is written around them —
 see [Decisions taken](#decisions-taken).
+
+2026-09-21 and 09-27: the prerequisite, stage 0, landed for `float`, `Point3f` and
+`int` attributes — see [the prerequisite](#prerequisite-named-attributes-in-the-undo-pipeline).
 
 2026-11-04: Open3D 0.20 shipped a splat renderer and splat-aware transforms under the
 MIT licence. They are not usable through MeshLab's Open3D plugin, but they are worth
@@ -188,30 +191,18 @@ by design does not — it is dropped wholesale when geometry changes.
 
 ## Prerequisite: named attributes in the undo pipeline
 
-This is the one piece of core work that must land before anything else, and it
-is worth doing on its own merits.
+**Done for three types** (2026-09-21, `int` added 2026-09-27). `deepCopyMesh()` in
+[`src/core/document_internal.cpp`](../../../src/core/document_internal.cpp) carries
+named per-vertex, per-face and per-edge attributes of type `float`, `Point3f` and
+`int` through undo, Duplicate Layer and `addMesh`, and memory accounting counts them
+(`customAttributeBytes`); [Data Model](../data_model.md) states the rule.
 
-`deepCopyMesh()` at [`src/core/document_internal.cpp:526`](../../../src/core/document_internal.cpp)
-copies a hand-listed set of fields — coordinates, normals, colour, quality,
-flags, OCF texcoords, curvature directions, wedge texcoords. It carries **no vcg
-named attributes**, so today an attribute-bearing mesh would lose its attributes
-on the first undo checkpoint, silently.
-
-The machinery to fix it generically is already in vcglib:
-
-- `PointerToAttribute` carries `std::type_index _type` alongside the name, so an
-  attribute's type is known at runtime.
-- `SimpleTempDataBase::CopyValue(to, from, other)` is virtual, so values can be
-  copied without knowing the concrete type — provided the destination attribute
-  already exists with the same name and type. This is exactly how
-  `tri::Append` handles attributes ("only those present in both meshes").
-
-So the change is a small registry mapping `std::type_index` to a factory that
-creates that attribute on the destination mesh, plus a loop in `deepCopyMesh()`.
-MeshLab would register the handful of types it means to support (`float`,
-`Point3f`, the splat struct) rather than trying to be universal. Roughly 40–100
-lines plus tests, and it also has to be threaded through memory accounting
-(`document_memory.cpp`) and the layer panel's size reporting.
+vcglib's attributes are type-erased, so the copy names the types it carries rather than
+using a registry: a type outside the list is silently left behind. What remains for
+splats is therefore one choice at stage 1 — store each splat field as `float`
+attributes (they survive today; the student's PLY reader already uses
+`AddPerVertexFloatAttribute`), or add the splat struct to the list in
+`document_internal.cpp`, with its byte count in memory accounting.
 
 ## Rendering
 
@@ -256,8 +247,8 @@ Points to settle while building it:
 
 ## Staging
 
-0. **Named attributes in the undo pipeline.** Core work, no splat content,
-   independently useful. Blocks everything else.
+0. **Named attributes in the undo pipeline.** Done for `float`, `Point3f` and `int`
+   (see the prerequisite); the splat struct, if stage 1 keeps one, is still to add.
 1. **Loading and inspection.** PLY and `.splat` readers over the student's
    headers; splats as per-vertex attributes; no renderer. Verified by round-trip
    and by the mesh↔splat converter, which makes the data visible as ellipsoids
@@ -267,7 +258,7 @@ Points to settle while building it:
 3. **Production.** SH degree 3, the three filters, `.ksplat` and compressed
    formats, culling and LOD, and possibly relaxing the exclusive mode.
 
-Rough effort, assuming the prerequisite is done: **3–5 days** for stage 1,
+Rough effort: **3–5 days** for stage 1,
 **1–2 weeks** for stage 2, **2–4 weeks** for stage 3.
 
 Revised 2026-11-04, with Open3D 0.20 as a source:

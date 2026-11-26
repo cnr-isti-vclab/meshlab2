@@ -842,7 +842,7 @@ global parametrization (`GlobalParam2d::PGP`), with **no quad extraction** — t
 because their consumer was Vorpaline. So geogram cannot add a third quad remesher
 beside Instant Meshes and QuadWild. What it could add is the *input* to one, which is
 only worth porting if something can consume it: see
-[Frame Fields](../proposals/frame_fields.md).
+[Frame Fields](../proposals/directional_port.md).
 
 ## Deferred: the OpenSCAD compiler
 
