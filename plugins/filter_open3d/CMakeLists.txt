@@ -19,10 +19,10 @@ foreach(dep Eigen3::Eigen TBB::tbb fmt::fmt nanoflann::nanoflann Qhull::qhullcpp
     endif()
 endforeach()
 
-# The vendored subset of Open3D. Not the whole library: 51 of its files, the
+# The vendored subset of Open3D. Not the whole library: 116 of its files, the
 # closure of the legacy geometry and registration entry points, with three
 # include edges cut. The mapping table and the reasoning are in
-# docs/design/proposals/open3d_scan_processing.md; the exact revision and the
+# docs/design/history/open3d_scan_processing.md; the exact revision and the
 # patches are in UPSTREAM.md beside this file.
 file(GLOB_RECURSE MESHLAB2_OPEN3D_UPSTREAM_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/upstream/open3d/*.cpp")

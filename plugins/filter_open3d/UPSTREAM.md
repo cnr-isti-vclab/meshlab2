@@ -39,7 +39,7 @@ bindings, the GUI, the I/O layer and the build system. MeshLab converts to and
 from its own mesh model in the plugin's adapters, outside `upstream/`.
 
 The measured closure, the rejected build route and the reasoning are in
-[docs/design/proposals/open3d_scan_processing.md](../../docs/design/proposals/open3d_scan_processing.md).
+[docs/design/history/open3d_scan_processing.md](../../docs/design/history/open3d_scan_processing.md).
 
 ## Local changes inside `upstream`
 

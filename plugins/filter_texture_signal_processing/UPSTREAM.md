@@ -9,7 +9,7 @@ Principal Curvature Directions per Face (TextureSignalProcessing)* run the code 
 Processing within a Texture Atlas* (SIGGRAPH 2018), from
 [`mkazhdan/TextureSignalProcessing`](https://github.com/mkazhdan/TextureSignalProcessing)
 (TSP), in process. The design, and the measurements behind it, are in
-[`docs/design/proposals/texture_signal_processing.md`](../../docs/design/proposals/texture_signal_processing.md).
+[`docs/design/history/texture_signal_processing.md`](../../docs/design/history/texture_signal_processing.md).
 
 | Repository | Licence | Where MeshLab takes it from |
 |---|---|---|
@@ -81,8 +81,8 @@ drop `branch = meshlab`, move the gitlink to upstream's merge commit, and delete
 - **The weights are lengths.** TextureFiltering's interpolation weight w, and the weights of the
   LIC sharpening and of the normal smoothing, are set from the filters' *Detail Size* D, in the
   mesh's units, as w = A (2π / D)², A the surface's area (`weightForDetailSize`): D is the
-  wavelength at which the solve is halfway between the input and its effect. The proposal records
-  the measurement.
+  wavelength at which the solve is halfway between the input and its effect. The design record
+  keeps the measurement.
 - **Localized filtering** (only selected faces) builds the divergence operator and scales the edge
   differences by the mean of their ends' factors, a node being selected when the triangle nearest
   its texel is; only selected nodes are written. With every face selected the result is the
@@ -117,7 +117,7 @@ drop `branch = meshlab`, move the gitlink to upstream's merge commit, and delete
   flag, the program's batch output runs ten V-cycles of each solve (two sweeps per level) and
   stops there. The program's weight w is set from the filter's *Streak Length* L, in the
   mesh's units: w = A √(1 + 1e5) (3.357 / L)², A the area (`lineIntegralConvolution` derives it,
-  and the proposal records the measurement). The noise comes from a `std::mt19937` seeded by the
+  and the design record keeps the measurement). The noise comes from a `std::mt19937` seeded by the
   filter's `randomSeed`, as the program's random hue or as black and white or random gray. The
   sharpening is `filter()`, the stage-2 solve.
 - **Reaction-diffusion** reproduces `ReactionDiffusion`'s set-up and its steps without the viewer
@@ -127,7 +127,7 @@ drop `branch = meshlab`, move the gitlink to upstream's merge commit, and delete
   changes its output from run to run), the solve is in double precision (the program's default is
   float), and the field is the mesh's principal directions, as for line-integral convolution. Against
   the program on a 20k-face atlas, the same stripe period (11.22 texels) and share of dark texels
-  (0.44); the proposal has the comparison. One change to the method: the program scales the
+  (0.44); the design record has the comparison. One change to the method: the program scales the
   surface to half its number of texels, which makes the period a number of texels; the filter scales
   it so that the period is the *Pattern Size* on the mesh (`kPeriodInMetric`), and seeds disks of the
   program's seed area at its density per period, so the texture sets only the resolution.

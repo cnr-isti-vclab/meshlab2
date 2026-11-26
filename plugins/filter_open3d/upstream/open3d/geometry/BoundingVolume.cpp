@@ -18,8 +18,8 @@
 // are the only edges from Open3D's legacy geometry into core/ and t/, and
 // following them pulls 189 further files -- the whole tensor API and, through
 // t/geometry/TriangleMesh.h, visualization/rendering -- into a plugin that
-// needs none of it. See docs/design/proposals/open3d_scan_processing.md for
-// the measured closure (240 files with these edges, 51 without).
+// needs none of it. See docs/design/history/open3d_scan_processing.md for
+// the measured closure (240 files with these edges, 116 without).
 //
 // What is lost is exactly minimum-volume oriented bounding boxes and
 // ellipsoids. MeshLab computes oriented bounding boxes itself, and nothing in

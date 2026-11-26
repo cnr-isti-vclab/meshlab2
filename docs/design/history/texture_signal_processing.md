@@ -1,4 +1,24 @@
-# Texture Signal Processing Filters
+# Texture Signal Processing filters, implemented 2026-11-12 to 14
+
+The nine filters this plan led to are in `filter_texture_signal_processing`: *Repair Texture
+Seams*, *Dilate Texture across Seams*, *Smooth Texture*, *Sharpen Texture*, *Inpaint Texture on
+Selected Faces*, *Transfer Texture Detail*, *Compute Principal Curvature Directions per Face
+(TextureSignalProcessing)*, *Colorize Texture by Principal Directions (Line Integral
+Convolution)* and *Colorize Texture by Reaction-Diffusion*. The rules they follow live in the
+plugin's `UPSTREAM.md` (the fork and its pull requests, padding, the error hook, the pull towards
+the current values, weights as lengths, what each adapter function reproduces and how it
+differs), in [Data Model](../data_model.md) (per-face principal curvature directions), in
+[Vocabulary](../vocabulary.md) (`Texture/Filtering`, *Detail Size*, *Pattern Size*) and in the
+filters' descriptions. This is the plan they were built from, moved here on 2026-11-26 and kept
+for the measurements and the decisions taken with Paolo.
+
+Not done, and not planned: `TextureStitching`'s source-aware blending, which waits for *Transfer
+Color from Visible Rasters to Texture* to record, per texel, which raster its color came from;
+and an upstream fix for the zero-area fault of open question 2, which the adapter avoids by
+leaving those faces out. The fork's last open pull request is tracked in `UPSTREAM.md`.
+
+---
+
 
 This document proposes which of the programs in Prada and Kazhdan's
 [TextureSignalProcessing](https://github.com/mkazhdan/TextureSignalProcessing) (TSP) are
@@ -12,10 +32,10 @@ line-integral convolution and reaction-diffusion 2026-11-13**, with per-face pri
 MeshLab's data model; its source-aware stitching is not. Every number below was measured for
 this proposal.
 
-See also: [TextureConsolidation history](../history/texture_consolidation.md),
+See also: [TextureConsolidation history](texture_consolidation.md),
 `plugins/filter_texture_consolidation/UPSTREAM.md`, `plugins/filter_screened_poisson/UPSTREAM.md`,
 [Adding a Filter](../adding_a_filter.md), [Vocabulary](../vocabulary.md),
-[Filter Organization](../filter_organization.md), [TexMetro](texmetro.md).
+[Filter Organization](../filter_organization.md), [TexMetro](../proposals/texmetro.md).
 
 ## What TSP is
 
@@ -244,11 +264,11 @@ proposed names are drafts. Four of them need words the vocabulary does not have 
 | `TextureDilation` (155 lines) | Fills gutter texels up to a radius by following the surface across the seam and sampling the neighbouring chart | The `pullpush` option of the transfer filters, which fills in image space with a blur | *Dilate Texture across Seams* | **Stage 1.** Does not need `GradientDomain`: 5 s to compile, 0.23 GB to run |
 | `TextureFiltering` (1,184 lines; the library example does the same in 120) | Smooths or sharpens a texture with a screened Poisson solve, across seams | Nothing for textures; *Smooth Vertex Color* and the unsharp-mask filters work per vertex | *Smooth Texture*, *Sharpen Texture* | **Stage 2.** Per-edge gradient scaling is computed by the caller, so a face selection could drive a localized version, which the program does only through its interactive viewer. **Stage 3** adds two of its options: `--inLow`, values from a second texture (*Transfer Texture Detail*), and `--colorAsNormal`, object-space normal maps |
 | `TextureStitching` (1,520 lines) | Blends several partial textures, or one composite with a source-id mask, in the gradient domain | Ships inside *Transfer Color from Visible Rasters to Texture (Texture Consolidation)*, as a helper | An option of the stage-2 smoothing: keep gradients only between texels from the same source | **Stage 3**, only if *Transfer Color from Visible Rasters to Texture* is changed to output, per texel, which raster its color came from |
-| `LineIntegralConvolution` (1,025 lines) | Draws a vector field as a streak texture by anisotropic diffusion along it | Field filters exist (principal curvature directions, two backends; the [Directional](directional_port.md) proposal), but nothing draws a field into a texture | *Render Vector Field to Texture (LIC)*, name to be decided | **Stage 3.** Uses the per-triangle metric form of the constructor, which the library supports |
+| `LineIntegralConvolution` (1,025 lines) | Draws a vector field as a streak texture by anisotropic diffusion along it | Field filters exist (principal curvature directions, two backends; the [Directional](../proposals/directional_port.md) proposal), but nothing draws a field into a texture | *Render Vector Field to Texture (LIC)*, name to be decided | **Stage 3.** Uses the per-triangle metric form of the constructor, which the library supports |
 | `ReactionDiffusion` (918 lines) | Gray–Scott stripes or dots grown in texture space, optionally aligned to a vector field | Nothing | *Colorize Texture by Reaction-Diffusion* | **Stage 4, implemented 2026-11-13.** Its reaction term is integrated with `ScalarIntegrator`, which is not part of `GradientDomain.h`; the adapter uses the lower-level API, as the program does (Paolo, 2026-11-13: keep the quadrature) |
 | `Geodesics` (816 lines) | Heat-method distance from a clicked point, at texel resolution | Five geodesic filters (vcglib, libigl, heat and exact), per vertex | — | **No.** The only new thing would be texel resolution |
 | `SeamStitcher` (260 lines) | Re-solves the texels at chart crossings, or the exterior texels, or masked ones, to minimize the Dirichlet energy | — | — | **Mask mode: stage 3**, as *Inpaint Texture on Selected Faces*, with the selection as the mask. It frees the masked texels and holds the rest, which is the stage-1 repair's solve with a different set of free texels. The other two modes, no: on a padded atlas the default mode has nothing to do (0 degrees of freedom, output identical), and `--exterior` overlaps `SetExteriorTexels` and ran for over 10 minutes |
-| `TextureMasking` (320 lines) | Draws active, boundary and gutter texels and triangle IDs as an image | *Measure Texel Coverage*, *Select Overlapping UV Faces* ([TexMetro](texmetro.md)) | — | **No.** Diagnostic, and covered |
+| `TextureMasking` (320 lines) | Draws active, boundary and gutter texels and triangle IDs as an image | *Measure Texel Coverage*, *Select Overlapping UV Faces* ([TexMetro](../proposals/texmetro.md)) | — | **No.** Diagnostic, and covered |
 
 ## Integration: in process, as Screened Poisson is
 
