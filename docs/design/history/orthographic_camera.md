@@ -1,4 +1,10 @@
-# Orthographic Camera
+# Orthographic camera, implemented 2026-10
+
+How the orthographic projection works now is in
+[rendering.md](../rendering.md#orthographic-projection), with its three open questions. This
+is the proposal it was built from, in five stages, moved here on 2026-11-26 and kept as the
+record: the state before, the 45-row mapping table of every place that handles a camera, the
+measurements behind the vcglib fix, and how each stage departed from its sketch.
 
 This document proposes an orthographic projection for the 3D view and everything
 that consumes a camera. **All five stages of [Staging](#staging) are implemented** --

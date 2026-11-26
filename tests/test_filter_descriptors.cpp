@@ -1085,7 +1085,7 @@ void FilterDescriptorTests::layerCreatingFiltersDeclareAnOutputTag()
 }
 
 QTEST_MAIN(FilterDescriptorTests)
-// The first result of the queries docs/design/proposals/filter_search.md pins, and, where
+// The first result of the queries docs/design/history/filter_search.md first pinned, and, where
 // the best answers differ only in backend, that the whole group comes first in any order:
 // registry order is all that separates them, and a test must not pin that.
 void FilterDescriptorTests::searchRanksTheReferenceQueries()

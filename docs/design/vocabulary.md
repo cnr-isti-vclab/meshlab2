@@ -510,7 +510,7 @@ positions. A match through an alias ranks below a direct one.
 | stats | measure |
 
 The table itself is `FilterPresentation::searchAliases()` (`src/ui/filterpresentation.cpp`);
-how the search uses it is in [Filter Search](proposals/filter_search.md).
+how the search uses it is in [User Interface](user_interface.md#filter-search).
 
 ## 5. Spelling and casing
 

@@ -13,7 +13,7 @@ class QXmlStreamWriter;
 
 // The lens of a raster's camera, kept beside its CameraShot, which stays a pinhole camera: it
 // relates the photo as shot (the file) to the image the pinhole camera describes (the image in
-// memory). Identity for a pinhole photo. See docs/design/proposals/camera_lens_model.md.
+// memory). Identity for a pinhole photo. See docs/design/data_model.md ("Raster Data Type").
 using CameraLens = vcg::LensDistortion<double>;
 
 // CameraShot wraps vcg::Shot<float> — a pinhole camera model with intrinsics

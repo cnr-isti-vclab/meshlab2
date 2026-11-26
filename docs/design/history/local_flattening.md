@@ -1,12 +1,22 @@
-# Local Flattening
+# Local flattening, implemented 2026-11-15 to 17
+
+What the operator does, and the rules it follows -- a conformal map with the polyline pulled to
+U = 0 *and* to its arc length in V, a field-aligned map, an exact crop, the patch scaled
+uniformly into the unit square -- are in the header of vcglib's `LocalFlattening`
+(`vcg/complex/algorithms/parametrization/local_flattening.h`) and in the description of
+*Parametrize Surface along Polyline (Local Flattening)*. This is the plan it was built from,
+moved here on 2026-11-26 with nothing left to do (the sketch tool went to the annotation work),
+and kept for the reasoning: why the paper's equation 1 only works with a conformal energy, the
+decisions taken with Paolo, the `PoissonSolver` clean-up, and the measurements on cylinders and
+raw scans.
 
 This document plans a reimplementation, as MeshLab filters, of Pietroni, Corsini, Cignoni and
 Scopigno, *An Interactive Local Flattening Operator to Support Digital Investigations on Artwork
 Surfaces* (IEEE TVCG 17(12), Visualization 2011; `.reference/papers/IEEEViz_local_flattening_final_v2.pdf`).
 **Implemented** (stages 0 to 2, 2026-11-15 to 17; stage 3, the sketch tool, left to the annotation work); drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.
 
-See also: [Texture Signal Processing](texture_signal_processing.md) (per-face principal directions
-in `VCGFace`, stage 4), [Directional](directional_port.md), [TexMetro](texmetro.md),
+See also: [Texture Signal Processing](../proposals/texture_signal_processing.md) (per-face principal directions
+in `VCGFace`, stage 4), [Directional](../proposals/directional_port.md), [TexMetro](../proposals/texmetro.md),
 [Adding a Filter](../adding_a_filter.md), [Vocabulary](../vocabulary.md).
 
 ## What the paper does, and what is in scope

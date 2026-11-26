@@ -3,14 +3,14 @@
 Aligning a raster's camera to a mesh, so that a photo whose camera is missing or slightly
 wrong can be registered on the model and then used by the filters that project through
 rasters (color transfer, coverage, parametrization). It is Stage 3 of the
-[Camera Lens Model](../proposals/camera_lens_model.md), which gave rasters a pinhole camera
+[Camera Lens Model](camera_lens_model.md), which gave rasters a pinhole camera
 plus a separate lens and a native COLMAP import. **Proposed and carried out on 2026-11-03,
 in four stages: 3a, the correspondence fit; 3b, the tool; 3c, mutual information; 3d, global
 refinement. The open questions were decided the same day** (see the end). How it works today
 is in [Raster Alignment](../raster_alignment.md); this is the proposal as written, followed by
 what was built at each stage and what was measured.
 
-See also: [Camera Lens Model](../proposals/camera_lens_model.md) (the boundary this relies on),
+See also: [Camera Lens Model](camera_lens_model.md) (the boundary this relies on),
 [Data Model](../data_model.md#raster-data-type), [Rendering](../rendering.md) (the
 `RasterImage` view), [TexMetro](../proposals/texmetro.md) (the case for a CPU rasterizer over
 a QRhi one), [Vocabulary](../vocabulary.md).
@@ -100,7 +100,7 @@ pinhole, which since Stage 1 holds by construction.
 information needs a derivative-free method anyway, and NEWUOA is already vendored and
 already used. For the correspondence fit, a few hundred evaluations of a 7-parameter
 reprojection error take microseconds. This **changes what
-[Camera Lens Model](../proposals/camera_lens_model.md) said**, which named Eigen's
+[Camera Lens Model](camera_lens_model.md) said**, which named Eigen's
 `LevenbergMarquardt`: that would be a second optimizer for the smaller of the two problems.
 
 **One parametrization**, shared by both:

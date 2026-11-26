@@ -1,6 +1,6 @@
 // Reading a COLMAP sparse model -- cameras, images and points3D, as text or binary -- into the
 // raster entries a MeshLab project gives, so that Document::loadMeshLabProject opens it as it
-// opens an .mlp. See docs/design/proposals/camera_lens_model.md (Stage 2).
+// opens an .mlp. See docs/design/data_model.md (loadMeshLabProject).
 
 #include "document_internal.h"
 

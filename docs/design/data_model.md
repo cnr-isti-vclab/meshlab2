@@ -50,8 +50,22 @@ says so (`RasterPlane::sourceUndistorted`, `undistorted="1"` in the `.mlp`), so 
 undistorted twice. `setRasterLens` is an undo step that advances both revisions and drops the
 planes decoded from photos, which then decode through the new lens; an edit made in memory to
 such a plane is dropped with it, as it was in the old lens's frame. The layer panel's
-thumbnails read the files directly and show the photos as shot. See
-[Camera Lens Model](proposals/camera_lens_model.md).
+thumbnails read the files directly and show the photos as shot.
+
+Why the boundary is there: a lens applied by every consumer instead was rejected, since the GPU
+raster view cannot put a lens in a matrix and would need the undistorted image anyway; and
+vcglib's own one-parameter radial model in `vcg::Camera` was removed outright (it was used by
+no file, and its inverse was wrong), so `vcg::Camera` is a pure pinhole or orthographic camera.
+The Brown-Conrady model (radial `k1..k6`, tangential `p1, p2`, OpenCV's order) covers COLMAP's
+`SIMPLE_RADIAL`, `RADIAL`, `OPENCV` and `FULL_OPENCV` and the Brown exports of RealityScan and
+Metashape (Metashape's aspect term `b1` goes into the intrinsics; its skew `b2` cannot be
+represented and is refused). There is no model enum yet: an equidistant fisheye
+(`OPENCV_FISHEYE`) is deferred until a dataset needs one, and the `.mlp`'s `LensModel` refuses a
+model it does not know rather than reading the photo as pinhole. A known defect found on the
+way (2026-11-02), not caused by the lens: vcglib's PLY `camera` element does not read back the
+same from binary and ASCII files, so the same shot written both ways projects a point to
+different pixels. How the lens was planned and carried out, with the vcglib and old-MeshLab
+audits, is [recorded in history](history/camera_lens_model.md).
 
 `RasterPlane` records a semantic role (`RGBA`, `MaskUInt8`, `MaskFloat`, `DepthFloat`, or extra float/RGBA planes), display/source metadata, pixel size, and optional `QImage` payload. The current implementation loads ordinary raster images as RGBA planes and keeps the plane abstraction ready for mask/depth/extra image channels.
 
@@ -102,7 +116,7 @@ stored state, rather than provenance: a generated layer becomes Saved when writt
 
 `Document::loadRasterImage()`: loads a `QImage`, creates a `RasterEntry` with an RGBA `RasterPlane`, appends the raster layer, makes it current, and emits raster/current-layer signals. Ordinary image loads do not synthesize a calibrated camera; callers such as snapshot capture can pass a `CameraShot` through `addRasterImage(...)`, and raster-mode mesh projection is enabled only when that shot is valid.
 
-`Document::loadMeshLabProject()`: parses MeshLab project (`.mlp`) files directly -- or a COLMAP sparse model, opened by its `cameras.txt` or `cameras.bin` (`document_colmap.cpp`, text or binary), whose images become rasters with their pinhole cameras and lenses and whose points a colored point cloud layer, with the reprojection of COLMAP's observations logged; `Document::isProjectFile` says which files it takes -- loads referenced meshes through the normal mesh plugin path -- passing each one's project label and transform to `loadMesh()`, so a layer is announced already named and placed rather than at the origin under its file name -- creates raster entries from project raster planes, stores project `CameraShot` data, records a `load_project` script action, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.
+`Document::loadMeshLabProject()`: parses MeshLab project (`.mlp`) files directly -- or a COLMAP sparse model, opened by its `cameras.txt` or `cameras.bin` (`document_colmap.cpp`, text or binary), whose images become rasters with their pinhole cameras and lenses and whose points a colored point cloud layer, *COLMAP points*, with the reprojection of COLMAP's observations logged. The images are sorted by name (COLMAP's ids say nothing about the order of shooting) and looked for in `images/` or the folder itself, from the model's folder up two levels; a camera model the lens cannot represent (the fisheye ones, FOV) refuses the whole model, naming it; and a COLMAP model is not a project to save over, so *Save Project* starts a new `.mlp`. A scene exported z-up is turned with *Transform* on the layers and *Rotate Cameras* on the rasters, the same quarter turn on both; `Document::isProjectFile` says which files it takes -- loads referenced meshes through the normal mesh plugin path -- passing each one's project label and transform to `loadMesh()`, so a layer is announced already named and placed rather than at the origin under its file name -- creates raster entries from project raster planes, stores project `CameraShot` data, records a `load_project` script action, and groups the operation under one undo step. Missing mesh files are logged and skipped; missing raster plane images are logged but still kept as plane metadata with a viewport-size fallback when possible.
 
 `Document::saveMesh(...)`: resolves export plugin, passes `MeshIOSaveOptions` (mask, binary, embed textures, copy associated textures, Draco options). Textures follow one rule in every format that stores them (PLY, OBJ, glTF): one whose image a file holds -- by `m_storedImages`, not by the asset's own path, which undo may have brought back stale -- is copied or referred to there (PLY and OBJ by a path relative to the mesh unless "copy associated textures" is on; glTF always copies, and no longer re-encodes a JPEG); one no file holds is written next to the mesh from its image under its name, suffixed when that is taken, whatever the options. The saver reports where each texture now is (`MeshIOTextureContext::savedTexturePaths`); the layer then takes the saved file as its own and the textures their files, and the stored state is recorded. PLY export exposes edge indices and edge color in the save mask and writes per-edge RGBA in both ASCII and binary modes when requested.
 

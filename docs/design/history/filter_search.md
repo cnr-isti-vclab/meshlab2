@@ -1,4 +1,12 @@
-# Filter search: word starts, synonyms and ranking (draft, 2026-10-30)
+# Filter search, implemented 2026-10-30
+
+How the search works now is in [user_interface.md](../user_interface.md#filter-search). This
+is the proposal it was built from, moved here on 2026-11-26 once nothing in it was left to
+do, and kept as the record of why: what the old substring search got wrong, measured; the
+alias table and reference queries as first drafted; and the decisions. Two things have moved
+on since. The reference query `set tex` now finds *Set Texture from File*, after that filter
+was renamed, and the test pins that. And the Filter Plugins Info dialog shares the matching
+but not the ranking, though section 3 says it shares both.
 
 **Status: implemented 2026-10-30**, in `FilterPresentation` (`src/ui/filterpresentation.cpp`),
 which the filter panel and the Filter Plugins Info dialog share; the reference queries and the

@@ -25,7 +25,7 @@ Schema (`kind = "MeshLab.RenderState"`, `version = 1`) includes:
 
 - `view_mode`: `Scene3D` | `ParametrizationUV` | `RasterImage`
 - `raster_opacity`: float in `[0, 1]`
-- `trackball`: same trackball payload used by camera JSON (`center`, `rotation_xyzw`, `distance`, `radius`, `fov_y_degrees`, near-clip and gizmo fields, and `projection`: `"orthographic"`, omitted for the default `"perspective"`; see [Orthographic Camera](proposals/orthographic_camera.md))
+- `trackball`: same trackball payload used by camera JSON (`center`, `rotation_xyzw`, `distance`, `radius`, `fov_y_degrees`, near-clip and gizmo fields, and `projection`: `"orthographic"`, omitted for the default `"perspective"`; see [Orthographic projection](#orthographic-projection))
 - `render_settings`: sparse `GlobalRenderSettings` payload (background, histogram settings, UV options, current-mesh highlight settings, etc.; default-valued fields are omitted)
 - `mesh_visibility`: per-view visibility bool array, emitted only when at least one mesh is hidden in the view
 - `mesh_render_modes`: array of `{ mesh_id, settings }`, where `settings` is a sparse `PerMeshRenderSettings` payload
@@ -480,16 +480,87 @@ MeshLab uses two distinct camera representations that overlap but are not interc
 
 | | `CameraShot` | `ViewTrackball` |
 |---|---|---|
-| **Type** | Pinhole camera (eye position, view direction, FOV, intrinsics) | Orbit camera (center, rotation, distance, FOV) |
+| **Type** | Pinhole or orthographic camera (eye position, view direction, intrinsics) | Orbit camera (center, rotation, distance, FOV, projection) |
 | **Stored in** | `Document::RasterEntry::shot` (raster cameras), serialized from MLP | `RenderWidget::m_trackball` (view navigation) |
 | **Provides** | `project()`, `unproject()`, `depth()`, `viewMatrix()`, `projectionMatrix()` | `cameraEyePosition()`, `cameraViewDirection()`, `viewMatrix()`, `projectionMatrix()` |
 | **Key difference** | No orbit center — just eye + direction | Has an explicit 3D orbit center |
 
 **Conversion:**
 
-- **Trackball → Shot** (`cameraShotForViewport()`): eye position and view direction from the trackball are used to derive a VCG shot. The center is lost. `PixelSizeMm` is set to `(1,1)` — a fictitious calibration, but self-consistent because `FocalMm` is computed from the same unit system. The ratio `FocalMm / PixelSizeMm` determines the angular resolution, which is correctly derived from FOV and viewport size.
+- **Trackball → Shot** (`cameraShotForViewport()`): eye position and view direction from the trackball are used to derive a VCG shot. The center is lost. In perspective, `PixelSizeMm` is set to `(1,1)` — a fictitious calibration, but self-consistent because `FocalMm` is computed from the same unit system. The ratio `FocalMm / PixelSizeMm` determines the angular resolution, which is correctly derived from FOV and viewport size. In orthographic the shot is `ORTHO`, `PixelSizeMm` is world units per pixel (`H / height`, below) and `FocalMm` unused, and its viewpoint is moved back along the axis until the whole scene is in front of it: parallel rays do not care where the camera sits, but depth buffers and the projection filters read `depth <= 0` as behind the camera, and the orbit eye can lie inside the scene. The image is unchanged.
 
 - **Shot → Trackball**: underdetermined. The shot stores only the eye and direction; you must supply either an orbit center point or a distance along the view direction. No single conversion exists — `PeerViewCamera` therefore carries the actual `QMatrix4x4` view/projection matrices alongside near/far distances rather than just a `CameraShot`.
+
+### Orthographic projection
+
+`ViewTrackball::State::projection` is `Perspective` (the default) or `Orthographic`; isometric
+and oblique cameras are not supported, and `CameraShot::CameraType` has only the two (a
+project's vcglib `ISOMETRIC` or `CAVALIERI` camera is read as perspective, with a warning
+naming the file).
+
+**The invariant.** `H = 2 * distance * tan(fovY / 2)`, the world height visible at the orbit
+centre, is what both projections frame: the orthographic volume is `H` high and `H * aspect`
+wide. So switching keeps the orbit centre and everything on the plane through it in place,
+`distance` and `fovYDeg` are kept in both modes so switching back restores the perspective view
+exactly, and pan, wheel, the gizmo radius and every framing routine, which are all statements
+about `H`, need no orthographic case. A perspective view at a small field of view with `H` held
+constant converges on the orthographic one; `Shift`+wheel, the dolly-zoom at constant `H`, goes
+on past the narrowest field of view into orthographic and back. `nearClipRatio` is ignored in
+orthographic, where depth is linear.
+
+**Depth range.** The view hands the trackball the box of everything visible each frame
+(`setSceneBounds`), and the orthographic volume runs from just before its nearest corner to just
+after its farthest, widened to hold the trackball gizmo, with 5% slack plus a thousandth of `H`
+for a box flat against the view. `near` may be negative: with the orbit centre closer to the eye
+than the scene is deep, an orthographic view still draws what is behind the eye. Without bounds
+(before the first frame, or a camera rebuilt from JSON) it falls back to `4 * max(radius,
+sceneRadius)` either side of the centre. Peer-view glyphs widen it both ways
+(`viewFrustumFarDistance`, `viewFrustumNearDistance`). The matrix is in OpenGL convention like
+every other (see [Clip-space convention](#clip-space-convention)).
+
+**Shaders** learn the projection from `lightDir.w` in the main uniform block (0 perspective,
+1 orthographic), read from the matrix the frame is drawn with (`isOrthographicProjection`: a
+last row of `(0, 0, 0, 1)`) rather than from the trackball, so a raster's camera is covered too.
+The lit fill shaders, the wire overlay and the points then use a constant eye vector `(0, 0, 1)`
+instead of `-viewPos`. Object-space point size and the gizmo's back-hemisphere shading need no
+case.
+
+**Rays.** `ViewRay { origin, direction }`: `ViewTrackball::viewRay(pos, viewport)` (perspective
+from the eye through the pixel; orthographic along the view direction from the pixel on the near
+plane), which the arcball hit tests use, and `CameraShot::viewRayThrough(pixel)` and
+`CameraShot::directionToCamera(point)` (`normalize(viewPoint - p)` or `-viewDirection`), which the
+camera, color projection and image-patch filters use wherever they once wrote
+`viewPoint() - p`. `ViewpointOccluder::isOccludedAlong(sample, towardViewer)` is the occlusion
+query with the segment's far end a bounding-box diagonal (plus 10%) beyond the sample;
+*Select by Rectangle* with visible only picks it for an orthographic camera, with the view
+direction carried into layer space. The depth pick, the rectangle test and the transform and
+measure tools go through matrices and needed nothing.
+
+**Cameras as data.** A peer-view glyph recognizes an orthographic matrix and draws a box, and so
+does a raster's (`rasterFrustumSegments`). *Set Camera from Direction*, *Set Camera to View
+Selection* and *Set Raster Camera* take a `projection` parameter (*Keep current*, the default,
+*Perspective*, *Orthographic*); the other camera filters keep the intrinsics. In vcglib,
+`Camera::GetMatrix` builds the `glOrtho` matrix for an `ORTHO` camera (it used to build a
+perspective one whatever the type), and `GetFrustum` returns the horizontal extents the right way
+round: they were mirrored, which put the optical axis of every off-centre perspective camera at
+`W - cx` instead of `cx` in the GPU raster overlay.
+
+**JSON.** The trackball payload has `"projection": "orthographic"`, omitted for perspective;
+an absent key reads as perspective and any other value fails naming the key. The change is
+additive, so a build older than 2026-10 reads an orthographic file as perspective, silently.
+`fuzzyStateEqual` lists the state's fields by hand and must name every new one.
+
+**Open.** Three things were left to measure on a real scan: radiance scaling stores
+`log(-viewZ)`, so in orthographic its strength follows the arbitrary `distance` (normalizing by
+`H` would make it zoom-independent); the 5% depth slack, which an overlay drawn outside the scene
+box could exceed; and `isOccludedAlong`'s grazing tolerance, proportional to the query's length
+(`dist * 1e-3`) and so looser than a nearby perspective eye's.
+
+Tests: `MeshLab2ViewTrackballTests` (the invariant, rays, JSON), `test_viewfrustumgizmo.cpp`,
+`DocumentTests::cameraShotRaysAndDirectionsFollowTheProjection` and the vcglib matrix checks,
+`FilterTests::cameraFramingFiltersMakeAndKeepOrthographicShots`, the visible-only selection test,
+and the render probe `tests/render_probes/orthographic`. How it was planned and carried out in
+five stages, with its 45-row mapping table, is [recorded in history](history/orthographic_camera.md).
 
 ## `ParametrizationUV` Frame Sequence
 

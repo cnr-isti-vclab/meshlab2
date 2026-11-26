@@ -15,7 +15,7 @@
 // panel showed raw `outputModifies` codes while the dialog spelled them out.
 namespace FilterPresentation {
 
-// Filter search, as docs/design/proposals/filter_search.md lays it out. A query is split into
+// Filter search, as docs/design/user_interface.md ("Filter search") lays it out. A query is split into
 // words at anything not a letter or a digit; every word must match, at the start of a word of
 // the filter, through a word form or a search alias, or, last of all, inside a word.
 

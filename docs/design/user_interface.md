@@ -17,6 +17,42 @@ hover text retains the save path. Stored-state rules are in [Layer Provenance](d
 
 Filter browser/runner: search box, parameter form from `MeshFilterDescriptor`, optional markdown description, advanced-parameter toggle, reset-to-defaults button, per-filter parameter-value cache, a "?" *details* button that opens the filter's long description and puts each parameter's help under its row (hidden, the help is the row's tooltip: rich text so that it wraps, markdown spans rendered, with the range and default added; the button's state is remembered per filter in QSettings under `filterPanel/details/<filter key>`, kept only while on, default off), current-view providers for camera/render-state JSON parameters, and, when Python support is compiled in, compact/full Python call formatting shared with action-history export.
 
+### Filter search
+
+`FilterPresentation` (`src/ui/filterpresentation.{h,cpp}`) holds the matching, so the filter
+panel and the Filter Plugins Info dialog agree on which filters a query finds; the panel also
+orders them by `rank()`, while the dialog keeps its own grouping by plugin or category.
+The preferences dialog and the parameter search still match by plain substring.
+
+**Matching.** Text is split into lower-cased words at anything not a letter or a digit, so
+`remove_textures`, `Texture/Assignment` and `Per-Wedge` all split; the query is split the
+same way, and every term must match somewhere. A term matches a word it **starts**
+(`vert` → *vertex*), or a word it reaches by **word form** -- one common ending (-ing, -ion,
+-es, -ed, -e, -s) dropped while at least four letters remain, so `decimate` finds
+*decimation* -- or, if it has **three letters or more**, the targets of a **search alias** it
+starts (`del` starts *delete*, which reaches *remove*). Two-letter terms never expand. A
+match **inside** a word is the last resort: it still finds the filter, ranked last.
+
+**Aliases** run one way, from the word a user types to the word the names use, never back:
+`position` reaches *coordinates*, but `coordinates` does not reach *position*, which would
+flood a position search with texture coordinates. The verb aliases are the "Rejected
+synonyms" column of [vocabulary.md](vocabulary.md) §3, and the noun aliases its "Search
+aliases" section; the table is `FilterPresentation::searchAliases()`, and
+`searchAliasesCoverTheRejectedSynonyms` fails when a rejected synonym has no alias. Some are
+left out on purpose, as the test's listed exceptions: `copy`, `map`, `push`, `pull` and
+`apply`, each common enough in another sense to flood a search, and `Bin` for *pack*, which
+would match *binary*.
+
+**Ranking.** Each term scores its best match, and the filter takes the level of its worst
+term: (1) every term starts a word of the name; (2) some only through an alias, still in the
+name; (3) in the tags, categories, Python name or plugin; (4) in the descriptions; (5) only
+inside a word. Within a level, exact words beat prefixes, which beat word forms; then
+matches earlier in the name, and in the typed order; then names with fewer extra words; then
+registry order, so the list is stable. `searchRanksTheReferenceQueries` in
+`test_filter_descriptors.cpp` pins the first result of 24 reference queries (`set tex`,
+`del tex`, `vert pos expr`, `fill holes`, `load photo`, ...), and checks queries whose best
+answers differ only in backend (`quadric`, `icp`, `ball pivot`) as a group, in any order.
+
 ## `RenderOverlayPanel`
 
 Compact pass/settings panel: pass toggles, mode-specific world settings page (Scene vs UV), per-pass style controls (colors, color sources, widths, lighting/culling, quality histogram), PBR texture/normal-space controls, decorator info overlay toggle, and `PerMeshRenderSettings`/`GlobalRenderSettings` sync. Explicit-edge color choices are constrained by the current mesh's vertex/edge color mask. Every page opens under a one-line title row: the pass's name (see the pass-bar table in [vocabulary.md](vocabulary.md#the-views-pass-bar-2026-09-29)) and, for the eight per-layer passes, one shared *Apply to all* that copies the page's settings to every visible layer — the same `applyToAllMeshesRequested` a shift-click on the pass button sends. Every button that acts rather than sets — *Apply to all*, and those that hand the view's state to a filter or pin it (*Bake to Vertex Color*, *Trim Current Layer*, *Freeze to View*) — is made by `makeActionButton` and shares its small style. A page stays open until its arrow is pressed again, so it never closes under someone reading a help tooltip or working in another window. Pages are as tall as their own content: the stack declines height-for-width, because `QStackedLayout` answers it with the tallest page's minimum height.

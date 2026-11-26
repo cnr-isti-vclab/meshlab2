@@ -1,10 +1,16 @@
-# Camera Lens Model
+# Camera lens model, implemented 2026-11-02
+
+How raster cameras and their lenses work now is in
+[data_model.md](../data_model.md#raster-data-type). This is the proposal they were built
+from, moved here on 2026-11-26 with nothing left to do, and kept as the record: the state of
+vcglib's old distortion and the audit of old MeshLab that justified removing it, the two
+mapping tables, and how each stage departed from its plan.
 
 This document proposes lens distortion for raster cameras, so that photos calibrated with a
 real lens model (COLMAP, RealityScan, Metashape) can be used without undistorting them by
 hand, and so that the image-to-mesh alignment tools that follow have a camera they can
 refine. **Stages 0 (removing vcglib's distortion), 1 (the lens) and 2 (COLMAP import)
-implemented 2026-11-02; Stage 3, raster alignment, was proposed and carried out on its own: [Raster Alignment](../raster_alignment.md), recorded in [history](../history/raster_alignment.md).** The tables and the open questions were approved the same
+implemented 2026-11-02; Stage 3, raster alignment, was proposed and carried out on its own: [Raster Alignment](../raster_alignment.md), recorded in [history](raster_alignment.md).** The tables and the open questions were approved the same
 day. How the lens works today is in [Data Model](../data_model.md#raster-data-type); this
 document keeps the plan and the record of how it was carried out.
 
@@ -329,7 +335,7 @@ and never called, went.
   (x, y, z) to (x, z, -y), lines a model exported from the same RealityScan project up with
   the cameras and points.
 
-**Stage 3 -- image-to-mesh alignment.** Carried out as [Raster Alignment](../history/raster_alignment.md), which uses NEWUOA rather than the Levenberg–Marquardt solver named below. The plan as first written:
+**Stage 3 -- image-to-mesh alignment.** Carried out as [Raster Alignment](raster_alignment.md), which uses NEWUOA rather than the Levenberg–Marquardt solver named below. The plan as first written:
 correspondence alignment (old `edit_mutualcorrs`, 3.2k lines, levmar) and mutual-
 information refinement (`filter_mutualinfo`, 2.6k; `filter_mutualglobal`, 4.6k). What this
 proposal fixes for it: picks are made on the displayed image, which is the working frame,

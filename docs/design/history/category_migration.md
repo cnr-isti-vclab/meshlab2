@@ -87,7 +87,7 @@ safe, not merely an improvement.
 
 Ranking is unaffected: name matches sort above category-only matches (since 2026-10-30
 by `FilterPresentation::rank`, which replaced the name-only `titleMatchesAllTerms`; see
-[Filter Search](../proposals/filter_search.md)).
+[Filter Search](filter_search.md)).
 
 The implementation loops over the `categories` array; a single legacy `menuPath` string
 is still accepted by the loader for descriptors that predate it.
