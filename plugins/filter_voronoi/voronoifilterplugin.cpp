@@ -314,20 +314,32 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
 
         computeVoronoiScalar(mesh, seedVertices, params.getEnum(QStringLiteral("scalarField")));
 
+        // The cells, their boundaries and the Delaunay triangulation exist only when every
+        // region is a disk. A region can instead wrap around a thin part of the mesh (a tube,
+        // the inside of a torus) and touch itself: the sampling is still good, but such a cell
+        // has two boundary loops and is no fan around its seed, so those layers are skipped.
         if (cb)
             (*cb)(84, "Converting Voronoi diagram to mesh layers...");
         VCGMesh voronoiMesh;
         VCGMesh voronoiPoly;
-        voronoiMesh.vert.EnableVFAdjacency();
-        voronoiMesh.face.EnableVFAdjacency();
-        voronoiMesh.face.EnableFFAdjacency();
-        voronoiMesh.face.EnableMark();
-        vcg::tri::VoronoiProcessing<VCGMesh>::ConvertVoronoiDiagramToMesh(
-            mesh,
-            voronoiMesh,
-            voronoiPoly,
-            seedVertices,
-            vpp);
+        VCGMesh delaunayMesh;
+        const bool diskRegions =
+            vcg::tri::VoronoiProcessing<VCGMesh>::CheckVoronoiTopology(mesh, seedVertices);
+        if (diskRegions) {
+            voronoiMesh.vert.EnableVFAdjacency();
+            voronoiMesh.face.EnableVFAdjacency();
+            voronoiMesh.face.EnableFFAdjacency();
+            voronoiMesh.face.EnableMark();
+            vcg::tri::VoronoiProcessing<VCGMesh>::ConvertVoronoiDiagramToMesh(
+                mesh, voronoiMesh, voronoiPoly, seedVertices, vpp);
+            vcg::tri::VoronoiProcessing<VCGMesh>::ConvertDelaunayTriangulationToMesh(
+                mesh, delaunayMesh, seedVertices, false);
+        }
+        VCGMesh samples;
+        for (VCGMesh::VertexPointer seedVertex : seedVertices) {
+            auto vi = vcg::tri::Allocator<VCGMesh>::AddVertex(samples, seedVertex->P());
+            vi->N() = seedVertex->N();
+        }
         removeVoronoiAttributes(mesh);
 
         vcg::tri::UpdateSelection<VCGMesh>::VertexClear(mesh);
@@ -342,32 +354,38 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
             meshIndex,
             QObject::tr("Computed Voronoi sampling with %1 seeds.").arg(seedVertices.size()));
 
-        const int voronoiIndex = addDerivedMesh(
-            doc,
-            meshIndex,
-            voronoiMesh,
-            Mask::IOM_VERTCOLOR | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL | Mask::IOM_BITPOLYGONAL);
-        const int polyIndex = addDerivedMesh(
-            doc,
-            meshIndex,
-            voronoiPoly,
-            Mask::IOM_VERTCOLOR | Mask::IOM_EDGEINDEX);
-
-        if (voronoiIndex < 0 || polyIndex < 0) {
+        // Added in the order of the declared tags, the samples last: the last layer a filter adds
+        // is left current, and a sampling filter leaves its samples current.
+        QVector<int> newMeshes;
+        QStringList info;
+        if (diskRegions) {
+            newMeshes << addDerivedMesh(doc, meshIndex, voronoiMesh,
+                                        Mask::IOM_VERTCOLOR | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL
+                                            | Mask::IOM_BITPOLYGONAL)
+                      << addDerivedMesh(doc, meshIndex, voronoiPoly, Mask::IOM_VERTCOLOR | Mask::IOM_EDGEINDEX)
+                      << addDerivedMesh(doc, meshIndex, delaunayMesh,
+                                        Mask::IOM_VERTCOLOR | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL);
+            info << QObject::tr("Built %1 Voronoi cells and a Delaunay triangulation of %2 triangles.")
+                        .arg(seedVertices.size())
+                        .arg(delaunayMesh.FN());
+        } else {
+            doc.writeLog(QObject::tr("Some Voronoi regions are not disks (they wrap around a thin part of "
+                                     "the mesh), so only the samples were created, not the cells, their "
+                                     "boundaries or the Delaunay triangulation. More samples make the "
+                                     "regions smaller."),
+                         Document::LogSource::Application, Document::LogLevel::Warning);
+        }
+        newMeshes << addDerivedMesh(doc, meshIndex, samples, Mask::IOM_VERTNORMAL);
+        if (newMeshes.contains(-1)) {
             doc.finishFilterProgress(false, QObject::tr("Failed to add Voronoi output meshes."));
             return fail(QObject::tr("Failed to add Voronoi output meshes."));
         }
 
         doc.finishFilterProgress(true, QObject::tr("Generated Voronoi sampling layers."));
-        MeshFilterRunResult result = success(
-            {
-                QObject::tr("Generated %1 Voronoi seeds, %2 region vertices, and %3 polyline edges.")
-                    .arg(seedVertices.size())
-                    .arg(doc.mesh(voronoiIndex).mesh.VN())
-                    .arg(doc.mesh(polyIndex).mesh.EN()),
-                seed.message()
-            },
-            { voronoiIndex, polyIndex });
+        info << QObject::tr("Generated %1 Voronoi seeds.").arg(seedVertices.size()) << seed.message();
+        MeshFilterRunResult result = success(info, newMeshes);
+        if (!diskRegions)
+            result.outputTags = { QStringLiteral("voronoi samples") };
         result.visualizationHints.push_back({ meshIndex, MeshFilterVisualizationAttribute::VertexQuality });
         return result;
     } catch (const std::exception &e) {

@@ -564,6 +564,7 @@ private slots:
     void triOptimizeFiltersRunOnLoadedMesh();
     void voronoiSurfaceSamplingRunsOnCube();
     void voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners();
+    void voronoiSurfaceSamplingKeepsOnlyTheSamplesWhenARegionIsNotADisk();
     void voronoiSolidWireframeRunsOnLoadedMesh();
     void icpBetweenPointCloudsUpdatesSourceTransform();
     void translateFilterMovesOnlyCurrentMesh();
@@ -10051,8 +10052,14 @@ void FilterTests::voronoiSurfaceSamplingRunsOnCube()
 
     QVERIFY2(result.success, qPrintable(result.errorMessage));
     QVERIFY(result.documentModified);
-    QCOMPARE(result.newMeshIndices.size(), 2);
-    QCOMPARE(doc.meshCount(), meshCountBefore + 2);
+    // The samples always, last and left current like every sampling filter's; the cells, their
+    // boundaries and the Delaunay triangulation before them when every region is a disk, which
+    // four seeds on a twelve-triangle cube need not give.
+    const int created = result.newMeshIndices.size();
+    QVERIFY(created == 1 || created == 4);
+    QCOMPARE(doc.meshCount(), meshCountBefore + created);
+    QVERIFY(doc.mesh(result.newMeshIndices.last()).name.contains(QStringLiteral("(voronoi samples)")));
+    QCOMPARE(doc.currentMeshIndex(), result.newMeshIndices.last());
     // A scalar, not a color: the current mesh's colors stay as they were, and the view is asked
     // to map the scalar instead.
     QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR) == 0);
@@ -10106,13 +10113,15 @@ void FilterTests::voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners()
         doc.setCurrentMeshIndex(0);
         const MeshFilterRunResult result = doc.runFilter(key, params);
         QVERIFY2(result.success, qPrintable(result.errorMessage));
-        QCOMPARE(result.newMeshIndices.size(), 2);
+        QCOMPARE(result.newMeshIndices.size(), 4);
 
         const Document::MeshEntry &cellsEntry = doc.mesh(result.newMeshIndices[0]);
         QVERIFY2(cellsEntry.name.contains(QStringLiteral("(voronoi cells)")), qPrintable(cellsEntry.name));
         QVERIFY(doc.mesh(result.newMeshIndices[1]).name.contains(QStringLiteral("(voronoi boundaries)")));
-        // One polygon per seed: each cell is a fan of faux-edged triangles around its seed. The
-        // cells layer carries no edges of its own; the boundaries are the other layer's.
+        QVERIFY(doc.mesh(result.newMeshIndices[2]).name.contains(QStringLiteral("(delaunay triangulation)")));
+        QVERIFY(doc.mesh(result.newMeshIndices[3]).name.contains(QStringLiteral("(voronoi samples)")));
+        QCOMPARE(doc.currentMeshIndex(), result.newMeshIndices[3]);
+
         // The filter computes a scalar and leaves color alone: the seeds sit at distance zero
         // and every vertex keeps the color it came in with.
         int seedCount = 0;
@@ -10127,6 +10136,9 @@ void FilterTests::voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners()
             }
         }
         QCOMPARE(repainted, 0);
+        QCOMPARE(doc.mesh(result.newMeshIndices[3]).mesh.VN(), seedCount);
+        // One polygon per seed: each cell is a fan of faux-edged triangles around its seed. The
+        // cells layer carries no edges of its own; the boundaries are the other layer's.
         QCOMPARE(cellsEntry.polygonFaceCount, seedCount);
         QCOMPARE(cellsEntry.mesh.EN(), 0);
 
@@ -10149,7 +10161,51 @@ void FilterTests::voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners()
         QVERIFY2(facingIn * 100 < cells.FN(),
                  qPrintable(QStringLiteral("seed %1: %2 of %3 cells faces face inward")
                                 .arg(seed).arg(facingIn).arg(cells.FN())));
+
+        // The Delaunay triangulation of a sphere-like surface: by Euler, 2V - 4 triangles, all
+        // of them facing out.
+        const VCGMesh &delaunay = doc.mesh(result.newMeshIndices[2]).mesh;
+        QCOMPARE(delaunay.FN(), 2 * seedCount - 4);
+        for (const auto &f : delaunay.face)
+            QVERIFY(f.IsD() || vcg::TriangleNormal(f) * (vcg::Barycenter(f) - center) > 0);
     }
+}
+
+// Few seeds on a torus give regions that wrap around the tube and meet themselves on the other
+// side: an annulus, not a disk, with no fan around its seed. The samples are still good, so
+// they are the only layer the run adds.
+void FilterTests::voronoiSurfaceSamplingKeepsOnlyTheSamplesWhenARegionIsNotADisk()
+{
+    Document doc;
+    VCGMesh torus;
+    vcg::tri::Torus(torus, 3.0f, 1.0f, 48, 24);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(torus);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(torus);
+    QCOMPARE(doc.addMesh(torus, QStringLiteral("Torus"),
+                         vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTNORMAL
+                             | vcg::tri::io::Mask::IOM_FACENORMAL),
+             0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("sampleNum"), 6);
+    params.insert(QStringLiteral("iterNum"), 5);
+    params.insert(QStringLiteral("randomSeed"), 1);
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("sample_surface_by_voronoi_relaxation")), params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QCOMPARE(result.newMeshIndices.size(), 1);
+    const Document::MeshEntry &samples = doc.mesh(result.newMeshIndices[0]);
+    QVERIFY2(samples.name.contains(QStringLiteral("(voronoi samples)")), qPrintable(samples.name));
+    QVERIFY(samples.mesh.VN() > 0);
+    QCOMPARE(samples.mesh.FN(), 0);
+
+    // Enough seeds make every region a disk on the same torus, and then all four layers come.
+    params.insert(QStringLiteral("sampleNum"), 200);
+    doc.setCurrentMeshIndex(0);
+    const MeshFilterRunResult dense =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("sample_surface_by_voronoi_relaxation")), params);
+    QVERIFY2(dense.success, qPrintable(dense.errorMessage));
+    QCOMPARE(dense.newMeshIndices.size(), 4);
 }
 
 void FilterTests::voronoiSolidWireframeRunsOnLoadedMesh()
