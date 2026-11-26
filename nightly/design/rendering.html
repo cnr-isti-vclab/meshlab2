@@ -269,7 +269,7 @@
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">view_mode</span></code>: <code class="docutils literal notranslate"><span class="pre">Scene3D</span></code> | <code class="docutils literal notranslate"><span class="pre">ParametrizationUV</span></code> | <code class="docutils literal notranslate"><span class="pre">RasterImage</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">raster_opacity</span></code>: float in <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">trackball</span></code>: same trackball payload used by camera JSON (<code class="docutils literal notranslate"><span class="pre">center</span></code>, <code class="docutils literal notranslate"><span class="pre">rotation_xyzw</span></code>, <code class="docutils literal notranslate"><span class="pre">distance</span></code>, <code class="docutils literal notranslate"><span class="pre">radius</span></code>, <code class="docutils literal notranslate"><span class="pre">fov_y_degrees</span></code>, near-clip and gizmo fields, and <code class="docutils literal notranslate"><span class="pre">projection</span></code>: <code class="docutils literal notranslate"><span class="pre">&quot;orthographic&quot;</span></code>, omitted for the default <code class="docutils literal notranslate"><span class="pre">&quot;perspective&quot;</span></code>; see <a class="reference internal" href="proposals/orthographic_camera.html"><span class="std std-doc">Orthographic Camera</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">trackball</span></code>: same trackball payload used by camera JSON (<code class="docutils literal notranslate"><span class="pre">center</span></code>, <code class="docutils literal notranslate"><span class="pre">rotation_xyzw</span></code>, <code class="docutils literal notranslate"><span class="pre">distance</span></code>, <code class="docutils literal notranslate"><span class="pre">radius</span></code>, <code class="docutils literal notranslate"><span class="pre">fov_y_degrees</span></code>, near-clip and gizmo fields, and <code class="docutils literal notranslate"><span class="pre">projection</span></code>: <code class="docutils literal notranslate"><span class="pre">&quot;orthographic&quot;</span></code>, omitted for the default <code class="docutils literal notranslate"><span class="pre">&quot;perspective&quot;</span></code>; see <a class="reference internal" href="#orthographic-projection"><span class="xref myst">Orthographic projection</span></a>)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">render_settings</span></code>: sparse <code class="docutils literal notranslate"><span class="pre">GlobalRenderSettings</span></code> payload (background, histogram settings, UV options, current-mesh highlight settings, etc.; default-valued fields are omitted)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">mesh_visibility</span></code>: per-view visibility bool array, emitted only when at least one mesh is hidden in the view</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">mesh_render_modes</span></code>: array of <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">mesh_id,</span> <span class="pre">settings</span> <span class="pre">}</span></code>, where <code class="docutils literal notranslate"><span class="pre">settings</span></code> is a sparse <code class="docutils literal notranslate"><span class="pre">PerMeshRenderSettings</span></code> payload</p></li>
@@ -351,12 +351,18 @@ tracked CPU allocations and OS physical footprint.</p>
 <h3><code class="docutils literal notranslate"><span class="pre">GlobalRenderSettings</span></code><a class="headerlink" href="#globalrendersettings" title="Link to this heading">¶</a></h3>
 <p>One instance per view in <code class="docutils literal notranslate"><span class="pre">m_renderSettings</span></code>. Holds:</p>
 <ul class="simple">
-<li><p>scene overlay: <code class="docutils literal notranslate"><span class="pre">highlightCurrentMesh</span></code>, <code class="docutils literal notranslate"><span class="pre">currentMeshOutlineColor</span></code>/<code class="docutils literal notranslate"><span class="pre">Width</span></code>, <code class="docutils literal notranslate"><span class="pre">currentMeshDilateRadius</span></code>/<code class="docutils literal notranslate"><span class="pre">ErodeRadius</span></code>, <code class="docutils literal notranslate"><span class="pre">currentMeshDebugView</span></code>, <code class="docutils literal notranslate"><span class="pre">showTrackballGizmo</span></code>, <code class="docutils literal notranslate"><span class="pre">showViewCameras</span></code>, <code class="docutils literal notranslate"><span class="pre">showBoundingBoxCorners</span></code>, <code class="docutils literal notranslate"><span class="pre">showBoundingBoxDimensions</span></code>, <code class="docutils literal notranslate"><span class="pre">showDecoratorInfo</span></code></p></li>
+<li><p>scene overlay: <code class="docutils literal notranslate"><span class="pre">highlightCurrentMesh</span></code>, <code class="docutils literal notranslate"><span class="pre">currentMeshOutlineColor</span></code>/<code class="docutils literal notranslate"><span class="pre">Width</span></code>, <code class="docutils literal notranslate"><span class="pre">currentMeshDilateRadius</span></code>/<code class="docutils literal notranslate"><span class="pre">ErodeRadius</span></code>, <code class="docutils literal notranslate"><span class="pre">currentMeshDebugView</span></code>, <code class="docutils literal notranslate"><span class="pre">showTrackballGizmo</span></code>, <code class="docutils literal notranslate"><span class="pre">showViewCameras</span></code>, <code class="docutils literal notranslate"><span class="pre">showRasterCameras</span></code>, <code class="docutils literal notranslate"><span class="pre">showBoundingBoxCorners</span></code>, <code class="docutils literal notranslate"><span class="pre">showBoundingBoxDimensions</span></code>, <code class="docutils literal notranslate"><span class="pre">showDecoratorInfo</span></code></p></li>
 <li><p>scene background: <code class="docutils literal notranslate"><span class="pre">sceneBackgroundTopColor</span></code>, <code class="docutils literal notranslate"><span class="pre">sceneBackgroundBottomColor</span></code></p></li>
 <li><p>UV viewer: <code class="docutils literal notranslate"><span class="pre">uvShowReferenceFrame</span></code>, <code class="docutils literal notranslate"><span class="pre">uvShowFullTexture</span></code>, <code class="docutils literal notranslate"><span class="pre">uvTextureChannel</span></code>, <code class="docutils literal notranslate"><span class="pre">uvTextureNearestSampling</span></code>; the active texture group is view-local per-mesh state selected from viewport thumbnails</p></li>
 <li><p>quality histogram/range: <code class="docutils literal notranslate"><span class="pre">showQualityHistogram</span></code>, <code class="docutils literal notranslate"><span class="pre">qualityHistogramBins</span></code>, <code class="docutils literal notranslate"><span class="pre">qualityHistogramSource</span></code>, <code class="docutils literal notranslate"><span class="pre">qualityHistogramFixedRange</span></code>, <code class="docutils literal notranslate"><span class="pre">qualityHistogramMin</span></code>/<code class="docutils literal notranslate"><span class="pre">Max</span></code>, <code class="docutils literal notranslate"><span class="pre">qualityHistogramCenterOnZero</span></code>, <code class="docutils literal notranslate"><span class="pre">qualityHistogramPercentileCrop</span></code> (default <code class="docutils literal notranslate"><span class="pre">0.01</span></code>, cropping both tails of automatic ranges so a few outliers do not flatten the color map), <code class="docutils literal notranslate"><span class="pre">qualityHistogramColorMapId</span></code>, <code class="docutils literal notranslate"><span class="pre">qualityHistogramInvertColorMap</span></code>, <code class="docutils literal notranslate"><span class="pre">qualityIsolinesEnabled</span></code>, <code class="docutils literal notranslate"><span class="pre">qualityIsolineCount</span></code></p></li>
 <li><p>overlay panel state: <code class="docutils literal notranslate"><span class="pre">settingsPanelVisible</span></code>, <code class="docutils literal notranslate"><span class="pre">currentPass</span></code></p></li>
 </ul>
+<p>A field added here goes in the struct and, with its JSON key, in the
+<code class="docutils literal notranslate"><span class="pre">MESHLAB2_GLOBAL_SETTINGS_FIELDS</span></code> list of <code class="docutils literal notranslate"><span class="pre">rendersettingsjson.cpp</span></code>, from which <code class="docutils literal notranslate"><span class="pre">operator==</span></code>,
+the writer and the reader are all generated; <code class="docutils literal notranslate"><span class="pre">kGlobalSettingsFieldCount</span></code> in
+<code class="docutils literal notranslate"><span class="pre">rendersettingsjson.h</span></code> then goes up by one. <code class="docutils literal notranslate"><span class="pre">test_rendersettingsjson</span></code> round-trips every key
+and counts them, so a field missing from the list fails there instead of silently dropping
+out of saved render states.</p>
 <p><code class="docutils literal notranslate"><span class="pre">using</span> <span class="pre">RenderSettings</span> <span class="pre">=</span> <span class="pre">GlobalRenderSettings</span></code> and <code class="docutils literal notranslate"><span class="pre">using</span> <span class="pre">MeshRenderMode</span> <span class="pre">=</span> <span class="pre">PerMeshRenderSettings</span></code> (widget-local alias) are provided.</p>
 <p>Default mode for a new mesh, read from the preferences as each mesh arrives:</p>
 <ul class="simple">
@@ -529,6 +535,14 @@ near plane pushed in front of an object cuts the object on Metal.</p>
 <li><p>Run the radiance-scaling gradient pre-pass (if any planned fill or point item has the radiance-scaling option on).</p></li>
 <li><p>Run main onscreen pass.</p></li>
 </ol>
+<p>Every pass opens with <code class="docutils literal notranslate"><span class="pre">setPassViewport</span></code> (<code class="docutils literal notranslate"><span class="pre">renderwidget_internal.h</span></code>): a pipeline is bound
+before the first <code class="docutils literal notranslate"><span class="pre">setViewport</span></code>. On Vulkan, QRhi records a pipeline’s scissor (dynamic state
+there) only in <code class="docutils literal notranslate"><span class="pre">setViewport</span></code>, and only while a pipeline is bound, so a pass that set its
+viewport first drew with no scissor. That is undefined: Intel’s driver crashed on it in the
+highlight masks, the first passes of a frame (2026-11, a capture with two layers), while
+MoltenVK and the other backends let it pass. The validation layer reports it as
+<code class="docutils literal notranslate"><span class="pre">VUID-vkCmdDraw-None-07832</span></code>; see <a class="reference internal" href="#diagnosing-another-machine"><span class="xref myst">Diagnosing Another Machine</span></a>
+for running with it.</p>
 <p>Main pass draw order: scene background · fill · solid cut · wire · edges · bbox · points · reference grid · raster camera frustums · decorators · depth-cued tool guides · raster image (<code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> mode only: an overlay with no depth test, faded by the raster opacity) · trackball gizmo · current-mesh outline/debug composite · selection overlay · tool loupes · 2D informational/tool overlays.</p>
 </section>
 <section id="scene3d-pass-details">
@@ -667,8 +681,8 @@ Depth picking does not see it — a click on the cap picks the wall behind.</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p><strong>Type</strong></p></td>
-<td><p>Pinhole camera (eye position, view direction, FOV, intrinsics)</p></td>
-<td><p>Orbit camera (center, rotation, distance, FOV)</p></td>
+<td><p>Pinhole or orthographic camera (eye position, view direction, intrinsics)</p></td>
+<td><p>Orbit camera (center, rotation, distance, FOV, projection)</p></td>
 </tr>
 <tr class="row-odd"><td><p><strong>Stored in</strong></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">Document::RasterEntry::shot</span></code> (raster cameras), serialized from MLP</p></td>
@@ -687,9 +701,71 @@ Depth picking does not see it — a click on the cap picks the wall behind.</p>
 </div>
 <p><strong>Conversion:</strong></p>
 <ul class="simple">
-<li><p><strong>Trackball → Shot</strong> (<code class="docutils literal notranslate"><span class="pre">cameraShotForViewport()</span></code>): eye position and view direction from the trackball are used to derive a VCG shot. The center is lost. <code class="docutils literal notranslate"><span class="pre">PixelSizeMm</span></code> is set to <code class="docutils literal notranslate"><span class="pre">(1,1)</span></code> — a fictitious calibration, but self-consistent because <code class="docutils literal notranslate"><span class="pre">FocalMm</span></code> is computed from the same unit system. The ratio <code class="docutils literal notranslate"><span class="pre">FocalMm</span> <span class="pre">/</span> <span class="pre">PixelSizeMm</span></code> determines the angular resolution, which is correctly derived from FOV and viewport size.</p></li>
+<li><p><strong>Trackball → Shot</strong> (<code class="docutils literal notranslate"><span class="pre">cameraShotForViewport()</span></code>): eye position and view direction from the trackball are used to derive a VCG shot. The center is lost. In perspective, <code class="docutils literal notranslate"><span class="pre">PixelSizeMm</span></code> is set to <code class="docutils literal notranslate"><span class="pre">(1,1)</span></code> — a fictitious calibration, but self-consistent because <code class="docutils literal notranslate"><span class="pre">FocalMm</span></code> is computed from the same unit system. The ratio <code class="docutils literal notranslate"><span class="pre">FocalMm</span> <span class="pre">/</span> <span class="pre">PixelSizeMm</span></code> determines the angular resolution, which is correctly derived from FOV and viewport size. In orthographic the shot is <code class="docutils literal notranslate"><span class="pre">ORTHO</span></code>, <code class="docutils literal notranslate"><span class="pre">PixelSizeMm</span></code> is world units per pixel (<code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">/</span> <span class="pre">height</span></code>, below) and <code class="docutils literal notranslate"><span class="pre">FocalMm</span></code> unused, and its viewpoint is moved back along the axis until the whole scene is in front of it: parallel rays do not care where the camera sits, but depth buffers and the projection filters read <code class="docutils literal notranslate"><span class="pre">depth</span> <span class="pre">&lt;=</span> <span class="pre">0</span></code> as behind the camera, and the orbit eye can lie inside the scene. The image is unchanged.</p></li>
 <li><p><strong>Shot → Trackball</strong>: underdetermined. The shot stores only the eye and direction; you must supply either an orbit center point or a distance along the view direction. No single conversion exists — <code class="docutils literal notranslate"><span class="pre">PeerViewCamera</span></code> therefore carries the actual <code class="docutils literal notranslate"><span class="pre">QMatrix4x4</span></code> view/projection matrices alongside near/far distances rather than just a <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code>.</p></li>
 </ul>
+<section id="orthographic-projection">
+<h3>Orthographic projection<a class="headerlink" href="#orthographic-projection" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">ViewTrackball::State::projection</span></code> is <code class="docutils literal notranslate"><span class="pre">Perspective</span></code> (the default) or <code class="docutils literal notranslate"><span class="pre">Orthographic</span></code>; isometric
+and oblique cameras are not supported, and <code class="docutils literal notranslate"><span class="pre">CameraShot::CameraType</span></code> has only the two (a
+project’s vcglib <code class="docutils literal notranslate"><span class="pre">ISOMETRIC</span></code> or <code class="docutils literal notranslate"><span class="pre">CAVALIERI</span></code> camera is read as perspective, with a warning
+naming the file).</p>
+<p><strong>The invariant.</strong> <code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">distance</span> <span class="pre">*</span> <span class="pre">tan(fovY</span> <span class="pre">/</span> <span class="pre">2)</span></code>, the world height visible at the orbit
+centre, is what both projections frame: the orthographic volume is <code class="docutils literal notranslate"><span class="pre">H</span></code> high and <code class="docutils literal notranslate"><span class="pre">H</span> <span class="pre">*</span> <span class="pre">aspect</span></code>
+wide. So switching keeps the orbit centre and everything on the plane through it in place,
+<code class="docutils literal notranslate"><span class="pre">distance</span></code> and <code class="docutils literal notranslate"><span class="pre">fovYDeg</span></code> are kept in both modes so switching back restores the perspective view
+exactly, and pan, wheel, the gizmo radius and every framing routine, which are all statements
+about <code class="docutils literal notranslate"><span class="pre">H</span></code>, need no orthographic case. A perspective view at a small field of view with <code class="docutils literal notranslate"><span class="pre">H</span></code> held
+constant converges on the orthographic one; <code class="docutils literal notranslate"><span class="pre">Shift</span></code>+wheel, the dolly-zoom at constant <code class="docutils literal notranslate"><span class="pre">H</span></code>, goes
+on past the narrowest field of view into orthographic and back. <code class="docutils literal notranslate"><span class="pre">nearClipRatio</span></code> is ignored in
+orthographic, where depth is linear.</p>
+<p><strong>Depth range.</strong> The view hands the trackball the box of everything visible each frame
+(<code class="docutils literal notranslate"><span class="pre">setSceneBounds</span></code>), and the orthographic volume runs from just before its nearest corner to just
+after its farthest, widened to hold the trackball gizmo, with 5% slack plus a thousandth of <code class="docutils literal notranslate"><span class="pre">H</span></code>
+for a box flat against the view. <code class="docutils literal notranslate"><span class="pre">near</span></code> may be negative: with the orbit centre closer to the eye
+than the scene is deep, an orthographic view still draws what is behind the eye. Without bounds
+(before the first frame, or a camera rebuilt from JSON) it falls back to <code class="docutils literal notranslate"><span class="pre">4</span> <span class="pre">*</span> <span class="pre">max(radius,</span> <span class="pre">sceneRadius)</span></code> either side of the centre. Peer-view glyphs widen it both ways
+(<code class="docutils literal notranslate"><span class="pre">viewFrustumFarDistance</span></code>, <code class="docutils literal notranslate"><span class="pre">viewFrustumNearDistance</span></code>). The matrix is in OpenGL convention like
+every other (see <a class="reference internal" href="#clip-space-convention"><span class="xref myst">Clip-space convention</span></a>).</p>
+<p><strong>Shaders</strong> learn the projection from <code class="docutils literal notranslate"><span class="pre">lightDir.w</span></code> in the main uniform block (0 perspective,
+1 orthographic), read from the matrix the frame is drawn with (<code class="docutils literal notranslate"><span class="pre">isOrthographicProjection</span></code>: a
+last row of <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0,</span> <span class="pre">0,</span> <span class="pre">1)</span></code>) rather than from the trackball, so a raster’s camera is covered too.
+The lit fill shaders, the wire overlay and the points then use a constant eye vector <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0,</span> <span class="pre">1)</span></code>
+instead of <code class="docutils literal notranslate"><span class="pre">-viewPos</span></code>. Object-space point size and the gizmo’s back-hemisphere shading need no
+case.</p>
+<p><strong>Rays.</strong> <code class="docutils literal notranslate"><span class="pre">ViewRay</span> <span class="pre">{</span> <span class="pre">origin,</span> <span class="pre">direction</span> <span class="pre">}</span></code>: <code class="docutils literal notranslate"><span class="pre">ViewTrackball::viewRay(pos,</span> <span class="pre">viewport)</span></code> (perspective
+from the eye through the pixel; orthographic along the view direction from the pixel on the near
+plane), which the arcball hit tests use, and <code class="docutils literal notranslate"><span class="pre">CameraShot::viewRayThrough(pixel)</span></code> and
+<code class="docutils literal notranslate"><span class="pre">CameraShot::directionToCamera(point)</span></code> (<code class="docutils literal notranslate"><span class="pre">normalize(viewPoint</span> <span class="pre">-</span> <span class="pre">p)</span></code> or <code class="docutils literal notranslate"><span class="pre">-viewDirection</span></code>), which the
+camera, color projection and image-patch filters use wherever they once wrote
+<code class="docutils literal notranslate"><span class="pre">viewPoint()</span> <span class="pre">-</span> <span class="pre">p</span></code>. <code class="docutils literal notranslate"><span class="pre">ViewpointOccluder::isOccludedAlong(sample,</span> <span class="pre">towardViewer)</span></code> is the occlusion
+query with the segment’s far end a bounding-box diagonal (plus 10%) beyond the sample;
+<em>Select by Rectangle</em> with visible only picks it for an orthographic camera, with the view
+direction carried into layer space. The depth pick, the rectangle test and the transform and
+measure tools go through matrices and needed nothing.</p>
+<p><strong>Cameras as data.</strong> A peer-view glyph recognizes an orthographic matrix and draws a box, and so
+does a raster’s (<code class="docutils literal notranslate"><span class="pre">rasterFrustumSegments</span></code>). <em>Set Camera from Direction</em>, <em>Set Camera to View
+Selection</em> and <em>Set Raster Camera</em> take a <code class="docutils literal notranslate"><span class="pre">projection</span></code> parameter (<em>Keep current</em>, the default,
+<em>Perspective</em>, <em>Orthographic</em>); the other camera filters keep the intrinsics. In vcglib,
+<code class="docutils literal notranslate"><span class="pre">Camera::GetMatrix</span></code> builds the <code class="docutils literal notranslate"><span class="pre">glOrtho</span></code> matrix for an <code class="docutils literal notranslate"><span class="pre">ORTHO</span></code> camera (it used to build a
+perspective one whatever the type), and <code class="docutils literal notranslate"><span class="pre">GetFrustum</span></code> returns the horizontal extents the right way
+round: they were mirrored, which put the optical axis of every off-centre perspective camera at
+<code class="docutils literal notranslate"><span class="pre">W</span> <span class="pre">-</span> <span class="pre">cx</span></code> instead of <code class="docutils literal notranslate"><span class="pre">cx</span></code> in the GPU raster overlay.</p>
+<p><strong>JSON.</strong> The trackball payload has <code class="docutils literal notranslate"><span class="pre">&quot;projection&quot;:</span> <span class="pre">&quot;orthographic&quot;</span></code>, omitted for perspective;
+an absent key reads as perspective and any other value fails naming the key. The change is
+additive, so a build older than 2026-10 reads an orthographic file as perspective, silently.
+<code class="docutils literal notranslate"><span class="pre">fuzzyStateEqual</span></code> lists the state’s fields by hand and must name every new one.</p>
+<p><strong>Open.</strong> Three things were left to measure on a real scan: radiance scaling stores
+<code class="docutils literal notranslate"><span class="pre">log(-viewZ)</span></code>, so in orthographic its strength follows the arbitrary <code class="docutils literal notranslate"><span class="pre">distance</span></code> (normalizing by
+<code class="docutils literal notranslate"><span class="pre">H</span></code> would make it zoom-independent); the 5% depth slack, which an overlay drawn outside the scene
+box could exceed; and <code class="docutils literal notranslate"><span class="pre">isOccludedAlong</span></code>’s grazing tolerance, proportional to the query’s length
+(<code class="docutils literal notranslate"><span class="pre">dist</span> <span class="pre">*</span> <span class="pre">1e-3</span></code>) and so looser than a nearby perspective eye’s.</p>
+<p>Tests: <code class="docutils literal notranslate"><span class="pre">MeshLab2ViewTrackballTests</span></code> (the invariant, rays, JSON), <code class="docutils literal notranslate"><span class="pre">test_viewfrustumgizmo.cpp</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DocumentTests::cameraShotRaysAndDirectionsFollowTheProjection</span></code> and the vcglib matrix checks,
+<code class="docutils literal notranslate"><span class="pre">FilterTests::cameraFramingFiltersMakeAndKeepOrthographicShots</span></code>, the visible-only selection test,
+and the render probe <code class="docutils literal notranslate"><span class="pre">tests/render_probes/orthographic</span></code>. How it was planned and carried out in
+five stages, with its 45-row mapping table, is <a class="reference internal" href="history/orthographic_camera.html"><span class="std std-doc">recorded in history</span></a>.</p>
+</section>
 </section>
 <section id="parametrizationuv-frame-sequence">
 <h2><code class="docutils literal notranslate"><span class="pre">ParametrizationUV</span></code> Frame Sequence<a class="headerlink" href="#parametrizationuv-frame-sequence" title="Link to this heading">¶</a></h2>
@@ -780,10 +856,22 @@ place the flag is read.</p>
 <p><strong>The clipping plane does nothing on OpenGL.</strong> Qt’s OpenGL backend never enables
 <code class="docutils literal notranslate"><span class="pre">GL_CLIP_DISTANCE0</span></code>, so the <code class="docutils literal notranslate"><span class="pre">gl_ClipDistance</span></code> the shaders write is ignored; Metal, Vulkan and
 D3D apply it without being asked. <code class="docutils literal notranslate"><span class="pre">clip_plane</span></code> fails on OpenGL for this reason.</p>
-<p>Two things to know before writing one, both of which look like bugs first: the default
-background is a gradient that passes through a band any naive “is this pixel lit” test
-scores as geometry, so render on a flat colour; and a pass that changes only hidden geometry
-must leave the image <strong>exactly</strong> unchanged, so equality is the assertion, not a tolerance.</p>
+<p>Four things to know before writing one, all of which look like bugs first:</p>
+<ul class="simple">
+<li><p>The default background is a gradient that passes through a band any naive “is this pixel
+lit” test scores as geometry, so render on a flat colour.</p></li>
+<li><p>A pass that changes only hidden geometry must leave the image <strong>exactly</strong> unchanged, so
+equality is the assertion, not a tolerance.</p></li>
+<li><p>The hook execs the script from a string, so there is no <code class="docutils literal notranslate"><span class="pre">__file__</span></code>: find fixtures by
+walking up from the working directory (<code class="docutils literal notranslate"><span class="pre">find_fixture</span></code> in the existing probes) or use
+absolute paths. Since the hook takes the directory as its argument, a throwaway probe can
+live anywhere, outside the repo.</p></li>
+<li><p>Loading a mesh or a project does not frame the camera. A probe sets the <code class="docutils literal notranslate"><span class="pre">trackball</span></code>
+(<code class="docutils literal notranslate"><span class="pre">center</span></code>, <code class="docutils literal notranslate"><span class="pre">radius</span></code>, <code class="docutils literal notranslate"><span class="pre">distance</span></code>) in its render state, from the mesh’s bounding box when
+the fixture’s coordinates are not known in advance (<code class="docutils literal notranslate"><span class="pre">MeshSet.current_mesh().vertex_matrix()</span></code>).
+Raster cameras can sit far from the model, so a probe that looks for their frustums needs
+the distance to cover them too.</p></li>
+</ul>
 <p><strong>What only the screen shows.</strong> Every render a probe can ask for is a capture, so what a view
 does only on screen – the strip the quality histogram reserves – is out of a probe’s reach.
 Check it by grabbing a live window with <code class="docutils literal notranslate"><span class="pre">QWidget::grab()</span></code>, which composites native child
@@ -802,6 +890,20 @@ to the log: the API, the device and its kind, and on OpenGL the driver’s versi
 environment, the screens, the API, device and driver (OpenGL’s version, renderer, vendor, GLSL
 version and profile), the QRhi features and limits the renderer leans on, and the recent
 warnings; <em>Copy System Information</em> puts it all on the clipboard for a bug report.</p>
+<p>Vulkan misuse that one driver forgives and another crashes on can be caught on a Mac with the
+validation layer. <code class="docutils literal notranslate"><span class="pre">QSG_RHI_DEBUG_LAYER</span></code> does not reach a <code class="docutils literal notranslate"><span class="pre">QRhiWidget</span></code>, so the loader enables
+it. With Homebrew’s <code class="docutils literal notranslate"><span class="pre">vulkan-loader</span></code> and <code class="docutils literal notranslate"><span class="pre">vulkan-validationlayers</span></code>, and an ICD JSON pointing at
+a <code class="docutils literal notranslate"><span class="pre">libMoltenVK.dylib</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">VK_LOADER_LAYERS_ENABLE</span><span class="o">=</span><span class="s1">'*validation'</span><span class="w"> </span><span class="nv">VK_DRIVER_FILES</span><span class="o">=</span>&lt;MoltenVK_icd.json&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="nv">VK_LAYER_PATH</span><span class="o">=</span>/opt/homebrew/share/vulkan/explicit_layer.d<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="nv">QT_VULKAN_LIB</span><span class="o">=</span>/opt/homebrew/lib/libvulkan.1.dylib<span class="w"> </span><span class="nv">MESHLAB2_GRAPHICS_API</span><span class="o">=</span>vulkan<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>build-release/MeshLab.app/Contents/MacOS/MeshLab<span class="w"> </span>--generate-docs<span class="w"> </span>tests/render_probes/&lt;probe&gt;
+</pre></div>
+</div>
+<p>Messages arrive as <code class="docutils literal notranslate"><span class="pre">vkDebug:</span></code> lines on stderr. <code class="docutils literal notranslate"><span class="pre">VUID-VkImageCreateInfo-initialLayout-12478</span></code>
+comes from Qt’s own textures. The probes draw through <code class="docutils literal notranslate"><span class="pre">grabFramebuffer</span></code>, the same path as a
+snapshot or an undo-history thumbnail. <code class="docutils literal notranslate"><span class="pre">--capture-window</span></code> hangs on MoltenVK while the file is
+still loading (the window waits on a drawable), so use a probe.</p>
 </section>
 <section id="frame-timing">
 <h2>Frame Timing<a class="headerlink" href="#frame-timing" title="Link to this heading">¶</a></h2>
@@ -867,7 +969,10 @@ warnings; <em>Copy System Information</em> puts it all on the clipboard for a bu
 <li><a class="reference internal" href="#clipping-plane">Clipping Plane</a></li>
 <li><a class="reference internal" href="#depth-picking">Depth Picking</a></li>
 <li><a class="reference internal" href="#interactive-tools">Interactive Tools</a></li>
-<li><a class="reference internal" href="#camera-models-camerashot-vs-viewtrackball">Camera Models: <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> vs <code class="docutils literal notranslate"><span class="pre">ViewTrackball</span></code></a></li>
+<li><a class="reference internal" href="#camera-models-camerashot-vs-viewtrackball">Camera Models: <code class="docutils literal notranslate"><span class="pre">CameraShot</span></code> vs <code class="docutils literal notranslate"><span class="pre">ViewTrackball</span></code></a><ul>
+<li><a class="reference internal" href="#orthographic-projection">Orthographic projection</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#parametrizationuv-frame-sequence"><code class="docutils literal notranslate"><span class="pre">ParametrizationUV</span></code> Frame Sequence</a></li>
 <li><a class="reference internal" href="#rasterimage-frame-sequence"><code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> Frame Sequence</a></li>
 <li><a class="reference internal" href="#raster-projection-filters">Raster Projection Filters</a></li>

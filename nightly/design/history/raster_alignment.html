@@ -249,13 +249,13 @@
 <p>Aligning a raster’s camera to a mesh, so that a photo whose camera is missing or slightly
 wrong can be registered on the model and then used by the filters that project through
 rasters (color transfer, coverage, parametrization). It is Stage 3 of the
-<a class="reference internal" href="../proposals/camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a>, which gave rasters a pinhole camera
+<a class="reference internal" href="camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a>, which gave rasters a pinhole camera
 plus a separate lens and a native COLMAP import. <strong>Proposed and carried out on 2026-11-03,
 in four stages: 3a, the correspondence fit; 3b, the tool; 3c, mutual information; 3d, global
 refinement. The open questions were decided the same day</strong> (see the end). How it works today
 is in <a class="reference internal" href="../raster_alignment.html"><span class="std std-doc">Raster Alignment</span></a>; this is the proposal as written, followed by
 what was built at each stage and what was measured.</p>
-<p>See also: <a class="reference internal" href="../proposals/camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a> (the boundary this relies on),
+<p>See also: <a class="reference internal" href="camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a> (the boundary this relies on),
 <a class="reference internal" href="../data_model.html#raster-data-type"><span class="std std-ref">Data Model</span></a>, <a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a> (the
 <code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> view), <a class="reference internal" href="../proposals/texmetro.html"><span class="std std-doc">TexMetro</span></a> (the case for a CPU rasterizer over
 a QRhi one), <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>.</p>
@@ -345,7 +345,7 @@ normals but no color) has calibrated cameras. The optional RealityScan dataset
 information needs a derivative-free method anyway, and NEWUOA is already vendored and
 already used. For the correspondence fit, a few hundred evaluations of a 7-parameter
 reprojection error take microseconds. This <strong>changes what
-<a class="reference internal" href="../proposals/camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a> said</strong>, which named Eigen’s
+<a class="reference internal" href="camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a> said</strong>, which named Eigen’s
 <code class="docutils literal notranslate"><span class="pre">LevenbergMarquardt</span></code>: that would be a second optimizer for the smaller of the two problems.</p>
 <p><strong>One parametrization</strong>, shared by both:</p>
 <ul class="simple">

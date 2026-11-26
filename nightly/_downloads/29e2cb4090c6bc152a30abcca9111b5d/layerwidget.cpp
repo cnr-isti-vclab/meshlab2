@@ -2806,6 +2806,15 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
             connect(saveAction, &QAction::triggered, this, [this, meshIndex = ref.index, textureIndex]() {
                 saveMeshTexture(meshIndex, textureIndex);
             });
+            menu.addSeparator();
+            // Remove Textures on this one (numbered from 1); the image file on disk stays.
+            QAction *removeAction = menu.addAction(tr("Remove"));
+            removeAction->setEnabled(hasAsset);
+            connect(removeAction, &QAction::triggered, this, [this, meshIndex = ref.index, textureIndex] {
+                m_doc->setCurrentMeshIndex(meshIndex);
+                requestFilterRun(QStringLiteral("remove_textures"),
+                                 QVariantMap{ { QStringLiteral("texture"), textureIndex + 1 } });
+            });
             menu.exec(event->globalPos());
             return;
         }

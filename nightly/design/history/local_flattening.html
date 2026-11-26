@@ -1,0 +1,590 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
+        <title>Local flattening, implemented 2026-11-15 to 17 - MeshLab 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">MeshLab 0.1 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">MeshLab 0.1 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/meshset.html">MeshSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/mlgui.html">MlGui</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../expressions.html">Expressions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../texture_metrics.html">Texture and UV measures</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/types.html">Supporting Types</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/first_steps.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../building.html">Building the documentation</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/design/history/local_flattening.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section class="tex2jax_ignore mathjax_ignore" id="local-flattening-implemented-2026-11-15-to-17">
+<h1>Local flattening, implemented 2026-11-15 to 17<a class="headerlink" href="#local-flattening-implemented-2026-11-15-to-17" title="Link to this heading">¶</a></h1>
+<p>What the operator does, and the rules it follows – a conformal map with the polyline pulled to
+U = 0 <em>and</em> to its arc length in V, a field-aligned map, an exact crop, the patch scaled
+uniformly into the unit square – are in the header of vcglib’s <code class="docutils literal notranslate"><span class="pre">LocalFlattening</span></code>
+(<code class="docutils literal notranslate"><span class="pre">vcg/complex/algorithms/parametrization/local_flattening.h</span></code>) and in the description of
+<em>Parametrize Surface along Polyline (Local Flattening)</em>. This is the plan it was built from,
+moved here on 2026-11-26 with nothing left to do (the sketch tool went to the annotation work),
+and kept for the reasoning: why the paper’s equation 1 only works with a conformal energy, the
+decisions taken with Paolo, the <code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code> clean-up, and the measurements on cylinders and
+raw scans.</p>
+<p>This document plans a reimplementation, as MeshLab filters, of Pietroni, Corsini, Cignoni and
+Scopigno, <em>An Interactive Local Flattening Operator to Support Digital Investigations on Artwork
+Surfaces</em> (IEEE TVCG 17(12), Visualization 2011; <code class="docutils literal notranslate"><span class="pre">.reference/papers/IEEEViz_local_flattening_final_v2.pdf</span></code>).
+<strong>Implemented</strong> (stages 0 to 2, 2026-11-15 to 17; stage 3, the sketch tool, left to the annotation work); drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.</p>
+<p>See also: <a class="reference internal" href="../proposals/texture_signal_processing.html"><span class="std std-doc">Texture Signal Processing</span></a> (per-face principal directions
+in <code class="docutils literal notranslate"><span class="pre">VCGFace</span></code>, stage 4), <a class="reference internal" href="../proposals/directional_port.html"><span class="std std-doc">Directional</span></a>, <a class="reference internal" href="../proposals/texmetro.html"><span class="std std-doc">TexMetro</span></a>,
+<a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>, <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>.</p>
+<section id="what-the-paper-does-and-what-is-in-scope">
+<h2>What the paper does, and what is in scope<a class="headerlink" href="#what-the-paper-does-and-what-is-in-scope" title="Link to this heading">¶</a></h2>
+<p>A user sketches a <strong>guidance polyline</strong>, along which a patch runs, and an <strong>interval polyline</strong>,
+whose length is the patch’s half-width. The operator then:</p>
+<ol class="arabic simple">
+<li><p><strong>Selects</strong> the faces whose geodesic distance from the guidance polyline is below the interval’s
+length, and rejects the selection unless it is a disk.</p></li>
+<li><p><strong>Interpolates a cross field</strong> over the selection that follows the guidance polyline: a
+parametrization with a least-squares term pulling the polyline’s points to a constant U (eq. 1,
+stiffness k_st), the two ends of the polyline fixed; the U direction of that map, carried back
+to 3D, is the field.</p></li>
+<li><p><strong>Parametrizes</strong> the selection aligned to the field, as the field-aligned methods do [Bommes et
+al. 2009], but on a disk, so with no cuts or integer variables.</p></li>
+<li><p><strong>Crops</strong> to the rectangle spanned in UV by the ends of the two polylines.</p></li>
+<li><p><strong>Samples a height map</strong> of the residual marks (§4.1): the patch as a geometry image at a chosen
+resolution (0.25 mm per pixel), smoothed by a Gaussian to keep only the overall shape, each
+sample cast along its normal back onto the surface; the distances form the image.</p></li>
+</ol>
+<p>The paper goes on to extract chisel traces as ridges and valleys of that image (§4.2), to compare
+photographs on the patch (§5), and to set the traces against curvature directions (§6). <strong>Out of
+scope</strong> (decided 2026-11-15): only steps 1 to 5 are reimplemented. Photographs onto a patch already
+work with <em>Transfer Color from Visible Rasters to Texture</em> once the patch has UVs.</p>
+</section>
+<section id="decisions-2026-11-15">
+<h2>Decisions (2026-11-15)<a class="headerlink" href="#decisions-2026-11-15" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Single resolution.</strong> The paper parametrizes a medium-resolution model and samples the full scan;
+here one layer is both, and a user who wants the paper’s split simplifies a copy by hand.</p></li>
+<li><p><strong>A width, not an interval polyline.</strong> The interval polyline only gives a length.</p></li>
+<li><p><strong>vcglib’s <code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code> is the paper’s solver</strong>, and is cleaned up to vcglib’s current rules
+rather than replaced (stage 0).</p></li>
+<li><p><strong>Step 2 is conformal</strong> (confirmed by Paolo): <code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code>’s LSCM mode with the least-squares
+term of eq. 1, as reasoned below.</p></li>
+<li><p><strong>The patch keeps the surface’s proportions</strong>: the field-aligned solve is at the surface’s scale
+(vcglib’s <code class="docutils literal notranslate"><span class="pre">LocalFlattening</span></code> returns UVs in surface units), and the filter then scales both axes
+alike into the unit square, its longer side 0 to 1, reporting the factor as <code class="docutils literal notranslate"><span class="pre">uv_scale</span></code>. Revised
+the same day (Paolo): texture tools read UVs in [0,1], so surface units left the patch unusable
+by the transfer and photo-projection filters.</p></li>
+<li><p><strong>Names</strong>: <em>Parametrize Surface along Polyline (Local Flattening)</em>; the height map became a data
+source of an existing filter rather than <em>Sample Height Map from Surface</em> (stage 2).</p></li>
+<li><p><strong>Step 2 constrains V too</strong> (Paolo, after measurement): the polyline’s points are pulled to
+U = 0 <em>and</em> to V equal to their arc length, with no stiff pins at its ends. Eq. 1’s U alone
+leaves nearly conformal deformations free, and they rotate the field: on a developable cylinder
+a quarter-turn helix came out with 1.7% average length error, against 0.02% with both
+coordinates and no pins (the pins add a singularity around each end).</p></li>
+</ul>
+</section>
+<section id="step-2-what-eq-1-can-mean">
+<h2>Step 2: what eq. 1 can mean<a class="headerlink" href="#step-2-what-eq-1-can-mean" title="Link to this heading">¶</a></h2>
+<p>The text is self-contradictory in two ways, and only one reading makes the system work.</p>
+<p><strong>U or V does not matter.</strong> Pulling the polyline’s points to a constant U makes the polyline an
+iso-line of U, a segment parallel to the V axis, while the text says it is aligned with U. But the
+field built from the map is a cross field: both directions, and their opposites, are the same
+field, so which axis the polyline lies along changes nothing but the labels. Step 4’s crop uses the
+polyline’s ends in UV, so it does not care either.</p>
+<p><strong>Harmonic or conformal matters.</strong> The text says a discrete harmonic map with cotangent weights.
+That energy is the Dirichlet energy of U plus that of V, the two independent of each other:</p>
+<ul class="simple">
+<li><p>U is then pulled to U_k at the polyline’s points, and at its two fixed ends (which “should be
+correctly aligned with U”). The constant U = U_k satisfies every constraint at zero energy, so U
+is that constant, and carries no information.</p></li>
+<li><p>V is harmonic with only its two end values fixed and a free boundary. That is well defined, but
+its gradient runs from one end to the other with singularities at the two ends; nothing in it
+follows the polyline, since the polyline’s term acts only on U.</p></li>
+</ul>
+<p>So with a harmonic energy the alignment term has no effect, and the map collapses onto a line.</p>
+<p>It works if the energy <strong>couples U and V</strong>, as the conformal (LSCM) energy does: the Dirichlet
+energy minus the signed area of the map, which ties ∇U to ∇V rotated by 90° (Cauchy-Riemann). Then
+making the polyline an iso-line of U forces ∇V to run along it, and conformality carries that
+direction smoothly into the rest of the patch. Two things point to this reading:</p>
+<ul class="simple">
+<li><p><strong>LSCM needs exactly two pinned points</strong> to have a unique solution, which is what the text says:
+“it is sufficient to fix the two extremes of the guidance polyline … to make the sparse system
+solvable”. A harmonic map with a free boundary would also need them, but would still collapse,
+as shown above.</p></li>
+<li><p><strong>vcglib’s <code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code> is that solver.</strong> Without a direction field it adds <code class="docutils literal notranslate"><span class="pre">AddAreaTerm</span></code> to
+the cotangent matrix, the antisymmetric coupling that turns the Dirichlet energy into LSCM’s, and
+pins the two farthest vertices (<code class="docutils literal notranslate"><span class="pre">FixDefaultVertices</span></code>). The paper’s step 2 is that mode plus the
+least-squares term on the polyline; step 3 is the same solver’s other mode, <code class="docutils literal notranslate"><span class="pre">use_direction_field</span></code>,
+which fits ∇U and ∇V to a field read from the faces’ <code class="docutils literal notranslate"><span class="pre">PD1</span></code> and <code class="docutils literal notranslate"><span class="pre">PD2</span></code>, with one pinned vertex.</p></li>
+</ul>
+<p>The field of step 2 is then, per face, the gradient of U carried to 3D and its rotation in the face’s
+plane. In a conformal map the two are orthogonal and of equal length, so they make a cross field
+directly.</p>
+<p>The alternative needs no map at all: give the faces the polyline crosses its tangent as <code class="docutils literal notranslate"><span class="pre">PD1</span></code>, and
+spread it over the selection with vcglib’s <code class="docutils literal notranslate"><span class="pre">CrossField::PropagateFromSelF</span></code> and <code class="docutils literal notranslate"><span class="pre">SmoothIterative</span></code>
+(faces under the polyline fixed). It is simpler, but it is not the paper’s method, and the field
+away from the polyline would be smoothed rather than conformal. <strong>Proposed:</strong> the conformal reading
+as the method, and the propagation only if the first proves fragile.</p>
+</section>
+<section id="what-meshlab-and-vcglib-have-for-each-step">
+<h2>What MeshLab and vcglib have for each step<a class="headerlink" href="#what-meshlab-and-vcglib-have-for-each-step" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Step</p></th>
+<th class="head"><p>Existing</p></th>
+<th class="head"><p>Missing</p></th>
+<th class="head"><p>Plan</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Polyline on the surface</p></td>
+<td><p>Polyline layers; <em>Create Polyline from Geodesic Path</em>, <em>from Planar Section</em>; <em>Embed Polyline in Surface</em> (vcglib <code class="docutils literal notranslate"><span class="pre">CoMEmbed</span></code>)</p></td>
+<td><p>A sketch tool</p></td>
+<td><p>The filter takes the guidance polyline as a layer. A tool may follow as a front end that runs the filter</p></td>
+</tr>
+<tr class="row-odd"><td><p>1. Selection</p></td>
+<td><p>vcglib geodesic distance (<code class="docutils literal notranslate"><span class="pre">Geodesic</span></code>, heat), <em>Select by Scalar</em>; <code class="docutils literal notranslate"><span class="pre">PoissonSolver::IsFeasible</span></code> (a disk)</p></td>
+<td><p>Seeds on the polyline instead of on vertices</p></td>
+<td><p>Embed the polyline in a working copy, so its points become vertices and seeds; or seed the geodesic at the polyline’s points directly</p></td>
+</tr>
+<tr class="row-even"><td><p>2. Cross field</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code>’s conformal mode</p></td>
+<td><p>Soft linear constraints on points inside faces (eq. 1: one row per polyline point, its three corners weighted by its barycentric coordinates)</p></td>
+<td><p>Add to <code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code>, which already assembles least-squares rows for its fixed vertices</p></td>
+</tr>
+<tr class="row-odd"><td><p>3. Field-aligned parametrization</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code> with <code class="docutils literal notranslate"><span class="pre">use_direction_field</span></code>, reading face <code class="docutils literal notranslate"><span class="pre">PD1</span></code>/<code class="docutils literal notranslate"><span class="pre">PD2</span></code> (in <code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> since the TSP stage 4)</p></td>
+<td><p>Nothing beyond stage 0’s clean-up</p></td>
+<td><p>Reuse</p></td>
+</tr>
+<tr class="row-even"><td><p>4. Crop to a rectangle</p></td>
+<td><p>vcglib <code class="docutils literal notranslate"><span class="pre">clip.h</span></code>, exact plane clipping (<em>Trim Surface by Plane</em>)</p></td>
+<td><p>Clipping in UV</p></td>
+<td><p>Clip a working copy laid out in UV by the rectangle’s four lines, exactly, and carry the positions with the cuts</p></td>
+</tr>
+<tr class="row-odd"><td><p>Distortion (Table 1)</p></td>
+<td><p>vcglib <code class="docutils literal notranslate"><span class="pre">Distortion</span></code>, the TexMetro measures</p></td>
+<td><p>The paper’s edge-length ratios as one result</p></td>
+<td><p>Report min and max ratio and the average error from the filter</p></td>
+</tr>
+<tr class="row-even"><td><p>5. Height map</p></td>
+<td><p>vcg <code class="docutils literal notranslate"><span class="pre">GridStaticPtr</span></code> ray casting (as <em>Select by Rectangle</em> uses); raster layers (<code class="docutils literal notranslate"><span class="pre">QImage</span></code>, <code class="docutils literal notranslate"><span class="pre">Grayscale16</span></code>)</p></td>
+<td><p>Sampling the geometry image, Gaussian smoothing, casting along normals</p></td>
+<td><p>New, in the plugin</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="stages">
+<h2>Stages<a class="headerlink" href="#stages" title="Link to this heading">¶</a></h2>
+<ol class="arabic" start="0">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code> cleaned up, with point constraints.</strong> To vcglib’s rules (<code class="docutils literal notranslate"><span class="pre">vcglib/AGENTS.md</span></code>):
+throw on a region that is not a disk or a singular system instead of <code class="docutils literal notranslate"><span class="pre">assert</span></code> and <code class="docutils literal notranslate"><span class="pre">printf</span></code>;
+report through a <code class="docutils literal notranslate"><span class="pre">CallBackPos</span></code>; vectors instead of <code class="docutils literal notranslate"><span class="pre">std::map</span></code> indexing, since a patch of a scan
+can have a million faces; the dead commented code removed. Then the new soft point constraint.
+The sample <code class="docutils literal notranslate"><span class="pre">trimesh_disk_parametrization</span></code> stays a short sample. A vcglib commit, push and gitlink
+bump by Paolo.
+<strong>Implemented 2026-11-15</strong>: 684 lines to 333; the system assembled from triplets and solved by
+<code class="docutils literal notranslate"><span class="pre">SimplicialLDLT</span></code> (980k faces in 19 s, conformal); fixed vertices a penalty on the diagonal
+rather than extra variables; <code class="docutils literal notranslate"><span class="pre">FixVertex</span></code> and <code class="docutils literal notranslate"><span class="pre">AddPointConstraint(face,</span> <span class="pre">bary,</span> <span class="pre">coord,</span> <span class="pre">value,</span> <span class="pre">weight)</span></code> added; <code class="docutils literal notranslate"><span class="pre">SolvePoisson</span></code> takes a <code class="docutils literal notranslate"><span class="pre">CallBackPos</span></code> and throws on too few fixed vertices,
+<code class="docutils literal notranslate"><span class="pre">IsFeasible</span></code> no longer prints. Three bugs fixed on the way: the field mode came out at twice the
+surface’s scale (the ½ of ∇φ = n×e/2A was commented out), meshes with deleted vertices indexed
+past the system, and the fold correction mirrored the vertices after their UVs had been copied
+to the wedges. Checked on a cylinder strip: conformal and field-aligned maps isometric, a
+polyline pulled to U = 0 lands there to 1e-12.</p></li>
+<li><p><strong>The flattening filter.</strong> <em>Parametrize Surface along Polyline (Local Flattening)</em>, in
+<code class="docutils literal notranslate"><span class="pre">filter_texture</span></code>, a thin adapter over vcglib’s new <code class="docutils literal notranslate"><span class="pre">LocalFlattening</span></code>
+(<code class="docutils literal notranslate"><span class="pre">parametrization/local_flattening.h</span></code>) and <code class="docutils literal notranslate"><span class="pre">ClipMeshWithUVLine</span></code> (<code class="docutils literal notranslate"><span class="pre">clip.h</span></code>, the texture-space
+sibling of <code class="docutils literal notranslate"><span class="pre">ClipMeshWithPlane</span></code>). Inputs: the current mesh, the guidance polyline (a <code class="docutils literal notranslate"><span class="pre">mesh</span></code>
+parameter), the half-width (<code class="docutils literal notranslate"><span class="pre">absperc</span></code>), the stiffness k_st (advanced, default 10). Output: a
+new layer, the rectangle, with per-vertex and per-wedge UVs in proportion (see the scale
+decision above), and the
+paper’s distortion figures as output values. Refuses a polyline that is not one open curve and
+a region that is not a disk. <strong>Implemented 2026-11-15</strong>, with what the measurements forced:</p>
+<ul class="simple">
+<li><p>the cotangent weights in double (float rounding excited the near-null conformal modes:
+|grad U| of 0.82 to 1.12 on a developable strip, 0.95 to 1.04 in double);</p></li>
+<li><p>the polyline’s ends fixed as points inside their faces (<code class="docutils literal notranslate"><span class="pre">PoissonSolver::FixPoint</span></code>), not at
+the nearest vertices, which twisted the map by up to half an edge;</p></li>
+<li><p>zero-area faces skipped by the solver (one turned the whole solve into NaN), and the UV clip
+snapping at rounding level, as the plane clip does, so it makes none.</p></li>
+</ul>
+<p><strong>Measured.</strong> Cylinder, straight polyline: 0.033% average error, ratios 0.994 to 1.003; helix:
+0.023%, 0.991 to 1.003, exact rectangles, no folds (<code class="docutils literal notranslate"><span class="pre">FilterTests::localFlatteningUnrollsA</span> <span class="pre">CylinderIsometrically</span></code>). Raw scans (<code class="docutils literal notranslate"><span class="pre">Ruth_1M</span></code>, <code class="docutils literal notranslate"><span class="pre">Shepard_1M</span></code>, <code class="docutils literal notranslate"><span class="pre">RattoA_2M</span></code>), strips 6% of the
+diagonal long and 3% wide, 0.15 to 0.4 s each: with polylines smoothed on the surface, 2.5 to
+7% average error on most strips, the paper’s range (Table 1: 1.4 to 3%, on chosen regions of a
+medium-resolution model); with the raw edge paths <em>Create Polyline from Geodesic Path</em> makes,
+which zigzag and run 20 to 60% longer than the curve they stand for, 5 to 20%, U only or U and
+V alike. A few strips still collapse locally at a corner (one face pair with a ratio in the
+thousands); not yet understood.
+<strong>Grid remeshing and smoothing</strong> (added 2026-11-16, Paolo): the patch can be remeshed in
+parametric space as a regular grid laid exactly on the rectangle (<em>Remesh as a grid</em>, a step),
+and its shape smoothed by a Gaussian (<em>Smoothing</em>, sigma), both through one geometry image:
+the cropped surface sampled at the grid’s nodes, each node at the nearest point of the patch in
+UV within a twentieth of a step, so that rounding along the crop’s border loses no node while
+a hole in the scan stays one. Smoothing moves each sample only along the normal of the
+smoothed shape, P’ = P - n((P - S) . n): the smoothed point S alone also slides sideways near
+the border, where the Gaussian sees one side only, and pulled the patch’s edges in (edge
+ratios down to 0.36 on the test cylinder). Without the grid, each vertex moves as the grid
+samples around it did. The crop was made exact on the way: <code class="docutils literal notranslate"><span class="pre">ClipMeshWithUVLine</span></code> now puts the
+vertices it takes as lying on a line exactly on it, as <code class="docutils literal notranslate"><span class="pre">ClipMeshWithPlane</span></code> does. Measured on
+the cylinder: a complete 2 x 40 x 80 grid with ratios 0.999 to 1.003 unsmoothed, and with
+sigma 0.3 pulled in by sigma^2 / 2r as a smoothed cylinder should be; on the Ruth strip, a 1 mm
+grid smoothed by 5 mm from the raw scan, then baked from it along the normal, reads the same
+grooves as the two-copy workflow, in one step, sampling the scan evenly (0.5% against 1.4% by
+closest point).</p>
+</li>
+<li><p><strong>The height map</strong>, decided 2026-11-15 after a first version was withdrawn: not a filter of
+its own but a <strong>Signed Distance</strong> data source of <em>Transfer Vertex Attributes from Another Layer to Texture</em>, which already samples a source mesh at every texel of the current mesh’s UV
+layout. It writes the distance from each texel’s point to the closest point of the source,
+signed by the current mesh’s normals, into a 16-bit grayscale texture: 0 where nothing is
+found, 1 to 65535 across the range, given as <code class="docutils literal notranslate"><span class="pre">distance_min</span></code> and <code class="docutils literal notranslate"><span class="pre">distance_max</span></code>. That restores
+the paper’s two resolutions: flatten a smoothed or simplified copy, then bake the full model
+onto the patch. The withdrawn version (<code class="docutils literal notranslate"><span class="pre">HeightMap</span></code> in vcglib, <em>Sample Height Map from
+Surface</em>) re-implemented the texel sampling, smoothed a geometry image of the patch itself and
+measured from it: single resolution, about 240 lines, and a duplicate. <strong>Implemented
+2026-11-15</strong>: a bump of 0.2 reads 0.2 to within 0.002, the flat part 0 to within 1e-4
+(<code class="docutils literal notranslate"><span class="pre">FilterTests::signedDistanceTransferBakesABump</span></code>). On a Ruth strip flattened from a copy
+smoothed by 3 Laplacian iterations, at 0.25 mm per texel, the carved grooves stand out over
+the facets of the 1M-face scan; flattening the smoothed copy also brought that strip’s
+distortion into the paper’s range (2.4% average, ratios 0.93 to 1.08, against 4.5% on the
+raw scan).
+<strong>Along the normal</strong> (added 2026-11-16, Paolo): both transfer-to-texture filters take a
+<em>Correspondence</em>, closest point (the default, unchanged) or along the current mesh’s
+interpolated normal, both ways, outward hit first, falling back to the closest point on a
+miss, as Tarini, Cignoni and Scopigno, “Visibility based methods and assessment for
+detail-recovery” (Vis 2003) describe; their measurements found it samples the detailed model
+far more evenly than closest point. Along the normal, the signed distance is a height along
+the normal, as a displacement map means, and as the flattening paper casts its rays. On the
+Ruth strip, with the paper’s sampling-uniformity measure (the mean change of distance between
+neighbouring samples): 1.4% by closest point against 0.4% along the normal over a base
+smoothed 3 times, 3.6% against 0.9% over one smoothed 10 times, no ray missing; the grooves
+read deeper (-5.5 against -3.9 mm), closest point cutting across their flanks.</p></li>
+<li><p><strong>The sketch tool</strong>: left out (Paolo, 2026-11-17). Tracing and editing lines on 3D surfaces
+belongs to the annotation work, which will treat them coherently for every use; the
+flattening filter takes whatever polyline layer that produces.</p></li>
+</ol>
+</section>
+<section id="possible-later-extension">
+<h2>Possible later extension<a class="headerlink" href="#possible-later-extension" title="Link to this heading">¶</a></h2>
+<p>The interval polyline could give a second direction. <code class="docutils literal notranslate"><span class="pre">PoissonSolver</span></code>’s field mode fits ∇U to <code class="docutils literal notranslate"><span class="pre">PD1</span></code>
+and ∇V to <code class="docutils literal notranslate"><span class="pre">PD2</span></code> separately, each normalized on its own, so it does not require them to be
+orthogonal: a patch whose two axes follow two different polylines, a non-orthogonal frame, would
+need only a second field.</p>
+</section>
+<section id="answered-questions-2026-11-17">
+<h2>Answered questions (2026-11-17)<a class="headerlink" href="#answered-questions-2026-11-17" title="Link to this heading">¶</a></h2>
+<ul>
+<li><p><strong>Zigzag polylines</strong>: the filter assumes a smooth polyline, and its description says so,
+pointing the edge paths of <em>Create Polyline from Geodesic Path</em> to <em>Smooth Polyline on
+Surface</em> first.</p></li>
+<li><p><strong>The local collapses</strong> on scan strips, replicated on <code class="docutils literal notranslate"><span class="pre">Shepard_1M</span></code> (a ratio of 6467, one fold),
+have two causes, neither in the flattening:</p>
+<ol class="arabic simple">
+<li><p>folds of the scan itself, a triangle turned back by 170 to 180 degrees onto its neighbour,
+sometimes next to needles: no flat map can lay them out, so they collapse in UV. <em>Remove
+Duplicate Faces</em> does not catch them (it removed 29 duplicates elsewhere on that model,
+changing nothing), nor the edge-flip repair of isolated folds (these come in pairs);
+<em>Select Ill-Shaped Faces</em> finds them.</p></li>
+<li><p>regions too curved for the half-width, where the conformal map of step 2 nearly collapses
+(|grad U| down to 0.03 against about 1) and its direction is unreliable: a few faces fold
+there, on strips whose distortion is about 16% anyway.</p></li>
+</ol>
+<p>The filter now reports the faces folded in UV (<code class="docutils literal notranslate"><span class="pre">folded_faces</span></code>, and a warning naming <em>Select
+Ill-Shaped Faces</em>). Weighting step 3’s fit by the strength of step 2’s gradient might remove
+the second kind; not done.</p>
+</li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, MeshLab Developers
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Local flattening, implemented 2026-11-15 to 17</a><ul>
+<li><a class="reference internal" href="#what-the-paper-does-and-what-is-in-scope">What the paper does, and what is in scope</a></li>
+<li><a class="reference internal" href="#decisions-2026-11-15">Decisions (2026-11-15)</a></li>
+<li><a class="reference internal" href="#step-2-what-eq-1-can-mean">Step 2: what eq. 1 can mean</a></li>
+<li><a class="reference internal" href="#what-meshlab-and-vcglib-have-for-each-step">What MeshLab and vcglib have for each step</a></li>
+<li><a class="reference internal" href="#stages">Stages</a></li>
+<li><a class="reference internal" href="#possible-later-extension">Possible later extension</a></li>
+<li><a class="reference internal" href="#answered-questions-2026-11-17">Answered questions (2026-11-17)</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=2709fde1"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

@@ -9,7 +9,7 @@ produced them; the one-way relationship with the data that *does* leave is in
 [Usage Statistics](usage_statistics.md).
 
 See also: [Adding a Filter](../adding_a_filter.md) · [User Interface](../user_interface.md) ·
-[Preferences](../preferences.md) · [Filter Search](filter_search.md)
+[Preferences](../preferences.md) · [Filter Search](../user_interface.md#filter-search)
 
 ## 1. Why this is mostly plumbing
 
@@ -346,4 +346,4 @@ make the journal read as a tool the user owns rather than as a record kept about
 
 [Usage Statistics](usage_statistics.md) is the other half: the same actions, aggregated
 past the point of identification, and the only part that is ever transmitted.
-[Filter Search](filter_search.md) owns the ranking that §3.1 extends.
+[Filter Search](../user_interface.md#filter-search) owns the ranking that §3.1 extends.

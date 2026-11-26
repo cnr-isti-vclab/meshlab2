@@ -454,7 +454,7 @@ their matches without this fix — so this is the prerequisite that makes the ne
 safe, not merely an improvement.</p>
 <p>Ranking is unaffected: name matches sort above category-only matches (since 2026-10-30
 by <code class="docutils literal notranslate"><span class="pre">FilterPresentation::rank</span></code>, which replaced the name-only <code class="docutils literal notranslate"><span class="pre">titleMatchesAllTerms</span></code>; see
-<a class="reference internal" href="../proposals/filter_search.html"><span class="std std-doc">Filter Search</span></a>).</p>
+<a class="reference internal" href="filter_search.html"><span class="std std-doc">Filter Search</span></a>).</p>
 <p>The implementation loops over the <code class="docutils literal notranslate"><span class="pre">categories</span></code> array; a single legacy <code class="docutils literal notranslate"><span class="pre">menuPath</span></code> string
 is still accepted by the loader for descriptors that predate it.</p>
 <p>Worth noting <code class="docutils literal notranslate"><span class="pre">provenance.project</span></code> was <em>already</em> searched, which is exactly what the

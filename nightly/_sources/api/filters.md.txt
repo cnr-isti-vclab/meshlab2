@@ -4146,16 +4146,16 @@ Sample a surface and relax the samples with a geodesic Voronoi/Lloyd process.
 ```{py:function} ms.sample_surface_by_voronoi_relaxation(**params)
 :module: _meshlab
 
-Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The selected vertices of the current mesh become the final seeds, and two additional layers are produced: a Voronoi region mesh and a polyline representation of the Voronoi boundaries.
+Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The final seeds, which are vertices of the current mesh, are selected there and also added as a point cloud layer. When every Voronoi region is a disk, three more layers are added: the Voronoi cells as polygons, their boundaries as a polyline, and the dual Delaunay triangulation of the seeds. A region that wraps around a thin part of the mesh, such as the tube of a torus sampled sparsely, is not a disk; then only the samples are added. The current mesh keeps its colors: the chosen quantity of the final diagram (seed distance, border distance or region area) is stored as its vertex scalar.
 
 **Parameters:**
 
 - **iterNum** (*int*, default: `10`) — Number of Lloyd relaxation iterations.
 - **sampleNum** (*int*, default: `10`) — Target number of surface samples.
 - **radiusVariance** (*double*, default: `1.0`) — For quality-weighted distance, the metric varies between 1/x and x according to per-vertex quality.
-- **colorStrategy** (*enum*, default: `seed_distance`) — How the current mesh should be colored during Voronoi relaxation.
+- **scalarField** (*enum*, default: `seed_distance`) — Which quantity of the final Voronoi diagram is stored as the vertex scalar of the current mesh: the geodesic distance from the nearest seed, the geodesic distance from the region borders, or the area of the region the vertex belongs to.
 - **distanceType** (*enum*, default: `euclidean`) — Metric used by the Voronoi relaxation.
-- **preprocessFlag** (*bool*, default: `False`) — Refine the current mesh before relaxation so the supporting triangulation is dense enough for the requested sample count.
+- **preprocessFlag** (*bool*, default: `True`) — Refine the current mesh before relaxation so the supporting triangulation is dense enough for the requested sample count.
 - **refineFactor** (*int*, default: `10`) — Controls how much the mesh is refined during preprocessing. Larger values create a denser supporting triangulation.
 - **perturbProbability** (*double*, default: `0.0`) — Probability that each seed is slightly perturbed during restricted relaxation.
 - **perturbAmount** (*double*, default: `0.001`) — Perturbation amplitude as a fraction of the bounding-box diagonal.
