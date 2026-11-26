@@ -483,6 +483,30 @@ void LayerWidgetTests::typingANameRunsTheRenameFilter()
     QCOMPARE(textureParams.value(QStringLiteral("texture")).toInt(), 1);
     QCOMPARE(textureParams.value(QStringLiteral("textureName")).toString(),
              QStringLiteral("albedo.png"));
+
+    // The texture row's menu removes that one texture, through Remove Textures.
+    QTest::qWait(50);
+    layer = meshTree->topLevelItem(0);
+    texture = nullptr;
+    for (int c = 0; c < layer->childCount(); ++c)
+        if (layer->child(c)->text(1).startsWith(QStringLiteral("Tex")))
+            texture = layer->child(c);
+    QVERIFY(texture);
+    meshTree->scrollToItem(texture);
+    const QPoint texturePoint = widget.mapFrom(meshTree->viewport(), meshTree->visualItemRect(texture).center());
+    QTimer::singleShot(0, &widget, [] {
+        if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+            for (QAction *action : menu->actions())
+                if (action->text() == QStringLiteral("Remove"))
+                    action->trigger();
+            menu->close();
+        }
+    });
+    QContextMenuEvent event(QContextMenuEvent::Mouse, texturePoint, widget.mapToGlobal(texturePoint));
+    QApplication::sendEvent(&widget, &event);
+    QCOMPARE(runs.count(), 4);
+    QCOMPARE(lastRun().at(0).toString(), keyOf(QStringLiteral("remove_textures")));
+    QCOMPARE(lastRun().at(2).toMap().value(QStringLiteral("texture")).toInt(), 1);
 }
 
 // Ctrl+D duplicates the current layer through the filter, wherever the focus is; and a mesh
