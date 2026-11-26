@@ -116,11 +116,18 @@ One instance per mesh id in `RenderWidget::m_meshRenderModes`. Holds:
 
 One instance per view in `m_renderSettings`. Holds:
 
-- scene overlay: `highlightCurrentMesh`, `currentMeshOutlineColor`/`Width`, `currentMeshDilateRadius`/`ErodeRadius`, `currentMeshDebugView`, `showTrackballGizmo`, `showViewCameras`, `showBoundingBoxCorners`, `showBoundingBoxDimensions`, `showDecoratorInfo`
+- scene overlay: `highlightCurrentMesh`, `currentMeshOutlineColor`/`Width`, `currentMeshDilateRadius`/`ErodeRadius`, `currentMeshDebugView`, `showTrackballGizmo`, `showViewCameras`, `showRasterCameras`, `showBoundingBoxCorners`, `showBoundingBoxDimensions`, `showDecoratorInfo`
 - scene background: `sceneBackgroundTopColor`, `sceneBackgroundBottomColor`
 - UV viewer: `uvShowReferenceFrame`, `uvShowFullTexture`, `uvTextureChannel`, `uvTextureNearestSampling`; the active texture group is view-local per-mesh state selected from viewport thumbnails
 - quality histogram/range: `showQualityHistogram`, `qualityHistogramBins`, `qualityHistogramSource`, `qualityHistogramFixedRange`, `qualityHistogramMin`/`Max`, `qualityHistogramCenterOnZero`, `qualityHistogramPercentileCrop` (default `0.01`, cropping both tails of automatic ranges so a few outliers do not flatten the color map), `qualityHistogramColorMapId`, `qualityHistogramInvertColorMap`, `qualityIsolinesEnabled`, `qualityIsolineCount`
 - overlay panel state: `settingsPanelVisible`, `currentPass`
+
+A field added here goes in the struct and, with its JSON key, in the
+`MESHLAB2_GLOBAL_SETTINGS_FIELDS` list of `rendersettingsjson.cpp`, from which `operator==`,
+the writer and the reader are all generated; `kGlobalSettingsFieldCount` in
+`rendersettingsjson.h` then goes up by one. `test_rendersettingsjson` round-trips every key
+and counts them, so a field missing from the list fails there instead of silently dropping
+out of saved render states.
 
 `using RenderSettings = GlobalRenderSettings` and `using MeshRenderMode = PerMeshRenderSettings` (widget-local alias) are provided.
 
@@ -591,10 +598,21 @@ place the flag is read.
 `GL_CLIP_DISTANCE0`, so the `gl_ClipDistance` the shaders write is ignored; Metal, Vulkan and
 D3D apply it without being asked. `clip_plane` fails on OpenGL for this reason.
 
-Two things to know before writing one, both of which look like bugs first: the default
-background is a gradient that passes through a band any naive "is this pixel lit" test
-scores as geometry, so render on a flat colour; and a pass that changes only hidden geometry
-must leave the image **exactly** unchanged, so equality is the assertion, not a tolerance.
+Four things to know before writing one, all of which look like bugs first:
+
+- The default background is a gradient that passes through a band any naive "is this pixel
+  lit" test scores as geometry, so render on a flat colour.
+- A pass that changes only hidden geometry must leave the image **exactly** unchanged, so
+  equality is the assertion, not a tolerance.
+- The hook execs the script from a string, so there is no `__file__`: find fixtures by
+  walking up from the working directory (`find_fixture` in the existing probes) or use
+  absolute paths. Since the hook takes the directory as its argument, a throwaway probe can
+  live anywhere, outside the repo.
+- Loading a mesh or a project does not frame the camera. A probe sets the `trackball`
+  (`center`, `radius`, `distance`) in its render state, from the mesh's bounding box when
+  the fixture's coordinates are not known in advance (`MeshSet.current_mesh().vertex_matrix()`).
+  Raster cameras can sit far from the model, so a probe that looks for their frustums needs
+  the distance to cover them too.
 
 **What only the screen shows.** Every render a probe can ask for is a capture, so what a view
 does only on screen -- the strip the quality histogram reserves -- is out of a probe's reach.

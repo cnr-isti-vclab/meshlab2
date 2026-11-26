@@ -1,8 +1,8 @@
-# MeshLab — working notes for Claude
+# MeshLab — working notes for coding agents
 
 A ground-up rewrite of MeshLab: a single-document, multi-view Qt 6 application on QRhi,
-vcglib, and a statically-linked plugin architecture, with over 300 filters across more
-than 30 plugins and optional Python bindings through nanobind.
+vcglib, and a statically-linked plugin architecture, with several hundred filters in about
+forty plugins and optional Python bindings through nanobind.
 
 This file carries what is **not** written down elsewhere in the repo. Anything about how
 the code works belongs in `docs/design/` — read from there, and add to there, rather than
@@ -32,13 +32,33 @@ what changed, and hand over the exact command. Reading state (`status`, `log`, `
 `show`, `grep`) is expected. **Never `git stash`**: the maintainer edits and commits in
 this same worktree while a session runs, so a stash sweeps their in-flight work into your
 entry and the pop then conflicts on files you never touched. To compare against a
-baseline use `git show HEAD:<path>` or a separate `git worktree`.
+baseline use `git show HEAD:<path>` or a separate `git worktree`. Outside the repo, the one
+thing allowed is reading CI: `gh run list`, `gh run view --log-failed`, `gh api` reads.
+
+**The handover.** List the changed files and paste the full commit message inline: the
+maintainer reads it before committing. Files that were already modified when the session
+started are the maintainer's work in progress — run `git status` at the start and again
+before handing over, and leave them out unless the change was made to them on request.
+
+**Say what was verified, and what was not.** Report what ran, with numbers (tests passed,
+pixels compared, timings and on which build). Some things cannot be exercised headlessly —
+a click in the 3D view, a native menu, a drag and drop — and the report says so rather than
+implying they were. Then rebuild `build-release` from the final source: it is the binary the
+maintainer launches.
 
 **Least code wins.** Reuse before adding: vcglib (cloned at repo root `vcglib/`, not
 `src/vcglib`) for anything geometric, and existing framework mechanisms over new
 subsystems. Avoid duplicating code *or* functionality. Flag leftover files and dead
 functions for removal when you notice them. If a request needs a lot of new code, say so
 and propose a lower-code alternative **before** starting.
+
+**You will maintain this codebase for years.** Fix the cause where it lives, not the
+symptom where it shows. These are hacks here, and need saying out loud when one really
+cannot be avoided: special-casing one filter id, file name or mesh in shared code; a
+constant copied rather than named once and shared; an error caught and silently carried
+past; a test-only hook in production code; a sleep or a retry in place of the ordering fix;
+a workaround in a filter for a vcglib defect (fix vcglib, below). When the clean fix is much
+larger than the hack, say so and let the maintainer choose.
 
 **Mapping table before any move.** For any rename, reorganization or migration, produce
 the table first and get it approved before touching code: current → target → *measured
@@ -119,8 +139,23 @@ all, the same trap as Debug.
 > entirely to the running app being the unoptimized build.
 
 A `.claude/worktrees/*` worktree has **empty submodules** and cannot be built in place,
-since initializing them is a forbidden git action. Copy it out to scratch and symlink
-`vcpkg_installed` instead — the recipe is in the `building-inside-a-worktree` memory.
+since initializing them is a forbidden git action. Copy it out to a scratch directory
+(`rsync -a --exclude .git`), copy the main checkout's `vcglib/` and `external/*` in after
+checking with `git ls-tree HEAD vcglib external/` that the gitlinks agree, and symlink the
+main tree's `build-release/vcpkg_installed` into the scratch build directory — a symlink,
+not a path option, because `plugins/io_gltf` looks for tinygltf under
+`${CMAKE_BINARY_DIR}/vcpkg_installed`. Sync later edits with plain `cp`: `cp -p` and
+`rsync -a` keep an older mtime, and ninja then silently builds the old code. A hook refuses
+edits to the main checkout from a worktree session, so hand back a patch.
+
+## Data that is not ours to change
+
+`.reference/` (git-ignored) holds reference material: the legacy `meshlab` and `PyMeshLab`
+sources, `papers`, and datasets such as `Rocks` and `TestDataset`. **It is read-only**:
+outputs, extracted archives and scratch files go elsewhere, and a script that takes an
+input directory refuses an output directory inside it. `tests/local/` is git-ignored too:
+local datasets (large textured atlases, for instance) that CI does not have, so a test that
+needs them skips when they are absent.
 
 ## Tests
 
@@ -141,6 +176,15 @@ Filter testing is three tiers, and **a new check belongs in the right one**:
    having produced nothing. Filters that no rung can drive sit in `expectedRefusals()`
    with a reason; that table fails the run in **both** directions, so it cannot rot.
 3. **`tests/test_filters.cpp`** — behavioural assertions: real properties, real numbers.
+
+Beyond filters: the widget tests (`test_layerwidget`, `test_toolstrip`, `test_viewgrid*`,
+`test_parameterform` …) pin UI behaviour and run under `QT_QPA_PLATFORM=offscreen`; drive
+them with signals and synthetic events rather than screen coordinates. The Python suite
+(`python/tests/`, and `tests/test_script_mode.py` for the application's `--script` mode)
+is run by CI against the built wheel (`test-command` in `pyproject.toml`). Locally no wheel
+needs installing: put `python/pymeshlab2/__init__.py` in a `pymeshlab2/` directory beside
+the `_meshlab` module a `MESHLAB2_PYTHON_WHEEL=ON` build (`build-wheel/`) produces, prepend
+it to `sys.path`, and run `python3.13 -m pytest python/tests`.
 
 The `rasters` rung is the committed photogrammetry fixture in
 `tests/sample_mesh/gargoyle_small/` (928 KB). If its images are ever rescaled, the camera
