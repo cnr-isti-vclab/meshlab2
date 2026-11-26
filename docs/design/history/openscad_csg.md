@@ -1,3 +1,8 @@
+> **Record, 2026-11-26. Dropped, not implemented.** The maintainer judged a script-driven
+> modelling language not useful enough for MeshLab, so the filter below will not be built.
+> It was the last open item of the [geogram port](geogram_port.md), which is therefore
+> complete. Nothing in the code depends on this document.
+
 # OpenSCAD CSG
 
 A single filter exposing geogram's OpenSCAD-subset language compiler, so a mesh can be

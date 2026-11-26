@@ -41,7 +41,7 @@ is the wrong place for something that will break a build if forgotten:
 | `facets.connect()`, never `mesh_repair(COLOCATE)` — the latter renumbers vertices and invalidates the index mapping | `plugins/filter_geogram/geogramparametrization.cpp` |
 
 **Still open:** the OpenSCAD script compiler, deferred by decision 8 and moved to its
-own proposal, [OpenSCAD CSG](../proposals/openscad_csg.md). Nothing else.
+own proposal, [OpenSCAD CSG](openscad_csg.md). Nothing else.
 
 ## Status as planned
 
@@ -846,7 +846,7 @@ only worth porting if something can consume it: see
 
 ## Deferred: the OpenSCAD compiler
 
-Moved to its own proposal, [OpenSCAD CSG](../proposals/openscad_csg.md), because an
+Moved to its own proposal, [OpenSCAD CSG](openscad_csg.md), because an
 un-implemented idea does not belong in a record of finished work. Summarised here for
 continuity.
 
