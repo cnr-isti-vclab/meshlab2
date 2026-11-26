@@ -43,8 +43,10 @@ from the source and are not checked mechanically.
 | Parametrize per Wedge by Expression | `parametrize_per_wedge_by_expression` | face | per-wedge texture coordinates | yes |
 | Define Custom Vertex Scalar Attribute | `define_custom_vertex_scalar_attribute` | vertex | a named scalar attribute | no |
 | Define Custom Face Scalar Attribute | `define_custom_face_scalar_attribute` | face | a named scalar attribute | no |
+| Define Custom Edge Scalar Attribute | `define_custom_edge_scalar_attribute` | edge | a named scalar attribute | no |
 | Define Custom Vertex Point Attribute | `define_custom_vertex_point_attribute` | vertex | a named 3D point attribute | no |
 | Define Custom Face Point Attribute | `define_custom_face_point_attribute` | face | a named 3D point attribute | no |
+| Define Custom Edge Point Attribute | `define_custom_edge_point_attribute` | edge | a named 3D point attribute | no |
 | Create Isosurface from Expression | `create_isosurface_from_expression` | sample point | a new mesh | no |
 | Refine by User Expression | `refine_by_user_expression` | edge | new vertices and faces | no |
 
@@ -186,9 +188,9 @@ and later expression filters can then read it **by that name**.
 - A **point** attribute `dir` is read as three variables, `dir_x`, `dir_y`, `dir_z`.
 - An **integer** attribute, such as an identifier or a label from a file, is also read by
   its name. No filter writes one.
-- A vertex attribute is seen by vertex filters and a face attribute by face filters, **not
-  across**: a face filter that mentions a vertex attribute is refused with
-  `Unexpected token`. Edge filters see no custom attributes.
+- A vertex attribute is seen by vertex filters, a face attribute by face filters and an
+  edge attribute by edge filters, **not across**: a face filter that mentions a vertex
+  attribute is refused with `Unexpected token`.
 
 A name may use letters, digits and underscores and must not start with a digit. A name that
 is already a variable (`q`, `fi`, `zmid`, …) is refused when you define the attribute.

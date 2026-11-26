@@ -67,6 +67,8 @@ constexpr QLatin1StringView kFilterFaceToVertex("transfer_color_from_face_to_ver
 constexpr QLatin1StringView kFilterTextureToVertex("transfer_color_from_texture_to_vertex");
 constexpr QLatin1StringView kFilterRandomFace("set_random_face_color");
 constexpr QLatin1StringView kFilterRandomConnected("set_random_component_color");
+constexpr QLatin1StringView kFilterRandomPolyline("set_random_polyline_color");
+constexpr QLatin1StringView kFilterEdgeToVertex("transfer_color_from_edge_to_vertex");
 constexpr QLatin1StringView kFilterVertexToFaceQuality("transfer_scalar_from_vertex_to_face");
 constexpr QLatin1StringView kFilterFaceToVertexQuality("transfer_scalar_from_face_to_vertex");
 constexpr QLatin1StringView kFilterVertexToFaceCurvature("transfer_curvature_directions_from_vertex_to_face");
@@ -826,6 +828,24 @@ MeshFilterRunResult ColorProcFilterPlugin::runFilter(
         vcg::tri::UpdateColor<VCGMesh>::PerFaceRandomConnectedComponent(mesh);
         ensureFaceColor(entry);
         doc.markMeshColorChanged(meshIndex, QObject::tr("Assigned random connected-component colors on '%1'").arg(meshLabel(entry, meshIndex)));
+        return success();
+    }
+
+    if (filterId == QString::fromLatin1(kFilterRandomPolyline)) {
+        vcg::tri::UpdateColor<VCGMesh>::PerEdgeRandomConnectedComponent(mesh);
+        ensureEdgeColor(entry);
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Assigned random polyline colors on '%1'").arg(meshLabel(entry, meshIndex)));
+        return qualitySuccess(meshIndex, MeshFilterVisualizationAttribute::EdgeColor);
+    }
+
+    if (filterId == QString::fromLatin1(kFilterEdgeToVertex)) {
+        // Edge color is a fixed component and always exists; IOM_EDGECOLOR is what says
+        // it holds anything, and averaging the default white would only wipe the vertices.
+        if (!(entry.ioMask & Mask::IOM_EDGECOLOR))
+            return fail(QObject::tr("The polyline has no edge colors. Color its edges first, for instance with Colorize Edges by Scalar or Set Random Polyline Color."));
+        vcg::tri::UpdateColor<VCGMesh>::PerVertexFromEdge(mesh);
+        ensureVertexColor(entry);
+        doc.markMeshColorChanged(meshIndex, QObject::tr("Transferred edge colors to vertices on '%1'").arg(meshLabel(entry, meshIndex)));
         return success();
     }
 

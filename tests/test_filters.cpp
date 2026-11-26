@@ -644,6 +644,7 @@ private slots:
     void layerFiltersRunFromTheContextMenuAreTheParameterlessOnes();
     void createdCylinderHonoursRadiusHeightAndAxis();
     void edgeExpressionsSelectColorAndScaleAPolyline();
+    void polylineComponentsColorsAndEdgeAttributes();
     void expressionsReadCustomAttributesAsTheirOwnType();
     void documentedExpressionExamplesRun();
     void incrementalSelectionPreservesEdges();
@@ -16089,6 +16090,100 @@ void FilterTests::edgeExpressionsSelectColorAndScaleAPolyline()
     }
     QCOMPARE(doc.mesh(index).mesh.edge[0].cQ(), 0.0f);
     QCOMPARE(doc.mesh(index).mesh.edge[3].cQ(), 1.0f);
+}
+
+// The stage-4 edge filters on two polylines: a branching one (edges 0-2, sharing vertex 1)
+// and a separate chain (edges 3-4).
+void FilterTests::polylineComponentsColorsAndEdgeAttributes()
+{
+    Document doc;
+    VCGMesh polyline;
+    const std::vector<vcg::Point3f> points = {
+        { 0, 0, 0 }, { 1, 0, 0 }, { 3, 0, 0 }, { 1, 3, 0 }, { 10, 0, 0 }, { 10, 1, 0 }, { 10, 2, 0 }
+    };
+    const std::vector<std::pair<int, int>> edges = { { 0, 1 }, { 1, 2 }, { 1, 3 }, { 4, 5 }, { 5, 6 } };
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, int(points.size()));
+    for (std::size_t i = 0; i < points.size(); ++i)
+        polyline.vert[i].P() = points[i];
+    vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, int(edges.size()));
+    for (std::size_t i = 0; i < edges.size(); ++i) {
+        polyline.edge[i].V(0) = &polyline.vert[std::size_t(edges[i].first)];
+        polyline.edge[i].V(1) = &polyline.vert[std::size_t(edges[i].second)];
+    }
+    polyline.edge[4].SetS();
+    vcg::tri::UpdateBounding<VCGMesh>::Box(polyline);
+    const int index = doc.addMesh(polyline, QStringLiteral("polylines"),
+                                  vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+    const auto run = [&](const QString &id, const MeshFilterParameterValues &params) {
+        return doc.runFilter(filterKeyForId(doc, id), params);
+    };
+    const auto edge = [&](int i) -> const VCGEdge & {
+        return doc.mesh(index).mesh.edge[std::size_t(i)];
+    };
+
+    // With no edge colors there is nothing to transfer, and the vertices must not be
+    // overwritten with the default white.
+    QVERIFY(!run(QStringLiteral("transfer_color_from_edge_to_vertex"), {}).success);
+
+    // One color per polyline. The selection survives: finding the components uses only
+    // the visited bit.
+    MeshFilterRunResult r = run(QStringLiteral("set_random_polyline_color"), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(edge(1).cC(), edge(0).cC());
+    QCOMPARE(edge(2).cC(), edge(0).cC());
+    QCOMPARE(edge(4).cC(), edge(3).cC());
+    QVERIFY(edge(3).cC() != edge(0).cC());
+    QVERIFY(edge(4).IsS());
+    QVERIFY(!edge(0).IsS());
+
+    // Each vertex becomes the average of its edges; vertex 1 has three.
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("r"), QStringLiteral("ei * 30"));
+        p.insert(QStringLiteral("g"), QStringLiteral("0"));
+        p.insert(QStringLiteral("b"), QStringLiteral("0"));
+        p.insert(QStringLiteral("a"), QStringLiteral("255"));
+        p.insert(QStringLiteral("selectedOnly"), false);
+        r = run(QStringLiteral("compute_edge_color_by_expression"), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    }
+    r = run(QStringLiteral("transfer_color_from_edge_to_vertex"), {});
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    const VCGMesh &mesh = doc.mesh(index).mesh;
+    QCOMPARE(int(mesh.vert[0].cC()[0]), 0);
+    QCOMPARE(int(mesh.vert[1].cC()[0]), 30);   // (0 + 30 + 60) / 3
+    QCOMPARE(int(mesh.vert[5].cC()[0]), 105);  // (90 + 120) / 2
+    QVERIFY(doc.mesh(index).ioMask & vcg::tri::io::Mask::IOM_VERTCOLOR);
+
+    // Custom edge attributes, scalar and point, are read back by name in edge expressions.
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("name"), QStringLiteral("twice"));
+        p.insert(QStringLiteral("expr"), QStringLiteral("elen * 2"));
+        r = run(QStringLiteral("define_custom_edge_scalar_attribute"), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    }
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("name"), QStringLiteral("mid"));
+        p.insert(QStringLiteral("x_expr"), QStringLiteral("emx"));
+        p.insert(QStringLiteral("y_expr"), QStringLiteral("emy"));
+        p.insert(QStringLiteral("z_expr"), QStringLiteral("emz"));
+        r = run(QStringLiteral("define_custom_edge_point_attribute"), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    }
+    {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("condSelect"), QStringLiteral("twice > 3 || mid_y > 1"));
+        r = run(QStringLiteral("select_edges_by_expression"), p);
+        QVERIFY2(r.success, qPrintable(r.errorMessage));
+    }
+    // Lengths 1, 2, 3, 1, 1; midpoint heights 0, 0, 1.5, 0.5, 1.5.
+    const std::vector<bool> expected = { false, true, true, false, true };
+    for (int i = 0; i < 5; ++i)
+        QVERIFY2(edge(i).IsS() == expected[std::size_t(i)], qPrintable(QString::number(i)));
 }
 
 // Integer attributes hold labels -- a part tag, a branch id -- and selecting by label is the

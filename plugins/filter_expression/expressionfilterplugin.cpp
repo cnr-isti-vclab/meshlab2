@@ -53,6 +53,8 @@ constexpr QLatin1StringView kFilterDefVertScalar("define_custom_vertex_scalar_at
 constexpr QLatin1StringView kFilterDefFaceScalar("define_custom_face_scalar_attribute");
 constexpr QLatin1StringView kFilterDefVertPoint("define_custom_vertex_point_attribute");
 constexpr QLatin1StringView kFilterDefFacePoint("define_custom_face_point_attribute");
+constexpr QLatin1StringView kFilterDefEdgeScalar("define_custom_edge_scalar_attribute");
+constexpr QLatin1StringView kFilterDefEdgePoint("define_custom_edge_point_attribute");
 constexpr QLatin1StringView kFilterGrid("create_grid");
 constexpr QLatin1StringView kFilterRefine("refine_by_user_expression");
 constexpr QLatin1StringView kFilterIso("create_isosurface_from_expression");
@@ -227,6 +229,144 @@ const std::unordered_set<std::string> &reservedVariables()
     return kReserved;
 }
 
+// The names of the attributes stored as a T.
+//
+// vcglib's GetAllPer*Attribute<T> cannot be used for this: it matches on element size
+// alone, so a float attribute is also listed under <int> and an int under <float>. Bound
+// twice under one name, the second binding wins and an expression reads a float's bit
+// pattern as an integer -- 1.0 came back as 1065353216. The type each attribute was
+// created with is recorded next to it, which is what deepCopyMesh already goes by.
+//
+// An attribute whose type was never recorded (typeid(void): it reached the mesh through a
+// path that keeps only the size, such as a VMI load) is taken to be a float or a point by
+// its size, as every attribute was before integers were readable.
+template <class T, class AttributeSet>
+std::vector<std::string> attributeNamesOfType(const AttributeSet &attributes)
+{
+    constexpr bool kTakeUnrecordedOfThisSize =
+        std::is_same_v<T, float> || std::is_same_v<T, vcg::Point3f>;
+    std::vector<std::string> names;
+    for (const vcg::PointerToAttribute &attribute : attributes) {
+        if (attribute._name.empty())
+            continue;
+        const bool recorded = attribute._type != std::type_index(typeid(void));
+        if (recorded ? attribute._type == std::type_index(typeid(T))
+                     : kTakeUnrecordedOfThisSize && attribute._sizeof == int(sizeof(T)))
+            names.push_back(attribute._name);
+    }
+    return names;
+}
+
+// The three element kinds a custom attribute can live on. Binding attributes to expression
+// variables and defining one are the same code for each kind; these say where a kind's
+// attributes are kept and which Allocator calls reach them.
+struct VertexElements
+{
+    template <class T> using Handle = VCGMesh::PerVertexAttributeHandle<T>;
+    static auto &elements(VCGMesh &m) { return m.vert; }
+    static const auto &attributes(const VCGMesh &m) { return m.vert_attr; }
+    template <class T> static Handle<T> find(VCGMesh &m, const std::string &name)
+    { return vcg::tri::Allocator<VCGMesh>::FindPerVertexAttribute<T>(m, name); }
+    template <class T> static Handle<T> add(VCGMesh &m, const std::string &name)
+    { return vcg::tri::Allocator<VCGMesh>::AddPerVertexAttribute<T>(m, name); }
+};
+
+struct FaceElements
+{
+    template <class T> using Handle = VCGMesh::PerFaceAttributeHandle<T>;
+    static auto &elements(VCGMesh &m) { return m.face; }
+    static const auto &attributes(const VCGMesh &m) { return m.face_attr; }
+    template <class T> static Handle<T> find(VCGMesh &m, const std::string &name)
+    { return vcg::tri::Allocator<VCGMesh>::FindPerFaceAttribute<T>(m, name); }
+    template <class T> static Handle<T> add(VCGMesh &m, const std::string &name)
+    { return vcg::tri::Allocator<VCGMesh>::AddPerFaceAttribute<T>(m, name); }
+};
+
+struct EdgeElements
+{
+    template <class T> using Handle = VCGMesh::PerEdgeAttributeHandle<T>;
+    static auto &elements(VCGMesh &m) { return m.edge; }
+    static const auto &attributes(const VCGMesh &m) { return m.edge_attr; }
+    template <class T> static Handle<T> find(VCGMesh &m, const std::string &name)
+    { return vcg::tri::Allocator<VCGMesh>::FindPerEdgeAttribute<T>(m, name); }
+    template <class T> static Handle<T> add(VCGMesh &m, const std::string &name)
+    { return vcg::tri::Allocator<VCGMesh>::AddPerEdgeAttribute<T>(m, name); }
+};
+
+// One element kind's custom attributes as expression variables: a float or int attribute
+// `name` reads as `name`, a point attribute as `name_x`, `name_y` and `name_z`. Integer
+// attributes (identifiers, labels) are readable but not writable: every define filter
+// writes float, so an expression can test an int but never produce one.
+//
+// The variables are collected once per mesh and every parser is pointed at the same
+// slots: a filter with several expressions (one per color channel or coordinate) binds
+// several parsers, and each must see the values load() writes.
+template <class Elements>
+class BoundAttributes
+{
+public:
+    void bind(mu::Parser &parser, VCGMesh &mesh)
+    {
+        if (m_mesh != &mesh) {
+            m_mesh = &mesh;
+            m_variables.clear();
+            collect(mesh, m_scalars, { "" });
+            collect(mesh, m_ints, { "" });
+            collect(mesh, m_points, { "_x", "_y", "_z" });
+            m_values.assign(m_variables.size(), 0.0);
+        }
+        for (std::size_t i = 0; i < m_variables.size(); ++i)
+            parser.DefineVar(m_variables[i], &m_values[i]);
+    }
+
+    template <class Iterator>
+    void load(Iterator element)
+    {
+        std::size_t k = 0;
+        for (auto &handle : m_scalars)
+            m_values[k++] = handle[element];
+        for (auto &handle : m_ints)
+            m_values[k++] = handle[element];
+        for (auto &handle : m_points) {
+            const vcg::Point3f p = handle[element];
+            for (int c = 0; c < 3; ++c)
+                m_values[k++] = p[c];
+        }
+    }
+
+private:
+    template <class T>
+    void collect(VCGMesh &mesh,
+                 std::vector<typename Elements::template Handle<T>> &handles,
+                 std::initializer_list<const char *> suffixes)
+    {
+        handles.clear();
+        for (const std::string &name : attributeNamesOfType<T>(Elements::attributes(mesh))) {
+            if (!isValidIdentifier(name))
+                continue;
+            std::vector<std::string> variables;
+            for (const char *suffix : suffixes)
+                variables.push_back(name + suffix);
+            const bool reserved = std::any_of(variables.begin(), variables.end(),
+                [](const std::string &v) { return reservedVariables().count(v) > 0; });
+            if (reserved)
+                continue;
+            const auto handle = Elements::template find<T>(mesh, name);
+            if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
+                continue;
+            handles.push_back(handle);
+            m_variables.insert(m_variables.end(), variables.begin(), variables.end());
+        }
+    }
+
+    const VCGMesh *m_mesh = nullptr;
+    std::vector<typename Elements::template Handle<float>> m_scalars;
+    std::vector<typename Elements::template Handle<int>> m_ints;
+    std::vector<typename Elements::template Handle<vcg::Point3f>> m_points;
+    std::vector<std::string> m_variables;
+    std::vector<double> m_values;
+};
+
 struct ParserRuntime
 {
     double x = 0.0;
@@ -335,19 +475,9 @@ struct ParserRuntime
     double zdim = 0.0;
     double bbdiag = 0.0;
 
-    std::vector<VCGMesh::PerVertexAttributeHandle<float>> vScalarHandles;
-    std::vector<double> vScalarValues;
-    std::vector<VCGMesh::PerVertexAttributeHandle<int>> vIntHandles;
-    std::vector<double> vIntValues;
-    std::vector<VCGMesh::PerVertexAttributeHandle<vcg::Point3f>> vPointHandles;
-    std::vector<double> vPointValues;
-
-    std::vector<VCGMesh::PerFaceAttributeHandle<float>> fScalarHandles;
-    std::vector<double> fScalarValues;
-    std::vector<VCGMesh::PerFaceAttributeHandle<int>> fIntHandles;
-    std::vector<double> fIntValues;
-    std::vector<VCGMesh::PerFaceAttributeHandle<vcg::Point3f>> fPointHandles;
-    std::vector<double> fPointValues;
+    BoundAttributes<VertexElements> vertexAttributes;
+    BoundAttributes<FaceElements> faceAttributes;
+    BoundAttributes<EdgeElements> edgeAttributes;
 };
 
 struct CurrentMeshRef
@@ -401,171 +531,6 @@ void defineCommonBBoxVars(mu::Parser &parser, ParserRuntime &runtime)
     parser.DefineVar("bbdiag", &runtime.bbdiag);
 }
 
-// The names of the attributes stored as a T.
-//
-// vcglib's GetAllPer*Attribute<T> cannot be used for this: it matches on element size
-// alone, so a float attribute is also listed under <int> and an int under <float>. Bound
-// twice under one name, the second binding wins and an expression reads a float's bit
-// pattern as an integer -- 1.0 came back as 1065353216. The type each attribute was
-// created with is recorded next to it, which is what deepCopyMesh already goes by.
-//
-// An attribute whose type was never recorded (typeid(void): it reached the mesh through a
-// path that keeps only the size, such as a VMI load) is taken to be a float, as every
-// attribute was before integers were readable.
-template <class T, class AttributeSet>
-std::vector<std::string> attributeNamesOfType(const AttributeSet &attributes)
-{
-    constexpr bool kTakeUnrecordedAsThis = std::is_same_v<T, float>;
-    std::vector<std::string> names;
-    for (const vcg::PointerToAttribute &attribute : attributes) {
-        if (attribute._name.empty())
-            continue;
-        const bool recorded = attribute._type != std::type_index(typeid(void));
-        if (recorded ? attribute._type == std::type_index(typeid(T)) : kTakeUnrecordedAsThis)
-            names.push_back(attribute._name);
-    }
-    return names;
-}
-
-void bindVertexCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &mesh)
-{
-    runtime.vScalarHandles.clear();
-    runtime.vScalarValues.clear();
-    runtime.vIntHandles.clear();
-    runtime.vIntValues.clear();
-    runtime.vPointHandles.clear();
-    runtime.vPointValues.clear();
-
-    std::vector<std::string> names;
-    names = attributeNamesOfType<float>(mesh.vert_attr);
-    runtime.vScalarHandles.reserve(names.size());
-    runtime.vScalarValues.reserve(names.size());
-    for (const std::string &name : names) {
-        if (!isValidIdentifier(name) || reservedVariables().count(name) > 0)
-            continue;
-        const auto handle = vcg::tri::Allocator<VCGMesh>::GetPerVertexAttribute<float>(mesh, name);
-        if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-            continue;
-        runtime.vScalarHandles.push_back(handle);
-        runtime.vScalarValues.push_back(0.0);
-        parser.DefineVar(name, &runtime.vScalarValues.back());
-    }
-
-    // Integer attributes (identifiers, labels) are readable but not writable: every define
-    // filter writes float, so an expression can test an int but never produce one.
-    names.clear();
-    names = attributeNamesOfType<int>(mesh.vert_attr);
-    runtime.vIntHandles.reserve(names.size());
-    runtime.vIntValues.reserve(names.size());
-    for (const std::string &name : names) {
-        if (!isValidIdentifier(name) || reservedVariables().count(name) > 0)
-            continue;
-        const auto handle = vcg::tri::Allocator<VCGMesh>::GetPerVertexAttribute<int>(mesh, name);
-        if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-            continue;
-        runtime.vIntHandles.push_back(handle);
-        runtime.vIntValues.push_back(0.0);
-        parser.DefineVar(name, &runtime.vIntValues.back());
-    }
-
-    names.clear();
-    vcg::tri::Allocator<VCGMesh>::GetAllPerVertexAttribute<vcg::Point3f>(mesh, names);
-    runtime.vPointHandles.reserve(names.size());
-    runtime.vPointValues.reserve(names.size() * 3);
-    for (const std::string &name : names) {
-        if (!isValidIdentifier(name))
-            continue;
-        const std::array<std::string, 3> components = {
-            name + "_x",
-            name + "_y",
-            name + "_z"
-        };
-        if (reservedVariables().count(components[0]) > 0
-            || reservedVariables().count(components[1]) > 0
-            || reservedVariables().count(components[2]) > 0) {
-            continue;
-        }
-        const auto handle =
-            vcg::tri::Allocator<VCGMesh>::GetPerVertexAttribute<vcg::Point3f>(mesh, name);
-        if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-            continue;
-        runtime.vPointHandles.push_back(handle);
-        for (int c = 0; c < 3; ++c) {
-            runtime.vPointValues.push_back(0.0);
-            parser.DefineVar(components[size_t(c)], &runtime.vPointValues.back());
-        }
-    }
-}
-
-void bindFaceCustomAttributes(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &mesh)
-{
-    runtime.fScalarHandles.clear();
-    runtime.fScalarValues.clear();
-    runtime.fIntHandles.clear();
-    runtime.fIntValues.clear();
-    runtime.fPointHandles.clear();
-    runtime.fPointValues.clear();
-
-    std::vector<std::string> names;
-    names = attributeNamesOfType<float>(mesh.face_attr);
-    runtime.fScalarHandles.reserve(names.size());
-    runtime.fScalarValues.reserve(names.size());
-    for (const std::string &name : names) {
-        if (!isValidIdentifier(name) || reservedVariables().count(name) > 0)
-            continue;
-        const auto handle = vcg::tri::Allocator<VCGMesh>::GetPerFaceAttribute<float>(mesh, name);
-        if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-            continue;
-        runtime.fScalarHandles.push_back(handle);
-        runtime.fScalarValues.push_back(0.0);
-        parser.DefineVar(name, &runtime.fScalarValues.back());
-    }
-
-    // Integer attributes (identifiers, labels) are readable but not writable: every define
-    // filter writes float, so an expression can test an int but never produce one.
-    names.clear();
-    names = attributeNamesOfType<int>(mesh.face_attr);
-    runtime.fIntHandles.reserve(names.size());
-    runtime.fIntValues.reserve(names.size());
-    for (const std::string &name : names) {
-        if (!isValidIdentifier(name) || reservedVariables().count(name) > 0)
-            continue;
-        const auto handle = vcg::tri::Allocator<VCGMesh>::GetPerFaceAttribute<int>(mesh, name);
-        if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-            continue;
-        runtime.fIntHandles.push_back(handle);
-        runtime.fIntValues.push_back(0.0);
-        parser.DefineVar(name, &runtime.fIntValues.back());
-    }
-
-    names.clear();
-    vcg::tri::Allocator<VCGMesh>::GetAllPerFaceAttribute<vcg::Point3f>(mesh, names);
-    runtime.fPointHandles.reserve(names.size());
-    runtime.fPointValues.reserve(names.size() * 3);
-    for (const std::string &name : names) {
-        if (!isValidIdentifier(name))
-            continue;
-        const std::array<std::string, 3> components = {
-            name + "_x",
-            name + "_y",
-            name + "_z"
-        };
-        if (reservedVariables().count(components[0]) > 0
-            || reservedVariables().count(components[1]) > 0
-            || reservedVariables().count(components[2]) > 0) {
-            continue;
-        }
-        const auto handle = vcg::tri::Allocator<VCGMesh>::GetPerFaceAttribute<vcg::Point3f>(mesh, name);
-        if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-            continue;
-        runtime.fPointHandles.push_back(handle);
-        for (int c = 0; c < 3; ++c) {
-            runtime.fPointValues.push_back(0.0);
-            parser.DefineVar(components[size_t(c)], &runtime.fPointValues.back());
-        }
-    }
-}
-
 void setPerVertexVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &mesh)
 {
     parser.DefineVar("x", &runtime.x);
@@ -586,7 +551,7 @@ void setPerVertexVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &
     parser.DefineVar("vsel", &runtime.vsel);
     defineCommonBBoxVars(parser, runtime);
     meshlab::filters::defineParserCustomFunctions(parser);
-    bindVertexCustomAttributes(parser, runtime, mesh);
+    runtime.vertexAttributes.bind(parser, mesh);
 }
 
 void setPerFaceVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &mesh)
@@ -649,7 +614,7 @@ void setPerFaceVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &me
     parser.DefineVar("ti", &runtime.ti);
     defineCommonBBoxVars(parser, runtime);
     meshlab::filters::defineParserCustomFunctions(parser);
-    bindFaceCustomAttributes(parser, runtime, mesh);
+    runtime.faceAttributes.bind(parser, mesh);
 }
 
 // An edge's endpoints are exposed with the same names the face context gives its
@@ -659,7 +624,6 @@ void setPerFaceVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &me
 // reaches for on a polyline.
 void setPerEdgeVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &mesh)
 {
-    (void)mesh;
     parser.DefineVar("x0", &runtime.x0);
     parser.DefineVar("y0", &runtime.y0);
     parser.DefineVar("z0", &runtime.z0);
@@ -702,6 +666,7 @@ void setPerEdgeVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &me
     parser.DefineVar("edz", &runtime.edz);
     defineCommonBBoxVars(parser, runtime);
     meshlab::filters::defineParserCustomFunctions(parser);
+    runtime.edgeAttributes.bind(parser, mesh);
 }
 
 void setVertexRuntime(
@@ -731,16 +696,7 @@ void setVertexRuntime(
         runtime.vtu = runtime.vtv = runtime.ti = 0.0;
     }
 
-    for (size_t i = 0; i < runtime.vScalarHandles.size(); ++i)
-        runtime.vScalarValues[i] = runtime.vScalarHandles[i][vi];
-    for (size_t i = 0; i < runtime.vIntHandles.size(); ++i)
-        runtime.vIntValues[i] = runtime.vIntHandles[i][vi];
-    for (size_t i = 0; i < runtime.vPointHandles.size(); ++i) {
-        const vcg::Point3f p = runtime.vPointHandles[i][vi];
-        runtime.vPointValues[i * 3 + 0] = p.X();
-        runtime.vPointValues[i * 3 + 1] = p.Y();
-        runtime.vPointValues[i * 3 + 2] = p.Z();
-    }
+    runtime.vertexAttributes.load(vi);
 }
 
 void setFaceRuntime(
@@ -821,16 +777,7 @@ void setFaceRuntime(
     runtime.vsel1 = fi->V(1)->IsS() ? 1.0 : 0.0;
     runtime.vsel2 = fi->V(2)->IsS() ? 1.0 : 0.0;
 
-    for (size_t i = 0; i < runtime.fScalarHandles.size(); ++i)
-        runtime.fScalarValues[i] = runtime.fScalarHandles[i][fi];
-    for (size_t i = 0; i < runtime.fIntHandles.size(); ++i)
-        runtime.fIntValues[i] = runtime.fIntHandles[i][fi];
-    for (size_t i = 0; i < runtime.fPointHandles.size(); ++i) {
-        const vcg::Point3f p = runtime.fPointHandles[i][fi];
-        runtime.fPointValues[i * 3 + 0] = p.X();
-        runtime.fPointValues[i * 3 + 1] = p.Y();
-        runtime.fPointValues[i * 3 + 2] = p.Z();
-    }
+    runtime.faceAttributes.load(fi);
 }
 
 void setEdgeRuntime(
@@ -890,6 +837,8 @@ void setEdgeRuntime(
     runtime.edx = double(delta[0]) * inv;
     runtime.edy = double(delta[1]) * inv;
     runtime.edz = double(delta[2]) * inv;
+
+    runtime.edgeAttributes.load(ei);
 }
 
 // With selectedOnly, Normalize and Map work on the selected elements alone: their range is
@@ -944,6 +893,99 @@ bool checkCustomAttributeName(const QString &name, QString &error)
     }
     return true;
 }
+
+// The expression context of one element kind: its variables, and their values for one element.
+template <class Elements>
+void setElementVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &mesh)
+{
+    if constexpr (std::is_same_v<Elements, VertexElements>)
+        setPerVertexVariables(parser, runtime, mesh);
+    else if constexpr (std::is_same_v<Elements, FaceElements>)
+        setPerFaceVariables(parser, runtime, mesh);
+    else
+        setPerEdgeVariables(parser, runtime, mesh);
+}
+
+template <class Elements, class Iterator>
+void setElementRuntime(ParserRuntime &runtime, Iterator element, VCGMesh &mesh)
+{
+    if constexpr (std::is_same_v<Elements, VertexElements>)
+        setVertexRuntime(runtime, element, mesh);
+    else if constexpr (std::is_same_v<Elements, FaceElements>)
+        setFaceRuntime(runtime, element, mesh);
+    else
+        setEdgeRuntime(runtime, element, mesh);
+}
+
+// The body of every Define Custom ... Attribute filter: create the attribute (or refill it,
+// if it exists with the same type) and evaluate one expression per component -- one for a
+// scalar, three for a point -- on every element of the kind. Returns an error, or an empty
+// string with the number of elements written in processed.
+template <class Elements, class T>
+QString defineCustomAttribute(VCGMesh &mesh, ParserRuntime &runtime, const QString &name,
+                              const QStringList &expressions, int &processed)
+{
+    QString error;
+    if (!checkCustomAttributeName(name, error))
+        return error;
+    const std::string stdName = name.toStdString();
+    const auto &existing = Elements::attributes(mesh);
+    const bool exists = std::any_of(existing.begin(), existing.end(),
+        [&](const vcg::PointerToAttribute &a) { return a._name == stdName; });
+    auto handle = exists ? Elements::template find<T>(mesh, stdName)
+                         : Elements::template add<T>(mesh, stdName);
+    if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
+        return QObject::tr("Attribute '%1' already exists with a different type.").arg(name);
+
+    std::vector<mu::Parser> parsers(std::size_t(expressions.size()));
+    processed = 0;
+    try {
+        for (std::size_t c = 0; c < parsers.size(); ++c) {
+            setElementVariables<Elements>(parsers[c], runtime, mesh);
+            parsers[c].SetExpr(expressions[int(c)].toStdString());
+        }
+        auto &elements = Elements::elements(mesh);
+        for (auto it = elements.begin(); it != elements.end(); ++it) {
+            setElementRuntime<Elements>(runtime, it, mesh);
+            if constexpr (std::is_same_v<T, vcg::Point3f>)
+                handle[it] = vcg::Point3f(float(parsers[0].Eval()), float(parsers[1].Eval()),
+                                          float(parsers[2].Eval()));
+            else
+                handle[it] = float(parsers[0].Eval());
+            ++processed;
+        }
+    } catch (mu::Parser::exception_type &e) {
+        return parserErrorString(e);
+    }
+    return {};
+}
+
+using DefineCustomAttributeFn = QString (*)(VCGMesh &, ParserRuntime &, const QString &,
+                                            const QStringList &, int &);
+
+struct DefineCustomAttributeFilter
+{
+    QLatin1StringView id;
+    DefineCustomAttributeFn define;
+    bool point;
+    const char *description; // "per-vertex scalar", for the history entry
+    const char *elements;    // "vertices", for the result message
+};
+
+const DefineCustomAttributeFilter kDefineCustomAttributeFilters[] = {
+    { kFilterDefVertScalar, &defineCustomAttribute<VertexElements, float>, false,
+      QT_TR_NOOP("per-vertex scalar"), QT_TR_NOOP("vertices") },
+    { kFilterDefFaceScalar, &defineCustomAttribute<FaceElements, float>, false,
+      QT_TR_NOOP("per-face scalar"), QT_TR_NOOP("faces") },
+    { kFilterDefEdgeScalar, &defineCustomAttribute<EdgeElements, float>, false,
+      QT_TR_NOOP("per-edge scalar"), QT_TR_NOOP("edges") },
+    { kFilterDefVertPoint, &defineCustomAttribute<VertexElements, vcg::Point3f>, true,
+      QT_TR_NOOP("per-vertex point"), QT_TR_NOOP("vertices") },
+    { kFilterDefFacePoint, &defineCustomAttribute<FaceElements, vcg::Point3f>, true,
+      QT_TR_NOOP("per-face point"), QT_TR_NOOP("faces") },
+    { kFilterDefEdgePoint, &defineCustomAttribute<EdgeElements, vcg::Point3f>, true,
+      QT_TR_NOOP("per-edge point"), QT_TR_NOOP("edges") },
+};
 }
 
 QString ExpressionFilterPlugin::pluginId() const
@@ -1808,203 +1850,30 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
         return result;
     }
 
-    if (filterId == QString::fromLatin1(kFilterDefVertScalar)) {
+    for (const DefineCustomAttributeFilter &define : kDefineCustomAttributeFilters) {
+        if (filterId != QString::fromLatin1(define.id))
+            continue;
         const QString name = params.getString(QStringLiteral("name")).trimmed();
-        const QString expr = params.getString(QStringLiteral("expr"));
-        if (!checkCustomAttributeName(name, meshError))
-            return fail(meshError);
-
-        const std::string stdName = name.toStdString();
-        VCGMesh::PerVertexAttributeHandle<float> handle;
-        if (vcg::tri::HasPerVertexAttribute(mesh, stdName)) {
-            handle = vcg::tri::Allocator<VCGMesh>::FindPerVertexAttribute<float>(mesh, stdName);
-            if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-                return fail(QObject::tr("Attribute '%1' already exists with a different type.").arg(name));
-        } else {
-            handle = vcg::tri::Allocator<VCGMesh>::AddPerVertexAttribute<float>(mesh, stdName);
-        }
-
-        mu::Parser parser;
-        setPerVertexVariables(parser, runtime, mesh);
-        try {
-            parser.SetExpr(expr.toStdString());
-        } catch (mu::Parser::exception_type &e) {
-            return fail(parserErrorString(e));
-        }
-
+        const QStringList expressions = define.point
+            ? QStringList{ params.getString(QStringLiteral("x_expr")),
+                           params.getString(QStringLiteral("y_expr")),
+                           params.getString(QStringLiteral("z_expr")) }
+            : QStringList{ params.getString(QStringLiteral("expr")) };
         int processed = 0;
-        for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            setVertexRuntime(runtime, vi, mesh);
-            try {
-                handle[vi] = float(parser.Eval());
-            } catch (mu::Parser::exception_type &e) {
-                return fail(parserErrorString(e));
-            }
-            ++processed;
-        }
+        const QString error = define.define(mesh, runtime, name, expressions, processed);
+        if (!error.isEmpty())
+            return fail(error);
         doc.markMeshMaterialChanged(
             meshIndex,
-            QObject::tr("Defined custom per-vertex scalar attribute '%1' on '%2'.")
-                .arg(name, entry.name));
+            QObject::tr("Defined custom %1 attribute '%2' on '%3'.")
+                .arg(QObject::tr(define.description), name, entry.name));
 
         MeshFilterRunResult result;
         result.success = true;
         result.documentModified = true;
-        result.infoMessages = { QObject::tr("Processed %1 vertices.").arg(processed) };
-        return result;
-    }
-
-    if (filterId == QString::fromLatin1(kFilterDefFaceScalar)) {
-        const QString name = params.getString(QStringLiteral("name")).trimmed();
-        const QString expr = params.getString(QStringLiteral("expr"));
-        if (!checkCustomAttributeName(name, meshError))
-            return fail(meshError);
-
-        const std::string stdName = name.toStdString();
-        VCGMesh::PerFaceAttributeHandle<float> handle;
-        if (vcg::tri::HasPerFaceAttribute(mesh, stdName)) {
-            handle = vcg::tri::Allocator<VCGMesh>::FindPerFaceAttribute<float>(mesh, stdName);
-            if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-                return fail(QObject::tr("Attribute '%1' already exists with a different type.").arg(name));
-        } else {
-            handle = vcg::tri::Allocator<VCGMesh>::AddPerFaceAttribute<float>(mesh, stdName);
-        }
-
-        mu::Parser parser;
-        setPerFaceVariables(parser, runtime, mesh);
-        try {
-            parser.SetExpr(expr.toStdString());
-        } catch (mu::Parser::exception_type &e) {
-            return fail(parserErrorString(e));
-        }
-
-        int processed = 0;
-        for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            setFaceRuntime(runtime, fi, mesh);
-            try {
-                handle[fi] = float(parser.Eval());
-            } catch (mu::Parser::exception_type &e) {
-                return fail(parserErrorString(e));
-            }
-            ++processed;
-        }
-        doc.markMeshMaterialChanged(
-            meshIndex,
-            QObject::tr("Defined custom per-face scalar attribute '%1' on '%2'.")
-                .arg(name, entry.name));
-
-        MeshFilterRunResult result;
-        result.success = true;
-        result.documentModified = true;
-        result.infoMessages = { QObject::tr("Processed %1 faces.").arg(processed) };
-        return result;
-    }
-
-    if (filterId == QString::fromLatin1(kFilterDefVertPoint)) {
-        const QString name = params.getString(QStringLiteral("name")).trimmed();
-        const QString exprX = params.getString(QStringLiteral("x_expr"));
-        const QString exprY = params.getString(QStringLiteral("y_expr"));
-        const QString exprZ = params.getString(QStringLiteral("z_expr"));
-        if (!checkCustomAttributeName(name, meshError))
-            return fail(meshError);
-
-        const std::string stdName = name.toStdString();
-        VCGMesh::PerVertexAttributeHandle<vcg::Point3f> handle;
-        if (vcg::tri::HasPerVertexAttribute(mesh, stdName)) {
-            handle = vcg::tri::Allocator<VCGMesh>::FindPerVertexAttribute<vcg::Point3f>(mesh, stdName);
-            if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-                return fail(QObject::tr("Attribute '%1' already exists with a different type.").arg(name));
-        } else {
-            handle = vcg::tri::Allocator<VCGMesh>::AddPerVertexAttribute<vcg::Point3f>(mesh, stdName);
-        }
-
-        mu::Parser px;
-        mu::Parser py;
-        mu::Parser pz;
-        setPerVertexVariables(px, runtime, mesh);
-        setPerVertexVariables(py, runtime, mesh);
-        setPerVertexVariables(pz, runtime, mesh);
-        try {
-            px.SetExpr(exprX.toStdString());
-            py.SetExpr(exprY.toStdString());
-            pz.SetExpr(exprZ.toStdString());
-        } catch (mu::Parser::exception_type &e) {
-            return fail(parserErrorString(e));
-        }
-
-        int processed = 0;
-        for (auto vi = mesh.vert.begin(); vi != mesh.vert.end(); ++vi) {
-            setVertexRuntime(runtime, vi, mesh);
-            try {
-                handle[vi] = vcg::Point3f(float(px.Eval()), float(py.Eval()), float(pz.Eval()));
-            } catch (mu::Parser::exception_type &e) {
-                return fail(parserErrorString(e));
-            }
-            ++processed;
-        }
-        doc.markMeshMaterialChanged(
-            meshIndex,
-            QObject::tr("Defined custom per-vertex point attribute '%1' on '%2'.")
-                .arg(name, entry.name));
-
-        MeshFilterRunResult result;
-        result.success = true;
-        result.documentModified = true;
-        result.infoMessages = { QObject::tr("Processed %1 vertices.").arg(processed) };
-        return result;
-    }
-
-    if (filterId == QString::fromLatin1(kFilterDefFacePoint)) {
-        const QString name = params.getString(QStringLiteral("name")).trimmed();
-        const QString exprX = params.getString(QStringLiteral("x_expr"));
-        const QString exprY = params.getString(QStringLiteral("y_expr"));
-        const QString exprZ = params.getString(QStringLiteral("z_expr"));
-        if (!checkCustomAttributeName(name, meshError))
-            return fail(meshError);
-
-        const std::string stdName = name.toStdString();
-        VCGMesh::PerFaceAttributeHandle<vcg::Point3f> handle;
-        if (vcg::tri::HasPerFaceAttribute(mesh, stdName)) {
-            handle = vcg::tri::Allocator<VCGMesh>::FindPerFaceAttribute<vcg::Point3f>(mesh, stdName);
-            if (!vcg::tri::Allocator<VCGMesh>::IsValidHandle(mesh, handle))
-                return fail(QObject::tr("Attribute '%1' already exists with a different type.").arg(name));
-        } else {
-            handle = vcg::tri::Allocator<VCGMesh>::AddPerFaceAttribute<vcg::Point3f>(mesh, stdName);
-        }
-
-        mu::Parser px;
-        mu::Parser py;
-        mu::Parser pz;
-        setPerFaceVariables(px, runtime, mesh);
-        setPerFaceVariables(py, runtime, mesh);
-        setPerFaceVariables(pz, runtime, mesh);
-        try {
-            px.SetExpr(exprX.toStdString());
-            py.SetExpr(exprY.toStdString());
-            pz.SetExpr(exprZ.toStdString());
-        } catch (mu::Parser::exception_type &e) {
-            return fail(parserErrorString(e));
-        }
-
-        int processed = 0;
-        for (auto fi = mesh.face.begin(); fi != mesh.face.end(); ++fi) {
-            setFaceRuntime(runtime, fi, mesh);
-            try {
-                handle[fi] = vcg::Point3f(float(px.Eval()), float(py.Eval()), float(pz.Eval()));
-            } catch (mu::Parser::exception_type &e) {
-                return fail(parserErrorString(e));
-            }
-            ++processed;
-        }
-        doc.markMeshMaterialChanged(
-            meshIndex,
-            QObject::tr("Defined custom per-face point attribute '%1' on '%2'.")
-                .arg(name, entry.name));
-
-        MeshFilterRunResult result;
-        result.success = true;
-        result.documentModified = true;
-        result.infoMessages = { QObject::tr("Processed %1 faces.").arg(processed) };
+        result.infoMessages = {
+            QObject::tr("Processed %1 %2.").arg(processed).arg(QObject::tr(define.elements))
+        };
         return result;
     }
 

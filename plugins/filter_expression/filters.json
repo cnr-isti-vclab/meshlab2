@@ -1023,6 +1023,126 @@
       ]
     },
     {
+      "id": "define_custom_edge_scalar_attribute",
+      "categories": [
+        "Attribute/Custom"
+      ],
+      "name": "Define Custom Edge Scalar Attribute",
+      "pythonName": "define_custom_edge_scalar_attribute",
+      "shortDescription": "Defines and fills a custom per-edge scalar attribute.",
+      "longDescriptionMarkdown": "Add a new per-edge custom scalar attribute to the current **polyline layer** and fill it with the defined function.\n\nAttribute names must contain only letters, numbers and underscores. The attribute is read by name in the edge expression filters (*Select Edges by Expression*, *Compute Edge Color by Expression*, *Compute Edge Scalar by Expression*), and survives undo and Duplicate Layer; it is not saved to file.\n\n**Variables.** Evaluated once per edge of the polyline: the endpoints (`x0 … z1`, `r0 … a1`, `q0 q1`), the edge's own `er eg eb ea`, `eq`, `ei`, `esel`, its length `elen`, midpoint `emx emy emz` and direction `edx edy edz`, other custom edge attributes, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "tags": [
+        "attribute",
+        "edge",
+        "polyline",
+        "muparser"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireEdges": true
+      },
+      "parameters": [
+        {
+          "id": "name",
+          "label": "Attribute Name",
+          "help": "Name of the new custom attribute.",
+          "group": "main",
+          "type": "string",
+          "default": "CustomAttrName"
+        },
+        {
+          "id": "expr",
+          "label": "Scalar Function",
+          "help": "Expression used to compute the scalar attribute.",
+          "group": "main",
+          "type": "string",
+          "default": "elen"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ],
+      "outputModifies": [
+        "EA"
+      ]
+    },
+    {
+      "id": "define_custom_edge_point_attribute",
+      "categories": [
+        "Attribute/Custom"
+      ],
+      "name": "Define Custom Edge Point Attribute",
+      "pythonName": "define_custom_edge_point_attribute",
+      "shortDescription": "Defines and fills a custom per-edge point attribute.",
+      "longDescriptionMarkdown": "Add a new per-edge custom point attribute to the current **polyline layer** and fill it with the defined functions. A point attribute called `dir` is read in later formulas as `dir_x`, `dir_y` and `dir_z`.\n\nAttribute names must contain only letters, numbers and underscores. The attribute is read by name in the edge expression filters (*Select Edges by Expression*, *Compute Edge Color by Expression*, *Compute Edge Scalar by Expression*), and survives undo and Duplicate Layer; it is not saved to file.\n\n**Variables.** Evaluated once per edge of the polyline: the endpoints (`x0 … z1`, `r0 … a1`, `q0 q1`), the edge's own `er eg eb ea`, `eq`, `ei`, `esel`, its length `elen`, midpoint `emx emy emz` and direction `edx edy edz`, other custom edge attributes, and the bounding box are available. The full list of variables and functions is in the [expression reference](https://cnr-isti-vclab.github.io/meshlab2/expressions.html).",
+      "tags": [
+        "attribute",
+        "edge",
+        "polyline",
+        "muparser"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireEdges": true
+      },
+      "parameters": [
+        {
+          "id": "name",
+          "label": "Attribute Name",
+          "help": "Name of the new custom attribute.",
+          "group": "main",
+          "type": "string",
+          "default": "CustomAttrName"
+        },
+        {
+          "id": "x_expr",
+          "label": "X Function",
+          "help": "Expression for X component.",
+          "group": "main",
+          "type": "string",
+          "default": "emx"
+        },
+        {
+          "id": "y_expr",
+          "label": "Y Function",
+          "help": "Expression for Y component.",
+          "group": "main",
+          "type": "string",
+          "default": "emy"
+        },
+        {
+          "id": "z_expr",
+          "label": "Z Function",
+          "help": "Expression for Z component.",
+          "group": "main",
+          "type": "string",
+          "default": "emz"
+        },
+        {
+          "id": "randomSeed",
+          "label": "Random seed",
+          "help": "Seed for the `rnd()` and `randInt()` helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.",
+          "group": "advanced",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 2147483647
+        }
+      ],
+      "outputModifies": [
+        "EA"
+      ]
+    },
+    {
       "id": "create_grid",
       "categories": ["Creation/Primitives"],
       "name": "Create Grid",

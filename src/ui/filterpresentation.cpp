@@ -227,6 +227,7 @@ QStringList modifiedDataLabels(const QStringList &codes)
         { QStringLiteral("EC"), QObject::tr("edge color") },
         { QStringLiteral("EQ"), QObject::tr("edge scalar") },
         { QStringLiteral("ES"), QObject::tr("edge selection") },
+        { QStringLiteral("EA"), QObject::tr("edge attributes") },
         { QStringLiteral("WT"), QObject::tr("wedge texcoords") },
         { QStringLiteral("TX"), QObject::tr("texture images") },
         { QStringLiteral("TM"), QObject::tr("transform matrix") },

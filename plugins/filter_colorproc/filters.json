@@ -632,6 +632,20 @@
       "outputModifies": ["VC"]
     },
     {
+      "id": "transfer_color_from_edge_to_vertex",
+      "categories": ["Transfer/Within a Mesh", "Attribute/Color"],
+      "name": "Transfer Color from Edge to Vertex",
+      "pythonName": "transfer_color_from_edge_to_vertex",
+      "shortDescription": "Average the colors of the edges around each vertex of a polyline into vertex colors.",
+      "longDescriptionMarkdown": "Sets each vertex of a **polyline layer** to the plain average of the colors of its incident edges; vertices with no edge keep their color. Use it to keep a per-edge coloring in a format or a rendering mode that only knows vertex colors.\n\nThe opposite direction needs no filter: *Compute Edge Color by Expression* with `(r0+r1)/2`, `(g0+g1)/2`, `(b0+b1)/2` averages the two endpoints of each edge.",
+      "tags": ["color", "transfer", "edge", "vertex", "polyline"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireEdges": true },
+      "parameters": [],
+      "outputModifies": ["VC"]
+    },
+    {
       "id": "transfer_color_from_texture_to_vertex",
       "categories": ["Transfer/Within a Mesh", "Attribute/Color"],
       "name": "Transfer Color from Texture to Vertex",
@@ -689,6 +703,21 @@
       "inputPrepare": ["FF", "FMark"],
       "parameters": [],
       "outputModifies": ["FC"]
+    },
+    {
+      "id": "set_random_polyline_color",
+      "categories": ["Attribute/Color"],
+      "name": "Set Random Polyline Color",
+      "pythonName": "set_random_polyline_color",
+      "shortDescription": "Assign a random color to each connected polyline of an edge layer.",
+      "longDescriptionMarkdown": "Gives every connected polyline of a **polyline layer** its own edge color, the way *Set Random Component Color* does for the pieces of a surface. Two edges belong to the same polyline when they share a vertex, so a branching tree is one piece and its separate curves are not.\n\nThe view switches to per-edge color. Up to 100 distinct colors are used; with more polylines than that, colors repeat.",
+      "tags": ["color", "edge", "polyline", "random", "components"],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": { "requireEdges": true },
+      "inputPrepare": ["VE"],
+      "parameters": [],
+      "outputModifies": ["EC"]
     },
     {
       "id": "transfer_scalar_from_vertex_to_face",

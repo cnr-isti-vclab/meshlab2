@@ -52,6 +52,7 @@ const QSet<QString> &outputModifyCodes()
         QStringLiteral("TX"), QStringLiteral("TM"),
         // Polyline edge elements, not the sides of triangles.
         QStringLiteral("EC"), QStringLiteral("EQ"), QStringLiteral("ES"),
+        QStringLiteral("EA"),
         // The sides of triangles: the three face-edge selection bits each face carries.
         QStringLiteral("FES")
     };

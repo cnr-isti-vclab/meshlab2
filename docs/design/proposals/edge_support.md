@@ -1,8 +1,8 @@
 # Edge Support
 
-What remains of making edges a first-class element. **Not implemented:** the
-remaining edge colorize filters, custom edge attributes, and any way to select an
-edge interactively, in either sense of *edge* below.
+What remains of making edges a first-class element. **Not implemented:** any way
+to select an edge interactively, in either sense of *edge* below, and arc length
+along a chain.
 
 Stages 1-3 shipped on 2026-09-16 and their proposal is kept as a record in
 [history/edge_support.md](../history/edge_support.md): per-edge colour and scalar
@@ -11,7 +11,10 @@ on `VCGEdge` ([Data Model](../data_model.md)), PLY edge scalars
 Expression*, *Compute Edge Color by Expression*, *Compute Edge Scalar by
 Expression* and *Colorize Edges by Scalar*, selected edges of both kinds in the
 selection overlay ([Rendering](../rendering.md)), and isocontour levels stamped
-on their edges.
+on their edges. Stage 4 shipped on 2026-11-26: *Set Random Polyline Color*,
+*Transfer Color from Edge to Vertex*, and *Define Custom Edge Scalar/Point
+Attribute*, whose attributes the edge expressions read by name
+([expressions.md](../../expressions.md)).
 
 ## Two different things are called an edge
 
@@ -61,16 +64,11 @@ or their own decorator is a data-model question, not a rendering one.
 
 ## Filters
 
-The colorize filters belong in `filter_colorproc` beside their vertex and face
-twins; the expression ones in `filter_expression`, using the edge variable
-context *Select Edges by Expression* already defines.
-
-| Filter | Notes |
-|---|---|
-| `compute_edge_scalar_from_geometry` | Twin of `compute_face_scalar_from_geometry`: length, angle to an axis, midpoint height. Feeds *Colorize Edges by Scalar*. |
-| `set_random_polyline_color` | A different colour per connected chain. No new vcglib component: `edge::EEAdj` is absent, but a union–find over endpoint vertex indices gives the components in about fifteen lines. |
-| `transfer_color_from_vertex_to_edge` and the reverse | Twins of the vertex↔face transfer pair. |
-| `define_custom_edge_scalar_attribute`, `define_custom_edge_point_attribute` | Complete the custom-attribute trio. |
+Two filters this proposal listed were not built, because the edge expressions
+already do their work: `compute_edge_scalar_from_geometry` is *Compute Edge Scalar
+by Expression* with `elen`, `emz` or `acos(abs(edz))`, and the vertex-to-edge color
+transfer is *Compute Edge Color by Expression* with `(r0+r1)/2` and its siblings, as
+the description of *Transfer Color from Edge to Vertex* says.
 
 **Arc length along the chain, deliberately deferred.** `es`, normalised 0→1 from
 the start of the polyline, and `eidx`, the position in the chain: the one
@@ -80,7 +78,7 @@ so it means walking the union–find result and handling open versus closed chai
 
 ## Staging
 
-4. The colorize and transfer filters above, then custom edge attributes.
+4. Done 2026-11-26 (see the opening).
 5. An edge mode for `Rubber-band Select`, on top of the existing depth-mask
    machinery.
 
