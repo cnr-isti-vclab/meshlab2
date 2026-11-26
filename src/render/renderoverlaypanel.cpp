@@ -506,6 +506,14 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     currentMeshForm->addRow(
         tr("Show View Cameras"),
         makeCenteredFieldContainer(m_showViewCamerasCheck, viewer3dPage));
+    m_showRasterCamerasCheck = new QCheckBox(viewer3dPage);
+    m_showRasterCamerasCheck->setChecked(m_globalSettings.showRasterCameras);
+    m_showRasterCamerasCheck->setToolTip(
+        tr("Draw each visible raster's camera as its frustum; a click on one makes that raster "
+           "current. Hiding a raster in the layer panel hides its camera alone."));
+    currentMeshForm->addRow(
+        tr("Show Raster Cameras"),
+        makeCenteredFieldContainer(m_showRasterCamerasCheck, viewer3dPage));
     // How the layer grid is arranged. These matter only while the grid is on, but they live
     // with the other view settings rather than appearing and disappearing with it.
     m_gridTileShapeCombo = new QComboBox(viewer3dPage);
@@ -1447,6 +1455,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     bindGlobalCheckBox(m_showTrackballGizmoCheck, &GlobalRenderSettings::showTrackballGizmo);
     bindGlobalCheckBox(m_showAxisGizmoCheck, &GlobalRenderSettings::showAxisGizmo);
     bindGlobalCheckBox(m_showViewCamerasCheck, &GlobalRenderSettings::showViewCameras);
+    bindGlobalCheckBox(m_showRasterCamerasCheck, &GlobalRenderSettings::showRasterCameras);
     bindGlobalToolToggle(m_clipPlaneButton, &GlobalRenderSettings::clipPlaneEnabled);
     bindGlobalCheckBox(m_clipPlaneFlippedCheck, &GlobalRenderSettings::clipPlaneFlipped);
     bindGlobalCheckBox(m_clipPlaneShowPlaneCheck, &GlobalRenderSettings::clipPlaneShowPlane);

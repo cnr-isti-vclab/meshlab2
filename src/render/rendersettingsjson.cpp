@@ -185,7 +185,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     if (!fieldsEqual(*this, o, &SettingsType::member)) \
         return false;
 
-// 49 fields
+// 50 fields
 #define MESHLAB2_GLOBAL_SETTINGS_FIELDS(F) \
     F("reference_grid", referenceGrid) \
     F("layer_arrangement", layerArrangement) \
@@ -196,6 +196,7 @@ bool fieldsEqual(const S &a, const S &b, T S::*member)
     F("show_trackball_gizmo", showTrackballGizmo) \
     F("show_axis_gizmo", showAxisGizmo) \
     F("show_view_cameras", showViewCameras) \
+    F("show_raster_cameras", showRasterCameras) \
     F("show_decorator_info", showDecoratorInfo) \
     F("fill_texture_nearest_sampling", fillTextureNearestSampling) \
     F("show_bounding_box_corners", showBoundingBoxCorners) \

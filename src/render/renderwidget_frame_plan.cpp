@@ -74,7 +74,7 @@ RenderWidget::RenderFramePassRequests RenderWidget::collectRenderFramePassReques
         } else {
             // A raster is drawn here as its camera's frustum, which needs the camera
             // only: decoding the photo would cost its full size for a few lines.
-            for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
+            for (int ri = 0; m_renderSettings.showRasterCameras && ri < m_doc->rasterCount(); ++ri) {
                 const Document::RasterEntry &entry = m_doc->raster(ri);
                 if (entry.visible && entry.shot.isValid())
                     requests.rasterProjected.push_back(ri);

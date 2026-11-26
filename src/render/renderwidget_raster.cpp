@@ -31,15 +31,6 @@ void appendProjectedRasterVertex(
     vertices.push_back(position.z());
 }
 
-void appendProjectedRasterLine(
-    std::vector<float> &vertices,
-    const QVector3D &a,
-    const QVector3D &b)
-{
-    appendProjectedRasterVertex(vertices, a);
-    appendProjectedRasterVertex(vertices, b);
-}
-
 } // namespace
 
 QSize RenderWidget::currentRasterImageSize() const
@@ -151,6 +142,102 @@ void RenderWidget::syncRasterCacheWithDocument()
     }
 }
 
+float RenderWidget::rasterFrustumDepth() const
+{
+    QVector3D sceneMin;
+    QVector3D sceneMax;
+    if (computeWorldSceneBBox(sceneMin, sceneMax))
+        return std::max(1e-3f, (sceneMax - sceneMin).length() * 0.12f);
+    return std::max(1e-3f, m_trackball.radius() * 0.25f);
+}
+
+std::vector<QVector3D> RenderWidget::rasterFrustumSegments(const CameraShot &shot, float depth) const
+{
+    std::vector<QVector3D> segments;
+    if (!shot.isValid())
+        return segments;
+    const QSize viewport = shot.viewportPx();
+    if (viewport.width() <= 0 || viewport.height() <= 0 || !std::isfinite(depth) || depth <= 0.0f)
+        return segments;
+
+    // Corners of the image, on the plane `depth` in front of the camera.
+    const QVector2D pixels[4] = {
+        QVector2D(0.0f, 0.0f),
+        QVector2D(float(viewport.width()), 0.0f),
+        QVector2D(float(viewport.width()), float(viewport.height())),
+        QVector2D(0.0f, float(viewport.height()))
+    };
+    QVector3D farCorner[4];
+    for (int i = 0; i < 4; ++i) {
+        farCorner[i] = shot.unproject(pixels[i], depth);
+        if (!isFinite(farCorner[i]))
+            return segments;
+    }
+
+    const auto line = [&](const QVector3D &a, const QVector3D &b) {
+        segments.push_back(a);
+        segments.push_back(b);
+    };
+    segments.reserve(kRasterProjectedMaxVertexCount);
+    if (shot.isOrthographic()) {
+        // A box: the image rectangle on the plane through the viewpoint, the same one
+        // `depth` away, and the four parallel edges between them. Rays do not meet at
+        // the viewpoint, so there is no apex to draw.
+        QVector3D nearCorner[4];
+        for (int i = 0; i < 4; ++i)
+            nearCorner[i] = farCorner[i] - shot.viewDirection() * depth;
+        for (int i = 0; i < 4; ++i) {
+            line(nearCorner[i], farCorner[i]);
+            line(nearCorner[i], nearCorner[(i + 1) % 4]);
+            line(farCorner[i], farCorner[(i + 1) % 4]);
+        }
+    } else {
+        const QVector3D apex = shot.viewPoint();
+        if (!isFinite(apex))
+            return segments;
+        for (int i = 0; i < 4; ++i)
+            line(apex, farCorner[i]);
+        for (int i = 0; i < 4; ++i)
+            line(farCorner[i], farCorner[(i + 1) % 4]);
+    }
+    return segments;
+}
+
+int RenderWidget::rasterFrustumAt(const QPoint &point) const
+{
+    // Frustums are drawn only in the 3D view's single overlaid tile.
+    if (!m_doc || m_viewMode != ViewMode::Scene3D || !m_renderSettings.showRasterCameras
+        || isLayerGridActive())
+        return -1;
+    constexpr double kTolerancePx = 6.0;
+    const QPointF click(point);
+    const float depth = rasterFrustumDepth();
+    int nearest = -1;
+    double nearestDistance = kTolerancePx;
+    for (int ri = 0; ri < m_doc->rasterCount(); ++ri) {
+        const Document::RasterEntry &entry = m_doc->raster(ri);
+        if (!entry.visible)
+            continue;
+        const std::vector<QVector3D> segments = rasterFrustumSegments(entry.shot, depth);
+        for (size_t s = 0; s + 1 < segments.size(); s += 2) {
+            QPointF a, b;
+            if (!projectToWidget(segments[s], a) || !projectToWidget(segments[s + 1], b))
+                continue; // a segment crossing behind the eye is not tested
+            const QPointF ab = b - a;
+            const double length2 = QPointF::dotProduct(ab, ab);
+            const double t = length2 > 0.0
+                ? std::clamp(QPointF::dotProduct(click - a, ab) / length2, 0.0, 1.0) : 0.0;
+            const QPointF d = click - (a + t * ab);
+            const double distance = std::hypot(d.x(), d.y());
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearest = ri;
+            }
+        }
+    }
+    return nearest;
+}
+
 void RenderWidget::ensureRasterResources(
     QRhiCommandBuffer *cb,
     const RenderFramePassRequests &requests)
@@ -161,65 +248,12 @@ void RenderWidget::ensureRasterResources(
 
     syncRasterCacheWithDocument();
 
-    // How far in front of each camera its frustum glyph reaches: a share of the scene's size,
-    // the same for every raster, so it is worked out once per frame.
-    const float frustumDepth = [&]() {
-        QVector3D sceneMin;
-        QVector3D sceneMax;
-        if (computeWorldSceneBBox(sceneMin, sceneMax))
-            return std::max(1e-3f, (sceneMax - sceneMin).length() * 0.12f);
-        return std::max(1e-3f, m_trackball.radius() * 0.25f);
-    }();
-
+    // The same for every raster, so it is worked out once per frame.
+    const float frustumDepth = rasterFrustumDepth();
     auto buildProjectedVertices = [&](const Document::RasterEntry &entry) {
         std::vector<float> vertices;
-        if (!entry.shot.isValid())
-            return vertices;
-
-        const QSize viewport = entry.shot.viewportPx();
-        if (viewport.width() <= 0 || viewport.height() <= 0)
-            return vertices;
-
-        const float depth = frustumDepth;
-        if (!std::isfinite(depth) || depth <= 0.0f)
-            return vertices;
-
-        // Corners of the image, on the plane `depth` in front of the camera.
-        const QVector2D pixels[4] = {
-            QVector2D(0.0f, 0.0f),
-            QVector2D(float(viewport.width()), 0.0f),
-            QVector2D(float(viewport.width()), float(viewport.height())),
-            QVector2D(0.0f, float(viewport.height()))
-        };
-        QVector3D farCorner[4];
-        for (int i = 0; i < 4; ++i) {
-            farCorner[i] = entry.shot.unproject(pixels[i], depth);
-            if (!isFinite(farCorner[i]))
-                return vertices;
-        }
-
-        vertices.reserve(kRasterProjectedMaxVertexCount * kRasterProjectedVertexStrideFloats);
-        if (entry.shot.isOrthographic()) {
-            // A box: the image rectangle on the plane through the viewpoint, the same one
-            // `depth` away, and the four parallel edges between them. Rays do not meet at
-            // the viewpoint, so there is no apex to draw.
-            QVector3D nearCorner[4];
-            for (int i = 0; i < 4; ++i)
-                nearCorner[i] = farCorner[i] - entry.shot.viewDirection() * depth;
-            for (int i = 0; i < 4; ++i) {
-                appendProjectedRasterLine(vertices, nearCorner[i], farCorner[i]);
-                appendProjectedRasterLine(vertices, nearCorner[i], nearCorner[(i + 1) % 4]);
-                appendProjectedRasterLine(vertices, farCorner[i], farCorner[(i + 1) % 4]);
-            }
-        } else {
-            const QVector3D apex = entry.shot.viewPoint();
-            if (!isFinite(apex))
-                return vertices;
-            for (int i = 0; i < 4; ++i)
-                appendProjectedRasterLine(vertices, apex, farCorner[i]);
-            for (int i = 0; i < 4; ++i)
-                appendProjectedRasterLine(vertices, farCorner[i], farCorner[(i + 1) % 4]);
-        }
+        for (const QVector3D &point : rasterFrustumSegments(entry.shot, frustumDepth))
+            appendProjectedRasterVertex(vertices, point);
         return vertices;
     };
 

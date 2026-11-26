@@ -117,6 +117,10 @@ public:
     // The tile `point` (logical pixels) falls in, or -1 for a point in a gutter. The whole
     // view is one tile in the overlay arrangement, so this is 0 there for any point inside.
     int viewTileAt(const QPoint &point) const;
+    // The raster whose camera frustum, as the 3D view draws it, passes within a few pixels of
+    // `point` (logical pixels), the nearest if several do; -1 if none, or if raster cameras are
+    // not drawn. A click there makes that raster current.
+    int rasterFrustumAt(const QPoint &point) const;
     // True when the view is actually drawing a grid: the setting asks for one *and* there
     // is more than one tile to draw. One tile is the overlay arrangement by any other name.
     bool isLayerGridActive() const;
@@ -744,6 +748,12 @@ struct SceneRasterProjectedDrawItem {
     void ensureRasterResources(
         QRhiCommandBuffer *cb,
         const RenderFramePassRequests &requests);
+    // How far in front of a raster's camera its frustum glyph reaches: a share of the scene's
+    // size, the same for every raster.
+    float rasterFrustumDepth() const;
+    // A raster camera's frustum glyph as world-space line segments, two points each; empty if
+    // the camera cannot be drawn. What the view draws and what a click is tested against.
+    std::vector<QVector3D> rasterFrustumSegments(const CameraShot &shot, float depth) const;
     QSize currentRasterImageSize() const;
     QVector2D rasterScreenToImage(
         const QPointF &screenPos,

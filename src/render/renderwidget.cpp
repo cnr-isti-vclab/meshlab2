@@ -1937,7 +1937,17 @@ void RenderWidget::createOverlayButtons()
     m_layerClickTimer = new QTimer(this);
     m_layerClickTimer->setSingleShot(true);
     connect(m_layerClickTimer, &QTimer::timeout, this, [this]() {
-        scheduleDepthPick(m_layerClickPos, PickPurpose::CurrentLayer);
+        // A raster's camera is a few lines, too thin for the depth pick: it is tested on the
+        // screen first, and a click on one makes that raster current instead of a mesh.
+        const int raster = rasterFrustumAt(m_layerClickPos);
+        if (raster < 0) {
+            scheduleDepthPick(m_layerClickPos, PickPurpose::CurrentLayer);
+            return;
+        }
+        if (raster != m_doc->currentRasterIndex() || m_doc->currentLayerKind() != CurrentLayerKind::Raster) {
+            m_doc->setCurrentRasterIndex(raster);
+            showInteractionStatusOverlay(tr("Current raster: %1").arg(m_doc->raster(raster).name));
+        }
     });
     m_clipPlaneGizmoDwellTimer = new QTimer(this);
     m_clipPlaneGizmoDwellTimer->setSingleShot(true);

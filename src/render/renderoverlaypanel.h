@@ -125,6 +125,7 @@ private:
     QCheckBox *m_showTrackballGizmoCheck = nullptr;
     QCheckBox *m_showAxisGizmoCheck = nullptr;
     QCheckBox *m_showViewCamerasCheck = nullptr;
+    QCheckBox *m_showRasterCamerasCheck = nullptr;
     QComboBox *m_clipPlaneAxisCombo = nullptr;
     QComboBox *m_clipPlaneReferenceCombo = nullptr;
     QDoubleSpinBox *m_clipPlaneOffsetSpin = nullptr;

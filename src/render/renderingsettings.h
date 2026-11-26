@@ -299,6 +299,9 @@ struct GlobalRenderSettings {
     // common case -- the sphere sits over the mesh, the axis gizmo sits out of the way.
     bool showAxisGizmo = true;
     bool showViewCameras = true;
+    // Each visible raster's camera, drawn as its frustum in the 3D view; clicking one makes that
+    // raster current.
+    bool showRasterCameras = true;
     bool showBoundingBoxCorners = false;
     bool showBoundingBoxDimensions = false;
     QColor currentMeshOutlineColor = QColor(42, 160, 240);
