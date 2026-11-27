@@ -15,7 +15,7 @@ for flattening a scene).
 
 | Stage | What | State |
 |---|---|---|
-| 0 | LightUSD as a submodule; read and write the stage-0 fixtures; check against OpenUSD | not started |
+| 0 | LightUSD as a submodule; read and write the stage-0 fixtures; check against OpenUSD | done 2026-11-27, outside the tree (§3.1): go; the submodule itself is still to be added |
 | 1 | `io_usd`: flattened import, single-layer export, four material channels, units and up axis | not started |
 | 2 | Scene I/O: export visible layers to one file, import as separate layers | not started; needs approval of the interface |
 | 3 | The material model, extended once for USD and glTF | not started; needs its own mapping table |
@@ -80,6 +80,48 @@ included), `UsdPreviewSurface`, `UsdUVTexture`, `UsdTransform2d` and the primvar
   `.usdz`; `usdchecker` and `usdcat` must accept all three, and `.usdz` must open in Quick
   Look.
 - Outcome: go, or go with patches upstreamed first, or reconsider.
+
+### 3.1 Results (2026-11-27)
+
+Measured on LightUSD v1.0.0 (source tarball, not yet a submodule), built as a subdirectory of a
+throwaway CMake project with Release flags on this 16-core Mac, checked with
+OpenUSD 26.11 (`usd-core` from PyPI). The trial program and its outputs stayed outside the
+repository; the written `.usda`, `.usdz` and texture are in the git-ignored `tests/local/usd_stage0/`.
+
+**The library to use is not the one this proposal named.** LightUSD 1.0 ships two
+implementations. The default, `src/next` (`lightusd::next`, with the render conversion
+`tydra_next`), is a rewrite. The older core, with the Tydra described in its README and
+`lightusd_static` in its integration notes, is deprecated (`LIGHTUSD_NATIVE_PRODUCT=legacy`).
+Stage 1 targets the new one: link `lightusd::next` and `tydra_next`, include
+`next/lightusd-next.hh` and `tydra/next/render-converter.hh`.
+
+| Check | Result |
+|---|---|
+| Build | 17.5 s wall, 180 s CPU, 283 build steps, library and Tydra only (no tools, tests, examples, C API, OBJ/FBX import, audio, EXR). Static libraries 14 MB |
+| Size added | the trial executable, loader, converter and three writers, 4.3 MB stripped (5.4 MB unstripped) |
+| GeomSubset materials | read: `material_subsets` per mesh (3 subsets covering the 9 faces of `geomsubset-material-001.usda`); written: OpenUSD binds each subset to its material and `ValidateFamily` accepts the `materialBind` partition |
+| faceVarying primvars | kept as authored, with an interpolation flag per attribute: normals (`facevarying-normal-test.usda`), texture coordinates (`parity-material-uv-subset.usda`, `reference-geom-001.usda`) |
+| Polygons | kept with `triangulate = false` (`reference-geom-001.usda`: 32 triangles and 468 quads) |
+| `leftHanded` | reported per mesh (`RenderMesh::left_handed`) |
+| References | resolved (`reference-geom-001.usda`) |
+| Instancing | expanded: two instances of one prototype become two meshes, each at its own world transform (`blastest-instanced-static.usda`) |
+| Textures | asset path, resolved path, output channel (`r`, `rgb`...) and UV set name per texture; images are not decoded with `load_textures = false`, so MeshLab reads them with `QImage` |
+| `metersPerUnit` | Tydra reports 1.0 when the stage does not author it (`render-converter-convert.cc`), but `Stage::GetMeta().metersPerUnit_set` tells whether it was authored |
+| Writing | a cube with two materials, one textured through `UsdUVTexture` and `UsdPrimvarReader_float2`, faceVarying `st`, GeomSubsets, Z up, millimeters, written as `.usda`, `.usdc` and `.usdz`: OpenUSD reads all three as written, and its 30 registered validators report nothing. The `.usdz` stores its entries uncompressed with `root.usdc` first, and the texture resolves inside the package |
+| Scale | a 2.25 M vertex, 4.5 M triangle mesh: write USDC 23 ms (27 MB), load 8 ms (arrays decode lazily), convert 54 ms; peak resident memory 508 MB including the test's own arrays. OpenUSD reads it back in 20 ms with the same counts and values |
+| Quick Look | not checked: `qlmanage` produced no thumbnail from the session's sandbox. To be opened by hand |
+
+**Authoring is low-level.** The writer builds prims with `StageBuilder`/`LayerBuilder`,
+values with `Value::MakeFloatCompArray(..., TypeId::Point3f, 3)` and the like, and records the
+USD type name of each property itself. A shader output (`outputs:surface`) is declared with
+`add_property_slot` on an interned name: a type name alone writes nothing, and the first
+attempt produced connections to undeclared outputs. The `materialBind` family must declare its
+type (`subsetFamily:materialBind:familyType = "partition"`): OpenUSD's validator flagged its
+absence. The exporter is therefore some 300 lines of careful code, not a call. Both pitfalls
+belong in its comments and its round-trip test.
+
+**Verdict: go.** Everything stage 1 needs works, at a cost in build time and size MeshLab
+already pays for comparable libraries.
 
 ## 4. Stage 1: the `io_usd` plugin
 
@@ -244,6 +286,7 @@ whose size its mapping table will tell.
    glTF's node transforms are?
 2. **Unit fallback.** A stage that does not author `metersPerUnit` is in centimeters by the
    specification. Report centimeters (by definition, as glTF's meters), or Unknown (as for a
-   format that does not say)?
+   format that does not say)? Stage 0 showed the importer can tell the two apart
+   (`metersPerUnit_set`); Tydra's own fallback, 1.0, is used by neither choice.
 3. **Scene interface** (5.1): approve the two optional calls, or another shape?
 4. **Stage 3 timing**: right after stage 1, or after stage 2?
