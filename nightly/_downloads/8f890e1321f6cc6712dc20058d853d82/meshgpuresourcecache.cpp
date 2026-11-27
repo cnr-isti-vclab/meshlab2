@@ -29,6 +29,7 @@ struct EdgeVertexGpu {
     float position[3];
     std::uint8_t vertexColor[4];
     std::uint8_t edgeColor[4];
+    float quality[4];
 };
 
 struct FatEdgeVertexGpu {
@@ -38,6 +39,7 @@ struct FatEdgeVertexGpu {
     float side;
     std::uint8_t vertexColor[4];
     std::uint8_t edgeColor[4];
+    float quality[4];
 };
 
 static_assert(sizeof(EdgeVertexGpu) == MeshGpuResourceCache::kEdgeVertexStrideBytes);
@@ -47,7 +49,13 @@ static_assert(
 static_assert(
     offsetof(EdgeVertexGpu, edgeColor)
     == MeshGpuResourceCache::kEdgeColorOffsetBytes);
+static_assert(
+    offsetof(EdgeVertexGpu, quality)
+    == MeshGpuResourceCache::kEdgeQualityOffsetBytes);
 static_assert(sizeof(FatEdgeVertexGpu) == MeshGpuResourceCache::kFatEdgeVertexStrideBytes);
+static_assert(
+    offsetof(FatEdgeVertexGpu, quality)
+    == MeshGpuResourceCache::kFatEdgeQualityOffsetBytes);
 static_assert(
     offsetof(FatEdgeVertexGpu, vertexColor)
     == MeshGpuResourceCache::kFatEdgeVertexColorOffsetBytes);
@@ -127,6 +135,35 @@ std::uint64_t colorSourceRevision(const MeshGpuResourceCache::MeshSource &source
 }
 }
 
+QRhiVertexInputLayout MeshGpuResourceCache::edgeInputLayout()
+{
+    QRhiVertexInputLayout layout;
+    layout.setBindings({ { kEdgeVertexStrideBytes } });
+    layout.setAttributes({
+        { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
+        { 0, 1, QRhiVertexInputAttribute::UNormByte4, kEdgeVertexColorOffsetBytes },
+        { 0, 2, QRhiVertexInputAttribute::UNormByte4, kEdgeColorOffsetBytes },
+        { 0, 3, QRhiVertexInputAttribute::Float4, kEdgeQualityOffsetBytes }
+    });
+    return layout;
+}
+
+QRhiVertexInputLayout MeshGpuResourceCache::fatEdgeInputLayout()
+{
+    QRhiVertexInputLayout layout;
+    layout.setBindings({ { kFatEdgeVertexStrideBytes } });
+    layout.setAttributes({
+        { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
+        { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
+        { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
+        { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) },
+        { 0, 4, QRhiVertexInputAttribute::UNormByte4, kFatEdgeVertexColorOffsetBytes },
+        { 0, 5, QRhiVertexInputAttribute::UNormByte4, kFatEdgeColorOffsetBytes },
+        { 0, 6, QRhiVertexInputAttribute::Float4, kFatEdgeQualityOffsetBytes }
+    });
+    return layout;
+}
+
 struct MeshGpuResourceCache::CacheState
 {
     // The buffers of one batched vertex stream, and the views handed to the draw code.
@@ -178,6 +215,7 @@ struct MeshGpuResourceCache::CacheState
     struct EdgeGpu {
         std::uint64_t geometryRevision = 0;
         std::uint64_t colorRevision = 0;
+        std::uint64_t scalarRevision = 0;
         bool valid = false;
         std::unique_ptr<QRhiBuffer> vbuf;
         int vertexCount = 0;
@@ -1202,12 +1240,14 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
 
     auto rebuildEdges = [&](CacheState::EdgeGpu &dst) -> bool {
         if (dst.valid && dst.geometryRevision == source.geometryRevision
-            && dst.colorRevision == source.colorRevision)
+            && dst.colorRevision == source.colorRevision
+            && dst.scalarRevision == source.scalarRevision)
             return false;
 
         dst.valid = true;
         dst.geometryRevision = source.geometryRevision;
         dst.colorRevision = source.colorRevision;
+        dst.scalarRevision = source.scalarRevision;
         dst.vbuf.reset();
         dst.vertexCount = 0;
         dst.fatVbuf.reset();
@@ -1240,17 +1280,29 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
             const auto vertexColor0 = rgba(v0->cC());
             const auto vertexColor1 = rgba(v1->cC());
             const auto edgeColor = rgba(e.cC());
+            const auto quality = [&e](const VCGVertex *v) {
+                const float vq = float(v->cQ());
+                const float eq = float(e.cQ());
+                const bool vf = std::isfinite(vq);
+                const bool ef = std::isfinite(eq);
+                return std::array<float, 4> { vf ? vq : 0.0f, vf ? 1.0f : 0.0f,
+                                              ef ? eq : 0.0f, ef ? 1.0f : 0.0f };
+            };
+            const auto quality0 = quality(v0);
+            const auto quality1 = quality(v1);
 
             const auto appendThinVertex =
-                [&](const auto &point, const std::array<std::uint8_t, 4> &vertexColor) {
+                [&](const auto &point, const std::array<std::uint8_t, 4> &vertexColor,
+                    const std::array<float, 4> &q) {
                     EdgeVertexGpu vertex {};
                     std::copy_n(point.V(), 3, vertex.position);
                     std::copy(vertexColor.begin(), vertexColor.end(), vertex.vertexColor);
                     std::copy(edgeColor.begin(), edgeColor.end(), vertex.edgeColor);
+                    std::copy(q.begin(), q.end(), vertex.quality);
                     vdata.push_back(vertex);
                 };
-            appendThinVertex(p0, vertexColor0);
-            appendThinVertex(p1, vertexColor1);
+            appendThinVertex(p0, vertexColor0, quality0);
+            appendThinVertex(p1, vertexColor1, quality1);
 
             for (const auto &tpl : LineRenderer::kFatTriTemplate) {
                 FatEdgeVertexGpu vertex {};
@@ -1259,8 +1311,10 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                 vertex.along = tpl[0];
                 vertex.side = tpl[1];
                 const auto &vertexColor = tpl[0] < 0.5f ? vertexColor0 : vertexColor1;
+                const auto &q = tpl[0] < 0.5f ? quality0 : quality1;
                 std::copy(vertexColor.begin(), vertexColor.end(), vertex.vertexColor);
                 std::copy(edgeColor.begin(), edgeColor.end(), vertex.edgeColor);
+                std::copy(q.begin(), q.end(), vertex.quality);
                 fatVdata.push_back(vertex);
             }
         }

@@ -248,8 +248,9 @@
 <h1>USD Support<a class="headerlink" href="#usd-support" title="Link to this heading">¶</a></h1>
 <p>This document proposes reading and writing Pixar’s Universal Scene Description (<code class="docutils literal notranslate"><span class="pre">.usda</span></code>,
 <code class="docutils literal notranslate"><span class="pre">.usdc</span></code>, <code class="docutils literal notranslate"><span class="pre">.usdz</span></code>) in MeshLab, with its materials, and exporting a set of layers to one USD
-file. <strong>Nothing described here is implemented.</strong> Decided 2026-11-23 (Paolo): the library is
-LightUSD, and import starts flattened, as glTF’s does.</p>
+file. Stage 1, the flattened import and the one-layer export, is implemented (<code class="docutils literal notranslate"><span class="pre">plugins/io_usd</span></code>);
+stages 2 and 3 are not. Decided 2026-11-23 (Paolo): the library is LightUSD, and import starts
+flattened, as glTF’s does.</p>
 <p>See also: <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (layers, materials, units),
 <a class="reference internal" href="../history/project_persistence.html"><span class="std std-doc">Project persistence</span></a> (how saving works, and why a save is
 not a filter), <a class="reference internal" href="../third_party.html"><span class="std std-doc">Third-Party Code</span></a>, <a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a> (the
@@ -268,11 +269,11 @@ for flattening a scene).</p>
 <tbody>
 <tr class="row-even"><td><p>0</p></td>
 <td><p>LightUSD as a submodule; read and write the stage-0 fixtures; check against OpenUSD</p></td>
-<td><p>not started</p></td>
+<td><p>done 2026-11-27 (§3.1): go; <code class="docutils literal notranslate"><span class="pre">external/lightusd</span></code> at v1.0.0</p></td>
 </tr>
 <tr class="row-odd"><td><p>1</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">io_usd</span></code>: flattened import, single-layer export, four material channels, units and up axis</p></td>
-<td><p>not started</p></td>
+<td><p>done 2026-11-27 (§4.4), with the departures from the plan listed there</p></td>
 </tr>
 <tr class="row-even"><td><p>2</p></td>
 <td><p>Scene I/O: export visible layers to one file, import as separate layers</p></td>
@@ -380,6 +381,79 @@ texture coordinates, <code class="docutils literal notranslate"><span class="pre
 Look.</p></li>
 <li><p>Outcome: go, or go with patches upstreamed first, or reconsider.</p></li>
 </ul>
+<section id="results-2026-11-27">
+<h3>3.1 Results (2026-11-27)<a class="headerlink" href="#results-2026-11-27" title="Link to this heading">¶</a></h3>
+<p>Measured on LightUSD v1.0.0 (source tarball, not yet a submodule), built as a subdirectory of a
+throwaway CMake project with Release flags on this 16-core Mac, checked with
+OpenUSD 26.11 (<code class="docutils literal notranslate"><span class="pre">usd-core</span></code> from PyPI). The trial program and its outputs stayed outside the
+repository; the written <code class="docutils literal notranslate"><span class="pre">.usda</span></code>, <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> and texture are in the git-ignored <code class="docutils literal notranslate"><span class="pre">tests/local/usd_stage0/</span></code>.</p>
+<p><strong>The library to use is not the one this proposal named.</strong> LightUSD 1.0 ships two
+implementations. The default, <code class="docutils literal notranslate"><span class="pre">src/next</span></code> (<code class="docutils literal notranslate"><span class="pre">lightusd::next</span></code>, with the render conversion
+<code class="docutils literal notranslate"><span class="pre">tydra_next</span></code>), is a rewrite. The older core, with the Tydra described in its README and
+<code class="docutils literal notranslate"><span class="pre">lightusd_static</span></code> in its integration notes, is deprecated (<code class="docutils literal notranslate"><span class="pre">LIGHTUSD_NATIVE_PRODUCT=legacy</span></code>).
+Stage 1 targets the new one: link <code class="docutils literal notranslate"><span class="pre">lightusd::next</span></code> and <code class="docutils literal notranslate"><span class="pre">tydra_next</span></code>, include
+<code class="docutils literal notranslate"><span class="pre">next/lightusd-next.hh</span></code> and <code class="docutils literal notranslate"><span class="pre">tydra/next/render-converter.hh</span></code>.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Check</p></th>
+<th class="head"><p>Result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Build</p></td>
+<td><p>17.5 s wall, 180 s CPU, 283 build steps, library and Tydra only (no tools, tests, examples, C API, OBJ/FBX import, audio, EXR). Static libraries 14 MB</p></td>
+</tr>
+<tr class="row-odd"><td><p>Size added</p></td>
+<td><p>the trial executable, loader, converter and three writers, 4.3 MB stripped (5.4 MB unstripped)</p></td>
+</tr>
+<tr class="row-even"><td><p>GeomSubset materials</p></td>
+<td><p>read: <code class="docutils literal notranslate"><span class="pre">material_subsets</span></code> per mesh (3 subsets covering the 9 faces of <code class="docutils literal notranslate"><span class="pre">geomsubset-material-001.usda</span></code>); written: OpenUSD binds each subset to its material and <code class="docutils literal notranslate"><span class="pre">ValidateFamily</span></code> accepts the <code class="docutils literal notranslate"><span class="pre">materialBind</span></code> partition</p></td>
+</tr>
+<tr class="row-odd"><td><p>faceVarying primvars</p></td>
+<td><p>kept as authored, with an interpolation flag per attribute: normals (<code class="docutils literal notranslate"><span class="pre">facevarying-normal-test.usda</span></code>), texture coordinates (<code class="docutils literal notranslate"><span class="pre">parity-material-uv-subset.usda</span></code>, <code class="docutils literal notranslate"><span class="pre">reference-geom-001.usda</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>Polygons</p></td>
+<td><p>kept with <code class="docutils literal notranslate"><span class="pre">triangulate</span> <span class="pre">=</span> <span class="pre">false</span></code> (<code class="docutils literal notranslate"><span class="pre">reference-geom-001.usda</span></code>: 32 triangles and 468 quads)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">leftHanded</span></code></p></td>
+<td><p>reported per mesh (<code class="docutils literal notranslate"><span class="pre">RenderMesh::left_handed</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>References</p></td>
+<td><p>resolved (<code class="docutils literal notranslate"><span class="pre">reference-geom-001.usda</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Instancing</p></td>
+<td><p>expanded: two instances of one prototype become two meshes, each at its own world transform (<code class="docutils literal notranslate"><span class="pre">blastest-instanced-static.usda</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>Textures</p></td>
+<td><p>asset path, resolved path, output channel (<code class="docutils literal notranslate"><span class="pre">r</span></code>, <code class="docutils literal notranslate"><span class="pre">rgb</span></code>…) and UV set name per texture; images are not decoded with <code class="docutils literal notranslate"><span class="pre">load_textures</span> <span class="pre">=</span> <span class="pre">false</span></code>, so MeshLab reads them with <code class="docutils literal notranslate"><span class="pre">QImage</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code></p></td>
+<td><p>Tydra reports 1.0 when the stage does not author it (<code class="docutils literal notranslate"><span class="pre">render-converter-convert.cc</span></code>), but <code class="docutils literal notranslate"><span class="pre">Stage::GetMeta().metersPerUnit_set</span></code> tells whether it was authored</p></td>
+</tr>
+<tr class="row-even"><td><p>Writing</p></td>
+<td><p>a cube with two materials, one textured through <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> and <code class="docutils literal notranslate"><span class="pre">UsdPrimvarReader_float2</span></code>, faceVarying <code class="docutils literal notranslate"><span class="pre">st</span></code>, GeomSubsets, Z up, millimeters, written as <code class="docutils literal notranslate"><span class="pre">.usda</span></code>, <code class="docutils literal notranslate"><span class="pre">.usdc</span></code> and <code class="docutils literal notranslate"><span class="pre">.usdz</span></code>: OpenUSD reads all three as written, and its 30 registered validators report nothing. The <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> stores its entries uncompressed with <code class="docutils literal notranslate"><span class="pre">root.usdc</span></code> first, and the texture resolves inside the package</p></td>
+</tr>
+<tr class="row-odd"><td><p>Scale</p></td>
+<td><p>a 2.25 M vertex, 4.5 M triangle mesh: write USDC 23 ms (27 MB), load 8 ms (arrays decode lazily), convert 54 ms; peak resident memory 508 MB including the test’s own arrays. OpenUSD reads it back in 20 ms with the same counts and values</p></td>
+</tr>
+<tr class="row-even"><td><p>Quick Look</p></td>
+<td><p>not checked: <code class="docutils literal notranslate"><span class="pre">qlmanage</span></code> produced no thumbnail from the session’s sandbox. To be opened by hand</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Authoring is low-level.</strong> The writer builds prims with <code class="docutils literal notranslate"><span class="pre">StageBuilder</span></code>/<code class="docutils literal notranslate"><span class="pre">LayerBuilder</span></code>,
+values with <code class="docutils literal notranslate"><span class="pre">Value::MakeFloatCompArray(...,</span> <span class="pre">TypeId::Point3f,</span> <span class="pre">3)</span></code> and the like, and records the
+USD type name of each property itself. A shader output (<code class="docutils literal notranslate"><span class="pre">outputs:surface</span></code>) is declared with
+<code class="docutils literal notranslate"><span class="pre">add_property_slot</span></code> on an interned name: a type name alone writes nothing, and the first
+attempt produced connections to undeclared outputs. The <code class="docutils literal notranslate"><span class="pre">materialBind</span></code> family must declare its
+type (<code class="docutils literal notranslate"><span class="pre">subsetFamily:materialBind:familyType</span> <span class="pre">=</span> <span class="pre">&quot;partition&quot;</span></code>): OpenUSD’s validator flagged its
+absence. The exporter is therefore some 300 lines of careful code, not a call. Both pitfalls
+belong in its comments and its round-trip test.</p>
+<p><strong>Verdict: go.</strong> Everything stage 1 needs works, at a cost in build time and size MeshLab
+already pays for comparable libraries.</p>
+</section>
 </section>
 <section id="stage-1-the-io-usd-plugin">
 <h2>4. Stage 1: the <code class="docutils literal notranslate"><span class="pre">io_usd</span></code> plugin<a class="headerlink" href="#stage-1-the-io-usd-plugin" title="Link to this heading">¶</a></h2>
@@ -538,6 +612,78 @@ rule: stored and unchanged ones are referred to or copied byte for byte, new one
 next to the file, or inside it for <code class="docutils literal notranslate"><span class="pre">.usdz</span></code>. Unlike glTF’s saver, which writes only the base
 color texture, all four channels are written.</p>
 </section>
+<section id="as-implemented-2026-11-27">
+<h3>4.4 As implemented (2026-11-27)<a class="headerlink" href="#as-implemented-2026-11-27" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">plugins/io_usd/usdplugin.cpp</span></code>, about 1,150 lines (glTF’s is 2,100), builds LightUSD as a subproject with its
+tools, tests, C API, bundled importers, audio and EXR off. The plugin compiles with
+<code class="docutils literal notranslate"><span class="pre">QT_NO_KEYWORDS</span></code>, because LightUSD names members <code class="docutils literal notranslate"><span class="pre">slots</span></code>.</p>
+<p><strong>Departures from 4.1–4.3</strong>, each forced by what MeshLab or LightUSD offers:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Planned</p></th>
+<th class="head"><p>Implemented</p></th>
+<th class="head"><p>Why</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>faceVarying normals as wedge normals</p></td>
+<td><p>averaged per vertex, with a log line</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> has no per-corner normal (<code class="docutils literal notranslate"><span class="pre">src/core/vcgmesh.h</span></code>); the OBJ path’s <code class="docutils literal notranslate"><span class="pre">IOM_WEDGNORMAL</span></code> is a mask bit with no storage behind it in MeshLab’s mesh</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">upAxis</span></code> Y as a rotation on the layer matrix (question 1)</p></td>
+<td><p>the rotation baked into the coordinates, with a log line</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshIOPlugin::load</span></code> returns no matrix; carrying one is the request-struct change of <a class="reference internal" href="load_options.html#6-open-questions"><span class="std std-ref">Load Options §6.1</span></a>, not a stage 1 change. glTF, also Y-up, is not rotated at all today, so the two formats now disagree</p></td>
+</tr>
+<tr class="row-even"><td><p>unfallbacked <code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code> (question 2)</p></td>
+<td><p>centimeters, by the specification, with a log line</p></td>
+<td><p>the specification’s value; one line to change if Unknown is preferred</p></td>
+</tr>
+<tr class="row-odd"><td><p>texture coordinates as vertex or wedge by interpolation</p></td>
+<td><p>always wedge, as glTF’s importer does</p></td>
+<td><p>one path; a vertex-interpolated <code class="docutils literal notranslate"><span class="pre">st</span></code> gives the same wedges</p></td>
+</tr>
+<tr class="row-even"><td><p>one slot per material</p></td>
+<td><p>one slot per material whose diffuse color is a texture; a material with a constant diffuse color gives its faces a face color, and their slot index is −1</p></td>
+<td><p>a slot is a texture group to the renderer (<code class="docutils literal notranslate"><span class="pre">MeshGpuResourceCache</span></code>), and <code class="docutils literal notranslate"><span class="pre">mesh.textures[i]</span></code> must pair with slot <code class="docutils literal notranslate"><span class="pre">i</span></code> for <code class="docutils literal notranslate"><span class="pre">Document::loadMesh</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>polygons triangulated by MeshLab</p></td>
+<td><p>triangulated by Tydra (ear clipping), which also maps each triangle back to its authored face and corners; the diagonals become faux edges</p></td>
+<td><p>the same map indexes faceVarying data, GeomSubsets and <code class="docutils literal notranslate"><span class="pre">leftHanded</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Also: a prim whose world transform mirrors (negative determinant) has its winding reversed, as
+<code class="docutils literal notranslate"><span class="pre">leftHanded</span></code> does; invisible prims are skipped; <code class="docutils literal notranslate"><span class="pre">UsdGeomPoints</span></code> become vertices; textures inside
+a <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> are decoded with <code class="docutils literal notranslate"><span class="pre">QImage</span></code> from the package (LightUSD’s <code class="docutils literal notranslate"><span class="pre">USDZReader</span></code>), into in-memory
+assets; on export a mesh with one slot on every face binds its material on the mesh, otherwise
+through GeomSubsets whose family is a <code class="docutils literal notranslate"><span class="pre">partition</span></code>, or <code class="docutils literal notranslate"><span class="pre">nonOverlapping</span></code> when some faces have no
+slot; edges are not written, with a log line; texture paths not copied are written relative to
+the file, as PLY’s and OBJ’s are.</p>
+<p><strong>A zero save mask writes everything the format holds</strong>, as glTF’s saver does: white vertex
+colors, a zero <code class="docutils literal notranslate"><span class="pre">scalar</span></code> primvar and normals included, and the vertex colors displace face
+colors. The GUI never passes one (<code class="docutils literal notranslate"><span class="pre">defaultSaveMaskForMesh</span></code> in <code class="docutils literal notranslate"><span class="pre">mainwindow.cpp</span></code> starts from the
+layer’s <code class="docutils literal notranslate"><span class="pre">ioMask</span></code>), but <code class="docutils literal notranslate"><span class="pre">Document::saveMesh</span></code> callers without a mask do: Python’s
+<code class="docutils literal notranslate"><span class="pre">save_current_mesh</span></code> and project saves. Moving that default into <code class="docutils literal notranslate"><span class="pre">Document::saveMesh</span></code> would fix
+it for every format; it is outside this stage.</p>
+<p><strong>Measured</strong> on build-release, this Mac:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code>: four USD tests (the fixtures in <code class="docutils literal notranslate"><span class="pre">tests/data/usd/</span></code>, and a
+usda/usdc/usdz round trip of polygons, wedge coordinates, face colors, a material, an
+in-memory texture and the unit) and the decimal-comma locale test extended to <code class="docutils literal notranslate"><span class="pre">usda</span></code>.</p></li>
+<li><p>OpenUSD 26.11 (<code class="docutils literal notranslate"><span class="pre">usd-core</span></code>, outside the tree) on 12 files MeshLab wrote (the fixtures, a
+1,280-face sphere with face colors and the stage-0 cube, each as usda, usdc and usdz): all
+read as written, all 30 validators report nothing, the <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> textures resolve inside the
+package. Not automated: <code class="docutils literal notranslate"><span class="pre">usd-core</span></code> is not a test dependency.</p></li>
+<li><p>All 1,272 <code class="docutils literal notranslate"><span class="pre">.usd*</span></code> files in LightUSD’s repository opened one by one through <code class="docutils literal notranslate"><span class="pre">--script</span></code>: no
+crash, no hang; 508 load, 764 are refused with a message (no visible mesh or points, or
+invalid on purpose). The two refused <code class="docutils literal notranslate"><span class="pre">models/</span></code> files with a <code class="docutils literal notranslate"><span class="pre">Mesh</span></code> have no points, or
+reference an <code class="docutils literal notranslate"><span class="pre">.obj</span></code>, which needs LightUSD’s OBJ plugin.</p></li>
+<li><p>4.5 M triangles: load 0.27 s, save 0.66 s, peak resident memory 2.2 GB.</p></li>
+<li><p>Not checked: Quick Look and Blender on a written <code class="docutils literal notranslate"><span class="pre">.usdz</span></code>; the GUI’s open and save dialogs.</p></li>
+</ul>
+</section>
 </section>
 <section id="stage-2-scenes">
 <h2>5. Stage 2: scenes<a class="headerlink" href="#stage-2-scenes" title="Link to this heading">¶</a></h2>
@@ -690,9 +836,10 @@ before code. It also fixes the roughness averaging of 4.2.</p>
 <section id="validation">
 <h2>7. Validation<a class="headerlink" href="#validation" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p><strong>Fixtures written by us</strong>, small <code class="docutils literal notranslate"><span class="pre">.usda</span></code> files committed under <code class="docutils literal notranslate"><span class="pre">tests/sample_mesh/usd/</span></code>: a
-quad and a triangle with faceVarying coordinates; two materials by subsets; a <code class="docutils literal notranslate"><span class="pre">leftHanded</span></code>
-mesh; a Y-up stage in centimeters; an instanced and a referenced mesh. Ours, so no licence
+<li><p><strong>Fixtures written by us</strong>, small <code class="docutils literal notranslate"><span class="pre">.usda</span></code> files committed under <code class="docutils literal notranslate"><span class="pre">tests/data/usd/</span></code>: a
+quad and two triangles with faceVarying coordinates and two materials by subsets; a
+<code class="docutils literal notranslate"><span class="pre">leftHanded</span></code> mesh on a Y-up stage with no unit and an invisible prim; a referenced mesh,
+once translated and once as a mirrored instance. Ours, so no licence
 question; public assets only in the local dataset, by <a class="reference internal" href="../test_data.html"><span class="std std-doc">test_data.md</span></a>.</p></li>
 <li><p><strong>Round trips</strong> in <code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code>, beside the glTF ones: save a layer, load it
 back, compare positions, coordinates, slot indices and the four material channels.</p></li>
@@ -711,10 +858,13 @@ whose size its mapping table will tell.</p>
 <h2>9. Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Up axis.</strong> A rotation on the layer matrix (proposed), or baked into the coordinates as
-glTF’s node transforms are?</p></li>
+glTF’s node transforms are? <em>Stage 1 bakes it (4.4): the layer matrix needs the load request
+of Load Options. And should glTF, Y-up by definition, be rotated too?</em></p></li>
 <li><p><strong>Unit fallback.</strong> A stage that does not author <code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code> is in centimeters by the
 specification. Report centimeters (by definition, as glTF’s meters), or Unknown (as for a
-format that does not say)?</p></li>
+format that does not say)? Stage 0 showed the importer can tell the two apart
+(<code class="docutils literal notranslate"><span class="pre">metersPerUnit_set</span></code>); Tydra’s own fallback, 1.0, is used by neither choice. <em>Stage 1
+reports centimeters.</em></p></li>
 <li><p><strong>Scene interface</strong> (5.1): approve the two optional calls, or another shape?</p></li>
 <li><p><strong>Stage 3 timing</strong>: right after stage 1, or after stage 2?</p></li>
 </ol>
@@ -762,11 +912,15 @@ format that does not say)?</p></li>
 <li><a class="reference internal" href="#status">Status</a></li>
 <li><a class="reference internal" href="#what-usd-asks-of-meshlab">1. What USD asks of MeshLab</a></li>
 <li><a class="reference internal" href="#the-library-lightusd">2. The library: LightUSD</a></li>
-<li><a class="reference internal" href="#stage-0-measuring-lightusd">3. Stage 0: measuring LightUSD</a></li>
+<li><a class="reference internal" href="#stage-0-measuring-lightusd">3. Stage 0: measuring LightUSD</a><ul>
+<li><a class="reference internal" href="#results-2026-11-27">3.1 Results (2026-11-27)</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#stage-1-the-io-usd-plugin">4. Stage 1: the <code class="docutils literal notranslate"><span class="pre">io_usd</span></code> plugin</a><ul>
 <li><a class="reference internal" href="#import-flattened">4.1 Import, flattened</a></li>
 <li><a class="reference internal" href="#materials-stage-1">4.2 Materials, stage 1</a></li>
 <li><a class="reference internal" href="#export-one-layer">4.3 Export, one layer</a></li>
+<li><a class="reference internal" href="#as-implemented-2026-11-27">4.4 As implemented (2026-11-27)</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#stage-2-scenes">5. Stage 2: scenes</a><ul>

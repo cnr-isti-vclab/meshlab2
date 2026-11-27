@@ -1,7 +1,8 @@
 # Edge Support
 
-What remains of making edges a first-class element. **Not implemented:** any way
-to select an edge interactively, in either sense of *edge* below.
+What remains of making edges a first-class element. Every stage this proposal
+planned has shipped; what is left are the open questions at the end, and the
+document is ready to move to history.
 
 Stages 1-3 shipped on 2026-09-16 and their proposal is kept as a record in
 [history/edge_support.md](../history/edge_support.md): per-edge colour and scalar
@@ -16,6 +17,15 @@ Attribute*, whose attributes the edge expressions read by name
 ([expressions.md](../../expressions.md)). Arc length along a chain shipped on
 2026-11-27: the edge expressions read `es`, `earc`, `eidx` and `ech`, from vcglib's
 `Clean::EdgeMeshChains`, which splits a polyline at its ends and branch points.
+On the same day *Select All*, *Select None* and *Invert Selection* gained an edge
+option (`allEdges`, `InvEdges`), defaulting like the face and vertex ones
+(`@hasSelectedEdges` for invert); the selection tool's A/N/I keys pass it off.
+Also on 2026-11-27, `Rubber-band Select` gained an *Edges* mode (`E`), below. Later
+that day *Dilate Selection* and *Erode Selection* gained `element: edge` (the
+tool's `+` and `-` in edge mode), and their vertex mode steps along polylines; edges
+are drawn by a per-vertex or a per-edge scalar through the color map, as surfaces
+and points are ([Rendering](../rendering.md)), the histogram can chart a per-edge
+scalar, and the layer panel counts only the kinds a layer has.
 
 ## Two different things are called an edge
 
@@ -36,26 +46,21 @@ which one is meant.
 
 ## Interactive selection of edges
 
-Nothing can select an edge by pointing at it.
+`Rubber-band Select` has an *Edges* mode (`E`), committed as `element: edge` of
+`select_by_screen_rectangle` and `select_by_screen_polygon`. An edge is taken when
+its midpoint projects inside the region, as a face is by its barycenter, so no new
+rule had to be chosen between "both endpoints in" and "the segment crosses it". One
+mode serves both kinds: a polyline edge sets `VCGEdge::IsS()`, a triangle side the
+face-edge bit of each face it bounds, and the two faces agree because they test
+the same point, with no adjacency. *Visible Only* casts its ray to the midpoint;
+growing to components or islands is refused for edges. All on the CPU, in the
+filter: the GPU depth-mask path this section once proposed was not needed.
 
-**For meshes.** `Rubber-band Select` runs `select_by_screen_rectangle` (or
-`select_by_screen_polygon`) with one `bool m_selectFaces`; `F`/`V` toggle faces
-and vertices. An edge mode means deciding what "an edge is inside the rectangle"
-means — both endpoints in, or the segment crossing it — and then writing the
-per-face edge bits of both incident faces.
-
-**For polylines.** `VCGEdge::IsS()` is written only by *Select Edges by
-Expression*, by layer splitting and by undo. `select_all`, `select_none` and
-`invert_selection` take `allFaces`/`allVerts` and have no edge option, and
-`select_non_manifold_edges_vcglib` selects the faces and vertices *incident* on
-non-manifold edges rather than the edges. vcglib's `UpdateSelection` already has
-`EdgeAll`, `EdgeClear`, `EdgeInvert` and `EdgeCount`.
-
-**What to build on.** The current-layer outline pass already rasterises polyline
-edges into an offscreen depth buffer (`m_currentMaskEdgesDepthOnlyPipeline`,
-`m_currentMaskFatEdgesDepthOnlyPipeline`), so a picking or rubber-band path for
-edges would extend GPU code that is in use; `ViewpointOccluder` backs the
-visible-only option as it does for faces.
+In edge mode the tool's A, N, I, + and - run the set-operation filters' edge option
+(`dilate_selection` and `erode_selection` take `element: edge`), which covers polyline
+edges only, so they are disabled on a layer without them; nothing selects, clears,
+inverts, grows or shrinks the triangle sides of a mesh except a drag over the whole
+view. Vertex-mode dilate and erode step along polyline edges as well as faces.
 
 **A crease-edge decorator** is separate work. Crease filters write the same
 per-face selection bits as everything else, so their output shows in the
@@ -74,18 +79,17 @@ the description of *Transfer Color from Edge to Vertex* says.
 ## Staging
 
 4. Done 2026-11-26 (see the opening).
-5. An edge mode for `Rubber-band Select`, on top of the existing depth-mask
-   machinery.
+5. Done 2026-11-27: the rubber band's edge mode, on the CPU (see above).
 
 ## Open questions
 
-- **Should mesh edge selection and polyline edge selection share a UI?** They are
-  different storage with different semantics, but a user drawing a rectangle over
-  a model does not care. A single tool mode writing to whichever the current layer
-  supports is probably right, but it makes the tool's state harder to describe.
-- **Does `invert_selection` / `select_all` grow an `allEdges` flag**, or do
-  polyline layers get their own selection filters? The first is less UI, the
-  second avoids three dead checkboxes on every triangle mesh.
+- **Triangle sides in the set-operation filters.** Select All, None and Invert
+  could clear, set and flip the face-edge bits too, so the tool's A/N/I work on a
+  mesh in edge mode; whether `allEdges` should mean both kinds is undecided.
+- **The edge option of the set-operation filters shows on triangle meshes too**,
+  where it does nothing: the parameter schema cannot hide a row by what the layer
+  holds. The flag was chosen over separate polyline filters (2026-11-27) as less
+  UI; a schema-level `appliesTo` would remove the dead rows everywhere at once.
 - **Per-edge quality on mesh edges** would need a genuinely different design —
   probably a named attribute keyed by a canonical (vertex, vertex) pair rather
   than anything stored on faces.

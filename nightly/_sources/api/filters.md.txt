@@ -4226,7 +4226,7 @@ Sample a surface and relax the samples with a geodesic Voronoi/Lloyd process.
 ```{py:function} ms.sample_surface_by_voronoi_relaxation(**params)
 :module: _meshlab
 
-Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The final seeds, which are vertices of the current mesh, are selected there and also added as a point cloud layer. When every Voronoi region is a disk, three more layers are added: the Voronoi cells as polygons, their boundaries as a polyline, and the dual Delaunay triangulation of the seeds. A region that wraps around a thin part of the mesh, such as the tube of a torus sampled sparsely, is not a disk; then only the samples are added. The current mesh keeps its colors: the chosen quantity of the final diagram (seed distance, border distance or region area) is stored as its vertex scalar.
+Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The final seeds are added as a point cloud layer. When every Voronoi region is a disk, three more layers are added: the Voronoi cells as polygons, their boundaries as a polyline, and the dual Delaunay triangulation of the seeds. A region that wraps around a thin part of the mesh, such as the tube of a torus sampled sparsely, is not a disk; then only the samples are added. The current mesh keeps its colors: the chosen quantity of the final diagram (seed distance, border distance or region area) is stored as its vertex scalar.
 
 **Parameters:**
 
@@ -10429,20 +10429,20 @@ This filter has no parameters.
 
 **Plugin:** meshlab2.filter.select
 
-Grow the selection by one ring of faces or vertices.
+Grow the selection by one ring of faces, edges or vertices.
 
 ```{py:function} ms.dilate_selection(**params)
 :module: _meshlab
 
-Grow the selection by one ring: everything that shares a face or a vertex with it joins in.
+Grow the selection by one ring: everything that shares a face, an edge or a vertex with it joins in.
 
-On a face selection, the faces touching a selected face are added. On a vertex selection, the vertices sharing a face with a selected one are added. Choose which with **Elements**; the default keeps the classic behavior of growing the faces and letting the vertex selection follow.
+On a face selection, the faces touching a selected face are added. On an edge selection, the edges sharing an end with a selected edge are added. On a vertex selection, the vertices sharing a face or an edge with a selected one are added. Edges are polyline edges; triangle sides are not reached. Choose which with **Elements**; the default keeps the classic behavior of growing the faces and letting the vertex selection follow.
 
 Selection tool shortcut: `+`.
 
 **Parameters:**
 
-- **element** (*enum*, default: `both`) — Which selection to grow. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.
+- **element** (*enum*, default: `both`) — Which selection to grow. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only*, *Edges only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.
 ```
 
 ---
@@ -10455,20 +10455,20 @@ Selection tool shortcut: `+`.
 
 **Plugin:** meshlab2.filter.select
 
-Shrink the selection by one ring of faces or vertices.
+Shrink the selection by one ring of faces, edges or vertices.
 
 ```{py:function} ms.erode_selection(**params)
 :module: _meshlab
 
 Shrink the selection by one ring: only what is completely surrounded by the selection stays.
 
-On a face selection, a face stays if none of its corners also belongs to an unselected face. On a vertex selection, a vertex stays if every face around it has all three corners selected. Choose which with **Elements**; the default keeps the classic behavior of shrinking the faces and letting the vertex selection follow.
+On a face selection, a face stays if none of its corners also belongs to an unselected face. On an edge selection, an edge stays if neither of its ends also belongs to an unselected edge, so the open end of a polyline, like the border of a surface, does not shrink. On a vertex selection, a vertex stays if every face and edge around it has all its corners selected. Edges are polyline edges; triangle sides are not reached. Choose which with **Elements**; the default keeps the classic behavior of shrinking the faces and letting the vertex selection follow.
 
 Selection tool shortcut: `-`.
 
 **Parameters:**
 
-- **element** (*enum*, default: `both`) — Which selection to shrink. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.
+- **element** (*enum*, default: `both`) — Which selection to shrink. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only*, *Edges only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.
 ```
 
 ---
@@ -10481,15 +10481,18 @@ Selection tool shortcut: `-`.
 
 **Plugin:** meshlab2.filter.select
 
-Invert the current set of selected faces/vertices.
+Invert the current set of selected faces, vertices and edges.
 
 ```{py:function} ms.invert_selection(**params)
 :module: _meshlab
+
+Invert the current set of selected faces, vertices and edges. Edges are the real edges of a polyline layer, not the sides of triangles.
 
 **Parameters:**
 
 - **InvFaces** (*bool*, default: `@hasSelectedFaces`) — If true the filter will invert the set of selected faces.
 - **InvVerts** (*bool*, default: `@hasSelectedVerts`) — If true the filter will invert the set of selected vertices.
+- **InvEdges** (*bool*, default: `@hasSelectedEdges`) — If true the filter will invert the set of selected edges of a polyline layer.
 ```
 
 ---
@@ -10502,15 +10505,18 @@ Invert the current set of selected faces/vertices.
 
 **Plugin:** meshlab2.filter.select
 
-Select all the faces/vertices of the current mesh.
+Select all the faces, vertices and edges of the current mesh.
 
 ```{py:function} ms.select_all(**params)
 :module: _meshlab
+
+Select all the faces, vertices and edges of the current mesh. Edges are the real edges of a polyline layer, not the sides of triangles.
 
 **Parameters:**
 
 - **allFaces** (*bool*, default: `True`) — If true the filter will select all the faces.
 - **allVerts** (*bool*, default: `True`) — If true the filter will select all the vertices.
+- **allEdges** (*bool*, default: `True`) — If true the filter will select all the edges of a polyline layer.
 ```
 
 ---
@@ -10523,15 +10529,18 @@ Select all the faces/vertices of the current mesh.
 
 **Plugin:** meshlab2.filter.select
 
-Clear the current set of selected faces/vertices.
+Clear the current set of selected faces, vertices and edges.
 
 ```{py:function} ms.select_none(**params)
 :module: _meshlab
+
+Clear the current set of selected faces, vertices and edges. Edges are the real edges of a polyline layer, not the sides of triangles.
 
 **Parameters:**
 
 - **allFaces** (*bool*, default: `True`) — If true the filter will de-select all the faces.
 - **allVerts** (*bool*, default: `True`) — If true the filter will de-select all the vertices.
+- **allEdges** (*bool*, default: `True`) — If true the filter will de-select all the edges of a polyline layer.
 ```
 
 ---
@@ -11268,7 +11277,7 @@ Select vertices or faces whose screen projection falls inside a polygon.
 ```{py:function} ms.select_by_screen_polygon(**params)
 :module: _meshlab
 
-Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside it. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool's polygon mode (**P**), and is equally usable from scripting.
+Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside it. Edges are both the edges of a polyline layer and the sides of triangles, whose selection is kept on each face they bound. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool's polygon mode (**P**), and is equally usable from scripting.
 
 Everything else -- *Composition*, *Visible faces only*, *Expand to* -- is as in *Select by Screen Rectangle*.
 
@@ -11281,9 +11290,9 @@ Everything else -- *Composition*, *Visible faces only*, *Expand to* -- is as in 
 - **uv_pan_y** (*double*, default: `0.5`) — UV-view pan (Y), used when space = uv.
 - **uv_zoom** (*double*, default: `1.0`) — UV-view zoom, used when space = uv.
 - **polygon** (*string*, default: `[[0,0],[1,0],[1,1],[0,1]]`) — The outline, as a JSON array of [x, y] points in normalized viewport coordinates (origin bottom-left, y up, 0..1): at least three, closed implicitly. The default covers the whole viewport.
-- **element** (*enum*, default: `face`) — Whether to select vertices or faces (by centroid).
+- **element** (*enum*, default: `face`) — Whether to select vertices, faces (by centroid) or edges (by midpoint): the edges of a polyline layer and the sides of triangles, which keep their selection on each face they bound.
 - **mode** (*enum*, default: `replace`) — Replace the current selection, add to it, or subtract from it.
-- **visible_only** (*bool*, default: `False`) — When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).
+- **visible_only** (*bool*, default: `False`) — When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). Needs faces to occlude: a polyline layer alone is all visible.
 - **expand_to** (*enum*, default: `none`) — Grow what the polygon touched to the whole piece it belongs to, so grazing one triangle takes all of it. *Connected components* follow the mesh's own connectivity. *UV islands* also stop at UV seams, the edges whose two sides have different UVs, so each island is one piece of the UV layout; the mesh needs UVs for it. The growth starts from what the polygon hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole piece under the polygon instead of growing whatever was left behind. Vertices are grown through their faces, so a vertex on a seam takes the islands on both sides. Face-face adjacency is built on demand, so this costs more than a plain drag.
 ```
 
@@ -11302,7 +11311,7 @@ Select vertices or faces whose screen projection falls inside a rectangle.
 ```{py:function} ms.select_by_screen_rectangle(**params)
 :module: _meshlab
 
-Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside the rectangle. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.
+Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside the rectangle. Edges are both the edges of a polyline layer and the sides of triangles, whose selection is kept on each face they bound. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.
 
 *Expand to* is what the rubber-band tool's **C** (connected components) and **T** (UV islands) modifiers set: the rectangle only has to graze a piece for all of it to be selected.
 
@@ -11318,9 +11327,9 @@ Screen-space rubber-band selection. Given a camera and a rectangle in normalized
 - **rect_min_y** (*double*, default: `0.0`) — Bottom edge, normalized [0..1], y up.
 - **rect_max_x** (*double*, default: `1.0`) — Right edge, normalized [0..1].
 - **rect_max_y** (*double*, default: `1.0`) — Top edge, normalized [0..1], y up.
-- **element** (*enum*, default: `face`) — Whether to select vertices or faces (by centroid).
+- **element** (*enum*, default: `face`) — Whether to select vertices, faces (by centroid) or edges (by midpoint): the edges of a polyline layer and the sides of triangles, which keep their selection on each face they bound.
 - **mode** (*enum*, default: `replace`) — Replace the current selection, add to it, or subtract from it.
-- **visible_only** (*bool*, default: `False`) — When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).
+- **visible_only** (*bool*, default: `False`) — When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). Needs faces to occlude: a polyline layer alone is all visible.
 - **expand_to** (*enum*, default: `none`) — Grow what the rectangle touched to the whole piece it belongs to, so grazing one triangle takes all of it. *Connected components* follow the mesh's own connectivity. *UV islands* also stop at UV seams, the edges whose two sides have different UVs, so each island is one piece of the UV layout; the mesh needs UVs for it. The growth starts from what the rectangle hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole piece under the rectangle instead of growing whatever was left behind. Vertices are grown through their faces, so a vertex on a seam takes the islands on both sides. Face-face adjacency is built on demand, so this costs more than a plain drag.
 ```
 

@@ -246,8 +246,9 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="edge-support">
 <h1>Edge Support<a class="headerlink" href="#edge-support" title="Link to this heading">¶</a></h1>
-<p>What remains of making edges a first-class element. <strong>Not implemented:</strong> any way
-to select an edge interactively, in either sense of <em>edge</em> below.</p>
+<p>What remains of making edges a first-class element. Every stage this proposal
+planned has shipped; what is left are the open questions at the end, and the
+document is ready to move to history.</p>
 <p>Stages 1-3 shipped on 2026-09-16 and their proposal is kept as a record in
 <a class="reference internal" href="../history/edge_support.html"><span class="std std-doc">history/edge_support.md</span></a>: per-edge colour and scalar
 on <code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code> (<a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a>), PLY edge scalars
@@ -260,7 +261,16 @@ on their edges. Stage 4 shipped on 2026-11-26: <em>Set Random Polyline Color</em
 Attribute</em>, whose attributes the edge expressions read by name
 (<a class="reference internal" href="../../expressions.html"><span class="std std-doc">expressions.md</span></a>). Arc length along a chain shipped on
 2026-11-27: the edge expressions read <code class="docutils literal notranslate"><span class="pre">es</span></code>, <code class="docutils literal notranslate"><span class="pre">earc</span></code>, <code class="docutils literal notranslate"><span class="pre">eidx</span></code> and <code class="docutils literal notranslate"><span class="pre">ech</span></code>, from vcglib’s
-<code class="docutils literal notranslate"><span class="pre">Clean::EdgeMeshChains</span></code>, which splits a polyline at its ends and branch points.</p>
+<code class="docutils literal notranslate"><span class="pre">Clean::EdgeMeshChains</span></code>, which splits a polyline at its ends and branch points.
+On the same day <em>Select All</em>, <em>Select None</em> and <em>Invert Selection</em> gained an edge
+option (<code class="docutils literal notranslate"><span class="pre">allEdges</span></code>, <code class="docutils literal notranslate"><span class="pre">InvEdges</span></code>), defaulting like the face and vertex ones
+(<code class="docutils literal notranslate"><span class="pre">&#64;hasSelectedEdges</span></code> for invert); the selection tool’s A/N/I keys pass it off.
+Also on 2026-11-27, <code class="docutils literal notranslate"><span class="pre">Rubber-band</span> <span class="pre">Select</span></code> gained an <em>Edges</em> mode (<code class="docutils literal notranslate"><span class="pre">E</span></code>), below. Later
+that day <em>Dilate Selection</em> and <em>Erode Selection</em> gained <code class="docutils literal notranslate"><span class="pre">element:</span> <span class="pre">edge</span></code> (the
+tool’s <code class="docutils literal notranslate"><span class="pre">+</span></code> and <code class="docutils literal notranslate"><span class="pre">-</span></code> in edge mode), and their vertex mode steps along polylines; edges
+are drawn by a per-vertex or a per-edge scalar through the color map, as surfaces
+and points are (<a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a>), the histogram can chart a per-edge
+scalar, and the layer panel counts only the kinds a layer has.</p>
 <section id="two-different-things-are-called-an-edge">
 <h2>Two different things are called an edge<a class="headerlink" href="#two-different-things-are-called-an-edge" title="Link to this heading">¶</a></h2>
 <p>MeshLab has <strong>two unrelated notions of edge</strong>, and every remaining gap depends on
@@ -281,23 +291,20 @@ turns per-face edge bits into edge elements in a new layer.</p></li>
 </section>
 <section id="interactive-selection-of-edges">
 <h2>Interactive selection of edges<a class="headerlink" href="#interactive-selection-of-edges" title="Link to this heading">¶</a></h2>
-<p>Nothing can select an edge by pointing at it.</p>
-<p><strong>For meshes.</strong> <code class="docutils literal notranslate"><span class="pre">Rubber-band</span> <span class="pre">Select</span></code> runs <code class="docutils literal notranslate"><span class="pre">select_by_screen_rectangle</span></code> (or
-<code class="docutils literal notranslate"><span class="pre">select_by_screen_polygon</span></code>) with one <code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">m_selectFaces</span></code>; <code class="docutils literal notranslate"><span class="pre">F</span></code>/<code class="docutils literal notranslate"><span class="pre">V</span></code> toggle faces
-and vertices. An edge mode means deciding what “an edge is inside the rectangle”
-means — both endpoints in, or the segment crossing it — and then writing the
-per-face edge bits of both incident faces.</p>
-<p><strong>For polylines.</strong> <code class="docutils literal notranslate"><span class="pre">VCGEdge::IsS()</span></code> is written only by <em>Select Edges by
-Expression</em>, by layer splitting and by undo. <code class="docutils literal notranslate"><span class="pre">select_all</span></code>, <code class="docutils literal notranslate"><span class="pre">select_none</span></code> and
-<code class="docutils literal notranslate"><span class="pre">invert_selection</span></code> take <code class="docutils literal notranslate"><span class="pre">allFaces</span></code>/<code class="docutils literal notranslate"><span class="pre">allVerts</span></code> and have no edge option, and
-<code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges_vcglib</span></code> selects the faces and vertices <em>incident</em> on
-non-manifold edges rather than the edges. vcglib’s <code class="docutils literal notranslate"><span class="pre">UpdateSelection</span></code> already has
-<code class="docutils literal notranslate"><span class="pre">EdgeAll</span></code>, <code class="docutils literal notranslate"><span class="pre">EdgeClear</span></code>, <code class="docutils literal notranslate"><span class="pre">EdgeInvert</span></code> and <code class="docutils literal notranslate"><span class="pre">EdgeCount</span></code>.</p>
-<p><strong>What to build on.</strong> The current-layer outline pass already rasterises polyline
-edges into an offscreen depth buffer (<code class="docutils literal notranslate"><span class="pre">m_currentMaskEdgesDepthOnlyPipeline</span></code>,
-<code class="docutils literal notranslate"><span class="pre">m_currentMaskFatEdgesDepthOnlyPipeline</span></code>), so a picking or rubber-band path for
-edges would extend GPU code that is in use; <code class="docutils literal notranslate"><span class="pre">ViewpointOccluder</span></code> backs the
-visible-only option as it does for faces.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Rubber-band</span> <span class="pre">Select</span></code> has an <em>Edges</em> mode (<code class="docutils literal notranslate"><span class="pre">E</span></code>), committed as <code class="docutils literal notranslate"><span class="pre">element:</span> <span class="pre">edge</span></code> of
+<code class="docutils literal notranslate"><span class="pre">select_by_screen_rectangle</span></code> and <code class="docutils literal notranslate"><span class="pre">select_by_screen_polygon</span></code>. An edge is taken when
+its midpoint projects inside the region, as a face is by its barycenter, so no new
+rule had to be chosen between “both endpoints in” and “the segment crosses it”. One
+mode serves both kinds: a polyline edge sets <code class="docutils literal notranslate"><span class="pre">VCGEdge::IsS()</span></code>, a triangle side the
+face-edge bit of each face it bounds, and the two faces agree because they test
+the same point, with no adjacency. <em>Visible Only</em> casts its ray to the midpoint;
+growing to components or islands is refused for edges. All on the CPU, in the
+filter: the GPU depth-mask path this section once proposed was not needed.</p>
+<p>In edge mode the tool’s A, N, I, + and - run the set-operation filters’ edge option
+(<code class="docutils literal notranslate"><span class="pre">dilate_selection</span></code> and <code class="docutils literal notranslate"><span class="pre">erode_selection</span></code> take <code class="docutils literal notranslate"><span class="pre">element:</span> <span class="pre">edge</span></code>), which covers polyline
+edges only, so they are disabled on a layer without them; nothing selects, clears,
+inverts, grows or shrinks the triangle sides of a mesh except a drag over the whole
+view. Vertex-mode dilate and erode step along polyline edges as well as faces.</p>
 <p><strong>A crease-edge decorator</strong> is separate work. Crease filters write the same
 per-face selection bits as everything else, so their output shows in the
 selection overlay, but a crease selection and a rectangle selection are then
@@ -316,20 +323,19 @@ the description of <em>Transfer Color from Edge to Vertex</em> says.</p>
 <h2>Staging<a class="headerlink" href="#staging" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple" start="4">
 <li><p>Done 2026-11-26 (see the opening).</p></li>
-<li><p>An edge mode for <code class="docutils literal notranslate"><span class="pre">Rubber-band</span> <span class="pre">Select</span></code>, on top of the existing depth-mask
-machinery.</p></li>
+<li><p>Done 2026-11-27: the rubber band’s edge mode, on the CPU (see above).</p></li>
 </ol>
 </section>
 <section id="open-questions">
 <h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p><strong>Should mesh edge selection and polyline edge selection share a UI?</strong> They are
-different storage with different semantics, but a user drawing a rectangle over
-a model does not care. A single tool mode writing to whichever the current layer
-supports is probably right, but it makes the tool’s state harder to describe.</p></li>
-<li><p><strong>Does <code class="docutils literal notranslate"><span class="pre">invert_selection</span></code> / <code class="docutils literal notranslate"><span class="pre">select_all</span></code> grow an <code class="docutils literal notranslate"><span class="pre">allEdges</span></code> flag</strong>, or do
-polyline layers get their own selection filters? The first is less UI, the
-second avoids three dead checkboxes on every triangle mesh.</p></li>
+<li><p><strong>Triangle sides in the set-operation filters.</strong> Select All, None and Invert
+could clear, set and flip the face-edge bits too, so the tool’s A/N/I work on a
+mesh in edge mode; whether <code class="docutils literal notranslate"><span class="pre">allEdges</span></code> should mean both kinds is undecided.</p></li>
+<li><p><strong>The edge option of the set-operation filters shows on triangle meshes too</strong>,
+where it does nothing: the parameter schema cannot hide a row by what the layer
+holds. The flag was chosen over separate polyline filters (2026-11-27) as less
+UI; a schema-level <code class="docutils literal notranslate"><span class="pre">appliesTo</span></code> would remove the dead rows everywhere at once.</p></li>
 <li><p><strong>Per-edge quality on mesh edges</strong> would need a genuinely different design —
 probably a named attribute keyed by a canonical (vertex, vertex) pair rather
 than anything stored on faces.</p></li>
