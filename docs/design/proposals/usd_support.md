@@ -2,8 +2,9 @@
 
 This document proposes reading and writing Pixar's Universal Scene Description (`.usda`,
 `.usdc`, `.usdz`) in MeshLab, with its materials, and exporting a set of layers to one USD
-file. **Nothing described here is implemented.** Decided 2026-11-23 (Paolo): the library is
-LightUSD, and import starts flattened, as glTF's does.
+file. Stage 1, the flattened import and the one-layer export, is implemented (`plugins/io_usd`);
+stages 2 and 3 are not. Decided 2026-11-23 (Paolo): the library is LightUSD, and import starts
+flattened, as glTF's does.
 
 See also: [Data Model](../data_model.md) (layers, materials, units),
 [Project persistence](../history/project_persistence.md) (how saving works, and why a save is
@@ -15,8 +16,8 @@ for flattening a scene).
 
 | Stage | What | State |
 |---|---|---|
-| 0 | LightUSD as a submodule; read and write the stage-0 fixtures; check against OpenUSD | done 2026-11-27, outside the tree (§3.1): go; the submodule itself is still to be added |
-| 1 | `io_usd`: flattened import, single-layer export, four material channels, units and up axis | not started |
+| 0 | LightUSD as a submodule; read and write the stage-0 fixtures; check against OpenUSD | done 2026-11-27 (§3.1): go; `external/lightusd` at v1.0.0 |
+| 1 | `io_usd`: flattened import, single-layer export, four material channels, units and up axis | done 2026-11-27 (§4.4), with the departures from the plan listed there |
 | 2 | Scene I/O: export visible layers to one file, import as separate layers | not started; needs approval of the interface |
 | 3 | The material model, extended once for USD and glTF | not started; needs its own mapping table |
 
@@ -190,6 +191,54 @@ rule: stored and unchanged ones are referred to or copied byte for byte, new one
 next to the file, or inside it for `.usdz`. Unlike glTF's saver, which writes only the base
 color texture, all four channels are written.
 
+### 4.4 As implemented (2026-11-27)
+
+`plugins/io_usd/usdplugin.cpp`, about 1,150 lines (glTF's is 2,100), builds LightUSD as a subproject with its
+tools, tests, C API, bundled importers, audio and EXR off. The plugin compiles with
+`QT_NO_KEYWORDS`, because LightUSD names members `slots`.
+
+**Departures from 4.1–4.3**, each forced by what MeshLab or LightUSD offers:
+
+| Planned | Implemented | Why |
+|---|---|---|
+| faceVarying normals as wedge normals | averaged per vertex, with a log line | `VCGFace` has no per-corner normal (`src/core/vcgmesh.h`); the OBJ path's `IOM_WEDGNORMAL` is a mask bit with no storage behind it in MeshLab's mesh |
+| `upAxis` Y as a rotation on the layer matrix (question 1) | the rotation baked into the coordinates, with a log line | `MeshIOPlugin::load` returns no matrix; carrying one is the request-struct change of [Load Options §6.1](load_options.md#6-open-questions), not a stage 1 change. glTF, also Y-up, is not rotated at all today, so the two formats now disagree |
+| unfallbacked `metersPerUnit` (question 2) | centimeters, by the specification, with a log line | the specification's value; one line to change if Unknown is preferred |
+| texture coordinates as vertex or wedge by interpolation | always wedge, as glTF's importer does | one path; a vertex-interpolated `st` gives the same wedges |
+| one slot per material | one slot per material whose diffuse color is a texture; a material with a constant diffuse color gives its faces a face color, and their slot index is −1 | a slot is a texture group to the renderer (`MeshGpuResourceCache`), and `mesh.textures[i]` must pair with slot `i` for `Document::loadMesh` |
+| polygons triangulated by MeshLab | triangulated by Tydra (ear clipping), which also maps each triangle back to its authored face and corners; the diagonals become faux edges | the same map indexes faceVarying data, GeomSubsets and `leftHanded` |
+
+Also: a prim whose world transform mirrors (negative determinant) has its winding reversed, as
+`leftHanded` does; invisible prims are skipped; `UsdGeomPoints` become vertices; textures inside
+a `.usdz` are decoded with `QImage` from the package (LightUSD's `USDZReader`), into in-memory
+assets; on export a mesh with one slot on every face binds its material on the mesh, otherwise
+through GeomSubsets whose family is a `partition`, or `nonOverlapping` when some faces have no
+slot; edges are not written, with a log line; texture paths not copied are written relative to
+the file, as PLY's and OBJ's are.
+
+**A zero save mask writes everything the format holds**, as glTF's saver does: white vertex
+colors, a zero `scalar` primvar and normals included, and the vertex colors displace face
+colors. The GUI never passes one (`defaultSaveMaskForMesh` in `mainwindow.cpp` starts from the
+layer's `ioMask`), but `Document::saveMesh` callers without a mask do: Python's
+`save_current_mesh` and project saves. Moving that default into `Document::saveMesh` would fix
+it for every format; it is outside this stage.
+
+**Measured** on build-release, this Mac:
+
+- `tests/test_document.cpp`: four USD tests (the fixtures in `tests/data/usd/`, and a
+  usda/usdc/usdz round trip of polygons, wedge coordinates, face colors, a material, an
+  in-memory texture and the unit) and the decimal-comma locale test extended to `usda`.
+- OpenUSD 26.11 (`usd-core`, outside the tree) on 12 files MeshLab wrote (the fixtures, a
+  1,280-face sphere with face colors and the stage-0 cube, each as usda, usdc and usdz): all
+  read as written, all 30 validators report nothing, the `.usdz` textures resolve inside the
+  package. Not automated: `usd-core` is not a test dependency.
+- All 1,272 `.usd*` files in LightUSD's repository opened one by one through `--script`: no
+  crash, no hang; 508 load, 764 are refused with a message (no visible mesh or points, or
+  invalid on purpose). The two refused `models/` files with a `Mesh` have no points, or
+  reference an `.obj`, which needs LightUSD's OBJ plugin.
+- 4.5 M triangles: load 0.27 s, save 0.66 s, peak resident memory 2.2 GB.
+- Not checked: Quick Look and Blender on a written `.usdz`; the GUI's open and save dialogs.
+
 ## 5. Stage 2: scenes
 
 ### 5.1 The interface
@@ -264,9 +313,10 @@ before code. It also fixes the roughness averaging of 4.2.
 
 ## 7. Validation
 
-- **Fixtures written by us**, small `.usda` files committed under `tests/sample_mesh/usd/`: a
-  quad and a triangle with faceVarying coordinates; two materials by subsets; a `leftHanded`
-  mesh; a Y-up stage in centimeters; an instanced and a referenced mesh. Ours, so no licence
+- **Fixtures written by us**, small `.usda` files committed under `tests/data/usd/`: a
+  quad and two triangles with faceVarying coordinates and two materials by subsets; a
+  `leftHanded` mesh on a Y-up stage with no unit and an invisible prim; a referenced mesh,
+  once translated and once as a mirrored instance. Ours, so no licence
   question; public assets only in the local dataset, by [test_data.md](../test_data.md).
 - **Round trips** in `tests/test_document.cpp`, beside the glTF ones: save a layer, load it
   back, compare positions, coordinates, slot indices and the four material channels.
@@ -283,10 +333,12 @@ whose size its mapping table will tell.
 ## 9. Open questions
 
 1. **Up axis.** A rotation on the layer matrix (proposed), or baked into the coordinates as
-   glTF's node transforms are?
+   glTF's node transforms are? *Stage 1 bakes it (4.4): the layer matrix needs the load request
+   of Load Options. And should glTF, Y-up by definition, be rotated too?*
 2. **Unit fallback.** A stage that does not author `metersPerUnit` is in centimeters by the
    specification. Report centimeters (by definition, as glTF's meters), or Unknown (as for a
    format that does not say)? Stage 0 showed the importer can tell the two apart
-   (`metersPerUnit_set`); Tydra's own fallback, 1.0, is used by neither choice.
+   (`metersPerUnit_set`); Tydra's own fallback, 1.0, is used by neither choice. *Stage 1
+   reports centimeters.*
 3. **Scene interface** (5.1): approve the two optional calls, or another shape?
 4. **Stage 3 timing**: right after stage 1, or after stage 2?

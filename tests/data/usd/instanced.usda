@@ -1,0 +1,28 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+# A triangle defined once in part.usda, referenced twice: once translated, once as an
+# instance scaled by -1 in x (a mirroring transform, which reverses the winding).
+def Xform "World"
+{
+    def Xform "A" (
+        prepend references = @part.usda@</Part>
+    )
+    {
+        double3 xformOp:translate = (10, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "B" (
+        instanceable = true
+        prepend references = @part.usda@</Part>
+    )
+    {
+        double3 xformOp:scale = (-1, 1, 1)
+        uniform token[] xformOpOrder = ["xformOp:scale"]
+    }
+}

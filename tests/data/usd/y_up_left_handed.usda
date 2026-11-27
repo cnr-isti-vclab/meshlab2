@@ -1,0 +1,31 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    upAxis = "Y"
+)
+
+# Y up, no metersPerUnit (centimeters by the USD specification), one leftHanded triangle in
+# the XY plane: listed clockwise seen from +Z, so its front faces +Z once the winding is read
+# left-handed. A second, invisible triangle must not be read.
+def Xform "Root"
+{
+    def Mesh "Triangle"
+    {
+        point3f[] points = [(0, 0, 0), (0, 2, 0), (1, 0, 0)]
+        int[] faceVertexCounts = [3]
+        int[] faceVertexIndices = [0, 1, 2]
+        uniform token orientation = "leftHanded"
+        uniform token subdivisionScheme = "none"
+        color3f[] primvars:displayColor = [(0, 1, 0)] (
+            interpolation = "constant"
+        )
+    }
+
+    def Mesh "Hidden"
+    {
+        point3f[] points = [(5, 5, 5), (6, 5, 5), (5, 6, 5)]
+        int[] faceVertexCounts = [3]
+        int[] faceVertexIndices = [0, 1, 2]
+        token visibility = "invisible"
+    }
+}

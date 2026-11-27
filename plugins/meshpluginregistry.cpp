@@ -18,6 +18,10 @@
 #include "plugins/io_gltf/gltfimportplugin.h"
 #endif
 
+#if MESHLAB2_PLUGIN_IO_USD_ENABLED
+#include "plugins/io_usd/usdplugin.h"
+#endif
+
 #if MESHLAB2_PLUGIN_IO_3MF_ENABLED
 #include "plugins/io_3mf/threemfplugin.h"
 #endif
@@ -49,6 +53,9 @@ void registerBuiltinMeshPlugins(MeshIOPluginManager &pluginManager)
 #endif
 #if MESHLAB2_PLUGIN_IO_GLTF_ENABLED
     registerGltfImportPlugin(pluginManager);
+#endif
+#if MESHLAB2_PLUGIN_IO_USD_ENABLED
+    registerUsdPlugin(pluginManager);
 #endif
 #if MESHLAB2_PLUGIN_IO_3MF_ENABLED
     register3MFPlugin(pluginManager);

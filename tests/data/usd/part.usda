@@ -1,0 +1,18 @@
+#usda 1.0
+(
+    defaultPrim = "Part"
+)
+
+def Xform "Part"
+{
+    def Mesh "Triangle"
+    {
+        point3f[] points = [(1, 0, 0), (2, 0, 0), (1, 1, 0)]
+        int[] faceVertexCounts = [3]
+        int[] faceVertexIndices = [0, 1, 2]
+        normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1)] (
+            interpolation = "vertex"
+        )
+        uniform token subdivisionScheme = "none"
+    }
+}

@@ -72,6 +72,7 @@ const QHash<QString, QString> &notGeometry()
 {
     static const QHash<QString, QString> table = {
         { QStringLiteral("external/jkqtplotter"), QStringLiteral("renders formulas in filter help") },
+        { QStringLiteral("external/lightusd"), QStringLiteral("USD file format") },
         { QStringLiteral("draco"),          QStringLiteral("mesh compression codec, for glTF I/O") },
         { QStringLiteral("nanobind"),       QStringLiteral("Python bindings") },
         { QStringLiteral("tinygltf"),       QStringLiteral("glTF file format") },

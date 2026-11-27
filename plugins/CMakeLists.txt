@@ -41,6 +41,12 @@ if (TARGET MeshLab2PluginIOGLTF)
     target_compile_definitions(MeshLab2Plugins PRIVATE MESHLAB2_PLUGIN_IO_GLTF_ENABLED=1)
 endif()
 
+add_subdirectory(io_usd)
+if (TARGET MeshLab2PluginIOUSD)
+    target_link_libraries(MeshLab2Plugins PUBLIC MeshLab2PluginIOUSD)
+    target_compile_definitions(MeshLab2Plugins PRIVATE MESHLAB2_PLUGIN_IO_USD_ENABLED=1)
+endif()
+
 add_subdirectory(io_3mf)
 if (TARGET MeshLab2PluginIO3MF)
     target_link_libraries(MeshLab2Plugins PUBLIC MeshLab2PluginIO3MF)

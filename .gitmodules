@@ -25,3 +25,6 @@
 	path = external/TextureSignalProcessing
 	url = https://github.com/cignoni/TextureSignalProcessing.git
 	branch = meshlab
+[submodule "external/lightusd"]
+	path = external/lightusd
+	url = https://github.com/lighttransport/LightUSD.git

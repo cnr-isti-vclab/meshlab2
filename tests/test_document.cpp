@@ -156,6 +156,10 @@ private slots:
     void polygonExportKeepsAQuadWithItsOtherHalfDeleted();
     void savingIgnoresTextureCoordinatesTheMeshLacks();
     void gltfPolylineRoundTrips();
+    void usdReadsPolygonsSubsetsAndTextures();
+    void usdReadsYUpLeftHandedAndUnauthoredUnit();
+    void usdReadsReferencesAndMirroredInstances();
+    void usdRoundTripsALayer();
     void e57SavesAConstantColor();
     void e57RoundTripsPointAttributes();
     void e57PinholeImagesBecomeRasters();
@@ -3670,7 +3674,7 @@ void DocumentTests::textFormatsIgnoreTheNumericLocale()
 
     Document probe;
     QStringList previous;
-    const QStringList extensions = { "ply", "obj", "stl", "off", "gltf", "3mf", "e57" };
+    const QStringList extensions = { "ply", "obj", "stl", "off", "gltf", "3mf", "e57", "usda" };
     for (const QString &ext : extensions)
         previous << probe.preferredImportPluginForExtension(ext);
     const auto restorePreferences = qScopeGuard([&] {
@@ -3691,7 +3695,7 @@ void DocumentTests::textFormatsIgnoreTheNumericLocale()
         { "ply", "io_vcg", true }, { "obj", "io_vcg", true }, { "obj", "io_obj_rapidobj", false },
         { "obj", "meshlab2.io.trueform", trueFormObjWrites }, { "stl", "io_vcg", true },
         { "stl", "meshlab2.io.trueform", true }, { "off", "io_vcg", true }, { "gltf", "io_gltf", true },
-        { "3mf", "io_3mf", true }, { "e57", "io_e57", true },
+        { "3mf", "io_3mf", true }, { "e57", "io_e57", true }, { "usda", "io_usd", true },
     };
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -4469,6 +4473,204 @@ void DocumentTests::gltfPolylineRoundTrips()
     QCOMPARE(loaded.mesh(0).mesh.EN(), 9);
     QCOMPARE(loaded.mesh(0).mesh.VN(), 10); // not two vertices per edge
     QVERIFY(loaded.mesh(0).ioMask & vcg::tri::io::Mask::IOM_EDGEINDEX);
+}
+
+namespace {
+// The unit normal of a triangle, from its winding.
+vcg::Point3f windingNormal(const VCGFace &f)
+{
+    return ((f.cP(1) - f.cP(0)) ^ (f.cP(2) - f.cP(0))).Normalize();
+}
+}
+
+// A quad and two triangles, the quad bound by a GeomSubset to a material whose diffuse color is
+// a texture, the triangles to one whose diffuse color is red. The quad must come back as two
+// triangles sharing a faux diagonal, with the texture as its slot and faceVarying st per
+// corner; the triangles with no slot and the material's color as face color.
+void DocumentTests::usdReadsPolygonsSubsetsAndTextures()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/usd/two_materials.usda");
+    if (doc.saveMaskCapability(path) == 0)
+        QSKIP("This build has no USD support.");
+    QCOMPARE(doc.loadMesh(path), 0);
+    const Document::MeshEntry &entry = doc.mesh(0);
+    QCOMPARE(entry.mesh.VN(), 6);
+    QCOMPARE(entry.mesh.FN(), 4);
+    QVERIFY(entry.ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL);
+    QVERIFY(entry.ioMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD);
+    QVERIFY(entry.ioMask & vcg::tri::io::Mask::IOM_FACECOLOR);
+    QCOMPARE(entry.polygonFaceCount, 3);
+    QCOMPARE(doc.unit(), LengthUnit::Millimeter);
+
+    QCOMPARE(int(entry.materialSet.entries.size()), 1);
+    QCOMPARE(entry.textureFilePaths.size(), 1);
+    QVERIFY(entry.textureFilePaths.first().endsWith(QStringLiteral("checker.png")));
+    QCOMPARE(entry.materialSet.entries[0].roughnessFactor, 0.5f);
+
+    int quadTriangles = 0, fauxEdges = 0;
+    for (const VCGFace &f : entry.mesh.face) {
+        QVERIFY(windingNormal(f).Z() > 0.99f);
+        if (f.cWT(0).N() == 0) {
+            ++quadTriangles;
+            // The quad's st equals its x and y, corner by corner.
+            for (int k = 0; k < 3; ++k) {
+                QCOMPARE(f.cWT(k).U(), f.cP(k).X());
+                QCOMPARE(f.cWT(k).V(), f.cP(k).Y());
+                fauxEdges += f.IsF(k) ? 1 : 0;
+            }
+        } else {
+            QCOMPARE(f.cWT(0).N(), -1);
+            QCOMPARE(f.cC(), vcg::Color4b(255, 0, 0, 255));
+            QVERIFY(!f.IsF(0) && !f.IsF(1) && !f.IsF(2));
+        }
+    }
+    QCOMPARE(quadTriangles, 2);
+    QCOMPARE(fauxEdges, 2);
+}
+
+// A Y-up stage is turned Z-up, a leftHanded mesh keeps the front its winding names, a stage
+// with no metersPerUnit is in centimeters by the specification, and an invisible prim is
+// not read.
+void DocumentTests::usdReadsYUpLeftHandedAndUnauthoredUnit()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/usd/y_up_left_handed.usda");
+    if (doc.saveMaskCapability(path) == 0)
+        QSKIP("This build has no USD support.");
+    QCOMPARE(doc.loadMesh(path), 0);
+    const VCGMesh &mesh = doc.mesh(0).mesh;
+    QCOMPARE(mesh.VN(), 3);
+    QCOMPARE(mesh.FN(), 1);
+    QCOMPARE(doc.unit(), LengthUnit::Centimeter);
+    // (0, 2, 0), up in Y, is up in Z.
+    bool foundTop = false;
+    for (const VCGVertex &v : mesh.vert) {
+        foundTop |= (v.cP() - vcg::Point3f(0, 0, 2)).Norm() < 1e-6f;
+        QCOMPARE(v.cC(), vcg::Color4b(0, 255, 0, 255));
+    }
+    QVERIFY(foundTop);
+    // Read left-handed, the triangle faces +Z of its own frame, which is -Y once Z is up.
+    QVERIFY(windingNormal(mesh.face[0]).Y() < -0.99f);
+}
+
+// A triangle in another file, referenced twice: once translated by 10 in x, once mirrored
+// in x as an instance. The mirror reverses the winding, so the importer reverses it back:
+// both triangles face +Z, as their authored normals do.
+void DocumentTests::usdReadsReferencesAndMirroredInstances()
+{
+    Document doc;
+    const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/usd/instanced.usda");
+    if (doc.saveMaskCapability(path) == 0)
+        QSKIP("This build has no USD support.");
+    QCOMPARE(doc.loadMesh(path), 0);
+    const VCGMesh &mesh = doc.mesh(0).mesh;
+    QCOMPARE(mesh.VN(), 6);
+    QCOMPARE(mesh.FN(), 2);
+    QCOMPARE(doc.unit(), LengthUnit::Meter);
+    vcg::Box3f translated, mirrored;
+    for (const VCGFace &f : mesh.face) {
+        QVERIFY(windingNormal(f).Z() > 0.99f);
+        for (int k = 0; k < 3; ++k) {
+            QVERIFY(f.cV(k)->cN().Z() > 0.99f);
+            (f.cP(0).X() > 0 ? translated : mirrored).Add(f.cP(k));
+        }
+    }
+    QCOMPARE(translated.min.X(), 11.0f);
+    QCOMPARE(translated.max.X(), 12.0f);
+    QCOMPARE(mirrored.min.X(), -2.0f);
+    QCOMPARE(mirrored.max.X(), -1.0f);
+}
+
+// A layer written as .usda, .usdc and .usdz and read back: a quad kept as one polygon and
+// bound to a material whose base color is an image with no file, a triangle with no material,
+// face colors, per-corner texture coordinates and the document's unit. The image is written
+// next to a .usda or .usdc, and packed inside a .usdz.
+void DocumentTests::usdRoundTripsALayer()
+{
+    VCGMesh mesh;
+    mesh.face.EnableWedgeTexCoord();
+    for (const auto &p : { vcg::Point3f(0, 0, 0), vcg::Point3f(2, 0, 0), vcg::Point3f(2, 1, 0),
+                           vcg::Point3f(0, 1, 0), vcg::Point3f(3, 0, 0) })
+        vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, p);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(2), size_t(3));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(1), size_t(4), size_t(2));
+    mesh.face[0].SetF(2);
+    mesh.face[1].SetF(0);
+    for (VCGFace &f : mesh.face) {
+        const bool quad = &f != &mesh.face[2];
+        f.C() = quad ? vcg::Color4b(10, 20, 30, 255) : vcg::Color4b(200, 100, 50, 255);
+        for (int k = 0; k < 3; ++k) {
+            f.WT(k).U() = f.cP(k).X() / 2;
+            f.WT(k).V() = f.cP(k).Y();
+            f.WT(k).N() = quad ? 0 : -1;
+        }
+    }
+    using M = vcg::tri::io::Mask;
+    const int mask = M::IOM_VERTCOORD | M::IOM_FACEINDEX | M::IOM_FACECOLOR | M::IOM_WEDGTEXCOORD | M::IOM_BITPOLYGONAL;
+    Document source;
+    const int index = source.addMesh(mesh, QStringLiteral("strip"), mask);
+    source.setUnit(LengthUnit::Millimeter);
+    QImage image(2, 1, QImage::Format_RGBA8888);
+    image.setPixelColor(0, 0, Qt::red);
+    image.setPixelColor(1, 0, Qt::green);
+    MeshIOTextureAsset asset;
+    asset.name = QStringLiteral("painted.png");
+    asset.image = image;
+    source.mesh(index).textureAssets = { asset };
+    source.mesh(index).materialSet.entries.resize(1);
+    source.mesh(index).materialSet.entries[0].name = QStringLiteral("Painted");
+    source.mesh(index).materialSet.entries[0].baseColorTexture.fileName = asset.name;
+    source.mesh(index).materialSet.entries[0].baseColorTexture.assetIndex = 0;
+    source.mesh(index).materialSet.entries[0].roughnessFactor = 0.3f;
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    if (source.saveMaskCapability(dir.filePath(QStringLiteral("t.usda"))) == 0)
+        QSKIP("This build has no USD support.");
+    for (const QString suffix : { QStringLiteral("usda"), QStringLiteral("usdc"), QStringLiteral("usdz") }) {
+        const QString path = dir.filePath(QStringLiteral("strip.") + suffix);
+        MeshIOSaveOptions options;
+        options.mask = mask;
+        QCOMPARE(source.saveMesh(index, path, options), 0);
+
+        Document loaded;
+        QCOMPARE(loaded.loadMesh(path), 0);
+        const Document::MeshEntry &entry = loaded.mesh(0);
+        QCOMPARE(entry.mesh.VN(), 5);
+        QCOMPARE(entry.mesh.FN(), 3);
+        QCOMPARE(entry.polygonFaceCount, 2);
+        QCOMPARE(loaded.unit(), LengthUnit::Millimeter);
+        QCOMPARE(int(entry.materialSet.entries.size()), 1);
+        QCOMPARE(entry.materialSet.entries[0].name, QStringLiteral("Painted"));
+        QCOMPARE(entry.materialSet.entries[0].roughnessFactor, 0.3f);
+        int quadTriangles = 0;
+        for (const VCGFace &f : entry.mesh.face) {
+            const bool quad = f.cWT(0).N() == 0;
+            quadTriangles += quad ? 1 : 0;
+            QCOMPARE(f.cC(), quad ? vcg::Color4b(10, 20, 30, 255) : vcg::Color4b(200, 100, 50, 255));
+            for (int k = 0; k < 3; ++k) {
+                QCOMPARE(f.cWT(k).U(), f.cP(k).X() / 2);
+                QCOMPARE(f.cWT(k).V(), f.cP(k).Y());
+            }
+        }
+        QCOMPARE(quadTriangles, 2);
+
+        QImage back;
+        if (suffix == QLatin1String("usdz")) {
+            const MeshIOTextureAsset *packed = Document::meshTextureAsset(entry, 0);
+            QVERIFY(packed && packed->hasImage());
+            back = packed->image;
+        } else {
+            QCOMPARE(entry.textureFilePaths.size(), 1);
+            QVERIFY(QFileInfo(entry.textureFilePaths.first()).absolutePath() == QFileInfo(path).absolutePath());
+            back.load(entry.textureFilePaths.first());
+        }
+        QCOMPARE(back.size(), QSize(2, 1));
+        QCOMPARE(back.pixelColor(0, 0), QColor(Qt::red));
+        QCOMPARE(back.pixelColor(1, 0), QColor(Qt::green));
+    }
 }
 
 // Points of one color: the E57 writer declared each channel's limits as the data's own range,
