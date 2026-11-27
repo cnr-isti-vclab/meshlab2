@@ -1078,6 +1078,15 @@ target_link_libraries(MeshLab2RenderSettingsJsonTests PRIVATE
 
 add_test(NAME MeshLab2RenderSettingsJsonTests COMMAND MeshLab2RenderSettingsJsonTests)
 
+# Keep every test binary out of the developer's MeshLab settings (see the file). Each test
+# above is named after its target.
+get_directory_property(MESHLAB2_TEST_NAMES TESTS)
+foreach(test_name IN LISTS MESHLAB2_TEST_NAMES)
+    if(TARGET ${test_name})
+        target_sources(${test_name} PRIVATE tests/isolatedsettings.cpp)
+    endif()
+endforeach()
+
 # Batch mode: the application itself runs tests/test_script_mode.py with no window. A
 # script that raises must fail the process, which the second test inverts.
 if(MESHLAB2_PYTHON_CONSOLE)
