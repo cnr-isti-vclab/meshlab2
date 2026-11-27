@@ -2165,19 +2165,8 @@ void RenderWidget::ensureRenderResources()
             m_currentMaskFatEdgesDepthOnlyPipeline->setDepthBias(-1);
             m_currentMaskFatEdgesDepthOnlyPipeline->setSlopeScaledDepthBias(-1.0f);
             m_currentMaskFatEdgesDepthOnlyPipeline->setCullMode(QRhiGraphicsPipeline::None);
-            QRhiVertexInputLayout layout;
-            layout.setBindings({ { MeshGpuResourceCache::kFatEdgeVertexStrideBytes } });
-            layout.setAttributes({
-                { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
-                { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
-                { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
-                { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) },
-                { 0, 4, QRhiVertexInputAttribute::UNormByte4,
-                    MeshGpuResourceCache::kFatEdgeVertexColorOffsetBytes },
-                { 0, 5, QRhiVertexInputAttribute::UNormByte4,
-                    MeshGpuResourceCache::kFatEdgeColorOffsetBytes }
-            });
-            m_currentMaskFatEdgesDepthOnlyPipeline->setVertexInputLayout(layout);
+            m_currentMaskFatEdgesDepthOnlyPipeline->setVertexInputLayout(
+                MeshGpuResourceCache::fatEdgeInputLayout());
             m_currentMaskFatEdgesDepthOnlyPipeline->setShaderResourceBindings(m_srb.get());
             m_currentMaskFatEdgesDepthOnlyPipeline->setRenderPassDescriptor(m_currentMaskRp.get());
             if (!m_currentMaskFatEdgesDepthOnlyPipeline->create()) {

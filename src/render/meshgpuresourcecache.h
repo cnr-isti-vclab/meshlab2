@@ -11,6 +11,7 @@ class QRhi;
 class QRhiBuffer;
 class QRhiTexture;
 class QRhiCommandBuffer;
+class QRhiVertexInputLayout;
 
 class MeshGpuResourceCache
 {
@@ -30,12 +31,21 @@ public:
         PerVertexQuality = 2
     };
 
-    static constexpr int kEdgeVertexStrideBytes = 20;
+    // An edge vertex carries both colors and both scalars, so the color source is a uniform
+    // and switching it needs no rebuild. The scalars are (vertex value, finite, edge value,
+    // finite): a value that is not finite is drawn in the constant edge color.
+    static constexpr int kEdgeVertexStrideBytes = 36;
     static constexpr int kEdgeVertexColorOffsetBytes = 12;
     static constexpr int kEdgeColorOffsetBytes = 16;
-    static constexpr int kFatEdgeVertexStrideBytes = 40;
+    static constexpr int kEdgeQualityOffsetBytes = 20;
+    static constexpr int kFatEdgeVertexStrideBytes = 56;
     static constexpr int kFatEdgeVertexColorOffsetBytes = 32;
     static constexpr int kFatEdgeColorOffsetBytes = 36;
+    static constexpr int kFatEdgeQualityOffsetBytes = 40;
+    // The vertex input of overlay_edges.vert and overlay_fat_edges.vert, for every pipeline
+    // that draws an edge buffer through them.
+    static QRhiVertexInputLayout edgeInputLayout();
+    static QRhiVertexInputLayout fatEdgeInputLayout();
 
     struct MeshSource {
         std::uint64_t meshId = 0;

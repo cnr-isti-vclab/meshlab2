@@ -21,6 +21,10 @@ layout(std140, binding = 0) uniform buf {
     // rgb = the colour of the band where the surface meets the clipping plane, a = its
     // width in pixels. Zero width leaves the band undrawn.
     vec4 clipRim;
+    // Not read here: declared because this stage pairs with overlay_fat_edges.vert, and
+    // linked stages must declare the block alike.
+    vec4 qualityMap;
+    vec4 edgeQualityMap;
 } ub;
 
 layout(location = 0) out vec4 fragColor;

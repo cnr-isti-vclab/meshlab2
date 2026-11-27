@@ -1406,6 +1406,11 @@ MeshFilterRunResult ExpressionFilterPlugin::runFilter(
                 meshIndex,
                 MeshFilterVisualizationAttribute::EdgeColor
             });
+        } else {
+            result.visualizationHints.push_back({
+                meshIndex,
+                MeshFilterVisualizationAttribute::EdgeQuality
+            });
         }
         doc.markMeshScalarChanged(
             meshIndex,

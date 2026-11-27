@@ -144,16 +144,20 @@ enum class PointColorSource {
     PerVertexQuality
 };
 
+// Stored as integers in render states, so new sources go at the end.
 enum class EdgeColorSource {
     Constant = 0,
     PerVertex,
-    PerEdge
+    PerEdge,
+    PerVertexQuality,
+    PerEdgeQuality
 };
 
 enum class QualityHistogramSource {
     Auto = 0,
     VertexQuality,
-    FaceQuality
+    FaceQuality,
+    EdgeQuality
 };
 
 // The grid drawn in the 3D view as a reference for where the origin is and how big things are:

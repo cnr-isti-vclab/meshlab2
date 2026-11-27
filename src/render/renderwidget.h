@@ -142,7 +142,7 @@ public:
     // Switches this view between perspective and orthographic (3D mode only), with a status
     // line saying which it is now. The view keeps framing the same height at its orbit centre.
     void setProjection(Projection projection);
-    void showQualityVisualization(int meshIndex, bool faceQuality);
+    void showQualityVisualization(int meshIndex, QualityElement element);
     void showTextureVisualization(int meshIndex);
     void showEdgeColorVisualization(int meshIndex);
     void showPerMeshColorVisualization(int meshIndex);
@@ -490,13 +490,18 @@ struct SceneRasterProjectedDrawItem {
     // The range this view maps a mesh's per-vertex or per-face scalar through: the fixed one
     // when it is set and finite, otherwise sampledQualityRange. Every consumer -- the
     // shaders, the histogram, Bake -- reads it here, so they cannot disagree.
-    RenderQualityRange qualityRange(int meshIndex, bool faceQuality) const;
+    RenderQualityRange qualityRange(int meshIndex, QualityElement element) const;
     // The range sampled from the finite values, with center-on-zero and percentile crop.
     // It walks the whole mesh, so it is cached by mesh content and those two settings.
-    RenderQualityRange sampledQualityRange(int meshIndex, bool faceQuality) const;
-    // The shaders' qualityMap uniform: (scale, offset) for per-vertex values in xy and for
-    // per-face values in zw, for whichever of the two `settings` draws.
-    QVector4D qualityMapping(int meshIndex, const PerMeshRenderSettings &settings) const;
+    RenderQualityRange sampledQualityRange(int meshIndex, QualityElement element) const;
+    // The shaders' qualityMap uniform, (scale, offset) for per-vertex values in xy and for
+    // per-face values in zw, and edgeQualityMap, for per-edge values in xy: for whichever
+    // scalars `settings` draws.
+    struct QualityMapping {
+        QVector4D vertexFace;
+        QVector4D edge;
+    };
+    QualityMapping qualityMapping(int meshIndex, const PerMeshRenderSettings &settings) const;
     // Runs Trim Surface by Plane on the current layer with the plane this view
     // is showing, then turns the clipping plane off so what is on screen is the
     // geometry rather than a view of it.
@@ -559,7 +564,7 @@ struct SceneRasterProjectedDrawItem {
         const QVector4D &localClipPlane = QVector4D(),
         // The matrices were built for an orthographic view; see writeMainStyleToUbuf.
         bool orthographic = false,
-        const QVector4D &qualityMap = QVector4D());
+        const QualityMapping &qualityMap = {});
     quint32 uploadMainUbufForMesh(
         QRhiCommandBuffer *cb,
         int meshIndex,
@@ -1099,7 +1104,7 @@ struct SceneRasterProjectedDrawItem {
     bool m_bboxOverlayCornersValid = false;
     struct QualityHistogramCache {
         bool valid = false;
-        bool vertexBased = true;
+        QualityElement element = QualityElement::Vertex;
         QualityHistogramSource sourceSelection = QualityHistogramSource::Auto;
         bool fixedRange = false;
         bool centerOnZero = false;
@@ -1118,7 +1123,7 @@ struct SceneRasterProjectedDrawItem {
         std::vector<int> counts;
     };
     QualityHistogramCache m_qualityHistogram;
-    // sampledQualityRange's cache, by (meshId, per-face).
+    // sampledQualityRange's cache, by (meshId, element).
     struct SampledQualityRange {
         bool valid = false;
         std::uint64_t geometryRevision = 0;
@@ -1127,7 +1132,7 @@ struct SceneRasterProjectedDrawItem {
         float percentileCrop = 0.0f;
         RenderQualityRange range;
     };
-    mutable std::map<std::pair<std::uint64_t, bool>, SampledQualityRange> m_sampledQualityRanges;
+    mutable std::map<std::pair<std::uint64_t, QualityElement>, SampledQualityRange> m_sampledQualityRanges;
     // Cached decorator counts for the current mesh (recomputed on geometry change).
     struct DecoratorCounts {
         bool valid = false;

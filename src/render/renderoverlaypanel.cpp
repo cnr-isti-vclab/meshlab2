@@ -789,6 +789,10 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("Per-Vertex"), static_cast<int>(EdgeColorSource::PerVertex));
     m_edgeColorSourceCombo->addItem(
         tr("Per-Edge"), static_cast<int>(EdgeColorSource::PerEdge));
+    m_edgeColorSourceCombo->addItem(
+        tr("Per-Vertex Scalar"), static_cast<int>(EdgeColorSource::PerVertexQuality));
+    m_edgeColorSourceCombo->addItem(
+        tr("Per-Edge Scalar"), static_cast<int>(EdgeColorSource::PerEdgeQuality));
     m_edgeSizeSpin = new QDoubleSpinBox(edgesPage);
     m_edgeSizeSpin->setRange(0.0, 100.0);
     m_edgeSizeSpin->setDecimals(1);
@@ -1021,6 +1025,8 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
         tr("Per-Vertex"), static_cast<int>(QualityHistogramSource::VertexQuality));
     m_qualityHistogramSourceCombo->addItem(
         tr("Per-Face"), static_cast<int>(QualityHistogramSource::FaceQuality));
+    m_qualityHistogramSourceCombo->addItem(
+        tr("Per-Edge"), static_cast<int>(QualityHistogramSource::EdgeQuality));
     histogramForm->addRow(tr("Source"), m_qualityHistogramSourceCombo);
     m_qualityHistogramColorMapCombo = new QComboBox(histogramPage);
     const ColorMapRegistry &colorMapRegistry = ColorMapRegistry::instance();
@@ -1956,7 +1962,7 @@ RenderOverlayPanel::RenderOverlayPanel(QWidget *parent)
     updateColorButtonStyle(m_fillColorButton, m_meshSettings.fillColor);
     updateColorButtonStyle(m_fillPbrColorButton, m_meshSettings.fillColor);
     setPointColorSourceAvailability(false, false);
-    setEdgeColorSourceAvailability(false, false);
+    setEdgeColorSourceAvailability(false, false, false, false);
     setPointLightingAvailability(false);
     setFillColorSourceAvailability(false, false, false, false, false);
     setFillPbrMapAvailability(false, false, false);
@@ -2363,26 +2369,22 @@ void RenderOverlayPanel::setPointColorSourceAvailability(
 }
 
 void RenderOverlayPanel::setEdgeColorSourceAvailability(
-    bool hasVertexColors, bool hasEdgeColors)
+    bool hasVertexColors, bool hasEdgeColors, bool hasVertexQuality, bool hasEdgeQuality)
 {
     if (!m_edgeColorSourceCombo)
         return;
 
-    const int vertexIndex =
-        m_edgeColorSourceCombo->findData(static_cast<int>(EdgeColorSource::PerVertex));
-    const int edgeIndex =
-        m_edgeColorSourceCombo->findData(static_cast<int>(EdgeColorSource::PerEdge));
-    if (vertexIndex >= 0) {
-        m_edgeColorSourceCombo->setItemData(
-            vertexIndex,
-            hasVertexColors ? QVariant() : QVariant(0),
-            Qt::UserRole - 1);
-    }
-    if (edgeIndex >= 0) {
-        m_edgeColorSourceCombo->setItemData(
-            edgeIndex,
-            hasEdgeColors ? QVariant() : QVariant(0),
-            Qt::UserRole - 1);
+    const std::pair<EdgeColorSource, bool> sources[] = {
+        { EdgeColorSource::PerVertex, hasVertexColors },
+        { EdgeColorSource::PerEdge, hasEdgeColors },
+        { EdgeColorSource::PerVertexQuality, hasVertexQuality },
+        { EdgeColorSource::PerEdgeQuality, hasEdgeQuality },
+    };
+    for (const auto &[source, available] : sources) {
+        const int index = m_edgeColorSourceCombo->findData(static_cast<int>(source));
+        if (index >= 0)
+            m_edgeColorSourceCombo->setItemData(
+                index, available ? QVariant() : QVariant(0), Qt::UserRole - 1);
     }
 }
 

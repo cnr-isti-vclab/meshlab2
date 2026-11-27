@@ -1,6 +1,7 @@
-# Scalar color mapping: the fill and point buffers carry the raw scalar, and the shaders map
-# it through the view's range uniform (qualityMap: scale and offset for per-vertex values in
-# xy, for per-face values in zw). Decided on the GPU, so a probe, not a ctest.
+# Scalar color mapping: the fill, point and edge buffers carry the raw scalar, and the shaders
+# map it through the view's range uniform (qualityMap: scale and offset for per-vertex values
+# in xy, for per-face values in zw; edgeQualityMap.xy for per-edge values). Decided on the
+# GPU, so a probe, not a ctest.
 #
 # Run it with a real GPU and a real window server (QT_QPA_PLATFORM=offscreen gives no QRhi):
 #
@@ -14,6 +15,7 @@ BARE = {"show_trackball_gizmo": False, "show_axis_gizmo": False, "show_view_came
         "quality_histogram_colormap_id": "gray"}
 W = H = 200
 CONSTANT, PER_VERTEX_SCALAR, PER_FACE_SCALAR = 0, 3, 4
+EDGE_CONSTANT, EDGE_PER_VERTEX_SCALAR, EDGE_PER_EDGE_SCALAR = 0, 3, 4
 RED = [255, 0, 0, 255]
 
 
@@ -91,6 +93,60 @@ check("non-finite per-vertex scalars draw as the fill color",
       differing_pixels(render(PER_VERTEX_SCALAR), plain) == 0, mean_rgb(render(PER_VERTEX_SCALAR)))
 check("non-finite per-face scalars draw as the fill color",
       differing_pixels(render(PER_FACE_SCALAR), plain) == 0, mean_rgb(render(PER_FACE_SCALAR)))
+
+# Edges: a circle cut from the sphere, seen face on, with the sphere itself hidden. Edges are
+# drawn as quads (overlay_fat_edges); the line pipeline (overlay_edges) is only the fallback
+# for a layer whose quad buffer could not be made, which a probe cannot arrange.
+print("edges")
+ms.apply_filter("create_polyline_from_planar_section", {"planeAxis": "z"})
+line = ms.mesh_number() - 1
+ms.set_current_mesh(line)
+HIDDEN = {"show_fill": False, "show_wire": False, "show_points": False, "show_edges": False}
+
+
+def render_edges(source, **global_settings):
+    settings = {"show_fill": False, "show_wire": False, "show_points": False, "show_edges": True,
+                "edge_size": 6.0, "edge_color": RED, "edge_color_source": source}
+    tb = {"center": [0, 0, 0], "radius": 0.5, "distance": 1.4, "fov_y_degrees": 60.0}
+    # The polyline is the current layer: no outline around it, which is drawn in its own color.
+    state = {"trackball": tb,
+             "render_settings": dict(BARE, highlight_current_mesh=False, **global_settings),
+             "current_mesh_index": line,
+             "mesh_render_modes": [{"mesh_id": str(ms.mesh_id(0)), "settings": HIDDEN},
+                                   {"mesh_id": str(ms.mesh_id(line)), "settings": settings}]}
+    return bytes(ms.render_snapshot(json.dumps(state), W, H))
+
+
+def peak_rgb(buf):
+    """The brightest pixel: a line's antialiased fringe would pull a mean towards black."""
+    best = max(range(0, len(buf), 4), key=lambda i: buf[i] + buf[i + 1] + buf[i + 2])
+    return [buf[best], buf[best + 1], buf[best + 2]]
+
+
+check("the circle is drawn in the edge color", peak_rgb(render_edges(EDGE_CONSTANT)) == [255, 0, 0],
+      peak_rgb(render_edges(EDGE_CONSTANT)))
+ms.apply_filter("compute_vertex_scalar_by_expression", {"q": "0.25"})
+ms.apply_filter("compute_edge_scalar_by_expression", {"q": "0.75"})
+ve = peak_rgb(render_edges(EDGE_PER_VERTEX_SCALAR, **fixed01))
+ee = peak_rgb(render_edges(EDGE_PER_EDGE_SCALAR, **fixed01))
+check("per-vertex 0.25 on the edges is a quarter gray", near(ve, 64), ve)
+check("per-edge 0.75 is three quarters gray", near(ee, 191), ee)
+
+# Per-vertex values blend along each edge; a per-edge value is one color per edge.
+ms.apply_filter("compute_vertex_scalar_by_expression", {"q": "y"})
+ms.apply_filter("compute_edge_scalar_by_expression", {"q": "emy"})
+for source, name in ((EDGE_PER_VERTEX_SCALAR, "per-vertex"), (EDGE_PER_EDGE_SCALAR, "per-edge")):
+    img = render_edges(source)
+    top, bottom = mean_rgb(img, (0, H // 4)), mean_rgb(img, (3 * H // 4, H))
+    check("%s y on the circle runs dark to light upwards" % name, top[0] > bottom[0] + 100, (top, bottom))
+
+ms.apply_filter("compute_vertex_scalar_by_expression", {"q": "sqrt(-1)"})
+ms.apply_filter("compute_edge_scalar_by_expression", {"q": "sqrt(-1)"})
+plain = render_edges(EDGE_CONSTANT)
+for source, name in ((EDGE_PER_VERTEX_SCALAR, "per-vertex"), (EDGE_PER_EDGE_SCALAR, "per-edge")):
+    img = render_edges(source)
+    check("non-finite %s scalars draw edges in the edge color" % name,
+          differing_pixels(img, plain) == 0, mean_rgb(img))
 
 print("\nRESULT:", "all checks passed" if ok else "FAILURES ABOVE")
 

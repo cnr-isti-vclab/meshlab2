@@ -240,20 +240,57 @@ QString quickHelpOverlayHtml()
     return cached;
 }
 
-// Which scalar the histogram shows for a mesh: 0 none, 1 per-vertex, 2 per-face.
-int histogramQualityElement(const Document::MeshEntry &entry, QualityHistogramSource source)
+bool hasQuality(const Document::MeshEntry &entry, QualityElement element)
 {
-    const bool hasVertexQuality = (entry.ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
-    const bool hasFaceQuality = (entry.ioMask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
+    using Mask = vcg::tri::io::Mask;
+    const int bit = element == QualityElement::Vertex ? Mask::IOM_VERTQUALITY
+                  : element == QualityElement::Face   ? Mask::IOM_FACEQUALITY
+                  : element == QualityElement::Edge   ? Mask::IOM_EDGEQUALITY
+                                                      : 0;
+    return (entry.ioMask & bit) != 0;
+}
+
+// Which scalar the histogram shows for a mesh. Auto prefers the per-vertex one, then the
+// per-face, then the per-edge one, which a polyline may carry alone.
+QualityElement histogramQualityElement(const Document::MeshEntry &entry, QualityHistogramSource source)
+{
+    const auto ifPresent = [&entry](QualityElement e) {
+        return hasQuality(entry, e) ? e : QualityElement::None;
+    };
     switch (source) {
     case QualityHistogramSource::Auto:
-        return hasVertexQuality ? 1 : (hasFaceQuality ? 2 : 0);
+        for (QualityElement e : { QualityElement::Vertex, QualityElement::Face, QualityElement::Edge })
+            if (hasQuality(entry, e))
+                return e;
+        return QualityElement::None;
     case QualityHistogramSource::VertexQuality:
-        return hasVertexQuality ? 1 : 0;
+        return ifPresent(QualityElement::Vertex);
     case QualityHistogramSource::FaceQuality:
-        return hasFaceQuality ? 2 : 0;
+        return ifPresent(QualityElement::Face);
+    case QualityHistogramSource::EdgeQuality:
+        return ifPresent(QualityElement::Edge);
     }
-    return 0;
+    return QualityElement::None;
+}
+
+// The finite and non-finite values of one scalar, of the live elements; the range and the
+// histogram both drop the non-finite ones themselves.
+std::vector<float> qualityValues(const VCGMesh &mesh, QualityElement element)
+{
+    std::vector<float> values;
+    const auto collect = [&values](const auto &container) {
+        values.reserve(container.size());
+        for (const auto &el : container)
+            if (!el.IsD())
+                values.push_back(float(el.cQ()));
+    };
+    if (element == QualityElement::Vertex)
+        collect(mesh.vert);
+    else if (element == QualityElement::Face)
+        collect(mesh.face);
+    else if (element == QualityElement::Edge)
+        collect(mesh.edge);
+    return values;
 }
 
 QString qualityBakeFilterEnumColorMap(const QString &mapId)
@@ -2023,11 +2060,11 @@ void RenderWidget::createOverlayButtons()
         bool adjustedFixedRange = false;
         if (!prev.qualityHistogramFixedRange && next.qualityHistogramFixedRange) {
             const int meshIndex = m_doc ? m_doc->currentMeshIndex() : -1;
-            const int element = meshIndex >= 0 && meshIndex < m_doc->meshCount()
+            const QualityElement element = meshIndex >= 0 && meshIndex < m_doc->meshCount()
                 ? histogramQualityElement(m_doc->mesh(meshIndex), next.qualityHistogramSource)
-                : 0;
-            const RenderQualityRange range =
-                element != 0 ? sampledQualityRange(meshIndex, element == 2) : RenderQualityRange{};
+                : QualityElement::None;
+            const RenderQualityRange range = element != QualityElement::None
+                ? sampledQualityRange(meshIndex, element) : RenderQualityRange{};
             if (range.valid) {
                 next.qualityHistogramMin = range.minV;
                 next.qualityHistogramMax = range.maxV;
@@ -2968,9 +3005,7 @@ void RenderWidget::updateQualityHistogramOverlay()
 
     const auto &entry = m_doc->mesh(meshIndex);
     const QualityHistogramSource sourceSelection = m_renderSettings.qualityHistogramSource;
-    const int element = histogramQualityElement(entry, sourceSelection);
-    const bool useVertexQuality = element == 1;
-    const bool useFaceQuality = element == 2;
+    const QualityElement element = histogramQualityElement(entry, sourceSelection);
     const int bins = std::clamp(m_renderSettings.qualityHistogramBins, 4, 512);
     const bool fixedRange = m_renderSettings.qualityHistogramFixedRange;
     const bool centerOnZero = m_renderSettings.qualityHistogramCenterOnZero;
@@ -3014,15 +3049,18 @@ void RenderWidget::updateQualityHistogramOverlay()
         return pm;
     };
 
-    if (!useVertexQuality && !useFaceQuality) {
+    if (element == QualityElement::None) {
         QString message = tr("No scalar in the current layer");
-        QString tooltip = tr("The current layer has no per-vertex or per-face scalar");
+        QString tooltip = tr("The current layer has no per-vertex, per-face or per-edge scalar");
         if (sourceSelection == QualityHistogramSource::VertexQuality) {
             message = tr("No per-vertex scalar in the current layer");
             tooltip = tr("The source is Per-Vertex, but the current layer has no per-vertex scalar");
         } else if (sourceSelection == QualityHistogramSource::FaceQuality) {
             message = tr("No per-face scalar in the current layer");
             tooltip = tr("The source is Per-Face, but the current layer has no per-face scalar");
+        } else if (sourceSelection == QualityHistogramSource::EdgeQuality) {
+            message = tr("No per-edge scalar in the current layer");
+            tooltip = tr("The source is Per-Edge, but the current layer has no per-edge scalar");
         }
         m_qualityHistogramOverlayLabel->setPixmap(buildMessagePixmap(message));
         m_qualityHistogramOverlayLabel->setToolTip(tooltip);
@@ -3045,7 +3083,7 @@ void RenderWidget::updateQualityHistogramOverlay()
         && m_qualityHistogram.fixedMax == fixedMax
         && m_qualityHistogram.colorMapId == colorMapId
         && m_qualityHistogram.invertColorMap == invertColorMap
-        && m_qualityHistogram.vertexBased == useVertexQuality;
+        && m_qualityHistogram.element == element;
 
     if (!cacheValid) {
         m_qualityHistogram.valid = false;
@@ -3061,41 +3099,20 @@ void RenderWidget::updateQualityHistogramOverlay()
         m_qualityHistogram.fixedMax = fixedMax;
         m_qualityHistogram.colorMapId = colorMapId;
         m_qualityHistogram.invertColorMap = invertColorMap;
-        m_qualityHistogram.vertexBased = useVertexQuality;
+        m_qualityHistogram.element = element;
         m_qualityHistogram.counts.assign(size_t(bins), 0);
         m_qualityHistogram.sampleCount = 0;
         m_qualityHistogram.minQ = 0.0f;
         m_qualityHistogram.maxQ = 1.0f;
 
-        const VCGMesh &mesh = entry.mesh;
-        std::vector<float> values;
-        values.reserve(useVertexQuality ? size_t(mesh.VN()) : size_t(mesh.FN()));
-
-        if (useVertexQuality) {
-            for (int vi = 0; vi < mesh.VN(); ++vi) {
-                const auto &v = mesh.vert[vi];
-                if (v.IsD())
-                    continue;
-                const float q = static_cast<float>(v.cQ());
-                if (!std::isfinite(q))
-                    continue;
-                values.push_back(q);
-            }
-        } else {
-            for (int fi = 0; fi < mesh.FN(); ++fi) {
-                const auto &f = mesh.face[fi];
-                if (f.IsD())
-                    continue;
-                const float q = static_cast<float>(f.cQ());
-                if (!std::isfinite(q))
-                    continue;
-                values.push_back(q);
-            }
-        }
+        std::vector<float> values = qualityValues(entry.mesh, element);
+        values.erase(std::remove_if(values.begin(), values.end(),
+                                    [](float q) { return !std::isfinite(q); }),
+                     values.end());
 
         if (!values.empty()) {
             m_qualityHistogram.sampleCount = int(values.size());
-            const RenderQualityRange histRange = qualityRange(meshIndex, useFaceQuality);
+            const RenderQualityRange histRange = qualityRange(meshIndex, element);
             m_qualityHistogram.minQ = histRange.minV;
             m_qualityHistogram.maxQ = histRange.maxV;
             for (float q : values) {
@@ -3238,7 +3255,9 @@ void RenderWidget::updateQualityHistogramOverlay()
             qText);
     }
 
-    const QString sourceName = m_qualityHistogram.vertexBased ? tr("Per-vertex") : tr("Per-face");
+    const QString sourceName = m_qualityHistogram.element == QualityElement::Vertex ? tr("Per-vertex")
+                             : m_qualityHistogram.element == QualityElement::Face   ? tr("Per-face")
+                                                                                    : tr("Per-edge");
     m_qualityHistogramOverlayLabel->setPixmap(pm);
     m_qualityHistogramOverlayLabel->setToolTip(
         tr("%1 scalar distribution\nsamples: %2\nrange: [%3, %4]")
@@ -3329,7 +3348,7 @@ void RenderWidget::applyClipPlaneToCurrentLayer()
     update();
 }
 
-RenderQualityRange RenderWidget::qualityRange(int meshIndex, bool faceQuality) const
+RenderQualityRange RenderWidget::qualityRange(int meshIndex, QualityElement element) const
 {
     if (m_renderSettings.qualityHistogramFixedRange) {
         const RenderQualityRange fixed = fixedRenderQualityRange(
@@ -3337,45 +3356,32 @@ RenderQualityRange RenderWidget::qualityRange(int meshIndex, bool faceQuality) c
         if (fixed.valid)
             return fixed;
     }
-    return sampledQualityRange(meshIndex, faceQuality);
+    return sampledQualityRange(meshIndex, element);
 }
 
-RenderQualityRange RenderWidget::sampledQualityRange(int meshIndex, bool faceQuality) const
+RenderQualityRange RenderWidget::sampledQualityRange(int meshIndex, QualityElement element) const
 {
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
         return {};
     const Document::MeshEntry &entry = m_doc->mesh(meshIndex);
-    const int componentMask = faceQuality ? vcg::tri::io::Mask::IOM_FACEQUALITY
-                                          : vcg::tri::io::Mask::IOM_VERTQUALITY;
-    if ((entry.ioMask & componentMask) == 0)
+    if (!hasQuality(entry, element))
         return {};
 
     const bool centerOnZero = m_renderSettings.qualityHistogramCenterOnZero;
     const float crop = std::clamp(m_renderSettings.qualityHistogramPercentileCrop, 0.0f, 0.5f);
-    SampledQualityRange &cached = m_sampledQualityRanges[{ entry.meshId, faceQuality }];
+    SampledQualityRange &cached = m_sampledQualityRanges[{ entry.meshId, element }];
     if (cached.valid && cached.geometryRevision == entry.geometryRevision
         && cached.scalarRevision == entry.scalarRevision && cached.centerOnZero == centerOnZero && cached.percentileCrop == crop)
         return cached.range;
 
-    const VCGMesh &mesh = entry.mesh;
-    std::vector<float> values;
-    if (faceQuality) {
-        values.reserve(size_t(mesh.FN()));
-        for (const VCGFace &f : mesh.face)
-            if (!f.IsD())
-                values.push_back(float(f.cQ()));
-    } else {
-        values.reserve(size_t(mesh.VN()));
-        for (const VCGVertex &v : mesh.vert)
-            if (!v.IsD())
-                values.push_back(float(v.cQ()));
-    }
+    std::vector<float> values = qualityValues(entry.mesh, element);
     cached = { true, entry.geometryRevision, entry.scalarRevision, centerOnZero, crop,
                sampledRenderQualityRange(std::move(values), centerOnZero, crop) };
     return cached.range;
 }
 
-QVector4D RenderWidget::qualityMapping(int meshIndex, const PerMeshRenderSettings &settings) const
+RenderWidget::QualityMapping RenderWidget::qualityMapping(
+    int meshIndex, const PerMeshRenderSettings &settings) const
 {
     // t = clamp(q * scale + offset): a range too narrow to divide by, or none, maps every
     // value to the middle of the color map, as normalizedRenderQuality does.
@@ -3390,9 +3396,13 @@ QVector4D RenderWidget::qualityMapping(int meshIndex, const PerMeshRenderSetting
         fillVariant == int(MeshGpuResourceCache::FillVariant::PerVertexQuality)
         || settings.pointColorSource == PointColorSource::PerVertexQuality;
     const bool face = fillVariant == int(MeshGpuResourceCache::FillVariant::PerFaceQuality);
-    const auto v = vertex ? mapping(qualityRange(meshIndex, false)) : mapping({});
-    const auto f = face ? mapping(qualityRange(meshIndex, true)) : mapping({});
-    return QVector4D(v.first, v.second, f.first, f.second);
+    const bool edge = settings.edgeColorSource == EdgeColorSource::PerEdgeQuality;
+    const bool vertexOnEdges = settings.edgeColorSource == EdgeColorSource::PerVertexQuality;
+    const auto v = vertex || vertexOnEdges ? mapping(qualityRange(meshIndex, QualityElement::Vertex))
+                                           : mapping({});
+    const auto f = face ? mapping(qualityRange(meshIndex, QualityElement::Face)) : mapping({});
+    const auto e = edge ? mapping(qualityRange(meshIndex, QualityElement::Edge)) : mapping({});
+    return { QVector4D(v.first, v.second, f.first, f.second), QVector4D(e.first, e.second, 0.0f, 0.0f) };
 }
 
 void RenderWidget::bakeCurrentQualityMappingToVertexColor()
@@ -3417,15 +3427,15 @@ void RenderWidget::bakeCurrentQualityMappingToVertexColor()
             Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
-    if (m_renderSettings.qualityHistogramSource == QualityHistogramSource::FaceQuality) {
+    if (histogramQualityElement(entry, m_renderSettings.qualityHistogramSource) != QualityElement::Vertex) {
         m_doc->writeLog(
-            tr("Cannot bake to vertex color while the histogram source is Per-Face. Switch the source to Auto or Per-Vertex."),
+            tr("Cannot bake to vertex color while the histogram shows another scalar. Switch the source to Auto or Per-Vertex."),
             Document::LogSource::Application, Document::LogLevel::Error);
         return;
     }
 
     // The checks above leave the per-vertex scalar as the one shown.
-    const RenderQualityRange range = qualityRange(meshIndex, false);
+    const RenderQualityRange range = qualityRange(meshIndex, QualityElement::Vertex);
     if (!range.valid) {
         m_doc->writeLog(
             tr("Cannot bake scalar colors: the current scalar range is not finite."),

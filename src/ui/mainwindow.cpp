@@ -2606,10 +2606,13 @@ void MainWindow::applyFilterResultToViews(const MeshFilterRunResult &result)
                 view->showTextureVisualization(meshIndex);
                 break;
             case MeshFilterVisualizationAttribute::FaceQuality:
-                view->showQualityVisualization(meshIndex, true);
+                view->showQualityVisualization(meshIndex, QualityElement::Face);
                 break;
             case MeshFilterVisualizationAttribute::VertexQuality:
-                view->showQualityVisualization(meshIndex, false);
+                view->showQualityVisualization(meshIndex, QualityElement::Vertex);
+                break;
+            case MeshFilterVisualizationAttribute::EdgeQuality:
+                view->showQualityVisualization(meshIndex, QualityElement::Edge);
                 break;
             case MeshFilterVisualizationAttribute::EdgeColor:
                 view->showEdgeColorVisualization(meshIndex);

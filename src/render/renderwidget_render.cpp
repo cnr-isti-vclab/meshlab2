@@ -174,7 +174,7 @@ quint32 RenderWidget::uploadMainUbuf(
     float pickId,
     const QVector4D &localClipPlane,
     bool orthographic,
-    const QVector4D &qualityMap)
+    const QualityMapping &qualityMap)
 {
     if (!m_rhi || !m_ubuf || !cb)
         return 0;
@@ -216,8 +216,10 @@ quint32 RenderWidget::uploadMainUbuf(
         ubufData[kUbufClipRimOffset + 2] = float(m_renderSettings.clipPlaneRimColor.blueF());
         ubufData[kUbufClipRimOffset + 3] = qMax(0.0f, m_renderSettings.clipPlaneRimWidth);
     }
-    for (int i = 0; i < 4; ++i)
-        ubufData[kUbufQualityMapOffset + i] = qualityMap[i];
+    for (int i = 0; i < 4; ++i) {
+        ubufData[kUbufQualityMapOffset + i] = qualityMap.vertexFace[i];
+        ubufData[kUbufEdgeQualityMapOffset + i] = qualityMap.edge[i];
+    }
 
     QRhiResourceUpdateBatch *uMesh = m_rhi->nextResourceUpdateBatch();
     uMesh->updateDynamicBuffer(m_ubuf.get(), offset, kUbufSize, ubufData);

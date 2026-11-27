@@ -374,7 +374,9 @@ enum class MeshFilterVisualizationAttribute
     // a layer already being drawn from its per-vertex or constant colour.
     PerMeshColor,
     // Per-vertex colour written on an existing layer, for the same reason as EdgeColor.
-    VertexColor
+    VertexColor,
+    // A per-edge scalar, shown through the color map on the edges.
+    EdgeQuality
 };
 
 struct MeshFilterVisualizationHint

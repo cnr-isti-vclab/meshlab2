@@ -11,32 +11,18 @@
 using namespace RenderWidgetInternal;
 
 namespace {
-bool hasSignificantVertexQuality(const VCGMesh &mesh)
+// Whether a scalar varies enough to be worth coloring a new layer by. Deleted elements are
+// counted, as they always were; they do not change the answer in any real case.
+template <class Container>
+bool hasSignificantQuality(const Container &elements)
 {
-    if (mesh.vert.empty())
+    if (elements.empty())
         return false;
-    float minVal = mesh.vert[0].Q();
+    float minVal = elements[0].cQ();
     float maxVal = minVal;
-    for (const auto &v : mesh.vert) {
-        if (v.Q() < minVal)
-            minVal = v.Q();
-        if (v.Q() > maxVal)
-            maxVal = v.Q();
-    }
-    return std::abs(maxVal - minVal) > 1e-5f;
-}
-
-bool hasSignificantFaceQuality(const VCGMesh &mesh)
-{
-    if (mesh.face.empty())
-        return false;
-    float minVal = mesh.face[0].Q();
-    float maxVal = minVal;
-    for (const auto &f : mesh.face) {
-        if (f.Q() < minVal)
-            minVal = f.Q();
-        if (f.Q() > maxVal)
-            maxVal = f.Q();
+    for (const auto &el : elements) {
+        minVal = std::min(minVal, float(el.cQ()));
+        maxVal = std::max(maxVal, float(el.cQ()));
     }
     return std::abs(maxVal - minVal) > 1e-5f;
 }
@@ -112,8 +98,9 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
     const bool hasVertexColors = (mask & vcg::tri::io::Mask::IOM_VERTCOLOR) != 0;
     const bool hasEdgeColors = (mask & vcg::tri::io::Mask::IOM_EDGECOLOR) != 0;
     const bool hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
-    const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0 && hasSignificantVertexQuality(entry.mesh);
-    const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0 && hasSignificantFaceQuality(entry.mesh);
+    const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0 && hasSignificantQuality(entry.mesh.vert);
+    const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0 && hasSignificantQuality(entry.mesh.face);
+    const bool hasEdgeQuality = (mask & vcg::tri::io::Mask::IOM_EDGEQUALITY) != 0 && hasSignificantQuality(entry.mesh.edge);
     const bool hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
     const bool hasTextureCoords =
         (mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0
@@ -132,9 +119,12 @@ RenderWidget::MeshRenderMode RenderWidget::defaultRenderModeForMesh(int meshInde
         || defaultOcclusionTextureIndex >= 0
         || defaultRoughnessTextureIndex >= 0;
 
-    mode.edgeColorSource = hasEdgeColors
-        ? EdgeColorSource::PerEdge
-        : (hasVertexColors ? EdgeColorSource::PerVertex : EdgeColorSource::Constant);
+    // Colors before scalars, the edges' own before their vertices', as for faces.
+    mode.edgeColorSource = hasEdgeColors      ? EdgeColorSource::PerEdge
+                         : hasVertexColors    ? EdgeColorSource::PerVertex
+                         : hasEdgeQuality     ? EdgeColorSource::PerEdgeQuality
+                         : hasVertexQuality   ? EdgeColorSource::PerVertexQuality
+                                              : EdgeColorSource::Constant;
 
     // Both thresholds are user preferences; see resources/preferences.json. They are
     // read per mesh rather than cached so that changing one in the dialog takes effect
@@ -316,30 +306,39 @@ void RenderWidget::setCurrentMeshSettings(const PerMeshRenderSettings &next)
         m_overlayPanel->setMeshSettings(next);
 }
 
-void RenderWidget::showQualityVisualization(int meshIndex, bool faceQuality)
+void RenderWidget::showQualityVisualization(int meshIndex, QualityElement element)
 {
     if (!m_doc || meshIndex < 0 || meshIndex >= m_doc->meshCount())
         return;
 
+    using Mask = vcg::tri::io::Mask;
     const auto &entry = m_doc->mesh(meshIndex);
-    const int mask = entry.ioMask;
-    const bool hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
-    const bool hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
-    if ((faceQuality && !hasFaceQuality) || (!faceQuality && !hasVertexQuality))
+    const int bit = element == QualityElement::Vertex ? Mask::IOM_VERTQUALITY
+                  : element == QualityElement::Face   ? Mask::IOM_FACEQUALITY
+                  : element == QualityElement::Edge   ? Mask::IOM_EDGEQUALITY
+                                                      : 0;
+    if ((entry.ioMask & bit) == 0)
         return;
 
     MeshRenderMode *mode = mutableRenderModeForMesh(meshIndex);
     if (!mode)
         return;
 
-    if (faceQuality) {
+    if (element == QualityElement::Face) {
         mode->showFill = true;
         mode->fillMaterial = FillMaterial::Plain;
         mode->fillPlain.colorSource = FillColorSource::PerFaceQuality;
+    } else if (element == QualityElement::Edge) {
+        mode->showEdges = true;
+        mode->edgeColorSource = EdgeColorSource::PerEdgeQuality;
     } else if (entry.mesh.FN() > 0) {
         mode->showFill = true;
         mode->fillMaterial = FillMaterial::Plain;
         mode->fillPlain.colorSource = FillColorSource::PerVertexQuality;
+    } else if (entry.mesh.EN() > 0) {
+        // A polyline shows a per-vertex scalar along its edges, blended between the ends.
+        mode->showEdges = true;
+        mode->edgeColorSource = EdgeColorSource::PerVertexQuality;
     } else {
         mode->showPoints = true;
         mode->pointColorSource = PointColorSource::PerVertexQuality;
@@ -471,6 +470,7 @@ void RenderWidget::refreshColorSourceAvailability()
     bool hasFaceColors = false;
     bool hasVertexQuality = false;
     bool hasFaceQuality = false;
+    bool hasEdgeQuality = false;
     bool hasTextures = false;
     bool hasVertexNormals = false;
     bool hasPerMeshColor = false;
@@ -488,6 +488,7 @@ void RenderWidget::refreshColorSourceAvailability()
         hasFaceColors = (mask & vcg::tri::io::Mask::IOM_FACECOLOR) != 0;
         hasVertexQuality = (mask & vcg::tri::io::Mask::IOM_VERTQUALITY) != 0;
         hasFaceQuality = (mask & vcg::tri::io::Mask::IOM_FACEQUALITY) != 0;
+        hasEdgeQuality = (mask & vcg::tri::io::Mask::IOM_EDGEQUALITY) != 0;
         hasTextures = hasTextureCoords && Document::meshTextureAssociationCount(meshEntry) > 0;
         hasVertexNormals = (mask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0;
         hasPerMeshColor = meshEntry.mesh.C()[0] != 0
@@ -498,7 +499,8 @@ void RenderWidget::refreshColorSourceAvailability()
     if (m_overlayPanel)
         m_overlayPanel->setPointColorSourceAvailability(hasVertexColors, hasVertexQuality);
     if (m_overlayPanel)
-        m_overlayPanel->setEdgeColorSourceAvailability(hasVertexColors, hasEdgeColors);
+        m_overlayPanel->setEdgeColorSourceAvailability(
+            hasVertexColors, hasEdgeColors, hasVertexQuality, hasEdgeQuality);
     if (m_overlayPanel)
         m_overlayPanel->setPointLightingAvailability(hasVertexNormals);
     if (m_overlayPanel)
@@ -527,6 +529,10 @@ void RenderWidget::refreshColorSourceAvailability()
     if (meshCorrected.edgeColorSource == EdgeColorSource::PerVertex && !hasVertexColors)
         meshCorrected.edgeColorSource = EdgeColorSource::Constant;
     if (meshCorrected.edgeColorSource == EdgeColorSource::PerEdge && !hasEdgeColors)
+        meshCorrected.edgeColorSource = EdgeColorSource::Constant;
+    if (meshCorrected.edgeColorSource == EdgeColorSource::PerVertexQuality && !hasVertexQuality)
+        meshCorrected.edgeColorSource = EdgeColorSource::Constant;
+    if (meshCorrected.edgeColorSource == EdgeColorSource::PerEdgeQuality && !hasEdgeQuality)
         meshCorrected.edgeColorSource = EdgeColorSource::Constant;
     if (meshCorrected.pointLighting && !hasVertexNormals)
         meshCorrected.pointLighting = false;
@@ -818,16 +824,7 @@ QRhiGraphicsPipeline *RenderWidget::edgesPipelineForSettings(const PerMeshRender
     blend.opAlpha = QRhiGraphicsPipeline::Add;
     pipeline->setTargetBlends({ blend });
 
-    QRhiVertexInputLayout edgesLayout;
-    edgesLayout.setBindings({ { MeshGpuResourceCache::kEdgeVertexStrideBytes } });
-    edgesLayout.setAttributes({
-        { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
-        { 0, 1, QRhiVertexInputAttribute::UNormByte4,
-            MeshGpuResourceCache::kEdgeVertexColorOffsetBytes },
-        { 0, 2, QRhiVertexInputAttribute::UNormByte4,
-            MeshGpuResourceCache::kEdgeColorOffsetBytes }
-    });
-    pipeline->setVertexInputLayout(edgesLayout);
+    pipeline->setVertexInputLayout(MeshGpuResourceCache::edgeInputLayout());
     pipeline->setShaderResourceBindings(m_srb.get());
     pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
     if (!pipeline->create())
@@ -873,19 +870,7 @@ QRhiGraphicsPipeline *RenderWidget::fatEdgesPipelineForSettings(const PerMeshRen
     blend.opAlpha = QRhiGraphicsPipeline::Add;
     pipeline->setTargetBlends({ blend });
 
-    QRhiVertexInputLayout edgesLayout;
-    edgesLayout.setBindings({ { MeshGpuResourceCache::kFatEdgeVertexStrideBytes } });
-    edgesLayout.setAttributes({
-        { 0, 0, QRhiVertexInputAttribute::Float3, 0 },
-        { 0, 1, QRhiVertexInputAttribute::Float3, 3 * sizeof(float) },
-        { 0, 2, QRhiVertexInputAttribute::Float, 6 * sizeof(float) },
-        { 0, 3, QRhiVertexInputAttribute::Float, 7 * sizeof(float) },
-        { 0, 4, QRhiVertexInputAttribute::UNormByte4,
-            MeshGpuResourceCache::kFatEdgeVertexColorOffsetBytes },
-        { 0, 5, QRhiVertexInputAttribute::UNormByte4,
-            MeshGpuResourceCache::kFatEdgeColorOffsetBytes }
-    });
-    pipeline->setVertexInputLayout(edgesLayout);
+    pipeline->setVertexInputLayout(MeshGpuResourceCache::fatEdgeInputLayout());
     pipeline->setShaderResourceBindings(m_srb.get());
     pipeline->setRenderPassDescriptor(renderTarget()->renderPassDescriptor());
     if (!pipeline->create())

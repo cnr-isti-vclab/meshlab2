@@ -51,7 +51,7 @@ inline QShader loadShader(const QString &path)
     return QShader::fromSerialized(f.readAll());
 }
 
-inline constexpr int kUbufSize = 400; // expanded: added vec4 qualityMap at offset 384
+inline constexpr int kUbufSize = 416; // vec4 qualityMap at 384, vec4 edgeQualityMap at 400
 inline constexpr int kUbufFloatCount = kUbufSize / sizeof(float);
 inline constexpr int kUbufBBoxColorOffset = 176 / sizeof(float);
 inline constexpr int kUbufPointColorOffset = 192 / sizeof(float);
@@ -76,6 +76,8 @@ inline constexpr int kUbufClipRimOffset = 368 / sizeof(float);
 // (scale, offset) for per-vertex values in xy, for per-face values in zw
 // (RenderWidget::qualityMapping). Only the shaders that sample the color map declare it.
 inline constexpr int kUbufQualityMapOffset = 384 / sizeof(float);
+// The same for per-edge values, in xy; only the edge shaders declare it.
+inline constexpr int kUbufEdgeQualityMapOffset = 400 / sizeof(float);
 inline constexpr int kFillVertexStrideFloats = 13;
 inline constexpr int kPointsVertexStrideFloats = 11;
 inline constexpr int kMaskMorphUbufSize = 16;
@@ -356,7 +358,8 @@ inline void writeMainStyleToUbuf(
     ubufData[kUbufFillColorOffset + 2] = settings.fillColor.blueF();
     ubufData[kUbufFillColorOffset + 3] = settings.fillColor.alphaF();
 
-    // x selects explicit-edge color: 0=constant, 1=per-vertex, 2=per-edge.
+    // x selects explicit-edge color: 0=constant, 1=per-vertex, 2=per-edge, 3=per-vertex
+    // scalar, 4=per-edge scalar (EdgeColorSource).
     ubufData[kUbufLightingParamsOffset + 0] =
         static_cast<float>(static_cast<int>(settings.edgeColorSource));
     ubufData[kUbufLightingParamsOffset + 1] = (enableLighting && settings.pointLighting) ? 1.0f : 0.0f;

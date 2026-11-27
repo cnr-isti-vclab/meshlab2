@@ -28,7 +28,8 @@ public:
     void setMeshSettings(const PerMeshRenderSettings &settings);
     void setViewerModeUv(bool uvMode);
     void setPointColorSourceAvailability(bool hasVertexColors, bool hasVertexQuality);
-    void setEdgeColorSourceAvailability(bool hasVertexColors, bool hasEdgeColors);
+    void setEdgeColorSourceAvailability(bool hasVertexColors, bool hasEdgeColors,
+                                        bool hasVertexQuality, bool hasEdgeQuality);
     void setPointLightingAvailability(bool hasVertexNormals);
     void setFillColorSourceAvailability(
         bool hasVertexColors,

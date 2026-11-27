@@ -4,6 +4,14 @@
 #include <cmath>
 #include <vector>
 
+// Which scalar a view colors by or charts: the per-vertex, per-face or per-edge one.
+enum class QualityElement {
+    None = 0,
+    Vertex,
+    Face,
+    Edge
+};
+
 struct RenderQualityRange {
     float minV = 0.0f;
     float maxV = 1.0f;
