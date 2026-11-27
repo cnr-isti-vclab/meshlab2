@@ -160,6 +160,7 @@ private slots:
     void usdReadsYUpLeftHandedAndUnauthoredUnit();
     void usdReadsReferencesAndMirroredInstances();
     void usdRoundTripsALayer();
+    void savingWithoutAMaskWritesWhatTheLayerHolds();
     void e57SavesAConstantColor();
     void e57RoundTripsPointAttributes();
     void e57PinholeImagesBecomeRasters();
@@ -4670,6 +4671,39 @@ void DocumentTests::usdRoundTripsALayer()
         QCOMPARE(back.size(), QSize(2, 1));
         QCOMPARE(back.pixelColor(0, 0), QColor(Qt::red));
         QCOMPARE(back.pixelColor(1, 0), QColor(Qt::green));
+    }
+}
+
+// A save with no mask -- a project save, Python's save_current_mesh -- writes what the layer
+// holds, as the Save dialog proposes. Each exporter used to take it as "everything the format
+// can hold": a layer of face colors came back with white vertex colors and a zero scalar too,
+// and in USD the vertex colors displaced the face colors.
+void DocumentTests::savingWithoutAMaskWritesWhatTheLayerHolds()
+{
+    VCGMesh mesh;
+    for (const auto &p : { vcg::Point3f(0, 0, 0), vcg::Point3f(1, 0, 0), vcg::Point3f(0, 1, 0), vcg::Point3f(1, 1, 0) })
+        vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, p);
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(1), size_t(3), size_t(2));
+    mesh.face[0].C() = vcg::Color4b(255, 0, 0, 255);
+    mesh.face[1].C() = vcg::Color4b(0, 0, 255, 255);
+    using M = vcg::tri::io::Mask;
+    Document source;
+    const int index = source.addMesh(mesh, QStringLiteral("colored"), M::IOM_VERTCOORD | M::IOM_FACEINDEX | M::IOM_FACECOLOR);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    for (const QString name : { QStringLiteral("colored.ply"), QStringLiteral("colored.usda") }) {
+        const QString path = dir.filePath(name);
+        if (source.saveMaskCapability(path) == 0)
+            continue;
+        QCOMPARE(source.saveMesh(index, path), 0);
+        Document loaded;
+        QCOMPARE(loaded.loadMesh(path), 0);
+        const Document::MeshEntry &entry = loaded.mesh(0);
+        QVERIFY2(entry.ioMask & M::IOM_FACECOLOR, qPrintable(name));
+        QVERIFY2(!(entry.ioMask & (M::IOM_VERTCOLOR | M::IOM_VERTQUALITY)), qPrintable(name));
+        QCOMPARE(entry.mesh.face[0].cC(), vcg::Color4b(255, 0, 0, 255));
+        QCOMPARE(entry.mesh.face[1].cC(), vcg::Color4b(0, 0, 255, 255));
     }
 }
 

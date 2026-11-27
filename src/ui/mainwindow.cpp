@@ -227,48 +227,6 @@ bool saveFormatSupportsDracoCompression(const QString &extension)
     return extension == QLatin1String("gltf") || extension == QLatin1String("glb");
 }
 
-int availableSaveMaskForMesh(const Document::MeshEntry &entry)
-{
-    int mask = entry.ioMask;
-    mask |= vcg::tri::io::Mask::IOM_VERTCOORD;
-    if (entry.mesh.FN() > 0) {
-        mask |= vcg::tri::io::Mask::IOM_FACEINDEX;
-        // Polygonal export is an output choice, not an optional mesh component:
-        // disabling it deliberately writes the underlying triangulation.
-        mask |= vcg::tri::io::Mask::IOM_BITPOLYGONAL;
-    }
-    if (entry.mesh.EN() > 0)
-        mask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
-    return mask;
-}
-
-int requiredSaveMaskForMesh(const Document::MeshEntry &entry, int capabilityMask)
-{
-    int requiredMask = 0;
-    if ((capabilityMask & vcg::tri::io::Mask::IOM_VERTCOORD) != 0 && entry.mesh.VN() > 0)
-        requiredMask |= vcg::tri::io::Mask::IOM_VERTCOORD;
-    if ((capabilityMask & vcg::tri::io::Mask::IOM_FACEINDEX) != 0 && entry.mesh.FN() > 0)
-        requiredMask |= vcg::tri::io::Mask::IOM_FACEINDEX;
-    if ((capabilityMask & vcg::tri::io::Mask::IOM_EDGEINDEX) != 0 && entry.mesh.EN() > 0)
-        requiredMask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
-    return requiredMask;
-}
-
-int defaultSaveMaskForMesh(const Document::MeshEntry &entry, int capabilityMask)
-{
-    const int availableMask = availableSaveMaskForMesh(entry);
-    int mask = availableMask & capabilityMask;
-    mask |= requiredSaveMaskForMesh(entry, capabilityMask);
-    if ((entry.ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL) == 0)
-        mask &= ~vcg::tri::io::Mask::IOM_BITPOLYGONAL;
-    // Prefer wedge attributes over per-vertex ones when both are available.
-    if ((mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0)
-        mask &= ~vcg::tri::io::Mask::IOM_VERTTEXCOORD;
-    if ((mask & vcg::tri::io::Mask::IOM_WEDGNORMAL) != 0)
-        mask &= ~vcg::tri::io::Mask::IOM_VERTNORMAL;
-    return mask;
-}
-
 
 
 // The level decides the colour and the tag; the source only qualifies the tag, since
@@ -2683,8 +2641,8 @@ void MainWindow::saveCurrentMesh()
         m_doc->writeLog(msg, Document::LogSource::Application);
         return;
     }
-    const int availableMask = availableSaveMaskForMesh(entry);
-    const int requiredMask = requiredSaveMaskForMesh(entry, capabilityMask);
+    const int availableMask = Document::availableSaveMask(entry);
+    const int requiredMask = Document::requiredSaveMask(entry, capabilityMask);
     const QString extension = fileExtensionLower(targetPath);
     const bool binarySupported = saveFormatSupportsBinary(extension);
     const bool supportsEmbeddedTextures = saveFormatSupportsEmbeddedTextures(extension);
@@ -2692,7 +2650,7 @@ void MainWindow::saveCurrentMesh()
     const bool supportsDracoCompression = saveFormatSupportsDracoCompression(extension);
 
     MeshIOSaveOptions initialOptions;
-    initialOptions.mask = defaultSaveMaskForMesh(entry, capabilityMask);
+    initialOptions.mask = Document::defaultSaveMask(entry, capabilityMask);
     initialOptions.binary = binarySupported;
     initialOptions.embedTextures = (extension == QLatin1String("glb"));
     initialOptions.copyAssociatedTextures = false;

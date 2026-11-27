@@ -465,6 +465,12 @@ public:
     QString openDialogFilter() const;
     QString saveDialogFilter() const;
     int saveMaskCapability(const QString &filename) const;
+    // Which vcg::tri::io::Mask bits a layer can be saved with: what it holds (its ioMask), plus
+    // the geometry it has; the part a save cannot leave out; and the default the Save dialog
+    // proposes, and saveMesh uses when no mask is given.
+    static int availableSaveMask(const MeshEntry &entry);
+    static int requiredSaveMask(const MeshEntry &entry, int capabilityMask);
+    static int defaultSaveMask(const MeshEntry &entry, int capabilityMask);
     std::vector<ImportPluginInfo> importPluginInfos() const;
     std::vector<ExportPluginInfo> exportPluginInfos() const;
     std::vector<FilterInfo> filterInfos() const;

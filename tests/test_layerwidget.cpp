@@ -309,6 +309,7 @@ void LayerWidgetTests::theMarkSaysWhetherAFileHoldsTheLayer()
     Document doc;
     addTinyMesh(doc, QStringLiteral("tiny"));
     doc.mesh(0).mesh.face.EnableWedgeTexCoord();
+    doc.mesh(0).ioMask |= vcg::tri::io::Mask::IOM_WEDGTEXCOORD;
     QImage red(2, 2, QImage::Format_RGBA8888);
     red.fill(Qt::red);
     TextureAssociationUtils::replaceTextureAssociations(

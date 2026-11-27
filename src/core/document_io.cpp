@@ -42,6 +42,48 @@ int Document::saveMaskCapability(const QString &filename) const
 }
 
 
+int Document::availableSaveMask(const MeshEntry &entry)
+{
+    int mask = entry.ioMask;
+    mask |= vcg::tri::io::Mask::IOM_VERTCOORD;
+    if (entry.mesh.FN() > 0) {
+        mask |= vcg::tri::io::Mask::IOM_FACEINDEX;
+        // Polygonal export is an output choice, not an optional mesh component:
+        // disabling it deliberately writes the underlying triangulation.
+        mask |= vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+    }
+    if (entry.mesh.EN() > 0)
+        mask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
+    return mask;
+}
+
+int Document::requiredSaveMask(const MeshEntry &entry, int capabilityMask)
+{
+    int requiredMask = 0;
+    if ((capabilityMask & vcg::tri::io::Mask::IOM_VERTCOORD) != 0 && entry.mesh.VN() > 0)
+        requiredMask |= vcg::tri::io::Mask::IOM_VERTCOORD;
+    if ((capabilityMask & vcg::tri::io::Mask::IOM_FACEINDEX) != 0 && entry.mesh.FN() > 0)
+        requiredMask |= vcg::tri::io::Mask::IOM_FACEINDEX;
+    if ((capabilityMask & vcg::tri::io::Mask::IOM_EDGEINDEX) != 0 && entry.mesh.EN() > 0)
+        requiredMask |= vcg::tri::io::Mask::IOM_EDGEINDEX;
+    return requiredMask;
+}
+
+int Document::defaultSaveMask(const MeshEntry &entry, int capabilityMask)
+{
+    const int availableMask = availableSaveMask(entry);
+    int mask = availableMask & capabilityMask;
+    mask |= requiredSaveMask(entry, capabilityMask);
+    if ((entry.ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL) == 0)
+        mask &= ~vcg::tri::io::Mask::IOM_BITPOLYGONAL;
+    // Prefer wedge attributes over per-vertex ones when both are available.
+    if ((mask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD) != 0)
+        mask &= ~vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+    if ((mask & vcg::tri::io::Mask::IOM_WEDGNORMAL) != 0)
+        mask &= ~vcg::tri::io::Mask::IOM_VERTNORMAL;
+    return mask;
+}
+
 std::vector<Document::ImportPluginInfo> Document::importPluginInfos() const
 {
     std::vector<ImportPluginInfo> infos;
@@ -669,6 +711,11 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
     // The formats that record a unit get the document's.
     MeshIOSaveOptions saveOptions = options;
     saveOptions.unit = m_unit;
+    // No mask asks for what the layer holds, as the Save dialog proposes; left to the exporter, it
+    // asked for everything the format can hold, and a project or Python save wrote white colors
+    // and zero scalars the layer never had.
+    if (saveOptions.mask == 0)
+        saveOptions.mask = defaultSaveMask(entry, plugin->saveMaskCapability(normalizedFilename));
     // Texture coordinates are optional components: a mask asking for ones the mesh has not
     // allocated made an exporter read storage that does not exist (the glTF writer crashed on
     // a mesh with faces and no UVs). The bits for them are dropped here, for every exporter.

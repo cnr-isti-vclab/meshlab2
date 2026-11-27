@@ -369,6 +369,10 @@ bool Document::saveMeshLabProject(
             continue;
         MeshIOSaveOptions saveOptions;
         saveOptions.copyAssociatedTextures = plan.action == MeshAction::SaveCopy;
+        // What the layer holds, and its selection: a project reopens as it was left, and the
+        // layer's ioMask does not name the flags a selection is stored in.
+        const int capability = saveMaskCapability(plan.absPath);
+        saveOptions.mask = defaultSaveMask(mesh(mi), capability) | (capability & vcg::tri::io::Mask::IOM_FLAGS);
         if (saveMesh(mi, plan.absPath, saveOptions) != 0)
             return fail(tr("Failed to save mesh '%1' to %2").arg(mesh(mi).name, plan.absPath));
     }
