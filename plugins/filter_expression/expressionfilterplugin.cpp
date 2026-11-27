@@ -460,6 +460,16 @@ struct ParserRuntime
     double edx = 0.0;
     double edy = 0.0;
     double edz = 0.0;
+    // Position along the edge's chain (Clean::EdgeMeshChains), filled once per run by the
+    // first edge parser: es and earc are taken at the edge's midpoint.
+    double es = 0.0;
+    double earc = 0.0;
+    double eidx = 0.0;
+    double ech = 0.0;
+    std::vector<int> chainOfEdge;
+    std::vector<int> positionInChain;
+    std::vector<float> arcLengthAtStart;
+    std::vector<float> chainLength;
 
     double xmin = 0.0;
     double ymin = 0.0;
@@ -664,6 +674,13 @@ void setPerEdgeVariables(mu::Parser &parser, ParserRuntime &runtime, VCGMesh &me
     parser.DefineVar("edx", &runtime.edx);
     parser.DefineVar("edy", &runtime.edy);
     parser.DefineVar("edz", &runtime.edz);
+    parser.DefineVar("es", &runtime.es);
+    parser.DefineVar("earc", &runtime.earc);
+    parser.DefineVar("eidx", &runtime.eidx);
+    parser.DefineVar("ech", &runtime.ech);
+    if (runtime.chainOfEdge.size() != mesh.edge.size())
+        vcg::tri::Clean<VCGMesh>::EdgeMeshChains(mesh, runtime.chainOfEdge, runtime.positionInChain,
+                                                 runtime.arcLengthAtStart, runtime.chainLength);
     defineCommonBBoxVars(parser, runtime);
     meshlab::filters::defineParserCustomFunctions(parser);
     runtime.edgeAttributes.bind(parser, mesh);
@@ -837,6 +854,14 @@ void setEdgeRuntime(
     runtime.edx = double(delta[0]) * inv;
     runtime.edy = double(delta[1]) * inv;
     runtime.edz = double(delta[2]) * inv;
+
+    const std::size_t index = std::size_t(ei - mesh.edge.begin());
+    const int chain = runtime.chainOfEdge[index];
+    runtime.ech = chain;
+    runtime.eidx = runtime.positionInChain[index];
+    runtime.earc = double(runtime.arcLengthAtStart[index]) + 0.5 * len;
+    const double chainLength = chain >= 0 ? double(runtime.chainLength[std::size_t(chain)]) : 0.0;
+    runtime.es = chainLength > 0.0 ? runtime.earc / chainLength : 0.0;
 
     runtime.edgeAttributes.load(ei);
 }

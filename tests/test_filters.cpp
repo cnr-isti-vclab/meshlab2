@@ -645,6 +645,7 @@ private slots:
     void createdCylinderHonoursRadiusHeightAndAxis();
     void edgeExpressionsSelectColorAndScaleAPolyline();
     void polylineComponentsColorsAndEdgeAttributes();
+    void edgeExpressionsMeasureAlongChains();
     void expressionsReadCustomAttributesAsTheirOwnType();
     void documentedExpressionExamplesRun();
     void incrementalSelectionPreservesEdges();
@@ -16184,6 +16185,68 @@ void FilterTests::polylineComponentsColorsAndEdgeAttributes()
     const std::vector<bool> expected = { false, true, true, false, true };
     for (int i = 0; i < 5; ++i)
         QVERIFY2(edge(i).IsS() == expected[std::size_t(i)], qPrintable(QString::number(i)));
+}
+
+// es, earc, eidx and ech place an edge along its chain. Three fixtures in one layer: an open
+// chain stored out of order with its last edge reversed, a Y (three one-edge chains, since a
+// branch point ends a chain), and a closed unit square.
+void FilterTests::edgeExpressionsMeasureAlongChains()
+{
+    Document doc;
+    VCGMesh polyline;
+    const std::vector<vcg::Point3f> points = {
+        { 0, 0, 0 }, { 1, 0, 0 }, { 3, 0, 0 }, { 6, 0, 0 },                 // open chain
+        { 10, 0, 0 }, { 11, 0, 0 }, { 10, 2, 0 }, { 10, -4, 0 },           // Y
+        { 20, 0, 0 }, { 21, 0, 0 }, { 21, 1, 0 }, { 20, 1, 0 }             // square
+    };
+    const std::vector<std::pair<int, int>> edges = {
+        { 1, 2 }, { 0, 1 }, { 3, 2 },
+        { 4, 5 }, { 6, 4 }, { 4, 7 },
+        { 8, 9 }, { 9, 10 }, { 10, 11 }, { 11, 8 }
+    };
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, int(points.size()));
+    for (std::size_t i = 0; i < points.size(); ++i)
+        polyline.vert[i].P() = points[i];
+    vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, int(edges.size()));
+    for (std::size_t i = 0; i < edges.size(); ++i) {
+        polyline.edge[i].V(0) = &polyline.vert[std::size_t(edges[i].first)];
+        polyline.edge[i].V(1) = &polyline.vert[std::size_t(edges[i].second)];
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(polyline);
+    const int index = doc.addMesh(polyline, QStringLiteral("chains"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+
+    const auto scalars = [&](const QString &expression) {
+        MeshFilterParameterValues p;
+        p.insert(QStringLiteral("q"), expression);
+        const MeshFilterRunResult r = doc.runFilter(
+            filterKeyForId(doc, QStringLiteral("compute_edge_scalar_by_expression")), p);
+        std::vector<double> values;
+        if (!r.success)
+            return values;
+        for (const VCGEdge &e : doc.mesh(index).mesh.edge)
+            values.push_back(e.cQ());
+        return values;
+    };
+    const auto compare = [](const std::vector<double> &actual, const std::vector<double> &expected) {
+        if (actual.size() != expected.size())
+            return false;
+        for (std::size_t i = 0; i < actual.size(); ++i)
+            if (std::abs(actual[i] - expected[i]) > 1e-5)
+                return false;
+        return true;
+    };
+
+    // The open chain starts at vertex 0, the free end of edge 1 (the lowest-index edge with
+    // a free end), and runs 1, 0, 2 whatever the edges' own orientation. The square starts
+    // at edge 6.
+    QVERIFY(compare(scalars(QStringLiteral("ech")), { 0, 0, 0, 1, 2, 3, 4, 4, 4, 4 }));
+    QVERIFY(compare(scalars(QStringLiteral("eidx")), { 1, 0, 2, 0, 0, 0, 0, 1, 2, 3 }));
+    // Lengths 2, 1, 3 along a chain of 6, measured at each edge's midpoint.
+    QVERIFY(compare(scalars(QStringLiteral("earc")), { 2, 0.5, 4.5, 0.5, 1, 2, 0.5, 1.5, 2.5, 3.5 }));
+    QVERIFY(compare(scalars(QStringLiteral("es")),
+                    { 2.0 / 6, 0.5 / 6, 4.5 / 6, 0.5, 0.5, 0.5, 0.125, 0.375, 0.625, 0.875 }));
 }
 
 // Integer attributes hold labels -- a part tag, a branch id -- and selecting by label is the

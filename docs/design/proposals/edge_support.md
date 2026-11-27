@@ -1,8 +1,7 @@
 # Edge Support
 
 What remains of making edges a first-class element. **Not implemented:** any way
-to select an edge interactively, in either sense of *edge* below, and arc length
-along a chain.
+to select an edge interactively, in either sense of *edge* below.
 
 Stages 1-3 shipped on 2026-09-16 and their proposal is kept as a record in
 [history/edge_support.md](../history/edge_support.md): per-edge colour and scalar
@@ -14,7 +13,9 @@ selection overlay ([Rendering](../rendering.md)), and isocontour levels stamped
 on their edges. Stage 4 shipped on 2026-11-26: *Set Random Polyline Color*,
 *Transfer Color from Edge to Vertex*, and *Define Custom Edge Scalar/Point
 Attribute*, whose attributes the edge expressions read by name
-([expressions.md](../../expressions.md)).
+([expressions.md](../../expressions.md)). Arc length along a chain shipped on
+2026-11-27: the edge expressions read `es`, `earc`, `eidx` and `ech`, from vcglib's
+`Clean::EdgeMeshChains`, which splits a polyline at its ends and branch points.
 
 ## Two different things are called an edge
 
@@ -69,12 +70,6 @@ already do their work: `compute_edge_scalar_from_geometry` is *Compute Edge Scal
 by Expression* with `elen`, `emz` or `acos(abs(edz))`, and the vertex-to-edge color
 transfer is *Compute Edge Color by Expression* with `(r0+r1)/2` and its siblings, as
 the description of *Transfer Color from Edge to Vertex* says.
-
-**Arc length along the chain, deliberately deferred.** `es`, normalised 0→1 from
-the start of the polyline, and `eidx`, the position in the chain: the one
-quantity edges have that vertices and faces do not, and colouring by it shows
-direction and flow. It needs the chain *ordered*, not merely component-labelled,
-so it means walking the union–find result and handling open versus closed chains.
 
 ## Staging
 

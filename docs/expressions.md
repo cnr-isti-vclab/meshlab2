@@ -166,6 +166,16 @@ face. What it adds is its own properties and a few quantities derived from the e
 | `elen` | length |
 | `emx` `emy` `emz` | midpoint |
 | `edx` `edy` `edz` | unit direction, from endpoint 0 to endpoint 1; zero for an empty edge |
+| `es` | position along the edge's chain, from 0 at its start to 1 at its end, at the edge's midpoint |
+| `earc` | arc length from the start of the chain to the edge's midpoint |
+| `eidx` | position of the edge in its chain, from 0 |
+| `ech` | index of the chain, from 0 |
+
+A **chain** is a run of edges joined end to end: it stops at a free end and at a branch
+point, where three or more edges meet, so a Y is three chains. A closed loop is one chain.
+An open chain starts at the end belonging to the lowest-index edge, so a polyline stored in
+order runs in that order; a loop starts at its lowest-index edge, from that edge's
+endpoint 0.
 
 ### The two filters that are different
 
@@ -248,6 +258,10 @@ Z `z+0.1*sin(10*x)`.
 
 **Color a polyline by direction.** *Compute Edge Color by Expression*: Red `255*abs(edx)`,
 Green `255*abs(edy)`, Blue `255*abs(edz)`, Alpha `255`.
+
+**Show which way a polyline runs.** *Compute Edge Color by Expression*: Red `255*es`,
+Green `0`, Blue `255*(1-es)`, Alpha `255`. Each chain goes from blue to red. For stripes
+every 5 units along the curve, *Select Edges by Expression* with `sin(earc*_pi/5) > 0`.
 
 ## What to expect
 
