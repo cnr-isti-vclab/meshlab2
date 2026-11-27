@@ -565,6 +565,8 @@ private slots:
     void voronoiSurfaceSamplingRunsOnCube();
     void voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners();
     void voronoiSurfaceSamplingKeepsOnlyTheSamplesWhenARegionIsNotADisk();
+    void voronoiSurfaceSamplingPreprocessesACoarseMesh();
+    void voronoiSurfaceSamplingVariesTheRadiusOnlyWhereTheScalarDoes();
     void voronoiSolidWireframeRunsOnLoadedMesh();
     void icpBetweenPointCloudsUpdatesSourceTransform();
     void translateFilterMovesOnlyCurrentMesh();
@@ -646,6 +648,7 @@ private slots:
     void edgeExpressionsSelectColorAndScaleAPolyline();
     void polylineComponentsColorsAndEdgeAttributes();
     void edgeExpressionsMeasureAlongChains();
+    void selectAllNoneAndInvertCoverPolylineEdges();
     void expressionsReadCustomAttributesAsTheirOwnType();
     void documentedExpressionExamplesRun();
     void incrementalSelectionPreservesEdges();
@@ -10124,18 +10127,16 @@ void FilterTests::voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners()
         QVERIFY(doc.mesh(result.newMeshIndices[3]).name.contains(QStringLiteral("(voronoi samples)")));
         QCOMPARE(doc.currentMeshIndex(), result.newMeshIndices[3]);
 
-        // The filter computes a scalar and leaves color alone: the seeds sit at distance zero
-        // and every vertex keeps the color it came in with.
+        // The filter computes a scalar and leaves color alone: the seeds, and only they, sit at
+        // distance zero, every vertex keeps the color it came in with, and nothing is selected.
         int seedCount = 0;
         int repainted = 0;
         for (const auto &v : doc.mesh(0).mesh.vert) {
             if (v.IsD())
                 continue;
             repainted += (v.cC() != paint) ? 1 : 0;
-            if (v.IsS()) {
-                ++seedCount;
-                QCOMPARE(v.cQ(), 0.0f);
-            }
+            seedCount += (v.cQ() == 0.0f) ? 1 : 0;
+            QVERIFY(!v.IsS());
         }
         QCOMPARE(repainted, 0);
         QCOMPARE(doc.mesh(result.newMeshIndices[3]).mesh.VN(), seedCount);
@@ -10171,6 +10172,66 @@ void FilterTests::voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners()
         for (const auto &f : delaunay.face)
             QVERIFY(f.IsD() || vcg::TriangleNormal(f) * (vcg::Barycenter(f) - center) > 0);
     }
+}
+
+// Preprocessing is on by default: a twelve-triangle cube is refined to the sample density
+// before relaxing, so every region is a disk and the diagram closes.
+void FilterTests::voronoiSurfaceSamplingPreprocessesACoarseMesh()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    QCOMPARE(doc.addMesh(cube, QStringLiteral("Cube"),
+                         vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTNORMAL
+                             | vcg::tri::io::Mask::IOM_FACENORMAL),
+             0);
+    const int facesBefore = doc.mesh(0).mesh.FN();
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("sampleNum"), 30);
+    params.insert(QStringLiteral("iterNum"), 5);
+    params.insert(QStringLiteral("randomSeed"), 1);
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("sample_surface_by_voronoi_relaxation")), params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(doc.mesh(0).mesh.FN() > 20 * facesBefore);
+    QCOMPARE(result.newMeshIndices.size(), 4);
+
+    const int sampleCount = doc.mesh(result.newMeshIndices[3]).mesh.VN();
+    QVERIFY2(sampleCount >= 20 && sampleCount <= 40, qPrintable(QString::number(sampleCount)));
+    QCOMPARE(doc.mesh(result.newMeshIndices[0]).polygonFaceCount, sampleCount);
+    QCOMPARE(doc.mesh(result.newMeshIndices[2]).mesh.FN(), 2 * sampleCount - 4);
+    VCGMesh &cells = doc.mesh(result.newMeshIndices[0]).mesh;
+    VCGMeshFFAdjScope ffAdj(cells);
+    vcg::tri::UpdateTopology<VCGMesh>::FaceFace(cells);
+    QCOMPARE(vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(cells), 0);
+    for (const auto &f : cells.face)
+        for (int i = 0; f.IsD() ? false : i < 3; ++i)
+            QVERIFY(!vcg::face::IsBorder(f, i));
+}
+
+// The radius variance scales the initial Poisson radius by the vertex scalar. A mesh whose scalar
+// was never computed holds a constant one, which gave every radius 0/0 and hung the sampler; it
+// now samples uniformly.
+void FilterTests::voronoiSurfaceSamplingVariesTheRadiusOnlyWhereTheScalarDoes()
+{
+    Document doc;
+    VCGMesh cube;
+    makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+    QCOMPARE(doc.addMesh(cube, QStringLiteral("Cube"),
+                         vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTNORMAL
+                             | vcg::tri::io::Mask::IOM_FACENORMAL),
+             0);
+
+    MeshFilterParameterValues params;
+    params.insert(QStringLiteral("sampleNum"), 30);
+    params.insert(QStringLiteral("iterNum"), 1);
+    params.insert(QStringLiteral("randomSeed"), 1);
+    params.insert(QStringLiteral("radiusVariance"), 2.0);
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("sample_surface_by_voronoi_relaxation")), params);
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+    QVERIFY(doc.mesh(result.newMeshIndices.last()).mesh.VN() >= 20);
 }
 
 // Few seeds on a torus give regions that wrap around the tube and meet themselves on the other
@@ -16247,6 +16308,59 @@ void FilterTests::edgeExpressionsMeasureAlongChains()
     QVERIFY(compare(scalars(QStringLiteral("earc")), { 2, 0.5, 4.5, 0.5, 1, 2, 0.5, 1.5, 2.5, 3.5 }));
     QVERIFY(compare(scalars(QStringLiteral("es")),
                     { 2.0 / 6, 0.5 / 6, 4.5 / 6, 0.5, 0.5, 0.5, 0.125, 0.375, 0.625, 0.875 }));
+}
+
+// Select All, Select None and Invert Selection reach the edges of a polyline layer, with
+// defaults like the face and vertex ones: all and none take every edge, and invert flips the
+// edges only when some are selected. The selection tool's keys still act on one kind only.
+void FilterTests::selectAllNoneAndInvertCoverPolylineEdges()
+{
+    Document doc;
+    VCGMesh polyline;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, 4);
+    for (int i = 0; i < 4; ++i)
+        polyline.vert[std::size_t(i)].P() = vcg::Point3f(float(i), 0, 0);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, 3);
+    for (int i = 0; i < 3; ++i) {
+        polyline.edge[std::size_t(i)].V(0) = &polyline.vert[std::size_t(i)];
+        polyline.edge[std::size_t(i)].V(1) = &polyline.vert[std::size_t(i + 1)];
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(polyline);
+    const int index = doc.addMesh(polyline, QStringLiteral("polyline"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+    QVERIFY(index >= 0);
+    doc.setCurrentMeshIndex(index);
+    const auto run = [&](const QString &id, const MeshFilterParameterValues &params = {}) {
+        return doc.runFilter(filterKeyForId(doc, id), params).success;
+    };
+    const auto selectedEdges = [&]() {
+        QList<int> on;
+        const VCGMesh &m = doc.mesh(index).mesh;
+        for (int i = 0; i < int(m.edge.size()); ++i)
+            if (m.edge[std::size_t(i)].IsS())
+                on.append(i);
+        return on;
+    };
+
+    QVERIFY(run(QStringLiteral("select_all")));
+    QCOMPARE(selectedEdges(), QList<int>({ 0, 1, 2 }));
+    QVERIFY(run(QStringLiteral("select_none")));
+    QCOMPARE(selectedEdges(), QList<int>());
+
+    // With no edge selected the default leaves edges alone, as it does for faces.
+    QVERIFY(run(QStringLiteral("invert_selection")));
+    QCOMPARE(selectedEdges(), QList<int>());
+    doc.mesh(index).mesh.edge[1].SetS();
+    doc.markMeshSelectionChanged(index);
+    QVERIFY(run(QStringLiteral("invert_selection")));
+    QCOMPARE(selectedEdges(), QList<int>({ 0, 2 }));
+
+    // The A key in vertex mode selects the vertices and leaves the edges as they were.
+    const auto shortcut = selectionShortcutFor(Qt::Key_A, false);
+    QVERIFY(shortcut.has_value());
+    QVERIFY(doc.runFilter(QStringLiteral("meshlab2.filter.select::") + shortcut->filterId,
+                          shortcut->params).success);
+    QCOMPARE(selectedEdges(), QList<int>({ 0, 2 }));
+    QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(doc.mesh(index).mesh)), 4);
 }
 
 // Integer attributes hold labels -- a part tag, a branch id -- and selecting by label is the

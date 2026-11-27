@@ -393,7 +393,7 @@ MeshFilterDescriptor parseFilter(const QJsonObject &obj)
 QVariant resolveToken(const QVariant &v, double bboxDiag,
                       double qualityVMin, double qualityVMax,
                       double qualityFMin, double qualityFMax,
-                      bool hasSelectedFaces, bool hasSelectedVerts,
+                      bool hasSelectedFaces, bool hasSelectedVerts, bool hasSelectedEdges,
                       int faceCount, int selFaces,
                       int hardwareThreads,
                       int currentMeshIndex,
@@ -432,6 +432,7 @@ QVariant resolveToken(const QVariant &v, double bboxDiag,
     if (token == QStringLiteral("qualityFMax"))        return qualityFMax;
     if (token == QStringLiteral("hasSelectedFaces"))   return hasSelectedFaces;
     if (token == QStringLiteral("hasSelectedVerts"))   return hasSelectedVerts;
+    if (token == QStringLiteral("hasSelectedEdges"))   return hasSelectedEdges;
     if (token == QStringLiteral("faceCount"))          return std::max(1, faceCount);
     if (token == QStringLiteral("faceCountHalf"))      return std::max(1, faceCount / 2);
     if (token == QStringLiteral("selOrFaceCountHalf")) {
@@ -641,6 +642,7 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
         usesToken(QStringLiteral("@hasSelectedFaces"))
         || usesToken(QStringLiteral("@selOrFaceCountHalf"));
     const bool needSelectedVerts = usesToken(QStringLiteral("@hasSelectedVerts"));
+    const bool needSelectedEdges = usesToken(QStringLiteral("@hasSelectedEdges"));
     const bool needVertexQuality =
         usesToken(QStringLiteral("@qualityVMin")) || usesToken(QStringLiteral("@qualityVMax"))
         || usesToken(QStringLiteral("@qualityVMid"));
@@ -652,6 +654,7 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
     double qualityFMin = 0.0, qualityFMax = 1.0;
     bool hasSelectedFaces = false;
     bool hasSelectedVerts = false;
+    bool hasSelectedEdges = false;
     int faceCount = 0;
     int selFaces = 0;
 
@@ -667,6 +670,7 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
             : 0;
         hasSelectedFaces = (selFaces > 0);
         hasSelectedVerts = (selVerts > 0);
+        hasSelectedEdges = needSelectedEdges && vcg::tri::UpdateSelection<VCGMesh>::EdgeCount(mesh) > 0;
         const int ioMask = doc.mesh(ci).ioMask;
         if (needVertexQuality && (ioMask & vcg::tri::io::Mask::IOM_VERTQUALITY)
             && mesh.VN() > 0) {
@@ -699,15 +703,15 @@ void FilterDescriptorLoader::resolveSymbolicBounds(
                 p.defaultValue = LengthUnits::scriptId(doc.unit());
             p.defaultValue = resolveToken(p.defaultValue, bboxDiag,
                 qualityVMin, qualityVMax, qualityFMin, qualityFMax,
-                hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads,
+                hasSelectedFaces, hasSelectedVerts, hasSelectedEdges, faceCount, selFaces, hardwareThreads,
                 currentMeshIndex, otherMeshIndex);
             p.minValue = resolveToken(p.minValue, bboxDiag,
                 qualityVMin, qualityVMax, qualityFMin, qualityFMax,
-                hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads,
+                hasSelectedFaces, hasSelectedVerts, hasSelectedEdges, faceCount, selFaces, hardwareThreads,
                 currentMeshIndex, otherMeshIndex);
             p.maxValue = resolveToken(p.maxValue, bboxDiag,
                 qualityVMin, qualityVMax, qualityFMin, qualityFMax,
-                hasSelectedFaces, hasSelectedVerts, faceCount, selFaces, hardwareThreads,
+                hasSelectedFaces, hasSelectedVerts, hasSelectedEdges, faceCount, selFaces, hardwareThreads,
                 currentMeshIndex, otherMeshIndex);
         }
 

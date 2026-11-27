@@ -310,6 +310,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             Sel::VertexAll(mesh);
         if (params.getBool(QStringLiteral("allFaces")))
             Sel::FaceAll(mesh);
+        if (params.getBool(QStringLiteral("allEdges")))
+            Sel::EdgeAll(mesh);
         return selectionResult(
             meshIndex,
             entry,
@@ -321,6 +323,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             Sel::VertexClear(mesh);
         if (params.getBool(QStringLiteral("allFaces")))
             Sel::FaceClear(mesh);
+        if (params.getBool(QStringLiteral("allEdges")))
+            Sel::EdgeClear(mesh);
         return selectionResult(
             meshIndex,
             entry,
@@ -872,6 +876,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             Sel::VertexInvert(mesh);
         if (params.getBool(QStringLiteral("InvFaces")))
             Sel::FaceInvert(mesh);
+        if (params.getBool(QStringLiteral("InvEdges")))
+            Sel::EdgeInvert(mesh);
         return selectionResult(
             meshIndex,
             entry,

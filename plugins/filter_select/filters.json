@@ -41,8 +41,8 @@
       ],
       "name": "Select All",
       "pythonName": "select_all",
-      "shortDescription": "Select all the faces/vertices of the current mesh.",
-      "longDescriptionMarkdown": "Select all the faces/vertices of the current mesh.",
+      "shortDescription": "Select all the faces, vertices and edges of the current mesh.",
+      "longDescriptionMarkdown": "Select all the faces, vertices and edges of the current mesh. Edges are the real edges of a polyline layer, not the sides of triangles.",
       "tags": [
         "selection"
       ],
@@ -64,11 +64,20 @@
           "group": "main",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "allEdges",
+          "label": "Select all Edges",
+          "help": "If true the filter will select all the edges of a polyline layer.",
+          "group": "main",
+          "type": "bool",
+          "default": true
         }
       ],
       "outputModifies": [
         "VS",
-        "FS"
+        "FS",
+        "ES"
       ]
     },
     {
@@ -78,8 +87,8 @@
       ],
       "name": "Select None",
       "pythonName": "select_none",
-      "shortDescription": "Clear the current set of selected faces/vertices.",
-      "longDescriptionMarkdown": "Clear the current set of selected faces/vertices.",
+      "shortDescription": "Clear the current set of selected faces, vertices and edges.",
+      "longDescriptionMarkdown": "Clear the current set of selected faces, vertices and edges. Edges are the real edges of a polyline layer, not the sides of triangles.",
       "tags": [
         "selection"
       ],
@@ -101,11 +110,20 @@
           "group": "main",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "allEdges",
+          "label": "De-select all Edges",
+          "help": "If true the filter will de-select all the edges of a polyline layer.",
+          "group": "main",
+          "type": "bool",
+          "default": true
         }
       ],
       "outputModifies": [
         "VS",
-        "FS"
+        "FS",
+        "ES"
       ]
     },
     {
@@ -261,8 +279,8 @@
       ],
       "name": "Invert Selection",
       "pythonName": "invert_selection",
-      "shortDescription": "Invert the current set of selected faces/vertices.",
-      "longDescriptionMarkdown": "Invert the current set of selected faces/vertices.",
+      "shortDescription": "Invert the current set of selected faces, vertices and edges.",
+      "longDescriptionMarkdown": "Invert the current set of selected faces, vertices and edges. Edges are the real edges of a polyline layer, not the sides of triangles.",
       "tags": [
         "selection"
       ],
@@ -284,11 +302,20 @@
           "group": "main",
           "type": "bool",
           "default": "@hasSelectedVerts"
+        },
+        {
+          "id": "InvEdges",
+          "label": "Invert Edges",
+          "help": "If true the filter will invert the set of selected edges of a polyline layer.",
+          "group": "main",
+          "type": "bool",
+          "default": "@hasSelectedEdges"
         }
       ],
       "outputModifies": [
         "VS",
-        "FS"
+        "FS",
+        "ES"
       ]
     },
     {

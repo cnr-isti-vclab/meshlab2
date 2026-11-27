@@ -16,6 +16,9 @@ Attribute*, whose attributes the edge expressions read by name
 ([expressions.md](../../expressions.md)). Arc length along a chain shipped on
 2026-11-27: the edge expressions read `es`, `earc`, `eidx` and `ech`, from vcglib's
 `Clean::EdgeMeshChains`, which splits a polyline at its ends and branch points.
+On the same day *Select All*, *Select None* and *Invert Selection* gained an edge
+option (`allEdges`, `InvEdges`), defaulting like the face and vertex ones
+(`@hasSelectedEdges` for invert); the selection tool's A/N/I keys pass it off.
 
 ## Two different things are called an edge
 
@@ -44,12 +47,11 @@ and vertices. An edge mode means deciding what "an edge is inside the rectangle"
 means — both endpoints in, or the segment crossing it — and then writing the
 per-face edge bits of both incident faces.
 
-**For polylines.** `VCGEdge::IsS()` is written only by *Select Edges by
-Expression*, by layer splitting and by undo. `select_all`, `select_none` and
-`invert_selection` take `allFaces`/`allVerts` and have no edge option, and
-`select_non_manifold_edges_vcglib` selects the faces and vertices *incident* on
-non-manifold edges rather than the edges. vcglib's `UpdateSelection` already has
-`EdgeAll`, `EdgeClear`, `EdgeInvert` and `EdgeCount`.
+**For polylines.** `VCGEdge::IsS()` is written by *Select Edges by Expression*,
+by the edge option of *Select All*, *Select None* and *Invert Selection*, by layer
+splitting and by undo; nothing points at one. `select_non_manifold_edges_vcglib`
+selects the faces and vertices *incident* on non-manifold edges rather than the
+edges.
 
 **What to build on.** The current-layer outline pass already rasterises polyline
 edges into an offscreen depth buffer (`m_currentMaskEdgesDepthOnlyPipeline`,
@@ -83,9 +85,10 @@ the description of *Transfer Color from Edge to Vertex* says.
   different storage with different semantics, but a user drawing a rectangle over
   a model does not care. A single tool mode writing to whichever the current layer
   supports is probably right, but it makes the tool's state harder to describe.
-- **Does `invert_selection` / `select_all` grow an `allEdges` flag**, or do
-  polyline layers get their own selection filters? The first is less UI, the
-  second avoids three dead checkboxes on every triangle mesh.
+- **The edge option of the set-operation filters shows on triangle meshes too**,
+  where it does nothing: the parameter schema cannot hide a row by what the layer
+  holds. The flag was chosen over separate polyline filters (2026-11-27) as less
+  UI; a schema-level `appliesTo` would remove the dead rows everywhere at once.
 - **Per-edge quality on mesh edges** would need a genuinely different design —
   probably a named attribute keyed by a canonical (vertex, vertex) pair rather
   than anything stored on faces.

@@ -99,6 +99,7 @@ class Document;
 //   @qualityFMax           - per-face quality maximum
 //   @hasSelectedFaces      - bool: selected face count > 0
 //   @hasSelectedVerts      - bool: selected vertex count > 0
+//   @hasSelectedEdges      - bool: selected edge count > 0 (polyline edges)
 //   @faceCount             - max(1, face count)
 //   @faceCountHalf         - max(1, face count / 2)
 //   @selOrFaceCountHalf    - max(1, (selFaces>0 ? selFaces : faceCount) / 2)

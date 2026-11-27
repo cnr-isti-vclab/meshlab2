@@ -14,7 +14,7 @@
 //
 // Every one acts on the kind of element the tool is currently picking, faces or vertices,
 // which is why `faces` is an argument and not left to the filter's defaults: those act on
-// both kinds (select all and select none), act on whichever kind already has something
+// every kind, polyline edges included (select all and select none), act on whichever kind already has something
 // selected (invert, which would do nothing to an empty selection), or work from faces and
 // clear a vertex selection (dilate and erode, before they took an `element`).
 //
@@ -32,13 +32,16 @@ inline std::optional<SelectionShortcut> selectionShortcutFor(int key, bool faces
     switch (key) {
     case Qt::Key_A:
         return SelectionShortcut{ QStringLiteral("select_all"),
-            { { QStringLiteral("allFaces"), faces }, { QStringLiteral("allVerts"), !faces } } };
+            { { QStringLiteral("allFaces"), faces }, { QStringLiteral("allVerts"), !faces },
+              { QStringLiteral("allEdges"), false } } };
     case Qt::Key_N:
         return SelectionShortcut{ QStringLiteral("select_none"),
-            { { QStringLiteral("allFaces"), faces }, { QStringLiteral("allVerts"), !faces } } };
+            { { QStringLiteral("allFaces"), faces }, { QStringLiteral("allVerts"), !faces },
+              { QStringLiteral("allEdges"), false } } };
     case Qt::Key_I:
         return SelectionShortcut{ QStringLiteral("invert_selection"),
-            { { QStringLiteral("InvFaces"), faces }, { QStringLiteral("InvVerts"), !faces } } };
+            { { QStringLiteral("InvFaces"), faces }, { QStringLiteral("InvVerts"), !faces },
+              { QStringLiteral("InvEdges"), false } } };
     case Qt::Key_Plus:
     case Qt::Key_Equal:   // the same key as + on a layout where + needs Shift
         return SelectionShortcut{ QStringLiteral("dilate_selection"),
