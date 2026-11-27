@@ -216,12 +216,10 @@ through GeomSubsets whose family is a `partition`, or `nonOverlapping` when some
 slot; edges are not written, with a log line; texture paths not copied are written relative to
 the file, as PLY's and OBJ's are.
 
-**A zero save mask writes everything the format holds**, as glTF's saver does: white vertex
-colors, a zero `scalar` primvar and normals included, and the vertex colors displace face
-colors. The GUI never passes one (`defaultSaveMaskForMesh` in `mainwindow.cpp` starts from the
-layer's `ioMask`), but `Document::saveMesh` callers without a mask do: Python's
-`save_current_mesh` and project saves. Moving that default into `Document::saveMesh` would fix
-it for every format; it is outside this stage.
+**A save with no mask** (a project save, Python's `save_current_mesh`) writes what the layer
+holds: since 2026-11-27 `Document::saveMesh` fills it in with `Document::defaultSaveMask`, the
+default the Save dialog proposes. Before, every exporter took it as everything the format can
+hold, and in USD the white vertex colors that came with it displaced the layer's face colors.
 
 **Measured** on build-release, this Mac:
 

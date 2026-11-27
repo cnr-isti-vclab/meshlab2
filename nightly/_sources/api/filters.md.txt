@@ -4226,7 +4226,7 @@ Sample a surface and relax the samples with a geodesic Voronoi/Lloyd process.
 ```{py:function} ms.sample_surface_by_voronoi_relaxation(**params)
 :module: _meshlab
 
-Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The final seeds are added as a point cloud layer. When every Voronoi region is a disk, three more layers are added: the Voronoi cells as polygons, their boundaries as a polyline, and the dual Delaunay triangulation of the seeds. A region that wraps around a thin part of the mesh, such as the tube of a torus sampled sparsely, is not a disk; then only the samples are added. The current mesh keeps its colors: the chosen quantity of the final diagram (seed distance, border distance or region area) is stored as its vertex scalar.
+Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The final seeds are added as a point cloud layer. When every Voronoi region is a disk, three more layers are added: the Voronoi cells as polygons, their boundaries as a polyline, and the dual Delaunay triangulation of the seeds, which on an open mesh can be extended to the border. A region that wraps around a thin part of the mesh, such as the tube of a torus sampled sparsely, is not a disk; then only the samples are added. The current mesh keeps its colors: the chosen quantity of the final diagram (seed distance, border distance or region area) is stored as its vertex scalar.
 
 **Parameters:**
 
@@ -4236,6 +4236,7 @@ Compute a point sampling over the current mesh and perform Lloyd relaxation on t
 - **scalarField** (*enum*, default: `seed_distance`) — Which quantity of the final Voronoi diagram is stored as the vertex scalar of the current mesh: the geodesic distance from the nearest seed, the geodesic distance from the region borders, or the area of the region the vertex belongs to.
 - **distanceType** (*enum*, default: `euclidean`) — Metric used by the Voronoi relaxation.
 - **preprocessFlag** (*bool*, default: `True`) — Refine the current mesh before relaxation so the supporting triangulation is dense enough for the requested sample count.
+- **delaunayToBorder** (*bool*, default: `False`) — On an open mesh the Delaunay triangulation of the seeds stops at the polygon through the outermost seeds. When checked, the points where the Voronoi boundaries meet the mesh border are added too, and each border cell is joined to its stretch of border by a straight chord, so the triangulation reaches the border.
 - **refineFactor** (*int*, default: `10`) — Controls how much the mesh is refined during preprocessing. Larger values create a denser supporting triangulation.
 - **perturbProbability** (*double*, default: `0.0`) — Probability that each seed is slightly perturbed during restricted relaxation.
 - **perturbAmount** (*double*, default: `0.001`) — Perturbation amplitude as a fraction of the bounding-box diagonal.

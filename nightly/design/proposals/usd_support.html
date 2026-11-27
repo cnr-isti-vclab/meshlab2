@@ -661,12 +661,10 @@ assets; on export a mesh with one slot on every face binds its material on the m
 through GeomSubsets whose family is a <code class="docutils literal notranslate"><span class="pre">partition</span></code>, or <code class="docutils literal notranslate"><span class="pre">nonOverlapping</span></code> when some faces have no
 slot; edges are not written, with a log line; texture paths not copied are written relative to
 the file, as PLY’s and OBJ’s are.</p>
-<p><strong>A zero save mask writes everything the format holds</strong>, as glTF’s saver does: white vertex
-colors, a zero <code class="docutils literal notranslate"><span class="pre">scalar</span></code> primvar and normals included, and the vertex colors displace face
-colors. The GUI never passes one (<code class="docutils literal notranslate"><span class="pre">defaultSaveMaskForMesh</span></code> in <code class="docutils literal notranslate"><span class="pre">mainwindow.cpp</span></code> starts from the
-layer’s <code class="docutils literal notranslate"><span class="pre">ioMask</span></code>), but <code class="docutils literal notranslate"><span class="pre">Document::saveMesh</span></code> callers without a mask do: Python’s
-<code class="docutils literal notranslate"><span class="pre">save_current_mesh</span></code> and project saves. Moving that default into <code class="docutils literal notranslate"><span class="pre">Document::saveMesh</span></code> would fix
-it for every format; it is outside this stage.</p>
+<p><strong>A save with no mask</strong> (a project save, Python’s <code class="docutils literal notranslate"><span class="pre">save_current_mesh</span></code>) writes what the layer
+holds: since 2026-11-27 <code class="docutils literal notranslate"><span class="pre">Document::saveMesh</span></code> fills it in with <code class="docutils literal notranslate"><span class="pre">Document::defaultSaveMask</span></code>, the
+default the Save dialog proposes. Before, every exporter took it as everything the format can
+hold, and in USD the white vertex colors that came with it displaced the layer’s face colors.</p>
 <p><strong>Measured</strong> on build-release, this Mac:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code>: four USD tests (the fixtures in <code class="docutils literal notranslate"><span class="pre">tests/data/usd/</span></code>, and a
