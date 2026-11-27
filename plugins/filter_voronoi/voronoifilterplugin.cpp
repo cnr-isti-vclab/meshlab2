@@ -17,7 +17,6 @@
 #include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/quality.h>
-#include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/complex/algorithms/voronoi_processing.h>
 #include <vcg/complex/algorithms/voronoi_volume_sampling.h>
@@ -342,11 +341,6 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
         }
         removeVoronoiAttributes(mesh);
 
-        vcg::tri::UpdateSelection<VCGMesh>::VertexClear(mesh);
-        for (VCGMesh::VertexPointer seed : seedVertices) {
-            if (seed)
-                seed->SetS();
-        }
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
         vcg::tri::UpdateBounding<VCGMesh>::Box(mesh);
         entry.ioMask |= Mask::IOM_VERTQUALITY | Mask::IOM_VERTNORMAL | Mask::IOM_FACENORMAL;
