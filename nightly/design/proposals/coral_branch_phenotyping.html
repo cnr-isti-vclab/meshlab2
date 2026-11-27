@@ -251,8 +251,11 @@ into meshlab2. The plugin implements the workflow in the preprint <em>Leveraging
 geometric processing for the phenotyping of branching corals</em> (Scientific Reports draft,
 2026): mean-curvature skeleton → pruning → Hack-order branch hierarchy → cutting into
 branches → per-branch measurement.</p>
-<p><strong>Status: not implemented. This is the mapping table, awaiting approval.</strong> Nothing has
-been moved or written yet.</p>
+<p><strong>Status: not implemented; the mapping table awaits approval.</strong> The vcglib half is
+done and in the gitlink: Yuri’s three changes were redone and landed upstream on
+2026-09-28 (see <a class="reference internal" href="#vcglib-changes-landed-2026-09-28"><span class="xref myst">vcglib changes</span></a>), and <code class="docutils literal notranslate"><span class="pre">VCGVertex</span></code> /
+<code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code> carry the vertex-edge adjacency the skeleton code walks. No plugin code has
+been written.</p>
 <p>See also: <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>, <a class="reference internal" href="../filter_organization.html"><span class="std std-doc">Filter Organization</span></a>,
 <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>, <a class="reference internal" href="edge_support.html"><span class="std std-doc">Edge Support</span></a> (the skeleton
 is a polyline layer).</p>
@@ -437,8 +440,8 @@ shipped precedent, cited in the evidence column.</p>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">common/SkeletonMesh.h</span></code> (its own vertex/edge types with <code class="docutils literal notranslate"><span class="pre">VEAdj</span></code>/<code class="docutils literal notranslate"><span class="pre">EEAdj</span></code>)</p></td>
 <td class="text-right"><p>70</p></td>
-<td><p>Check whether our <code class="docutils literal notranslate"><span class="pre">VCGMesh</span></code> edge side can carry the adjacency it needs, otherwise keep it as a private working type</p></td>
-<td><p>Decide during port</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VCGMesh</span></code> now carries it: <code class="docutils literal notranslate"><span class="pre">VEAdjOcf</span></code> on the vertex, <code class="docutils literal notranslate"><span class="pre">VEAdj</span></code> fixed on the edge, requested with the <code class="docutils literal notranslate"><span class="pre">VE</span></code> preparation code</p></td>
+<td><p>Drop</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ComputeBranches</span></code>, <code class="docutils literal notranslate"><span class="pre">BranchTagger</span></code>, <code class="docutils literal notranslate"><span class="pre">PruneSkeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">SimplifySkeleton</span></code>, <code class="docutils literal notranslate"><span class="pre">BranchExtender</span></code>, <code class="docutils literal notranslate"><span class="pre">MeshBorderPolyline</span></code>, <code class="docutils literal notranslate"><span class="pre">EdgeMeshUtils</span></code>, <code class="docutils literal notranslate"><span class="pre">PolylineMesh</span></code></p></td>
 <td class="text-right"><p>2 230</p></td>
@@ -447,27 +450,27 @@ shipped precedent, cited in the evidence column.</p>
 </tr>
 <tr class="row-even"><td><p>vcglib <code class="docutils literal notranslate"><span class="pre">Stat::ComputeHackOrderNumbers</span></code> / <code class="docutils literal notranslate"><span class="pre">ComputeStrahlerNumbers</span></code></p></td>
 <td class="text-right"><p>169</p></td>
-<td><p>Upstream vcglib <code class="docutils literal notranslate"><span class="pre">devel</span></code></p></td>
-<td><p>Upstream through our process (commit, push, gitlink bump). Strahler costs nothing to expose as an option on #3; the paper’s Discussion names it for species that grow by bisection</p></td>
+<td><p>vcglib <code class="docutils literal notranslate"><span class="pre">stream_order.h</span></code></p></td>
+<td><p><strong>Done</strong> as <code class="docutils literal notranslate"><span class="pre">tri::StreamOrder</span></code> (below). Strahler costs nothing to expose as an option on #3; the paper’s Discussion names it for species that grow by bisection</p></td>
 </tr>
 <tr class="row-odd"><td><p>vcglib <code class="docutils literal notranslate"><span class="pre">edge::VEEdgeCollapseNonManifold</span></code></p></td>
 <td class="text-right"><p>35</p></td>
-<td><p>Upstream vcglib</p></td>
-<td><p>Upstream</p></td>
+<td><p>vcglib <code class="docutils literal notranslate"><span class="pre">edge::VEEdgeCollapseToVertex</span></code></p></td>
+<td><p><strong>Done</strong> (below)</p></td>
 </tr>
 <tr class="row-even"><td><p>vcglib <code class="docutils literal notranslate"><span class="pre">outline_support.h</span></code> fix</p></td>
 <td class="text-right"><p>1</p></td>
-<td><p>Upstream vcglib</p></td>
-<td><p>Still broken upstream: <code class="docutils literal notranslate"><span class="pre">outline_support.h:290</span></code> calls the nonexistent <code class="docutils literal notranslate"><span class="pre">Convert3DOutlinesToEdgeMesh</span></code>, which goes unnoticed only because nothing instantiates that overload. Upstream the fix</p></td>
+<td><p>vcglib, as is</p></td>
+<td><p><strong>Done</strong>: <code class="docutils literal notranslate"><span class="pre">outline_support.h:290</span></code> called the nonexistent <code class="docutils literal notranslate"><span class="pre">Convert3DOutlinesToEdgeMesh</span></code>, unnoticed only because nothing instantiated that overload</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p><strong>Size estimate after the port:</strong> about 4.5k lines of plugin code (the 5 filters minus
-their boilerplate, plus the algorithms in <code class="docutils literal notranslate"><span class="pre">common/</span></code>), and about 200 lines in vcglib.</p>
+their boilerplate, plus the algorithms in <code class="docutils literal notranslate"><span class="pre">common/</span></code>), and about 200 lines in vcglib, now landed.</p>
 </section>
-<section id="vcglib-changes-implemented-2026-09-28-not-yet-pushed">
-<h2>vcglib changes (implemented 2026-09-28, not yet pushed)<a class="headerlink" href="#vcglib-changes-implemented-2026-09-28-not-yet-pushed" title="Link to this heading">¶</a></h2>
+<section id="vcglib-changes-landed-2026-09-28">
+<h2>vcglib changes (landed 2026-09-28)<a class="headerlink" href="#vcglib-changes-landed-2026-09-28" title="Link to this heading">¶</a></h2>
 <p>Yuri’s three changes were reviewed rather than taken as-is, and redone:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
@@ -589,7 +592,7 @@ al.) is not in the plugin.</p></li>
 <li><a class="reference internal" href="#source-measured">Source, measured</a></li>
 <li><a class="reference internal" href="#filter-mapping">Filter mapping</a></li>
 <li><a class="reference internal" href="#shared-code-mapping">Shared code mapping</a></li>
-<li><a class="reference internal" href="#vcglib-changes-implemented-2026-09-28-not-yet-pushed">vcglib changes (implemented 2026-09-28, not yet pushed)</a></li>
+<li><a class="reference internal" href="#vcglib-changes-landed-2026-09-28">vcglib changes (landed 2026-09-28)</a></li>
 <li><a class="reference internal" href="#open-issues-need-a-decision-before-code">Open issues (need a decision before code)</a></li>
 </ul>
 </li>

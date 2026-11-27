@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 423 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 427 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="filter-add-noise-to-vertex-color">
 <span id="add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#filter-add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -460,7 +460,7 @@
 <dt class="sig sig-object py" id="meshlab.ms.compute_edge_color_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_edge_color_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_edge_color_by_expression" title="Link to this definition">¶</a></dt>
 <dd><p>Color function using muparser lib to generate a new RGBA color for every edge of a <strong>polyline layer</strong>. Each edge takes one flat color, which is what distinguishes this from interpolating the endpoint vertex colors — pick <em>Per-Edge</em> as the edge color source in the render panel to see it.</p>
-<p><strong>Variables.</strong> Evaluated once per edge of the polyline: the endpoints (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span></code>), the edge’s own <code class="docutils literal notranslate"><span class="pre">er</span> <span class="pre">eg</span> <span class="pre">eb</span> <span class="pre">ea</span></code>, <code class="docutils literal notranslate"><span class="pre">eq</span></code>, <code class="docutils literal notranslate"><span class="pre">ei</span></code>, <code class="docutils literal notranslate"><span class="pre">esel</span></code>, its length <code class="docutils literal notranslate"><span class="pre">elen</span></code>, midpoint <code class="docutils literal notranslate"><span class="pre">emx</span> <span class="pre">emy</span> <span class="pre">emz</span></code> and direction <code class="docutils literal notranslate"><span class="pre">edx</span> <span class="pre">edy</span> <span class="pre">edz</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
+<p><strong>Variables.</strong> Evaluated once per edge of the polyline: the endpoints (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span></code>), the edge’s own <code class="docutils literal notranslate"><span class="pre">er</span> <span class="pre">eg</span> <span class="pre">eb</span> <span class="pre">ea</span></code>, <code class="docutils literal notranslate"><span class="pre">eq</span></code>, <code class="docutils literal notranslate"><span class="pre">ei</span></code>, <code class="docutils literal notranslate"><span class="pre">esel</span></code>, its length <code class="docutils literal notranslate"><span class="pre">elen</span></code>, midpoint <code class="docutils literal notranslate"><span class="pre">emx</span> <span class="pre">emy</span> <span class="pre">emz</span></code> and direction <code class="docutils literal notranslate"><span class="pre">edx</span> <span class="pre">edy</span> <span class="pre">edz</span></code>, the position along the edge’s chain <code class="docutils literal notranslate"><span class="pre">es</span> <span class="pre">earc</span> <span class="pre">eidx</span> <span class="pre">ech</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>r</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">255</span></code>) — Expression for red output in range [0, 255].</p></li>
@@ -671,6 +671,21 @@ Red, Green, Blue and Alpha channels may be defined specifying a function in thei
 <ul class="simple">
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the color assignment exactly reproducible.</p></li>
 </ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-set-random-polyline-color">
+<span id="set-random-polyline-color"></span><h2>Set Random Polyline Color<a class="headerlink" href="#filter-set-random-polyline-color" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.colorproc</p>
+<p>Assign a random color to each connected polyline of an edge layer.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.set_random_polyline_color">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">set_random_polyline_color</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.set_random_polyline_color" title="Link to this definition">¶</a></dt>
+<dd><p>Gives every connected polyline of a <strong>polyline layer</strong> its own edge color, the way <em>Set Random Component Color</em> does for the pieces of a surface. Two edges belong to the same polyline when they share a vertex, so a branching tree is one piece and its separate curves are not.</p>
+<p>The view switches to per-edge color. Up to 100 distinct colors are used; with more polylines than that, colors repeat.</p>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -1005,6 +1020,50 @@ ApproxMean uses the radius of the fitted sphere as an approximation of the mean 
 <li><p><strong>Scale</strong> (<em>absperc</em>, default: <code class="docutils literal notranslate"><span class="pre">&#64;bboxDiagTenth</span></code>) — Scale for scale-dependent methods.</p></li>
 <li><p><strong>Autoclean</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">True</span></code>) — Remove unreferenced vertices before computing.</p></li>
 <li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Zero draws a fresh seed on every run, so repeated applications differ; any other value makes the PCA method’s point sampling exactly reproducible.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-define-custom-edge-point-attribute">
+<span id="define-custom-edge-point-attribute"></span><h2>Define Custom Edge Point Attribute<a class="headerlink" href="#filter-define-custom-edge-point-attribute" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.expression</p>
+<p>Defines and fills a custom per-edge point attribute.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.define_custom_edge_point_attribute">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">define_custom_edge_point_attribute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.define_custom_edge_point_attribute" title="Link to this definition">¶</a></dt>
+<dd><p>Add a new per-edge custom point attribute to the current <strong>polyline layer</strong> and fill it with the defined functions. A point attribute called <code class="docutils literal notranslate"><span class="pre">dir</span></code> is read in later formulas as <code class="docutils literal notranslate"><span class="pre">dir_x</span></code>, <code class="docutils literal notranslate"><span class="pre">dir_y</span></code> and <code class="docutils literal notranslate"><span class="pre">dir_z</span></code>.</p>
+<p>Attribute names must contain only letters, numbers and underscores. The attribute is read by name in the edge expression filters (<em>Select Edges by Expression</em>, <em>Compute Edge Color by Expression</em>, <em>Compute Edge Scalar by Expression</em>), and survives undo and Duplicate Layer; it is not saved to file.</p>
+<p><strong>Variables.</strong> Evaluated once per edge of the polyline: the endpoints (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span></code>), the edge’s own <code class="docutils literal notranslate"><span class="pre">er</span> <span class="pre">eg</span> <span class="pre">eb</span> <span class="pre">ea</span></code>, <code class="docutils literal notranslate"><span class="pre">eq</span></code>, <code class="docutils literal notranslate"><span class="pre">ei</span></code>, <code class="docutils literal notranslate"><span class="pre">esel</span></code>, its length <code class="docutils literal notranslate"><span class="pre">elen</span></code>, midpoint <code class="docutils literal notranslate"><span class="pre">emx</span> <span class="pre">emy</span> <span class="pre">emz</span></code> and direction <code class="docutils literal notranslate"><span class="pre">edx</span> <span class="pre">edy</span> <span class="pre">edz</span></code>, the position along the edge’s chain <code class="docutils literal notranslate"><span class="pre">es</span> <span class="pre">earc</span> <span class="pre">eidx</span> <span class="pre">ech</span></code>, other custom edge attributes, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>name</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">CustomAttrName</span></code>) — Name of the new custom attribute.</p></li>
+<li><p><strong>x_expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">emx</span></code>) — Expression for X component.</p></li>
+<li><p><strong>y_expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">emy</span></code>) — Expression for Y component.</p></li>
+<li><p><strong>z_expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">emz</span></code>) — Expression for Z component.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
+</ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-define-custom-edge-scalar-attribute">
+<span id="define-custom-edge-scalar-attribute"></span><h2>Define Custom Edge Scalar Attribute<a class="headerlink" href="#filter-define-custom-edge-scalar-attribute" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Custom</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.expression</p>
+<p>Defines and fills a custom per-edge scalar attribute.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.define_custom_edge_scalar_attribute">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">define_custom_edge_scalar_attribute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.define_custom_edge_scalar_attribute" title="Link to this definition">¶</a></dt>
+<dd><p>Add a new per-edge custom scalar attribute to the current <strong>polyline layer</strong> and fill it with the defined function.</p>
+<p>Attribute names must contain only letters, numbers and underscores. The attribute is read by name in the edge expression filters (<em>Select Edges by Expression</em>, <em>Compute Edge Color by Expression</em>, <em>Compute Edge Scalar by Expression</em>), and survives undo and Duplicate Layer; it is not saved to file.</p>
+<p><strong>Variables.</strong> Evaluated once per edge of the polyline: the endpoints (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span></code>), the edge’s own <code class="docutils literal notranslate"><span class="pre">er</span> <span class="pre">eg</span> <span class="pre">eb</span> <span class="pre">ea</span></code>, <code class="docutils literal notranslate"><span class="pre">eq</span></code>, <code class="docutils literal notranslate"><span class="pre">ei</span></code>, <code class="docutils literal notranslate"><span class="pre">esel</span></code>, its length <code class="docutils literal notranslate"><span class="pre">elen</span></code>, midpoint <code class="docutils literal notranslate"><span class="pre">emx</span> <span class="pre">emy</span> <span class="pre">emz</span></code> and direction <code class="docutils literal notranslate"><span class="pre">edx</span> <span class="pre">edy</span> <span class="pre">edz</span></code>, the position along the edge’s chain <code class="docutils literal notranslate"><span class="pre">es</span> <span class="pre">earc</span> <span class="pre">eidx</span> <span class="pre">ech</span></code>, other custom edge attributes, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><strong>name</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">CustomAttrName</span></code>) — Name of the new custom attribute.</p></li>
+<li><p><strong>expr</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">elen</span></code>) — Expression used to compute the scalar attribute.</p></li>
+<li><p><strong>randomSeed</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">0</span></code>) — Seed for the <code class="docutils literal notranslate"><span class="pre">rnd()</span></code> and <code class="docutils literal notranslate"><span class="pre">randInt()</span></code> helpers, which only matter if your expression calls them. Zero draws a fresh seed on every run; any other value makes the expression exactly reproducible.</p></li>
 </ul>
 </dd></dl>
 
@@ -1467,7 +1526,7 @@ The saturation is done in a conservative way (quality is always decreased and ne
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">compute_edge_scalar_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.compute_edge_scalar_by_expression" title="Link to this definition">¶</a></dt>
 <dd><p>Scalar function using muparser lib to write one value per edge of a <strong>polyline layer</strong>. Feed the result to <em>Colorize Edges by Scalar</em>, or tick <em>Map into Color</em> here to do both in one step.</p>
 <p>Edge scalars survive a PLY round trip as a <code class="docutils literal notranslate"><span class="pre">quality</span></code> property on the edge element; tick <em>Edge Scalar</em> in the save dialog to keep them.</p>
-<p><strong>Variables.</strong> Evaluated once per edge of the polyline: the endpoints (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span></code>), the edge’s own <code class="docutils literal notranslate"><span class="pre">er</span> <span class="pre">eg</span> <span class="pre">eb</span> <span class="pre">ea</span></code>, <code class="docutils literal notranslate"><span class="pre">eq</span></code>, <code class="docutils literal notranslate"><span class="pre">ei</span></code>, <code class="docutils literal notranslate"><span class="pre">esel</span></code>, its length <code class="docutils literal notranslate"><span class="pre">elen</span></code>, midpoint <code class="docutils literal notranslate"><span class="pre">emx</span> <span class="pre">emy</span> <span class="pre">emz</span></code> and direction <code class="docutils literal notranslate"><span class="pre">edx</span> <span class="pre">edy</span> <span class="pre">edz</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
+<p><strong>Variables.</strong> Evaluated once per edge of the polyline: the endpoints (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span></code>), the edge’s own <code class="docutils literal notranslate"><span class="pre">er</span> <span class="pre">eg</span> <span class="pre">eb</span> <span class="pre">ea</span></code>, <code class="docutils literal notranslate"><span class="pre">eq</span></code>, <code class="docutils literal notranslate"><span class="pre">ei</span></code>, <code class="docutils literal notranslate"><span class="pre">esel</span></code>, its length <code class="docutils literal notranslate"><span class="pre">elen</span></code>, midpoint <code class="docutils literal notranslate"><span class="pre">emx</span> <span class="pre">emy</span> <span class="pre">emz</span></code> and direction <code class="docutils literal notranslate"><span class="pre">edx</span> <span class="pre">edy</span> <span class="pre">edz</span></code>, the position along the edge’s chain <code class="docutils literal notranslate"><span class="pre">es</span> <span class="pre">earc</span> <span class="pre">eidx</span> <span class="pre">ech</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>q</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">elen</span></code>) — Expression evaluated per edge; its value becomes the edge scalar.</p></li>
@@ -8561,7 +8620,7 @@ The filter visits a mesh face to face, reorienting any unvisited face so that it
 <dt class="sig sig-object py" id="meshlab.ms.select_edges_by_expression">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_edges_by_expression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_edges_by_expression" title="Link to this definition">¶</a></dt>
 <dd><p>Boolean function using muparser lib to select the <strong>real edges of a polyline layer</strong> — the kind produced by the <em>Create Polyline</em> filters — not the sides of triangles.</p>
-<p><strong>Variables.</strong> Evaluated once per edge of the polyline: the endpoints (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span></code>), the edge’s own <code class="docutils literal notranslate"><span class="pre">er</span> <span class="pre">eg</span> <span class="pre">eb</span> <span class="pre">ea</span></code>, <code class="docutils literal notranslate"><span class="pre">eq</span></code>, <code class="docutils literal notranslate"><span class="pre">ei</span></code>, <code class="docutils literal notranslate"><span class="pre">esel</span></code>, its length <code class="docutils literal notranslate"><span class="pre">elen</span></code>, midpoint <code class="docutils literal notranslate"><span class="pre">emx</span> <span class="pre">emy</span> <span class="pre">emz</span></code> and direction <code class="docutils literal notranslate"><span class="pre">edx</span> <span class="pre">edy</span> <span class="pre">edz</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
+<p><strong>Variables.</strong> Evaluated once per edge of the polyline: the endpoints (<code class="docutils literal notranslate"><span class="pre">x0</span> <span class="pre">…</span> <span class="pre">z1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0</span> <span class="pre">…</span> <span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">q0</span> <span class="pre">q1</span></code>), the edge’s own <code class="docutils literal notranslate"><span class="pre">er</span> <span class="pre">eg</span> <span class="pre">eb</span> <span class="pre">ea</span></code>, <code class="docutils literal notranslate"><span class="pre">eq</span></code>, <code class="docutils literal notranslate"><span class="pre">ei</span></code>, <code class="docutils literal notranslate"><span class="pre">esel</span></code>, its length <code class="docutils literal notranslate"><span class="pre">elen</span></code>, midpoint <code class="docutils literal notranslate"><span class="pre">emx</span> <span class="pre">emy</span> <span class="pre">emz</span></code> and direction <code class="docutils literal notranslate"><span class="pre">edx</span> <span class="pre">edy</span> <span class="pre">edz</span></code>, the position along the edge’s chain <code class="docutils literal notranslate"><span class="pre">es</span> <span class="pre">earc</span> <span class="pre">eidx</span> <span class="pre">ech</span></code>, and the bounding box are available. The full list of variables and functions is in the <a class="reference external" href="https://cnr-isti-vclab.github.io/meshlab2/expressions.html">expression reference</a>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>condSelect</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">(elen</span> <span class="pre">&gt;</span> <span class="pre">0)</span></code>) — Boolean expression evaluated per edge.</p></li>
@@ -8930,7 +8989,7 @@ Angle between face normal is considered signed according to convexity/concavity.
 <dt class="sig sig-object py" id="meshlab.ms.select_non_manifold_edges_trueform">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_non_manifold_edges_trueform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_non_manifold_edges_trueform" title="Link to this definition">¶</a></dt>
 <dd><p>Marks every edge with more than two incident faces. Such edges have no well-defined surface either side, which is why they break booleans, offsetting, orientation and most reconstruction — so finding them is usually the first step in diagnosing a mesh that misbehaves for no visible reason.</p>
-<p>The selection lands on the per-face edge flags, so it can be turned into a polyline with <em>Create Polyline from Selected Edges</em> to see exactly where the trouble is.</p>
+<p>The selection lands on the per-face edge flags, which the 3D view draws as selected edges; <em>Create Polyline from Selected Edges</em> turns them into a polyline layer.</p>
 <p>Competing implementation: <em>Select non Manifold Edges</em> does the same with vcglib.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -9818,6 +9877,21 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 
 <hr class="docutils" />
 </section>
+<section id="filter-transfer-color-from-edge-to-vertex">
+<span id="transfer-color-from-edge-to-vertex"></span><h2>Transfer Color from Edge to Vertex<a class="headerlink" href="#filter-transfer-color-from-edge-to-vertex" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.colorproc</p>
+<p>Average the colors of the edges around each vertex of a polyline into vertex colors.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.transfer_color_from_edge_to_vertex">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">transfer_color_from_edge_to_vertex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.transfer_color_from_edge_to_vertex" title="Link to this definition">¶</a></dt>
+<dd><p>Sets each vertex of a <strong>polyline layer</strong> to the plain average of the colors of its incident edges; vertices with no edge keep their color. Use it to keep a per-edge coloring in a format or a rendering mode that only knows vertex colors.</p>
+<p>The opposite direction needs no filter: <em>Compute Edge Color by Expression</em> with <code class="docutils literal notranslate"><span class="pre">(r0+r1)/2</span></code>, <code class="docutils literal notranslate"><span class="pre">(g0+g1)/2</span></code>, <code class="docutils literal notranslate"><span class="pre">(b0+b1)/2</span></code> averages the two endpoints of each edge.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="filter-transfer-color-from-face-to-vertex">
 <span id="transfer-color-from-face-to-vertex"></span><h2>Transfer Color from Face to Vertex<a class="headerlink" href="#filter-transfer-color-from-face-to-vertex" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Transfer/Within</span> <span class="pre">a</span> <span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Attribute/Color</span></code></p>
@@ -10103,6 +10177,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 <li><a class="reference internal" href="#meshlab.ms.set_random_layer_color"><code class="docutils literal notranslate"><span class="pre">ms.set_random_layer_color()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#filter-set-random-polyline-color">Set Random Polyline Color</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.set_random_polyline_color"><code class="docutils literal notranslate"><span class="pre">ms.set_random_polyline_color()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#filter-set-vertex-color">Set Vertex Color</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.set_vertex_color"><code class="docutils literal notranslate"><span class="pre">ms.set_vertex_color()</span></code></a></li>
 </ul>
@@ -10157,6 +10235,14 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-compute-principal-curvature-directions-vcglib">Compute Principal Curvature Directions (vcglib)</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.compute_principal_curvature_directions_vcglib"><code class="docutils literal notranslate"><span class="pre">ms.compute_principal_curvature_directions_vcglib()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-define-custom-edge-point-attribute">Define Custom Edge Point Attribute</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.define_custom_edge_point_attribute"><code class="docutils literal notranslate"><span class="pre">ms.define_custom_edge_point_attribute()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-define-custom-edge-scalar-attribute">Define Custom Edge Scalar Attribute</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.define_custom_edge_scalar_attribute"><code class="docutils literal notranslate"><span class="pre">ms.define_custom_edge_scalar_attribute()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-define-custom-face-point-attribute">Define Custom Face Point Attribute</a><ul>
@@ -11669,6 +11755,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-transfer-color-from-visible-rasters-to-vertex">Transfer Color from Visible Rasters to Vertex</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.transfer_color_from_visible_rasters_to_vertex"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_from_visible_rasters_to_vertex()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-transfer-color-from-edge-to-vertex">Transfer Color from Edge to Vertex</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.transfer_color_from_edge_to_vertex"><code class="docutils literal notranslate"><span class="pre">ms.transfer_color_from_edge_to_vertex()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-transfer-color-from-face-to-vertex">Transfer Color from Face to Vertex</a><ul>

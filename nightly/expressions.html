@@ -387,15 +387,27 @@ from the source and are not checked mechanically.</p>
 <td><p>a named scalar attribute</p></td>
 <td><p>no</p></td>
 </tr>
-<tr class="row-even"><td><p>Define Custom Vertex Point Attribute</p></td>
+<tr class="row-even"><td><p>Define Custom Edge Scalar Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_edge_scalar_attribute</span></code></p></td>
+<td><p>edge</p></td>
+<td><p>a named scalar attribute</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p>Define Custom Vertex Point Attribute</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">define_custom_vertex_point_attribute</span></code></p></td>
 <td><p>vertex</p></td>
 <td><p>a named 3D point attribute</p></td>
 <td><p>no</p></td>
 </tr>
-<tr class="row-odd"><td><p>Define Custom Face Point Attribute</p></td>
+<tr class="row-even"><td><p>Define Custom Face Point Attribute</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">define_custom_face_point_attribute</span></code></p></td>
 <td><p>face</p></td>
+<td><p>a named 3D point attribute</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p>Define Custom Edge Point Attribute</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">define_custom_edge_point_attribute</span></code></p></td>
+<td><p>edge</p></td>
 <td><p>a named 3D point attribute</p></td>
 <td><p>no</p></td>
 </tr>
@@ -655,9 +667,26 @@ face. What it adds is its own properties and a few quantities derived from the e
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">edx</span></code> <code class="docutils literal notranslate"><span class="pre">edy</span></code> <code class="docutils literal notranslate"><span class="pre">edz</span></code></p></td>
 <td><p>unit direction, from endpoint 0 to endpoint 1; zero for an empty edge</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">es</span></code></p></td>
+<td><p>position along the edge’s chain, from 0 at its start to 1 at its end, at the edge’s midpoint</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">earc</span></code></p></td>
+<td><p>arc length from the start of the chain to the edge’s midpoint</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">eidx</span></code></p></td>
+<td><p>position of the edge in its chain, from 0</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">ech</span></code></p></td>
+<td><p>index of the chain, from 0</p></td>
+</tr>
 </tbody>
 </table>
 </div>
+<p>A <strong>chain</strong> is a run of edges joined end to end: it stops at a free end and at a branch
+point, where three or more edges meet, so a Y is three chains. A closed loop is one chain.
+An open chain starts at the end belonging to the lowest-index edge, so a polyline stored in
+order runs in that order; a loop starts at its lowest-index edge, from that edge’s
+endpoint 0.</p>
 </section>
 <section id="the-two-filters-that-are-different">
 <h3>The two filters that are different<a class="headerlink" href="#the-two-filters-that-are-different" title="Link to this heading">¶</a></h3>
@@ -683,9 +712,9 @@ and later expression filters can then read it <strong>by that name</strong>.</p>
 <li><p>A <strong>point</strong> attribute <code class="docutils literal notranslate"><span class="pre">dir</span></code> is read as three variables, <code class="docutils literal notranslate"><span class="pre">dir_x</span></code>, <code class="docutils literal notranslate"><span class="pre">dir_y</span></code>, <code class="docutils literal notranslate"><span class="pre">dir_z</span></code>.</p></li>
 <li><p>An <strong>integer</strong> attribute, such as an identifier or a label from a file, is also read by
 its name. No filter writes one.</p></li>
-<li><p>A vertex attribute is seen by vertex filters and a face attribute by face filters, <strong>not
-across</strong>: a face filter that mentions a vertex attribute is refused with
-<code class="docutils literal notranslate"><span class="pre">Unexpected</span> <span class="pre">token</span></code>. Edge filters see no custom attributes.</p></li>
+<li><p>A vertex attribute is seen by vertex filters, a face attribute by face filters and an
+edge attribute by edge filters, <strong>not across</strong>: a face filter that mentions a vertex
+attribute is refused with <code class="docutils literal notranslate"><span class="pre">Unexpected</span> <span class="pre">token</span></code>.</p></li>
 </ul>
 <p>A name may use letters, digits and underscores and must not start with a digit. A name that
 is already a variable (<code class="docutils literal notranslate"><span class="pre">q</span></code>, <code class="docutils literal notranslate"><span class="pre">fi</span></code>, <code class="docutils literal notranslate"><span class="pre">zmid</span></code>, …) is refused when you define the attribute.
@@ -730,6 +759,9 @@ Z <code class="docutils literal notranslate"><span class="pre">z+0.1*sin(10*x)</
 <code class="docutils literal notranslate"><span class="pre">z0</span> <span class="pre">&gt;</span> <span class="pre">0</span> <span class="pre">&amp;&amp;</span> <span class="pre">z1</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>, split point <code class="docutils literal notranslate"><span class="pre">(x0+x1)/2</span></code>, <code class="docutils literal notranslate"><span class="pre">(y0+y1)/2</span></code>, <code class="docutils literal notranslate"><span class="pre">(z0+z1)/2</span></code>.</p>
 <p><strong>Color a polyline by direction.</strong> <em>Compute Edge Color by Expression</em>: Red <code class="docutils literal notranslate"><span class="pre">255*abs(edx)</span></code>,
 Green <code class="docutils literal notranslate"><span class="pre">255*abs(edy)</span></code>, Blue <code class="docutils literal notranslate"><span class="pre">255*abs(edz)</span></code>, Alpha <code class="docutils literal notranslate"><span class="pre">255</span></code>.</p>
+<p><strong>Show which way a polyline runs.</strong> <em>Compute Edge Color by Expression</em>: Red <code class="docutils literal notranslate"><span class="pre">255*es</span></code>,
+Green <code class="docutils literal notranslate"><span class="pre">0</span></code>, Blue <code class="docutils literal notranslate"><span class="pre">255*(1-es)</span></code>, Alpha <code class="docutils literal notranslate"><span class="pre">255</span></code>. Each chain goes from blue to red. For stripes
+every 5 units along the curve, <em>Select Edges by Expression</em> with <code class="docutils literal notranslate"><span class="pre">sin(earc*_pi/5)</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>.</p>
 </section>
 <section id="what-to-expect">
 <h2>What to expect<a class="headerlink" href="#what-to-expect" title="Link to this heading">¶</a></h2>

@@ -15,7 +15,7 @@ Scopigno, *An Interactive Local Flattening Operator to Support Digital Investiga
 Surfaces* (IEEE TVCG 17(12), Visualization 2011; `.reference/papers/IEEEViz_local_flattening_final_v2.pdf`).
 **Implemented** (stages 0 to 2, 2026-11-15 to 17; stage 3, the sketch tool, left to the annotation work); drafted 2026-11-13, scope and answers from Paolo, a co-author, 2026-11-15.
 
-See also: [Texture Signal Processing](../proposals/texture_signal_processing.md) (per-face principal directions
+See also: [Texture Signal Processing](texture_signal_processing.md) (per-face principal directions
 in `VCGFace`, stage 4), [Directional](../proposals/directional_port.md), [TexMetro](../proposals/texmetro.md),
 [Adding a Filter](../adding_a_filter.md), [Vocabulary](../vocabulary.md).
 

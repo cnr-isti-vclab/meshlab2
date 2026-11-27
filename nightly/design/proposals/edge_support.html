@@ -246,328 +246,76 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="edge-support">
 <h1>Edge Support<a class="headerlink" href="#edge-support" title="Link to this heading">¶</a></h1>
-<p>This document records the state of edge handling in MeshLab and what it would
-take to make edges a first-class element. <strong>Stages 1-3 of <a class="reference internal" href="#staging"><span class="xref myst">Staging</span></a> are
-implemented (2026-09-16); stages 4-5 and interactive edge selection are not.</strong> See
-<a class="reference internal" href="#status"><span class="xref myst">Status</span></a>.</p>
-<p>See also: <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (layers, <code class="docutils literal notranslate"><span class="pre">VCGMesh</span></code>, revisions),
-<a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a> (the edge pass and the selection overlay),
-<a class="reference internal" href="../architecture.html"><span class="std std-doc">Architecture</span></a>, <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a>,
-<a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a> (filter naming).</p>
-<section id="status">
-<h2>Status<a class="headerlink" href="#status" title="Link to this heading">¶</a></h2>
-<p>As of 2026-09-16, <strong>stage 1 of the staging below is implemented</strong>: per-edge
-colour and scalar storage on <code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code>, PLY colour read/write, three render
-colour sources, undo and duplication, and five filters —
-<code class="docutils literal notranslate"><span class="pre">select_edges_by_expression</span></code>, <code class="docutils literal notranslate"><span class="pre">compute_edge_color_by_expression</span></code>,
-<code class="docutils literal notranslate"><span class="pre">compute_edge_scalar_by_expression</span></code> and <code class="docutils literal notranslate"><span class="pre">colorize_edges_by_scalar</span></code>, plus the
-<code class="docutils literal notranslate"><span class="pre">EdgeColor</span></code> visualization hint that makes them visible on an existing layer.
-The smoke sweep gained a <code class="docutils literal notranslate"><span class="pre">polyline</span></code> fixture, which also gave
-<code class="docutils literal notranslate"><span class="pre">create_tube_from_polyline_trueform</span></code> its first real input.</p>
-<p><strong>Stage 2 is also implemented</strong>: selected edges now draw in the selection
-overlay, for both kinds of edge, behind an <em>Edges</em> checkbox beside <em>Vertices</em>
-and <em>Faces</em>.</p>
-<p><strong>Stage 3 is implemented</strong> for the isocontours: each edge of a multi-level
-contour layer now carries the value of the contour it belongs to, so the levels
-can be told apart.</p>
-<p>Stages 4-5 are not implemented, and nothing in <a class="reference internal" href="#interactive-selection-of-edges"><span class="xref myst">Interactive selection of
-edges</span></a> has changed — no tool can select an edge
-by pointing at it, in either sense.</p>
-<p>A limitation that surfaced during stage 1 — edge scalars having no <code class="docutils literal notranslate"><span class="pre">ioMask</span></code> bit,
-so they were memory-only and lost on save — was <strong>fixed on 2026-09-16</strong> by adding
-<code class="docutils literal notranslate"><span class="pre">IOM_EDGEQUALITY</span> <span class="pre">=</span> <span class="pre">0x40000</span></code> to VCGLib, taking the one bit that was still free
-under <code class="docutils literal notranslate"><span class="pre">IOM_ALL</span></code>. Per-edge scalars now round-trip through PLY as a <code class="docutils literal notranslate"><span class="pre">quality</span></code>
-property on the edge element, in both ASCII and binary and whether the file
-stores it as <code class="docutils literal notranslate"><span class="pre">float</span></code> or <code class="docutils literal notranslate"><span class="pre">double</span></code>, and filters can declare
-<code class="docutils literal notranslate"><span class="pre">requireEdgeQuality</span></code> — <code class="docutils literal notranslate"><span class="pre">colorize_edges_by_scalar</span></code> does.</p>
-</section>
+<p>What remains of making edges a first-class element. <strong>Not implemented:</strong> any way
+to select an edge interactively, in either sense of <em>edge</em> below.</p>
+<p>Stages 1-3 shipped on 2026-09-16 and their proposal is kept as a record in
+<a class="reference internal" href="../history/edge_support.html"><span class="std std-doc">history/edge_support.md</span></a>: per-edge colour and scalar
+on <code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code> (<a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a>), PLY edge scalars
+(<code class="docutils literal notranslate"><span class="pre">IOM_EDGEQUALITY</span></code>), the <code class="docutils literal notranslate"><span class="pre">EdgeColor</span></code> visualization hint, <em>Select Edges by
+Expression</em>, <em>Compute Edge Color by Expression</em>, <em>Compute Edge Scalar by
+Expression</em> and <em>Colorize Edges by Scalar</em>, selected edges of both kinds in the
+selection overlay (<a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a>), and isocontour levels stamped
+on their edges. Stage 4 shipped on 2026-11-26: <em>Set Random Polyline Color</em>,
+<em>Transfer Color from Edge to Vertex</em>, and <em>Define Custom Edge Scalar/Point
+Attribute</em>, whose attributes the edge expressions read by name
+(<a class="reference internal" href="../../expressions.html"><span class="std std-doc">expressions.md</span></a>). Arc length along a chain shipped on
+2026-11-27: the edge expressions read <code class="docutils literal notranslate"><span class="pre">es</span></code>, <code class="docutils literal notranslate"><span class="pre">earc</span></code>, <code class="docutils literal notranslate"><span class="pre">eidx</span></code> and <code class="docutils literal notranslate"><span class="pre">ech</span></code>, from vcglib’s
+<code class="docutils literal notranslate"><span class="pre">Clean::EdgeMeshChains</span></code>, which splits a polyline at its ends and branch points.</p>
 <section id="two-different-things-are-called-an-edge">
 <h2>Two different things are called an edge<a class="headerlink" href="#two-different-things-are-called-an-edge" title="Link to this heading">¶</a></h2>
-<p>The single most important thing to hold onto is that MeshLab has <strong>two unrelated
-notions of edge</strong>, and almost every gap in this document comes from conflating
-them.</p>
-<section id="edges-inside-meshes">
-<h3>Edges inside meshes<a class="headerlink" href="#edges-inside-meshes" title="Link to this heading">¶</a></h3>
-<p>A triangle mesh does not store its edges. An edge exists only as a side of a
-face, and there is no object to attach data to. What per-edge information exists
-is packed into <strong>bit fields on the incident faces</strong>, which means:</p>
+<p>MeshLab has <strong>two unrelated notions of edge</strong>, and every remaining gap depends on
+which one is meant.</p>
 <ul class="simple">
-<li><p>it is limited to bit-sized facts — no colour, no scalar, no attribute;</p></li>
-<li><p>it is <strong>duplicated</strong>, since an interior edge is a side of two faces and each
-keeps its own copy, which the writer must keep consistent;</p></li>
-<li><p>it has no identity, so nothing can address “edge 47” of a mesh.</p></li>
+<li><p><strong>Edges inside meshes.</strong> A triangle mesh stores no edges. Per-edge facts are
+bits on the incident faces, duplicated on both faces of an interior edge, with
+no identity and no room for a colour or a scalar. Two bits are in use: faux
+(<code class="docutils literal notranslate"><span class="pre">IsF</span></code>, hides the interior diagonals of a triangulated polygon from the
+wireframe) and edge selection (<code class="docutils literal notranslate"><span class="pre">IsFaceEdgeS</span></code>, written by the crease,
+non-manifold-edge and defragmentation filters, and drawn by the selection
+overlay).</p></li>
+<li><p><strong>Edges inside polylines.</strong> An edge mesh (a polyline layer) has real
+<code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code> elements with colour, scalar and flags, and the <em>Create Polyline</em>
+filters produce them. <em>Create Polyline from Selected Edges</em> is the bridge: it
+turns per-face edge bits into edge elements in a new layer.</p></li>
 </ul>
-<p>Two such bits are in use today:</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Bit</p></th>
-<th class="head"><p>Meaning</p></th>
-<th class="head"><p>Who writes it</p></th>
-<th class="head"><p>Who reads it</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">IsF(e)</span></code> — faux</p></td>
-<td><p>Hide this edge when drawing the wireframe; marks the interior diagonals of a polygon triangulated into triangles</p></td>
-<td><p>vcglib’s polygonal importers (<code class="docutils literal notranslate"><span class="pre">import_obj</span></code>, <code class="docutils literal notranslate"><span class="pre">import_off</span></code>, <code class="docutils literal notranslate"><span class="pre">import_ply</span></code>), <code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_instant_meshes</span></code></p></td>
-<td><p>the wire pass, <a class="reference download internal" download="" href="../../_downloads/8f890e1321f6cc6712dc20058d853d82/meshgpuresourcecache.cpp"><span class="xref download myst">meshgpuresourcecache.cpp:1052</span></a></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">IsFaceEdgeS(e)</span></code> — edge selection</p></td>
-<td><p>This side of this face is selected</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code>, <code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code> (<code class="docutils literal notranslate"><span class="pre">select_crease_edges_trueform</span></code>, <code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges_trueform</span></code>), <code class="docutils literal notranslate"><span class="pre">filter_texture_defragmentation</span></code></p></td>
-<td><p><strong>nothing</strong></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>That last row is a real gap and is discussed under <a class="reference internal" href="#rendering-of-selected-edges"><span class="xref myst">Rendering of selected
-edges</span></a>.</p>
-</section>
-<section id="edges-inside-polylines">
-<h3>Edges inside polylines<a class="headerlink" href="#edges-inside-polylines" title="Link to this heading">¶</a></h3>
-<p>An <em>edge mesh</em> — what the UI calls a polyline layer — has real <code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code>
-elements. They have identity, they can carry components, and they are what
-per-edge colour was added to. Today:</p>
-<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">VCGEdge</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">vcg</span><span class="o">::</span><span class="n">Edge</span><span class="o">&lt;</span><span class="n">VCGUsedTypes</span><span class="p">,</span>
-<span class="w">    </span><span class="n">vcg</span><span class="o">::</span><span class="n">edge</span><span class="o">::</span><span class="n">VertexRef</span><span class="p">,</span>
-<span class="w">    </span><span class="n">vcg</span><span class="o">::</span><span class="n">edge</span><span class="o">::</span><span class="n">Color4b</span><span class="p">,</span><span class="w">     </span><span class="c1">// added 2026-09</span>
-<span class="w">    </span><span class="n">vcg</span><span class="o">::</span><span class="n">edge</span><span class="o">::</span><span class="n">Qualityf</span><span class="p">,</span><span class="w">    </span><span class="c1">// added 2026-09</span>
-<span class="w">    </span><span class="n">vcg</span><span class="o">::</span><span class="n">edge</span><span class="o">::</span><span class="n">BitFlags</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{};</span>
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">vcg::edge::Qualityf</span></code> joined it in stage 1, so an edge now carries colour and a
-scalar; there is still no normal and no adjacency. By comparison <code class="docutils literal notranslate"><span class="pre">VCGVertex</span></code>
-carries coord, normal, colour, quality and flags as fixed components plus four
-OCF ones.</p>
-<p>Polyline layers are produced by a growing family of filters:</p>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Plugin</p></th>
-<th class="head"><p>Filter</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">filter_meshing</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_selected_edges</span></code>, <code class="docutils literal notranslate"><span class="pre">create_polyline_from_selection_perimeter</span></code>, <code class="docutils literal notranslate"><span class="pre">create_polyline_from_planar_section</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">filter_trueform</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_self_intersections_trueform</span></code>, <code class="docutils literal notranslate"><span class="pre">create_polyline_from_mesh_intersection_trueform</span></code>, <code class="docutils literal notranslate"><span class="pre">create_polyline_from_scalar_isocontour_trueform</span></code></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p><strong>All of them write positions and connectivity and nothing else.</strong> The shared
-<code class="docutils literal notranslate"><span class="pre">addPolylineLayer</span></code> helper sets <code class="docutils literal notranslate"><span class="pre">ioMask</span> <span class="pre">=</span> <span class="pre">IOM_EDGEINDEX</span></code> and leaves quality and
-colour untouched. This matters more than it sounds — see
-<a class="reference internal" href="#tier-3--give-the-producers-something-worth-colouring"><span class="xref myst">Give the producers something worth colouring</span></a>.</p>
-</section>
-<section id="the-bridge-between-the-two">
-<h3>The bridge between the two<a class="headerlink" href="#the-bridge-between-the-two" title="Link to this heading">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">create_polyline_from_selected_edges</span></code> is the only crossing point: it turns
-per-face edge selection bits into real edge elements in a new layer. In practice
-it is also the <em>only way to see</em> a face-edge selection at all.</p>
-</section>
-</section>
-<section id="rendering-of-selected-edges">
-<h2>Rendering of selected edges<a class="headerlink" href="#rendering-of-selected-edges" title="Link to this heading">¶</a></h2>
-<p><strong>Implemented 2026-09-16.</strong> The selection overlay – the last pass of the frame,
-which drew semi-transparent red triangles for selected faces and red points for
-selected vertices – now also draws red lines for selected edges, controlled by
-an <em>Edges</em> checkbox beside the existing <em>Vertices</em> and <em>Faces</em> ones.</p>
-<p>One checkbox covers <strong>both</strong> kinds of edge, because from the user’s side there is
-only one question, “show me what is selected”. The buffer is filled from the
-per-face edge bits when the layer is a triangle mesh and from <code class="docutils literal notranslate"><span class="pre">VCGEdge::IsS()</span></code>
-when it is a polyline; a layer is one or the other. The per-face path has to
-de-duplicate, since an interior edge carries the bit on both of its faces and
-would otherwise be drawn twice.</p>
-<p>It lives in the <strong>selection</strong> cache rather than the decorator cache, which
-matters: selection buffers are keyed on <code class="docutils literal notranslate"><span class="pre">selectionRevision</span></code> as well as
-<code class="docutils literal notranslate"><span class="pre">geometryRevision</span></code>, while every decorator is keyed on geometry alone. A
-selected-edge decorator would have gone stale the moment the user changed the
-selection without touching geometry, which is the normal case.</p>
-<p>The rest of this section describes what that has fixed, and is kept because the
-reasoning still applies to the decorator-shaped gaps below.</p>
-<p>The decorator pass is the other place edges get drawn, and it covers boundary
-edges, texture seams, non-manifold edges, non-manifold vertices, normals and
-curvature directions. There is <strong>no decorator for selected edges and none for
-crease edges</strong>.</p>
-<p>The practical consequence, before the change above: running
-<code class="docutils literal notranslate"><span class="pre">select_crease_edges_trueform</span></code> on a model appeared to do nothing. The bits are set, the log says how many, and the viewport
-is unchanged. The user has to run <code class="docutils literal notranslate"><span class="pre">create_polyline_from_selected_edges</span></code> and
-inspect the resulting layer to confirm the filter worked at all — and the
-filter’s own help says so, telling the reader to build a polyline “to see
-exactly where the trouble is”. A filter documenting a workaround for the fact
-that its output is invisible is the clearest statement of the gap.</p>
-<p>What is <em>not</em> covered, and would still be separate work: a <strong>crease-edge
-decorator</strong>. Crease filters currently write to the same per-face selection bits
-they share with everything else, so their output now shows up in the selection
-overlay – but that means a crease selection and a rectangle selection are
-indistinguishable, and running one clears the other. Giving creases their own
-bits or their own decorator is a real design question, not a rendering one.</p>
 </section>
 <section id="interactive-selection-of-edges">
 <h2>Interactive selection of edges<a class="headerlink" href="#interactive-selection-of-edges" title="Link to this heading">¶</a></h2>
-<p>Nothing can select an edge interactively, in either sense.</p>
-<p><strong>For meshes.</strong> The <code class="docutils literal notranslate"><span class="pre">Rubber-band</span> <span class="pre">Select</span></code> tool drags a rectangle and runs
-<code class="docutils literal notranslate"><span class="pre">select_by_screen_rectangle</span></code>; the tool carries a single <code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">m_selectFaces</span></code>,
-and <code class="docutils literal notranslate"><span class="pre">F</span></code>/<code class="docutils literal notranslate"><span class="pre">V</span></code> toggle between faces and vertices. There is no third mode. Adding
-one means deciding what “an edge is inside the rectangle” means — both endpoints
-in, or the segment intersecting the rectangle — and then writing the result to
-the per-face edge bits of both incident faces.</p>
-<p><strong>For polylines.</strong> Worse: <code class="docutils literal notranslate"><span class="pre">VCGEdge::IsS()</span></code> is never set by anything in the
-codebase. <a class="reference download internal" download="" href="../../_downloads/29e2cb4090c6bc152a30abcca9111b5d/layerwidget.cpp"><span class="xref download myst">layerwidget.cpp:274</span></a> counts selected
-edges and shows the count in the layer tree, so the UI is already prepared to
-report a number that is always zero. <code class="docutils literal notranslate"><span class="pre">select_all</span></code>, <code class="docutils literal notranslate"><span class="pre">select_none</span></code> and
-<code class="docutils literal notranslate"><span class="pre">invert_selection</span></code> take <code class="docutils literal notranslate"><span class="pre">allFaces</span></code>/<code class="docutils literal notranslate"><span class="pre">allVerts</span></code> and have no edge option;
+<p>Nothing can select an edge by pointing at it.</p>
+<p><strong>For meshes.</strong> <code class="docutils literal notranslate"><span class="pre">Rubber-band</span> <span class="pre">Select</span></code> runs <code class="docutils literal notranslate"><span class="pre">select_by_screen_rectangle</span></code> (or
+<code class="docutils literal notranslate"><span class="pre">select_by_screen_polygon</span></code>) with one <code class="docutils literal notranslate"><span class="pre">bool</span> <span class="pre">m_selectFaces</span></code>; <code class="docutils literal notranslate"><span class="pre">F</span></code>/<code class="docutils literal notranslate"><span class="pre">V</span></code> toggle faces
+and vertices. An edge mode means deciding what “an edge is inside the rectangle”
+means — both endpoints in, or the segment crossing it — and then writing the
+per-face edge bits of both incident faces.</p>
+<p><strong>For polylines.</strong> <code class="docutils literal notranslate"><span class="pre">VCGEdge::IsS()</span></code> is written only by <em>Select Edges by
+Expression</em>, by layer splitting and by undo. <code class="docutils literal notranslate"><span class="pre">select_all</span></code>, <code class="docutils literal notranslate"><span class="pre">select_none</span></code> and
+<code class="docutils literal notranslate"><span class="pre">invert_selection</span></code> take <code class="docutils literal notranslate"><span class="pre">allFaces</span></code>/<code class="docutils literal notranslate"><span class="pre">allVerts</span></code> and have no edge option, and
 <code class="docutils literal notranslate"><span class="pre">select_non_manifold_edges_vcglib</span></code> selects the faces and vertices <em>incident</em> on
-non-manifold edges rather than edges themselves. vcglib is ready —
-<code class="docutils literal notranslate"><span class="pre">UpdateSelection</span></code> has <code class="docutils literal notranslate"><span class="pre">EdgeAll</span></code>, <code class="docutils literal notranslate"><span class="pre">EdgeClear</span></code>, <code class="docutils literal notranslate"><span class="pre">EdgeInvert</span></code> and <code class="docutils literal notranslate"><span class="pre">EdgeCount</span></code> — and
-nothing calls them.</p>
-<p><strong>What already exists to build on.</strong> The current-layer outline pass rasterises
-polyline edges into an offscreen depth buffer, through both
-<code class="docutils literal notranslate"><span class="pre">m_currentMaskEdgesDepthOnlyPipeline</span></code> and
-<code class="docutils literal notranslate"><span class="pre">m_currentMaskFatEdgesDepthOnlyPipeline</span></code>. So the GPU machinery for “which edge
-pixels are where, and which are occluded” is already written and in use; a
-picking or rubber-band path for edges would extend it rather than start from
-nothing. The same applies to <code class="docutils literal notranslate"><span class="pre">ViewpointOccluder</span></code>, which backs the visible-only
-option of rectangle selection.</p>
-<p><strong>Suggested order.</strong> Filter-driven selection first (<code class="docutils literal notranslate"><span class="pre">select_edges_by_expression</span></code>
-below), because it needs no UI work and immediately makes <code class="docutils literal notranslate"><span class="pre">IsS()</span></code> mean
-something; then the polyline selection overlay so the result is visible; then
-the interactive tool mode, which is the only part needing tool-state and
-keybinding design.</p>
+non-manifold edges rather than the edges. vcglib’s <code class="docutils literal notranslate"><span class="pre">UpdateSelection</span></code> already has
+<code class="docutils literal notranslate"><span class="pre">EdgeAll</span></code>, <code class="docutils literal notranslate"><span class="pre">EdgeClear</span></code>, <code class="docutils literal notranslate"><span class="pre">EdgeInvert</span></code> and <code class="docutils literal notranslate"><span class="pre">EdgeCount</span></code>.</p>
+<p><strong>What to build on.</strong> The current-layer outline pass already rasterises polyline
+edges into an offscreen depth buffer (<code class="docutils literal notranslate"><span class="pre">m_currentMaskEdgesDepthOnlyPipeline</span></code>,
+<code class="docutils literal notranslate"><span class="pre">m_currentMaskFatEdgesDepthOnlyPipeline</span></code>), so a picking or rubber-band path for
+edges would extend GPU code that is in use; <code class="docutils literal notranslate"><span class="pre">ViewpointOccluder</span></code> backs the
+visible-only option as it does for faces.</p>
+<p><strong>A crease-edge decorator</strong> is separate work. Crease filters write the same
+per-face selection bits as everything else, so their output shows in the
+selection overlay, but a crease selection and a rectangle selection are then
+indistinguishable and running one clears the other. Giving creases their own bits
+or their own decorator is a data-model question, not a rendering one.</p>
 </section>
 <section id="filters">
 <h2>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h2>
-<p>The natural home for expression-driven ones is <code class="docutils literal notranslate"><span class="pre">filter_expression</span></code>, whose
-per-element pattern (<code class="docutils literal notranslate"><span class="pre">setPerVertexVariables</span></code> / <code class="docutils literal notranslate"><span class="pre">setPerFaceVariables</span></code> and the
-matching runtime setters) an edge context would mirror. The plain colorize ones
-belong in <code class="docutils literal notranslate"><span class="pre">filter_colorproc</span></code> beside their vertex and face twins, though keeping
-the whole family together is a defensible alternative.</p>
-<section id="tier-0-two-enablers">
-<h3>Tier 0 — two enablers<a class="headerlink" href="#tier-0-two-enablers" title="Link to this heading">¶</a></h3>
-<p>Not filters, but everything below is thinner without them.</p>
-<p><strong>Add <code class="docutils literal notranslate"><span class="pre">vcg::edge::Qualityf</span></code> to <code class="docutils literal notranslate"><span class="pre">VCGEdge</span></code>.</strong> One line, exactly parallel to the
-<code class="docutils literal notranslate"><span class="pre">Color4b</span></code> line. vcglib already ships <code class="docutils literal notranslate"><span class="pre">UpdateColor::PerEdgeQualityRamp</span></code> and
-<code class="docutils literal notranslate"><span class="pre">Stat::ComputePerEdgeQualityMinMax</span></code>, and both call <code class="docutils literal notranslate"><span class="pre">RequirePerEdgeQuality</span></code> — so
-today they cannot compile against <code class="docutils literal notranslate"><span class="pre">VCGMesh</span></code>. This one line unlocks the existing
-scalar→colormap path instead of every colorize filter hand-rolling a ramp. Cost
-is 4 bytes per edge, on layers that have orders of magnitude fewer edges than a
-mesh has faces.</p>
-<p><strong>Add an <code class="docutils literal notranslate"><span class="pre">EdgeColor</span></code> case to <code class="docutils literal notranslate"><span class="pre">MeshFilterVisualizationAttribute</span></code></strong> and its branch
-in <code class="docutils literal notranslate"><span class="pre">MainWindow</span></code>. <code class="docutils literal notranslate"><span class="pre">defaultRenderModeForMesh</span></code> picks <code class="docutils literal notranslate"><span class="pre">PerEdge</span></code> automatically for
-<em>newly created</em> layers, but a filter that colours an existing polyline changes
-nothing on screen without a hint.</p>
-</section>
-<section id="tier-1-expression-filters">
-<h3>Tier 1 — expression filters<a class="headerlink" href="#tier-1-expression-filters" title="Link to this heading">¶</a></h3>
-<div class="table-wrapper colwidths-auto docutils container">
-<table class="docutils align-default">
-<thead>
-<tr class="row-odd"><th class="head"><p>Filter</p></th>
-<th class="head"><p>Notes</p></th>
-</tr>
-</thead>
-<tbody>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">select_edges_by_expression</span></code></p></td>
-<td><p>The keystone. Gives <code class="docutils literal notranslate"><span class="pre">IsS()</span></code> its first writer and makes <code class="docutils literal notranslate"><span class="pre">onselected</span></code> meaningful on everything else.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">compute_edge_color_by_expression</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">r</span></code>/<code class="docutils literal notranslate"><span class="pre">g</span></code>/<code class="docutils literal notranslate"><span class="pre">b</span></code>/<code class="docutils literal notranslate"><span class="pre">a</span></code>, twin of the vertex and face pair.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">compute_edge_scalar_by_expression</span></code></p></td>
-<td><p>Needs Tier 0.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">define_custom_edge_scalar_attribute</span></code>, <code class="docutils literal notranslate"><span class="pre">define_custom_edge_point_attribute</span></code></p></td>
-<td><p>Completes the custom-attribute trio. <strong>Not implemented</strong> — not part of stage 1.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>The design work is the <strong>edge variable context</strong>, where edges should earn their
-own vocabulary rather than copy the face one. Following <code class="docutils literal notranslate"><span class="pre">setPerFaceVariables</span></code>:</p>
-<ul class="simple">
-<li><p>endpoints — <code class="docutils literal notranslate"><span class="pre">x0,y0,z0</span></code> / <code class="docutils literal notranslate"><span class="pre">x1,y1,z1</span></code>, <code class="docutils literal notranslate"><span class="pre">nx0</span></code>…<code class="docutils literal notranslate"><span class="pre">nz1</span></code>, <code class="docutils literal notranslate"><span class="pre">r0,g0,b0,a0</span></code> / <code class="docutils literal notranslate"><span class="pre">r1</span></code>…<code class="docutils literal notranslate"><span class="pre">a1</span></code>,
-<code class="docutils literal notranslate"><span class="pre">q0,q1</span></code>, <code class="docutils literal notranslate"><span class="pre">vi0,vi1</span></code>, <code class="docutils literal notranslate"><span class="pre">vsel0,vsel1</span></code></p></li>
-<li><p>the edge itself — <code class="docutils literal notranslate"><span class="pre">er,eg,eb,ea</span></code>, <code class="docutils literal notranslate"><span class="pre">eq</span></code>, <code class="docutils literal notranslate"><span class="pre">ei</span></code>, <code class="docutils literal notranslate"><span class="pre">esel</span></code></p></li>
-<li><p><strong>derived conveniences</strong> — <code class="docutils literal notranslate"><span class="pre">elen</span></code> (length), <code class="docutils literal notranslate"><span class="pre">emx,emy,emz</span></code> (midpoint),
-<code class="docutils literal notranslate"><span class="pre">edx,edy,edz</span></code> (unit direction). All derivable from the endpoints, but they are
-what anyone will actually reach for, and the face context already sets the
-precedent of precomputing this kind of thing. Length and a direction dot
-product cover most useful expressions on a polyline.</p></li>
-<li><p>bbox variables come free from <code class="docutils literal notranslate"><span class="pre">defineCommonBBoxVars</span></code>.</p></li>
-</ul>
-<p>Cost: one <code class="docutils literal notranslate"><span class="pre">setPerEdgeVariables</span></code>/<code class="docutils literal notranslate"><span class="pre">setEdgeRuntime</span></code> pair (~60 lines, mirroring the
-vertex pair) plus roughly 40 lines per filter in the existing <code class="docutils literal notranslate"><span class="pre">runFilter</span></code> chain.</p>
-</section>
-<section id="tier-2-colorize-filters">
-<h3>Tier 2 — colorize filters<a class="headerlink" href="#tier-2-colorize-filters" title="Link to this heading">¶</a></h3>
-<ul class="simple">
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">colorize_edges_by_scalar</span></code></strong> — twin of <code class="docutils literal notranslate"><span class="pre">colorize_vertices_by_scalar</span></code>;
-essentially one call to <code class="docutils literal notranslate"><span class="pre">PerEdgeQualityRamp</span></code>. Needs Tier 0.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">compute_edge_scalar_from_geometry</span></code></strong> — twin of
-<code class="docutils literal notranslate"><span class="pre">compute_face_scalar_from_geometry</span></code>: length, angle to an axis, midpoint
-height. Feeds the above.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">set_random_polyline_color</span></code></strong> — a different colour per connected chain.
-Visually the most useful of the set, and it needs no new vcglib component:
-<code class="docutils literal notranslate"><span class="pre">edge::EEAdj</span></code> and <code class="docutils literal notranslate"><span class="pre">vertex::VEAdj</span></code> are both absent, but a union–find over
-endpoint vertex indices gives the components in about fifteen lines.</p></li>
-<li><p><strong><code class="docutils literal notranslate"><span class="pre">transfer_color_from_vertex_to_edge</span></code></strong> and the reverse — twins of the
-existing vertex↔face transfer pair.</p></li>
-</ul>
-</section>
-<section id="tier-3-give-the-producers-something-worth-colouring">
-<h3>Tier 3 — give the producers something worth colouring<a class="headerlink" href="#tier-3-give-the-producers-something-worth-colouring" title="Link to this heading">¶</a></h3>
-<p><strong>Implemented 2026-09-16 for the isocontours</strong>, which was the case that
-motivated it. <code class="docutils literal notranslate"><span class="pre">create_polyline_from_scalar_isocontour_trueform</span></code> takes a
-<code class="docutils literal notranslate"><span class="pre">contourCount</span></code> and puts every level into a single layer; it now stamps each edge
-with the value of the contour it belongs to, so <code class="docutils literal notranslate"><span class="pre">colorize_edges_by_scalar</span></code> turns
-the result into readable isolines with no new UI at all.</p>
-<p>The awkward part is that TrueForm’s multi-value <code class="docutils literal notranslate"><span class="pre">make_isocontours</span></code> merges every
-level into one <code class="docutils literal notranslate"><span class="pre">curves_buffer</span></code> and keeps no record of which path came from which
-level, and the per-point provenance is not exposed by the public API either. So
-the filter now calls the <strong>single-value</strong> overload once per level and labels the
-segments as it appends them. That trades one mesh walk for N, which sounded
-expensive and measured as nothing: on a 327k-face sphere, 50 levels cost 43 ms
-total, and going from 5 levels to 20 on an 82k-face sphere moved 13.5 ms to
-18.5 ms — the fixed setup dominates, not the per-level extraction.</p>
-<p>The shared <code class="docutils literal notranslate"><span class="pre">addPolylineLayer</span></code> helper split into <code class="docutils literal notranslate"><span class="pre">appendCurvesToMesh</span></code> (which
-takes the scalar to stamp) and <code class="docutils literal notranslate"><span class="pre">finishPolylineLayer</span></code>, with <code class="docutils literal notranslate"><span class="pre">addPolylineLayer</span></code>
-kept as a one-line wrapper so the other five producers are untouched.</p>
-<p><strong>The other producers were considered and deliberately left alone.</strong>
-<code class="docutils literal notranslate"><span class="pre">create_polyline_from_planar_section</span></code> cuts at one offset, so a per-edge value
-would be the same number on every edge; it would become worth doing if the
-filter ever cut at several offsets at once. The intersection polylines
-(<code class="docutils literal notranslate"><span class="pre">create_polyline_from_self_intersections_trueform</span></code>,
-<code class="docutils literal notranslate"><span class="pre">create_polyline_from_mesh_intersection_trueform</span></code>) lie on <em>both</em> input surfaces
-by construction, so “which surface it came from” has no answer to record.</p>
-</section>
-<section id="one-distinctive-idea-deliberately-deferred">
-<h3>One distinctive idea, deliberately deferred<a class="headerlink" href="#one-distinctive-idea-deliberately-deferred" title="Link to this heading">¶</a></h3>
-<p><strong>Arc length along the chain</strong> — <code class="docutils literal notranslate"><span class="pre">es</span></code>, normalised 0→1 from the start of the
-polyline, and <code class="docutils literal notranslate"><span class="pre">eidx</span></code>, position in the chain. It is the one quantity edges have
-that vertices and faces do not, and colouring by it shows direction and flow.
-It needs the chain <em>ordered</em>, not merely component-labelled, so it means walking
-the union–find result and handling open versus closed chains. Worth doing, not
-in the first slice.</p>
-</section>
+<p>Two filters this proposal listed were not built, because the edge expressions
+already do their work: <code class="docutils literal notranslate"><span class="pre">compute_edge_scalar_from_geometry</span></code> is <em>Compute Edge Scalar
+by Expression</em> with <code class="docutils literal notranslate"><span class="pre">elen</span></code>, <code class="docutils literal notranslate"><span class="pre">emz</span></code> or <code class="docutils literal notranslate"><span class="pre">acos(abs(edz))</span></code>, and the vertex-to-edge color
+transfer is <em>Compute Edge Color by Expression</em> with <code class="docutils literal notranslate"><span class="pre">(r0+r1)/2</span></code> and its siblings, as
+the description of <em>Transfer Color from Edge to Vertex</em> says.</p>
 </section>
 <section id="staging">
 <h2>Staging<a class="headerlink" href="#staging" title="Link to this heading">¶</a></h2>
-<ol class="arabic simple">
-<li><p><strong>Done (2026-09-16).</strong> <code class="docutils literal notranslate"><span class="pre">vcg::edge::Qualityf</span></code>; <code class="docutils literal notranslate"><span class="pre">select_edges_by_expression</span></code>;
-<code class="docutils literal notranslate"><span class="pre">compute_edge_color_by_expression</span></code>; <code class="docutils literal notranslate"><span class="pre">compute_edge_scalar_by_expression</span></code>;
-<code class="docutils literal notranslate"><span class="pre">colorize_edges_by_scalar</span></code>. The smallest set that closes the loop — select,
-compute a number, map it to colour — and makes the feature usable end to end.</p></li>
-<li><p><strong>Done (2026-09-16).</strong> Selected edges in the selection overlay, so
-<code class="docutils literal notranslate"><span class="pre">select_crease_edges_trueform</span></code> and friends stop being invisible. Landed as
-one <em>Edges</em> checkbox covering both kinds of edge rather than as the
-mesh-only decorator originally sketched here.</p></li>
-<li><p><strong>Done (2026-09-16).</strong> Producers stamping quality (Tier 3) — the isocontours,
-which were the only producer with a per-curve value worth recording.</p></li>
-<li><p>The remaining colorize filters.</p></li>
+<ol class="arabic simple" start="4">
+<li><p>Done 2026-11-26 (see the opening).</p></li>
 <li><p>An edge mode for <code class="docutils literal notranslate"><span class="pre">Rubber-band</span> <span class="pre">Select</span></code>, on top of the existing depth-mask
 machinery.</p></li>
 </ol>
@@ -575,17 +323,16 @@ machinery.</p></li>
 <section id="open-questions">
 <h2>Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p><strong>Should mesh edge selection and polyline edge selection share a UI?</strong> They
-are different storage with different semantics, but a user drawing a rectangle
-over a model does not care. A single tool mode writing to whichever the
-current layer supports is probably right, but it makes the tool’s state harder
-to describe.</p></li>
+<li><p><strong>Should mesh edge selection and polyline edge selection share a UI?</strong> They are
+different storage with different semantics, but a user drawing a rectangle over
+a model does not care. A single tool mode writing to whichever the current layer
+supports is probably right, but it makes the tool’s state harder to describe.</p></li>
 <li><p><strong>Does <code class="docutils literal notranslate"><span class="pre">invert_selection</span></code> / <code class="docutils literal notranslate"><span class="pre">select_all</span></code> grow an <code class="docutils literal notranslate"><span class="pre">allEdges</span></code> flag</strong>, or do
 polyline layers get their own selection filters? The first is less UI, the
 second avoids three dead checkboxes on every triangle mesh.</p></li>
-<li><p><strong>Per-edge quality on mesh edges</strong> is not addressed here at all and would need
-a genuinely different design — probably a named attribute keyed by a canonical
-(vertex, vertex) pair rather than anything stored on faces.</p></li>
+<li><p><strong>Per-edge quality on mesh edges</strong> would need a genuinely different design —
+probably a named attribute keyed by a canonical (vertex, vertex) pair rather
+than anything stored on faces.</p></li>
 </ul>
 </section>
 <section id="non-goals">
@@ -638,23 +385,9 @@ and showing per-edge information, not about changing topology.</p></li>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Edge Support</a><ul>
-<li><a class="reference internal" href="#status">Status</a></li>
-<li><a class="reference internal" href="#two-different-things-are-called-an-edge">Two different things are called an edge</a><ul>
-<li><a class="reference internal" href="#edges-inside-meshes">Edges inside meshes</a></li>
-<li><a class="reference internal" href="#edges-inside-polylines">Edges inside polylines</a></li>
-<li><a class="reference internal" href="#the-bridge-between-the-two">The bridge between the two</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#rendering-of-selected-edges">Rendering of selected edges</a></li>
+<li><a class="reference internal" href="#two-different-things-are-called-an-edge">Two different things are called an edge</a></li>
 <li><a class="reference internal" href="#interactive-selection-of-edges">Interactive selection of edges</a></li>
-<li><a class="reference internal" href="#filters">Filters</a><ul>
-<li><a class="reference internal" href="#tier-0-two-enablers">Tier 0 — two enablers</a></li>
-<li><a class="reference internal" href="#tier-1-expression-filters">Tier 1 — expression filters</a></li>
-<li><a class="reference internal" href="#tier-2-colorize-filters">Tier 2 — colorize filters</a></li>
-<li><a class="reference internal" href="#tier-3-give-the-producers-something-worth-colouring">Tier 3 — give the producers something worth colouring</a></li>
-<li><a class="reference internal" href="#one-distinctive-idea-deliberately-deferred">One distinctive idea, deliberately deferred</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#filters">Filters</a></li>
 <li><a class="reference internal" href="#staging">Staging</a></li>
 <li><a class="reference internal" href="#open-questions">Open questions</a></li>
 <li><a class="reference internal" href="#non-goals">Non-goals</a></li>

@@ -12,7 +12,7 @@ what was built at each stage and what was measured.
 
 See also: [Camera Lens Model](camera_lens_model.md) (the boundary this relies on),
 [Data Model](../data_model.md#raster-data-type), [Rendering](../rendering.md) (the
-`RasterImage` view), [TexMetro](../proposals/texmetro.md) (the case for a CPU rasterizer over
+`RasterImage` view), [TexMetro](texmetro.md) (the case for a CPU rasterizer over
 a QRhi one), [Vocabulary](../vocabulary.md).
 
 ## What old MeshLab has
@@ -119,7 +119,7 @@ reprojection error take microseconds. This **changes what
   few lines. Mutual information shades from that buffer: the normal map, or vertex color or
   vertex scalar. The renderer is then deterministic, runs in `ctest` and `pymeshlab` without
   a GPU, and needs no GL or QRhi context inside a filter.
-- That is the [TexMetro](../proposals/texmetro.md) argument again. A GPU path would go through
+- That is the [TexMetro](texmetro.md) argument again. A GPU path would go through
   `HeadlessRenderContext`, which needs a `RenderWidget`, and no Qt test can link one.
 - **Cost, estimated, not measured:** one 800 × 533 rendering of a 3.2 M-face mesh is
   dominated by triangle setup, on the order of 50–100 ms single-threaded, and NEWUOA takes

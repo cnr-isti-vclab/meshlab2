@@ -43,8 +43,10 @@ from the source and are not checked mechanically.
 | Parametrize per Wedge by Expression | `parametrize_per_wedge_by_expression` | face | per-wedge texture coordinates | yes |
 | Define Custom Vertex Scalar Attribute | `define_custom_vertex_scalar_attribute` | vertex | a named scalar attribute | no |
 | Define Custom Face Scalar Attribute | `define_custom_face_scalar_attribute` | face | a named scalar attribute | no |
+| Define Custom Edge Scalar Attribute | `define_custom_edge_scalar_attribute` | edge | a named scalar attribute | no |
 | Define Custom Vertex Point Attribute | `define_custom_vertex_point_attribute` | vertex | a named 3D point attribute | no |
 | Define Custom Face Point Attribute | `define_custom_face_point_attribute` | face | a named 3D point attribute | no |
+| Define Custom Edge Point Attribute | `define_custom_edge_point_attribute` | edge | a named 3D point attribute | no |
 | Create Isosurface from Expression | `create_isosurface_from_expression` | sample point | a new mesh | no |
 | Refine by User Expression | `refine_by_user_expression` | edge | new vertices and faces | no |
 
@@ -164,6 +166,16 @@ face. What it adds is its own properties and a few quantities derived from the e
 | `elen` | length |
 | `emx` `emy` `emz` | midpoint |
 | `edx` `edy` `edz` | unit direction, from endpoint 0 to endpoint 1; zero for an empty edge |
+| `es` | position along the edge's chain, from 0 at its start to 1 at its end, at the edge's midpoint |
+| `earc` | arc length from the start of the chain to the edge's midpoint |
+| `eidx` | position of the edge in its chain, from 0 |
+| `ech` | index of the chain, from 0 |
+
+A **chain** is a run of edges joined end to end: it stops at a free end and at a branch
+point, where three or more edges meet, so a Y is three chains. A closed loop is one chain.
+An open chain starts at the end belonging to the lowest-index edge, so a polyline stored in
+order runs in that order; a loop starts at its lowest-index edge, from that edge's
+endpoint 0.
 
 ### The two filters that are different
 
@@ -186,9 +198,9 @@ and later expression filters can then read it **by that name**.
 - A **point** attribute `dir` is read as three variables, `dir_x`, `dir_y`, `dir_z`.
 - An **integer** attribute, such as an identifier or a label from a file, is also read by
   its name. No filter writes one.
-- A vertex attribute is seen by vertex filters and a face attribute by face filters, **not
-  across**: a face filter that mentions a vertex attribute is refused with
-  `Unexpected token`. Edge filters see no custom attributes.
+- A vertex attribute is seen by vertex filters, a face attribute by face filters and an
+  edge attribute by edge filters, **not across**: a face filter that mentions a vertex
+  attribute is refused with `Unexpected token`.
 
 A name may use letters, digits and underscores and must not start with a digit. A name that
 is already a variable (`q`, `fi`, `zmid`, …) is refused when you define the attribute.
@@ -246,6 +258,10 @@ Z `z+0.1*sin(10*x)`.
 
 **Color a polyline by direction.** *Compute Edge Color by Expression*: Red `255*abs(edx)`,
 Green `255*abs(edy)`, Blue `255*abs(edz)`, Alpha `255`.
+
+**Show which way a polyline runs.** *Compute Edge Color by Expression*: Red `255*es`,
+Green `0`, Blue `255*(1-es)`, Alpha `255`. Each chain goes from blue to red. For stripes
+every 5 units along the curve, *Select Edges by Expression* with `sin(earc*_pi/5) > 0`.
 
 ## What to expect
 

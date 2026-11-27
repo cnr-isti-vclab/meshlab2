@@ -276,7 +276,7 @@ records the corrections rather than keeping a second, overlapping design:</p>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Per-face <code class="docutils literal notranslate"><span class="pre">PD1</span></code> is already available</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">src/core/vcgmesh.h</span></code> has curvature directions on <strong>vertices</strong>, not faces. A generic vcglib exporter calling <code class="docutils literal notranslate"><span class="pre">face.PD1()</span></code> does not establish that <code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> has that component. Field storage needs an explicit contract.</p></td>
+<td><p>Not when surveyed: <code class="docutils literal notranslate"><span class="pre">src/core/vcgmesh.h</span></code> then had curvature directions on <strong>vertices</strong> only. Since 2026-11-13 <code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> carries <code class="docutils literal notranslate"><span class="pre">CurvatureDirfOcf</span></code> too (filled by per-face curvature methods and the <em>Transfer Curvature Directions</em> filters), but a principal-curvature pair is one cross, not a stored field with its own symmetry and constraints. Field storage needs an explicit contract.</p></td>
 </tr>
 <tr class="row-odd"><td><p>Combing solves face-to-vertex transfer</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">combing</span></code> cyclically reorders directions on the existing tangent bundle. It does not interpolate a face field onto vertices. Transport, interpolation and singularity checks remain necessary for Instant Meshes.</p></td>
@@ -712,11 +712,12 @@ preserving exactly the same compact face order;</p></li>
 <li><p>pass the <code class="docutils literal notranslate"><span class="pre">.rosy</span></code> path to the helper, together with feature data when required;</p></li>
 <li><p>describe the supplied-field path separately from the normal preprocessing path.</p></li>
 </ol>
-<p>The current <code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> has no curvature-direction component, so
-<code class="docutils literal notranslate"><span class="pre">ExporterFIELD&lt;VCGMesh&gt;::Save4ROSY</span></code> cannot simply be instantiated on the document
-mesh. Use a dedicated writer over the backend-independent field view, or an
-appropriately equipped temporary mesh. Enabled vertex curvature data does not prove
-that a compatible face field exists.</p>
+<p><code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> now has an optional curvature-direction component, so
+<code class="docutils literal notranslate"><span class="pre">ExporterFIELD&lt;VCGMesh&gt;::Save4ROSY</span></code> compiles on the document mesh, but it would
+write face curvature directions, not the stored field. Use a dedicated writer over
+the backend-independent field view, or copy the field into a temporary mesh’s face
+<code class="docutils literal notranslate"><span class="pre">PD1</span></code>. Enabled curvature data, per vertex or per face, does not prove that a
+compatible field exists.</p>
 <p>The supplied-field branch skips considerably more than field computation:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">

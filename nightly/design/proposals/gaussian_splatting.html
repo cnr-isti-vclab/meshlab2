@@ -247,7 +247,7 @@
           <section class="tex2jax_ignore mathjax_ignore" id="gaussian-splatting">
 <h1>Gaussian Splatting<a class="headerlink" href="#gaussian-splatting" title="Link to this heading">¶</a></h1>
 <p>This document evaluates adding 3D Gaussian splat loading, rendering and editing
-to MeshLab. <strong>Nothing described here is implemented.</strong> It records what the
+to MeshLab. <strong>Nothing splat-specific is implemented</strong>; only the core prerequisite has landed. It records what the
 technique demands, which of MeshLab’s mechanisms already carry weight for it,
 which do not, and the design decisions already taken.</p>
 <p>See also: <a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a> (the QRhi pipeline this would extend),
@@ -258,6 +258,8 @@ which do not, and the design decisions already taken.</p>
 <p>As of 2026-09-10: nothing implemented, nothing scheduled. Three decisions have
 been taken in advance and the rest of this document is written around them —
 see <a class="reference internal" href="#decisions-taken"><span class="xref myst">Decisions taken</span></a>.</p>
+<p>2026-09-21 and 09-27: the prerequisite, stage 0, landed for <code class="docutils literal notranslate"><span class="pre">float</span></code>, <code class="docutils literal notranslate"><span class="pre">Point3f</span></code> and
+<code class="docutils literal notranslate"><span class="pre">int</span></code> attributes — see <a class="reference internal" href="#prerequisite-named-attributes-in-the-undo-pipeline"><span class="xref myst">the prerequisite</span></a>.</p>
 <p>2026-11-04: Open3D 0.20 shipped a splat renderer and splat-aware transforms under the
 MIT licence. They are not usable through MeshLab’s Open3D plugin, but they are worth
 lifting, and they change the renderer plan and decision 1 — see
@@ -597,28 +599,17 @@ by design does not — it is dropped wholesale when geometry changes.</p>
 </section>
 <section id="prerequisite-named-attributes-in-the-undo-pipeline">
 <h2>Prerequisite: named attributes in the undo pipeline<a class="headerlink" href="#prerequisite-named-attributes-in-the-undo-pipeline" title="Link to this heading">¶</a></h2>
-<p>This is the one piece of core work that must land before anything else, and it
-is worth doing on its own merits.</p>
-<p><code class="docutils literal notranslate"><span class="pre">deepCopyMesh()</span></code> at <a class="reference download internal" download="" href="../../_downloads/af62eed5fba2afe80b7cc162025dc6ed/document_internal.cpp"><span class="xref download myst"><code class="docutils literal notranslate"><span class="pre">src/core/document_internal.cpp:526</span></code></span></a>
-copies a hand-listed set of fields — coordinates, normals, colour, quality,
-flags, OCF texcoords, curvature directions, wedge texcoords. It carries <strong>no vcg
-named attributes</strong>, so today an attribute-bearing mesh would lose its attributes
-on the first undo checkpoint, silently.</p>
-<p>The machinery to fix it generically is already in vcglib:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">PointerToAttribute</span></code> carries <code class="docutils literal notranslate"><span class="pre">std::type_index</span> <span class="pre">_type</span></code> alongside the name, so an
-attribute’s type is known at runtime.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">SimpleTempDataBase::CopyValue(to,</span> <span class="pre">from,</span> <span class="pre">other)</span></code> is virtual, so values can be
-copied without knowing the concrete type — provided the destination attribute
-already exists with the same name and type. This is exactly how
-<code class="docutils literal notranslate"><span class="pre">tri::Append</span></code> handles attributes (“only those present in both meshes”).</p></li>
-</ul>
-<p>So the change is a small registry mapping <code class="docutils literal notranslate"><span class="pre">std::type_index</span></code> to a factory that
-creates that attribute on the destination mesh, plus a loop in <code class="docutils literal notranslate"><span class="pre">deepCopyMesh()</span></code>.
-MeshLab would register the handful of types it means to support (<code class="docutils literal notranslate"><span class="pre">float</span></code>,
-<code class="docutils literal notranslate"><span class="pre">Point3f</span></code>, the splat struct) rather than trying to be universal. Roughly 40–100
-lines plus tests, and it also has to be threaded through memory accounting
-(<code class="docutils literal notranslate"><span class="pre">document_memory.cpp</span></code>) and the layer panel’s size reporting.</p>
+<p><strong>Done for three types</strong> (2026-09-21, <code class="docutils literal notranslate"><span class="pre">int</span></code> added 2026-09-27). <code class="docutils literal notranslate"><span class="pre">deepCopyMesh()</span></code> in
+<a class="reference download internal" download="" href="../../_downloads/af62eed5fba2afe80b7cc162025dc6ed/document_internal.cpp"><span class="xref download myst"><code class="docutils literal notranslate"><span class="pre">src/core/document_internal.cpp</span></code></span></a> carries
+named per-vertex, per-face and per-edge attributes of type <code class="docutils literal notranslate"><span class="pre">float</span></code>, <code class="docutils literal notranslate"><span class="pre">Point3f</span></code> and
+<code class="docutils literal notranslate"><span class="pre">int</span></code> through undo, Duplicate Layer and <code class="docutils literal notranslate"><span class="pre">addMesh</span></code>, and memory accounting counts them
+(<code class="docutils literal notranslate"><span class="pre">customAttributeBytes</span></code>); <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> states the rule.</p>
+<p>vcglib’s attributes are type-erased, so the copy names the types it carries rather than
+using a registry: a type outside the list is silently left behind. What remains for
+splats is therefore one choice at stage 1 — store each splat field as <code class="docutils literal notranslate"><span class="pre">float</span></code>
+attributes (they survive today; the student’s PLY reader already uses
+<code class="docutils literal notranslate"><span class="pre">AddPerVertexFloatAttribute</span></code>), or add the splat struct to the list in
+<code class="docutils literal notranslate"><span class="pre">document_internal.cpp</span></code>, with its byte count in memory accounting.</p>
 </section>
 <section id="rendering">
 <h2>Rendering<a class="headerlink" href="#rendering" title="Link to this heading">¶</a></h2>
@@ -684,8 +675,8 @@ the buffers for 3.</p></li>
 <section id="staging">
 <h2>Staging<a class="headerlink" href="#staging" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple" start="0">
-<li><p><strong>Named attributes in the undo pipeline.</strong> Core work, no splat content,
-independently useful. Blocks everything else.</p></li>
+<li><p><strong>Named attributes in the undo pipeline.</strong> Done for <code class="docutils literal notranslate"><span class="pre">float</span></code>, <code class="docutils literal notranslate"><span class="pre">Point3f</span></code> and <code class="docutils literal notranslate"><span class="pre">int</span></code>
+(see the prerequisite); the splat struct, if stage 1 keeps one, is still to add.</p></li>
 <li><p><strong>Loading and inspection.</strong> PLY and <code class="docutils literal notranslate"><span class="pre">.splat</span></code> readers over the student’s
 headers; splats as per-vertex attributes; no renderer. Verified by round-trip
 and by the mesh↔splat converter, which makes the data visible as ellipsoids
@@ -695,7 +686,7 @@ structure above.</p></li>
 <li><p><strong>Production.</strong> SH degree 3, the three filters, <code class="docutils literal notranslate"><span class="pre">.ksplat</span></code> and compressed
 formats, culling and LOD, and possibly relaxing the exclusive mode.</p></li>
 </ol>
-<p>Rough effort, assuming the prerequisite is done: <strong>3–5 days</strong> for stage 1,
+<p>Rough effort: <strong>3–5 days</strong> for stage 1,
 <strong>1–2 weeks</strong> for stage 2, <strong>2–4 weeks</strong> for stage 3.</p>
 <p>Revised 2026-11-04, with Open3D 0.20 as a source:</p>
 <ul class="simple">

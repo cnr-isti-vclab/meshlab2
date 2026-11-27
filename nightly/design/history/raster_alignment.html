@@ -257,7 +257,7 @@ is in <a class="reference internal" href="../raster_alignment.html"><span class=
 what was built at each stage and what was measured.</p>
 <p>See also: <a class="reference internal" href="camera_lens_model.html"><span class="std std-doc">Camera Lens Model</span></a> (the boundary this relies on),
 <a class="reference internal" href="../data_model.html#raster-data-type"><span class="std std-ref">Data Model</span></a>, <a class="reference internal" href="../rendering.html"><span class="std std-doc">Rendering</span></a> (the
-<code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> view), <a class="reference internal" href="../proposals/texmetro.html"><span class="std std-doc">TexMetro</span></a> (the case for a CPU rasterizer over
+<code class="docutils literal notranslate"><span class="pre">RasterImage</span></code> view), <a class="reference internal" href="texmetro.html"><span class="std std-doc">TexMetro</span></a> (the case for a CPU rasterizer over
 a QRhi one), <a class="reference internal" href="../vocabulary.html"><span class="std std-doc">Vocabulary</span></a>.</p>
 <section id="what-old-meshlab-has">
 <h2>What old MeshLab has<a class="headerlink" href="#what-old-meshlab-has" title="Link to this heading">¶</a></h2>
@@ -363,7 +363,7 @@ only what the parameters say it changes.</p></li>
 few lines. Mutual information shades from that buffer: the normal map, or vertex color or
 vertex scalar. The renderer is then deterministic, runs in <code class="docutils literal notranslate"><span class="pre">ctest</span></code> and <code class="docutils literal notranslate"><span class="pre">pymeshlab</span></code> without
 a GPU, and needs no GL or QRhi context inside a filter.</p></li>
-<li><p>That is the <a class="reference internal" href="../proposals/texmetro.html"><span class="std std-doc">TexMetro</span></a> argument again. A GPU path would go through
+<li><p>That is the <a class="reference internal" href="texmetro.html"><span class="std std-doc">TexMetro</span></a> argument again. A GPU path would go through
 <code class="docutils literal notranslate"><span class="pre">HeadlessRenderContext</span></code>, which needs a <code class="docutils literal notranslate"><span class="pre">RenderWidget</span></code>, and no Qt test can link one.</p></li>
 <li><p><strong>Cost, estimated, not measured:</strong> one 800 × 533 rendering of a 3.2 M-face mesh is
 dominated by triangle setup, on the order of 50–100 ms single-threaded, and NEWUOA takes

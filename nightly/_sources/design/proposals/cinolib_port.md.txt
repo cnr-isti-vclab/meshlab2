@@ -29,8 +29,8 @@ also welcome under the algorithm-archive policy, but need not lead the port.
 
 | Capability | Current MeshLab | What CinoLib would add |
 |---|---|---|
-| Homotopy basis and canonical polygonal schema | A Reeb-graph filter exists, but no homotopy-basis/schema filter | Explicit handle loops and a route from a closed genus-g surface to a cut planar domain |
-| ARAP UV mapping | libigl harmonic/LSCM; geogram LSCM, spectral LSCM, ABF and atlas filters | A local/global ARAP surface parametrizer |
+| Homotopy basis and canonical polygonal schema | A Reeb-graph filter and *Create Handle and Tunnel Loops* exist (short loops split into handles and tunnels); no rooted homotopy basis or schema filter | Explicit handle loops and a route from a closed genus-g surface to a cut planar domain |
+| ARAP UV mapping | libigl harmonic, LSCM, *Parametrize by As-Rigid-As-Possible (libigl)* and SLIM with an ARAP energy; geogram LSCM, spectral LSCM, ABF and atlas filters | A second local/global ARAP parametrizer, with an LSCM initializer; an archive addition rather than a new capability |
 | Robust disk embeddings | Existing parametrizers have different numerical and distortion objectives | Advancing Front Mapping (AFM) and Stripe Embedding, both research implementations with refinement and exact/high-precision paths |
 | Polygon dualization | Quad remeshers and polygon subdivision exist | Direct construction of a polygonal surface dual, including boundary handling |
 | Coarse quad layout | Instant Meshes and QuadWild generate quad meshes | Analysis of an **existing** quad mesh into singularity-driven patches |

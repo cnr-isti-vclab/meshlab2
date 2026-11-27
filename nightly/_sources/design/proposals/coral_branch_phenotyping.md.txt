@@ -6,8 +6,11 @@ geometric processing for the phenotyping of branching corals* (Scientific Report
 2026): mean-curvature skeleton → pruning → Hack-order branch hierarchy → cutting into
 branches → per-branch measurement.
 
-**Status: not implemented. This is the mapping table, awaiting approval.** Nothing has
-been moved or written yet.
+**Status: not implemented; the mapping table awaits approval.** The vcglib half is
+done and in the gitlink: Yuri's three changes were redone and landed upstream on
+2026-09-28 (see [vcglib changes](#vcglib-changes-landed-2026-09-28)), and `VCGVertex` /
+`VCGEdge` carry the vertex-edge adjacency the skeleton code walks. No plugin code has
+been written.
 
 See also: [Vocabulary](../vocabulary.md), [Filter Organization](../filter_organization.md),
 [Adding a Filter](../adding_a_filter.md), [Edge Support](edge_support.md) (the skeleton
@@ -65,16 +68,16 @@ shipped precedent, cited in the evidence column.
 | `cgalAdapter/CGALMeshSkeletonizer.{h,cpp}` | 215 | Stays as the MCF wrapper | Port |
 | `common/TemplateFilter.*`, `filter_curvature_skeleton.*` | 437 | Replaced by `filters.json` and our dispatch | Drop |
 | `common/Utils.*` (`tryGetSkeletonMeshIndex` finds any layer whose label contains `"skel"`; `tryGetOriginalMeshIndex` works only when the document has exactly 2 layers) | 207 | Explicit `mesh` parameters | Drop; issue B |
-| `common/SkeletonMesh.h` (its own vertex/edge types with `VEAdj`/`EEAdj`) | 70 | Check whether our `VCGMesh` edge side can carry the adjacency it needs, otherwise keep it as a private working type | Decide during port |
+| `common/SkeletonMesh.h` (its own vertex/edge types with `VEAdj`/`EEAdj`) | 70 | `VCGMesh` now carries it: `VEAdjOcf` on the vertex, `VEAdj` fixed on the edge, requested with the `VE` preparation code | Drop |
 | `ComputeBranches`, `BranchTagger`, `PruneSkeleton`, `SimplifySkeleton`, `BranchExtender`, `MeshBorderPolyline`, `EdgeMeshUtils`, `PolylineMesh` | 2 230 | Plugin-private algorithms | Port. Any piece that is generic edge-mesh machinery is a candidate for vcglib |
-| vcglib `Stat::ComputeHackOrderNumbers` / `ComputeStrahlerNumbers` | 169 | Upstream vcglib `devel` | Upstream through our process (commit, push, gitlink bump). Strahler costs nothing to expose as an option on #3; the paper's Discussion names it for species that grow by bisection |
-| vcglib `edge::VEEdgeCollapseNonManifold` | 35 | Upstream vcglib | Upstream |
-| vcglib `outline_support.h` fix | 1 | Upstream vcglib | Still broken upstream: `outline_support.h:290` calls the nonexistent `Convert3DOutlinesToEdgeMesh`, which goes unnoticed only because nothing instantiates that overload. Upstream the fix |
+| vcglib `Stat::ComputeHackOrderNumbers` / `ComputeStrahlerNumbers` | 169 | vcglib `stream_order.h` | **Done** as `tri::StreamOrder` (below). Strahler costs nothing to expose as an option on #3; the paper's Discussion names it for species that grow by bisection |
+| vcglib `edge::VEEdgeCollapseNonManifold` | 35 | vcglib `edge::VEEdgeCollapseToVertex` | **Done** (below) |
+| vcglib `outline_support.h` fix | 1 | vcglib, as is | **Done**: `outline_support.h:290` called the nonexistent `Convert3DOutlinesToEdgeMesh`, unnoticed only because nothing instantiated that overload |
 
 **Size estimate after the port:** about 4.5k lines of plugin code (the 5 filters minus
-their boilerplate, plus the algorithms in `common/`), and about 200 lines in vcglib.
+their boilerplate, plus the algorithms in `common/`), and about 200 lines in vcglib, now landed.
 
-## vcglib changes (implemented 2026-09-28, not yet pushed)
+## vcglib changes (landed 2026-09-28)
 
 Yuri's three changes were reviewed rather than taken as-is, and redone:
 
