@@ -517,36 +517,39 @@
       ],
       "name": "Erode Selection",
       "pythonName": "erode_selection",
-      "shortDescription": "Shrink the selection by one ring of faces or vertices.",
-      "longDescriptionMarkdown": "Shrink the selection by one ring: only what is completely surrounded by the selection stays.\n\nOn a face selection, a face stays if none of its corners also belongs to an unselected face. On a vertex selection, a vertex stays if every face around it has all three corners selected. Choose which with **Elements**; the default keeps the classic behavior of shrinking the faces and letting the vertex selection follow.\n\nSelection tool shortcut: `-`.",
+      "shortDescription": "Shrink the selection by one ring of faces, edges or vertices.",
+      "longDescriptionMarkdown": "Shrink the selection by one ring: only what is completely surrounded by the selection stays.\n\nOn a face selection, a face stays if none of its corners also belongs to an unselected face. On an edge selection, an edge stays if neither of its ends also belongs to an unselected edge, so the open end of a polyline, like the border of a surface, does not shrink. On a vertex selection, a vertex stays if every face and edge around it has all its corners selected. Edges are polyline edges; triangle sides are not reached. Choose which with **Elements**; the default keeps the classic behavior of shrinking the faces and letting the vertex selection follow.\n\nSelection tool shortcut: `-`.",
       "tags": [
         "selection",
         "morphology",
-        "face"
+        "face",
+        "edge"
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
-        "requireFaces": true
+        "requireVertices": true
       },
       "parameters": [
         {
           "id": "element",
           "label": "Elements",
-          "help": "Which selection to shrink. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.",
+          "help": "Which selection to shrink. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only*, *Edges only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.",
           "group": "main",
           "type": "enum",
           "default": "both",
           "enumOptions": [
             { "id": "both", "label": "Faces (vertices follow)" },
             { "id": "face", "label": "Faces only" },
+            { "id": "edge", "label": "Edges only" },
             { "id": "vertex", "label": "Vertices only" }
           ]
         }
       ],
       "outputModifies": [
         "VS",
-        "FS"
+        "FS",
+        "ES"
       ]
     },
     {
@@ -556,36 +559,39 @@
       ],
       "name": "Dilate Selection",
       "pythonName": "dilate_selection",
-      "shortDescription": "Grow the selection by one ring of faces or vertices.",
-      "longDescriptionMarkdown": "Grow the selection by one ring: everything that shares a face or a vertex with it joins in.\n\nOn a face selection, the faces touching a selected face are added. On a vertex selection, the vertices sharing a face with a selected one are added. Choose which with **Elements**; the default keeps the classic behavior of growing the faces and letting the vertex selection follow.\n\nSelection tool shortcut: `+`.",
+      "shortDescription": "Grow the selection by one ring of faces, edges or vertices.",
+      "longDescriptionMarkdown": "Grow the selection by one ring: everything that shares a face, an edge or a vertex with it joins in.\n\nOn a face selection, the faces touching a selected face are added. On an edge selection, the edges sharing an end with a selected edge are added. On a vertex selection, the vertices sharing a face or an edge with a selected one are added. Edges are polyline edges; triangle sides are not reached. Choose which with **Elements**; the default keeps the classic behavior of growing the faces and letting the vertex selection follow.\n\nSelection tool shortcut: `+`.",
       "tags": [
         "selection",
         "morphology",
-        "face"
+        "face",
+        "edge"
       ],
       "inputDomain": "SingleMesh",
       "outputDomain": "ModifyCurrentMesh",
       "inputRequirements": {
-        "requireFaces": true
+        "requireVertices": true
       },
       "parameters": [
         {
           "id": "element",
           "label": "Elements",
-          "help": "Which selection to grow. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.",
+          "help": "Which selection to grow. *Faces (vertices follow)* is the classic behavior: it works on the face selection and sets the vertex selection to match. *Faces only*, *Edges only* and *Vertices only* change just that kind and leave the other exactly as it is. Use *Vertices only* for a selection made as vertices, which the classic mode would clear.",
           "group": "main",
           "type": "enum",
           "default": "both",
           "enumOptions": [
             { "id": "both", "label": "Faces (vertices follow)" },
             { "id": "face", "label": "Faces only" },
+            { "id": "edge", "label": "Edges only" },
             { "id": "vertex", "label": "Vertices only" }
           ]
         }
       ],
       "outputModifies": [
         "VS",
-        "FS"
+        "FS",
+        "ES"
       ]
     },
     {
@@ -1199,7 +1205,7 @@
       "name": "Select by Screen Polygon",
       "pythonName": "select_by_screen_polygon",
       "shortDescription": "Select vertices or faces whose screen projection falls inside a polygon.",
-      "longDescriptionMarkdown": "Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside it. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool's polygon mode (**P**), and is equally usable from scripting.\n\nEverything else -- *Composition*, *Visible faces only*, *Expand to* -- is as in *Select by Screen Rectangle*.",
+      "longDescriptionMarkdown": "Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside it. Edges are both the edges of a polyline layer and the sides of triangles, whose selection is kept on each face they bound. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool's polygon mode (**P**), and is equally usable from scripting.\n\nEverything else -- *Composition*, *Visible faces only*, *Expand to* -- is as in *Select by Screen Rectangle*.",
       "tags": [
         "selection"
       ],
@@ -1274,7 +1280,7 @@
         {
           "id": "element",
           "label": "Elements",
-          "help": "Whether to select vertices or faces (by centroid).",
+          "help": "Whether to select vertices, faces (by centroid) or edges (by midpoint): the edges of a polyline layer and the sides of triangles, which keep their selection on each face they bound.",
           "group": "main",
           "type": "enum",
           "default": "face",
@@ -1286,6 +1292,10 @@
             {
               "id": "face",
               "label": "Faces"
+            },
+            {
+              "id": "edge",
+              "label": "Edges"
             }
           ]
         },
@@ -1314,7 +1324,7 @@
         {
           "id": "visible_only",
           "label": "Visible faces only",
-          "help": "When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).",
+          "help": "When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). Needs faces to occlude: a polyline layer alone is all visible.",
           "group": "main",
           "type": "bool",
           "default": false
@@ -1344,7 +1354,9 @@
       ],
       "outputModifies": [
         "VS",
-        "FS"
+        "FS",
+        "ES",
+        "FES"
       ]
     },
     {
@@ -1355,7 +1367,7 @@
       "name": "Select by Screen Rectangle",
       "pythonName": "select_by_screen_rectangle",
       "shortDescription": "Select vertices or faces whose screen projection falls inside a rectangle.",
-      "longDescriptionMarkdown": "Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices (or face centroids) of the current mesh that project inside the rectangle. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.\n\n*Expand to* is what the rubber-band tool's **C** (connected components) and **T** (UV islands) modifiers set: the rectangle only has to graze a piece for all of it to be selected.",
+      "longDescriptionMarkdown": "Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside the rectangle. Edges are both the edges of a polyline layer and the sides of triangles, whose selection is kept on each face they bound. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.\n\n*Expand to* is what the rubber-band tool's **C** (connected components) and **T** (UV islands) modifiers set: the rectangle only has to graze a piece for all of it to be selected.",
       "tags": [
         "selection"
       ],
@@ -1454,7 +1466,7 @@
         {
           "id": "element",
           "label": "Elements",
-          "help": "Whether to select vertices or faces (by centroid).",
+          "help": "Whether to select vertices, faces (by centroid) or edges (by midpoint): the edges of a polyline layer and the sides of triangles, which keep their selection on each face they bound.",
           "group": "main",
           "type": "enum",
           "default": "face",
@@ -1466,6 +1478,10 @@
             {
               "id": "face",
               "label": "Faces"
+            },
+            {
+              "id": "edge",
+              "label": "Edges"
             }
           ]
         },
@@ -1494,7 +1510,7 @@
         {
           "id": "visible_only",
           "label": "Visible faces only",
-          "help": "When selecting faces in the 3D view, keep only faces not occluded from the current viewpoint (ray-traced visibility).",
+          "help": "When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). Needs faces to occlude: a polyline layer alone is all visible.",
           "group": "main",
           "type": "bool",
           "default": false
@@ -1524,7 +1540,9 @@
       ],
       "outputModifies": [
         "VS",
-        "FS"
+        "FS",
+        "ES",
+        "FES"
       ]
     },
     {

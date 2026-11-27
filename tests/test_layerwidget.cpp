@@ -34,6 +34,8 @@ private slots:
     void theMarkSaysWhetherAFileHoldsTheLayer();
     void typingANameRunsTheRenameFilter();
     void ctrlDDuplicatesTheCurrentLayer();
+    void selectedCountsFollowEverySelectionChange();
+    void countRowsListOnlyTheKindsALayerHas();
 };
 
 namespace {
@@ -546,6 +548,112 @@ void LayerWidgetTests::ctrlDDuplicatesTheCurrentLayer()
                                               QStringLiteral("Reload"), QStringLiteral("-") }));
     QCOMPARE(entries.last(), QStringLiteral("Remove"));
     QVERIFY(!entries.join(QLatin1Char(' ')).contains(QStringLiteral("Raster")));
+}
+
+// The selected column of the Vert, Edge and Face rows. A selection change is not a data change,
+// so the counts must follow it on their own: rebuilding only when the stored-state mark turned
+// left every selection after the first showing the first one's numbers.
+void LayerWidgetTests::selectedCountsFollowEverySelectionChange()
+{
+    Document doc;
+    addTinyMesh(doc, QStringLiteral("tiny"));
+
+    LayerWidget widget(&doc);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+    QTreeWidget *tree = nullptr;
+    for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>()) {
+        if (candidate->topLevelItemCount() == 1)
+            tree = candidate;
+    }
+    QVERIFY(tree);
+    const auto row = [&](const QString &label) {
+        QTreeWidgetItem *layer = tree->topLevelItem(0);
+        for (int c = 0; c < layer->childCount(); ++c)
+            if (layer->child(c)->text(1) == label)
+                return layer->child(c)->text(0) + QLatin1Char('/') + layer->child(c)->text(2);
+        return QStringLiteral("no row");
+    };
+    QCOMPARE(row(QStringLiteral("Face")), QStringLiteral("1/"));
+
+    // Never saved, so the mark stays Not saved through every change below.
+    VCGMesh &mesh = doc.mesh(0).mesh;
+    mesh.vert[0].SetS();
+    doc.markMeshSelectionChanged(0);
+    QTest::qWait(50);
+    QCOMPARE(row(QStringLiteral("Vert")), QStringLiteral("3/1"));
+
+    mesh.vert[1].SetS();
+    mesh.face[0].SetS();
+    doc.markMeshSelectionChanged(0);
+    QTest::qWait(50);
+    QCOMPARE(row(QStringLiteral("Vert")), QStringLiteral("3/2"));
+    QCOMPARE(row(QStringLiteral("Face")), QStringLiteral("1/1"));
+
+    mesh.vert[0].ClearS();
+    mesh.vert[1].ClearS();
+    mesh.face[0].ClearS();
+    doc.markMeshSelectionChanged(0);
+    QTest::qWait(50);
+    QCOMPARE(row(QStringLiteral("Vert")), QStringLiteral("3/"));
+    QCOMPARE(row(QStringLiteral("Face")), QStringLiteral("1/"));
+}
+
+// No row of zeros: a point cloud is counted in vertices, a polyline in vertices and edges, a
+// surface in vertices and faces. The table leaves the cells blank, and the summary under the
+// list leaves out a kind no layer has.
+void LayerWidgetTests::countRowsListOnlyTheKindsALayerHas()
+{
+    Document doc;
+    VCGMesh cloud;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(cloud, 2);
+    doc.addMesh(cloud, QStringLiteral("cloud"), vcg::tri::io::Mask::IOM_VERTCOORD);
+    VCGMesh polyline;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, 3);
+    vcg::tri::Allocator<VCGMesh>::AddEdge(polyline, &polyline.vert[0], &polyline.vert[1]);
+    vcg::tri::Allocator<VCGMesh>::AddEdge(polyline, &polyline.vert[1], &polyline.vert[2]);
+    doc.addMesh(polyline, QStringLiteral("polyline"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+
+    LayerWidget widget(&doc);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+    QCOMPARE(widget.summaryText(), QStringLiteral("2 E  5 V"));
+    addTinyMesh(doc, QStringLiteral("surface"));
+    QTest::qWait(50);
+    QCOMPARE(widget.summaryText(), QStringLiteral("1 T  2 E  8 V"));
+
+    QTreeWidget *tree = nullptr;
+    for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>()) {
+        if (candidate->topLevelItemCount() == 3)
+            tree = candidate;
+    }
+    QVERIFY(tree);
+    const auto counts = [&](int layer) {
+        QStringList rows;
+        QTreeWidgetItem *item = tree->topLevelItem(layer);
+        for (int c = 0; c < item->childCount(); ++c)
+            if (!item->child(c)->text(0).isEmpty())
+                rows << item->child(c)->text(1) + QLatin1Char('=') + item->child(c)->text(0);
+        return rows.join(QLatin1Char(' '));
+    };
+    QCOMPARE(counts(0), QStringLiteral("Vert=2"));
+    QCOMPARE(counts(1), QStringLiteral("Vert=3 Edge=2"));
+    QCOMPARE(counts(2), QStringLiteral("Vert=3 Face=1"));
+
+    QTableWidget *table = nullptr;
+    for (QTableWidget *candidate : widget.findChildren<QTableWidget *>()) {
+        if (candidate->columnCount() == 9)
+            table = candidate;
+    }
+    QVERIFY(table);
+    widget.setViewMode(LayerWidget::ViewMode::Table);
+    const auto cells = [&](int row) {
+        return QStringList{ table->item(row, 3)->text(), table->item(row, 4)->text(),
+                            table->item(row, 5)->text() }.join(QLatin1Char('|'));
+    };
+    QCOMPARE(cells(0), QStringLiteral("2||"));
+    QCOMPARE(cells(1), QStringLiteral("3|2|"));
+    QCOMPARE(cells(2), QStringLiteral("3||1"));
 }
 
 QTEST_MAIN(LayerWidgetTests)

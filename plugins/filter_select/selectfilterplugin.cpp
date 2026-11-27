@@ -162,70 +162,88 @@ void updateGeometryAfterDeletion(VCGMesh &mesh)
         vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(mesh);
 }
 
-// Grow or shrink one kind of selection by a ring, working from the incidence of faces and
-// vertices and writing only the kind it was asked about. The classic path goes from faces to
-// vertices and back through vcglib's helpers, which clear the vertex selection on the way:
-// on a selection made as vertices that left nothing selected, and on one made as faces it
-// left a vertex selection nobody had asked for.
+// Grow or shrink one kind of selection by a ring, working from the incidence of cells (faces
+// or polyline edges) and vertices, and writing only the kind it was asked about. The classic
+// path goes from faces to vertices and back through vcglib's helpers, which clear the vertex
+// selection on the way: on a selection made as vertices that left nothing selected, and on
+// one made as faces it left a vertex selection nobody had asked for.
 //
 // Every decision is made from the selection as it stood, and applied afterwards, so one call
-// moves the border by exactly one ring however the faces happen to be numbered.
-void dilateFaceSelection(VCGMesh &mesh)
+// moves the border by exactly one ring however the cells happen to be numbered. Faces and
+// edges are the same algorithm on a different container: a cell has N corners.
+template <int N, class Cells>
+void dilateCellSelection(VCGMesh &mesh, Cells &cells)
 {
-    std::vector<char> inSelectedFace(mesh.vert.size(), 0);
-    for (const VCGFace &f : mesh.face) {
-        if (f.IsD() || !f.IsS())
+    std::vector<char> inSelectedCell(mesh.vert.size(), 0);
+    for (const auto &c : cells) {
+        if (c.IsD() || !c.IsS())
             continue;
-        for (int k = 0; k < 3; ++k)
-            inSelectedFace[vcg::tri::Index(mesh, f.cV(k))] = 1;
+        for (int k = 0; k < N; ++k)
+            inSelectedCell[vcg::tri::Index(mesh, c.cV(k))] = 1;
     }
-    for (VCGFace &f : mesh.face) {
-        if (f.IsD() || f.IsS())
+    for (auto &c : cells) {
+        if (c.IsD() || c.IsS())
             continue;
-        for (int k = 0; k < 3; ++k) {
-            if (inSelectedFace[vcg::tri::Index(mesh, f.cV(k))]) {
-                f.SetS();
+        for (int k = 0; k < N; ++k) {
+            if (inSelectedCell[vcg::tri::Index(mesh, c.cV(k))]) {
+                c.SetS();
                 break;
             }
         }
     }
 }
 
-void erodeFaceSelection(VCGMesh &mesh)
+template <int N, class Cells>
+void erodeCellSelection(VCGMesh &mesh, Cells &cells)
 {
-    std::vector<char> inUnselectedFace(mesh.vert.size(), 0);
-    for (const VCGFace &f : mesh.face) {
-        if (f.IsD() || f.IsS())
+    std::vector<char> inUnselectedCell(mesh.vert.size(), 0);
+    for (const auto &c : cells) {
+        if (c.IsD() || c.IsS())
             continue;
-        for (int k = 0; k < 3; ++k)
-            inUnselectedFace[vcg::tri::Index(mesh, f.cV(k))] = 1;
+        for (int k = 0; k < N; ++k)
+            inUnselectedCell[vcg::tri::Index(mesh, c.cV(k))] = 1;
     }
-    for (VCGFace &f : mesh.face) {
-        if (f.IsD() || !f.IsS())
+    for (auto &c : cells) {
+        if (c.IsD() || !c.IsS())
             continue;
-        for (int k = 0; k < 3; ++k) {
-            if (inUnselectedFace[vcg::tri::Index(mesh, f.cV(k))]) {
-                f.ClearS();
+        for (int k = 0; k < N; ++k) {
+            if (inUnselectedCell[vcg::tri::Index(mesh, c.cV(k))]) {
+                c.ClearS();
                 break;
             }
         }
     }
+}
+
+// Calls fn(corners, n) for every live face and polyline edge: a vertex's neighbours are the
+// vertices it shares either with, so a vertex selection grows along a polyline too.
+template <class Fn>
+void forEachCell(const VCGMesh &mesh, Fn fn)
+{
+    for (const VCGFace &f : mesh.face)
+        if (!f.IsD()) {
+            const VCGVertex *corners[3] = { f.cV(0), f.cV(1), f.cV(2) };
+            fn(corners, 3);
+        }
+    for (const VCGEdge &e : mesh.edge)
+        if (!e.IsD()) {
+            const VCGVertex *corners[3] = { e.cV(0), e.cV(1), nullptr };
+            fn(corners, 2);
+        }
 }
 
 void dilateVertexSelection(VCGMesh &mesh)
 {
     std::vector<char> grown(mesh.vert.size(), 0);
-    for (const VCGFace &f : mesh.face) {
-        if (f.IsD())
-            continue;
+    forEachCell(mesh, [&](const VCGVertex *const *corners, int n) {
         bool touches = false;
-        for (int k = 0; k < 3; ++k)
-            touches = touches || f.cV(k)->IsS();
+        for (int k = 0; k < n; ++k)
+            touches = touches || corners[k]->IsS();
         if (!touches)
-            continue;
-        for (int k = 0; k < 3; ++k)
-            grown[vcg::tri::Index(mesh, f.cV(k))] = 1;
-    }
+            return;
+        for (int k = 0; k < n; ++k)
+            grown[vcg::tri::Index(mesh, corners[k])] = 1;
+    });
     for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
         if (grown[i] && !mesh.vert[i].IsD())
             mesh.vert[i].SetS();
@@ -234,17 +252,17 @@ void dilateVertexSelection(VCGMesh &mesh)
 
 void erodeVertexSelection(VCGMesh &mesh)
 {
-    // A selected vertex goes when any face around it has a corner that is not selected.
+    // A selected vertex goes when any face or edge around it has a corner that is not selected.
     std::vector<char> nextToUnselected(mesh.vert.size(), 0);
-    for (const VCGFace &f : mesh.face) {
-        if (f.IsD())
-            continue;
-        const bool whole = f.cV(0)->IsS() && f.cV(1)->IsS() && f.cV(2)->IsS();
+    forEachCell(mesh, [&](const VCGVertex *const *corners, int n) {
+        bool whole = true;
+        for (int k = 0; k < n; ++k)
+            whole = whole && corners[k]->IsS();
         if (whole)
-            continue;
-        for (int k = 0; k < 3; ++k)
-            nextToUnselected[vcg::tri::Index(mesh, f.cV(k))] = 1;
-    }
+            return;
+        for (int k = 0; k < n; ++k)
+            nextToUnselected[vcg::tri::Index(mesh, corners[k])] = 1;
+    });
     for (std::size_t i = 0; i < mesh.vert.size(); ++i) {
         if (nextToUnselected[i] && !mesh.vert[i].IsD())
             mesh.vert[i].ClearS();
@@ -412,16 +430,22 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         const QString element = params.getEnum(QStringLiteral("element"));
         const QString mode = params.getEnum(QStringLiteral("mode"));
-        const bool doFaces = (element != QStringLiteral("vertex"));
+        // An edge is taken by its midpoint, as a face is by its barycenter: a polyline edge
+        // sets its own bit, a triangle side the face-edge bit of each face it bounds. Both
+        // faces test the same midpoint, so they agree without any adjacency.
+        const bool doEdges = (element == QStringLiteral("edge"));
+        const bool doFaces = (element == QStringLiteral("face"));
 
         // "Visible only": keep only faces not occluded from the viewpoint. A ray
         // is cast from the camera eye to each candidate face centroid and the face
         // is dropped if any geometry lies in between (an orthographic view casts parallel rays
         // along the view direction instead). The occlusion query is
         // delegated to ViewpointOccluder (embree when built, vcglib grid otherwise),
-        // cached by geometryRevision so repeated drags reuse it. 3D + faces only.
+        // cached by geometryRevision so repeated drags reuse it. 3D, faces and edges (by
+        // their midpoint); a polyline alone has nothing to hide behind.
         const bool visibleOnly =
-            params.getBool(QStringLiteral("visible_only")) && !uvSpace && doFaces && mesh.FN() > 0;
+            params.getBool(QStringLiteral("visible_only")) && !uvSpace && (doFaces || doEdges)
+            && mesh.FN() > 0;
         std::shared_ptr<ViewpointOccluder> occluder;
         if (visibleOnly)
             occluder = ViewpointOccluder::getOrBuild(mesh, entry.geometryRevision);
@@ -429,6 +453,13 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         if (doFaces && mesh.FN() <= 0)
             return fail(QObject::tr("Current mesh has no faces."));
+        if (doEdges && mesh.FN() <= 0 && mesh.EN() <= 0)
+            return fail(QObject::tr("Current mesh has no edges."));
+        const auto hidden = [&](const vcg::Point3f &p) {
+            return visibleOnly
+                && (orthographicView ? occluder->isOccludedAlong(p, towardViewerLocal)
+                                     : occluder->isOccluded(p, eyeLocal));
+        };
 
         // "Expand to": grow what the rectangle touched to the whole connected component, or
         // the whole UV island, it belongs to. The growth has to start from the raw hits
@@ -437,6 +468,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         // nearly the opposite. So while expanding, the pass below marks hits only and the
         // composition mode is applied afterwards, against a snapshot taken here.
         const QString expandTo = params.getEnum(QStringLiteral("expand_to"));
+        if (doEdges && expandTo != QStringLiteral("none"))
+            return fail(QObject::tr("Expanding the selection applies to faces and vertices, not edges."));
         const bool expandComponents = expandTo != QStringLiteral("none") && mesh.FN() > 0;
         const bool uvIslands = expandTo == QStringLiteral("uv_islands");
         // The same test the UV reader makes (vcgFaceCornerUV): the mask says the UVs were
@@ -459,11 +492,24 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         // Marking hits means selecting them, whatever the requested mode.
         const bool subtract = !expandComponents && (mode == QStringLiteral("subtract"));
         if (expandComponents || mode == QStringLiteral("replace")) {
-            if (doFaces)
+            if (doEdges) {
+                Sel::EdgeClear(mesh);
+                vcg::tri::UpdateFlags<VCGMesh>::FaceClearFaceEdgeS(mesh);
+            } else if (doFaces) {
                 Sel::FaceClear(mesh);
-            else
+            } else {
                 Sel::VertexClear(mesh);
+            }
         }
+        // One selection bit hit by the region: set it, or clear it when subtracting. Returns
+        // 1 if it changed.
+        const auto mark = [subtract](bool selected, auto &&set, auto &&clear) {
+            if (subtract == selected) {
+                subtract ? clear() : set();
+                return 1;
+            }
+            return 0;
+        };
 
         QElapsedTimer timer;
         timer.start();
@@ -483,7 +529,14 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                     || !vcgFaceCornerUV(ioMask, f, 1, u[1], v[1])
                     || !vcgFaceCornerUV(ioMask, f, 2, u[2], v[2]))
                     continue;
-                if (doFaces) {
+                if (doEdges) {
+                    for (int c = 0; c < 3; ++c) {
+                        const int d = (c + 1) % 3;
+                        if (inRect(0.5f * (u[c] + u[d]), 0.5f * (v[c] + v[d]), 0.0f))
+                            changed += mark(f.IsFaceEdgeS(c), [&] { f.SetFaceEdgeS(c); },
+                                            [&] { f.ClearFaceEdgeS(c); });
+                    }
+                } else if (doFaces) {
                     const float cu = (u[0] + u[1] + u[2]) / 3.0f;
                     const float cv = (v[0] + v[1] + v[2]) / 3.0f;
                     if (!inRect(cu, cv, 0.0f))
@@ -511,7 +564,19 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             // BitFlags (a fixed per-element component), so ranges need no locking.
             auto worker = [&](std::size_t lo, std::size_t hi) -> int {
                 int local = 0;
-                if (doFaces) {
+                if (doEdges) {
+                    for (std::size_t i = lo; i < hi; ++i) {
+                        VCGFace &f = mesh.face[i];
+                        if (f.IsD())
+                            continue;
+                        for (int c = 0; c < 3; ++c) {
+                            const vcg::Point3f m = (f.cP(c) + f.cP((c + 1) % 3)) * 0.5f;
+                            if (inRect(m.X(), m.Y(), m.Z()) && !hidden(m))
+                                local += mark(f.IsFaceEdgeS(c), [&] { f.SetFaceEdgeS(c); },
+                                              [&] { f.ClearFaceEdgeS(c); });
+                        }
+                    }
+                } else if (doFaces) {
                     for (std::size_t i = lo; i < hi; ++i) {
                         VCGFace &f = mesh.face[i];
                         if (f.IsD())
@@ -519,9 +584,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                         const vcg::Point3f b = vcg::Barycenter(f);
                         if (!inRect(b.X(), b.Y(), b.Z()))
                             continue;
-                        if (visibleOnly
-                            && (orthographicView ? occluder->isOccludedAlong(b, towardViewerLocal)
-                                                 : occluder->isOccluded(b, eyeLocal)))
+                        if (hidden(b))
                             continue;
                         if (subtract) {
                             if (f.IsS()) { f.ClearS(); ++local; }
@@ -547,7 +610,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                 return local;
             };
 
-            const std::size_t elemCount = doFaces ? mesh.face.size() : mesh.vert.size();
+            const std::size_t elemCount = (doFaces || doEdges) ? mesh.face.size() : mesh.vert.size();
             nThreads = std::max(1u, std::thread::hardware_concurrency());
             if (elemCount < 200000)
                 nThreads = 1; // thread setup isn't worth it below this size
@@ -569,6 +632,16 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                     th.join();
                 for (int c : counts)
                     changed += c;
+            }
+            // Polylines are small next to the faces, so their edges take one pass here.
+            if (doEdges) {
+                for (VCGEdge &e : mesh.edge) {
+                    if (e.IsD())
+                        continue;
+                    const vcg::Point3f m = (e.cP(0) + e.cP(1)) * 0.5f;
+                    if (inRect(m.X(), m.Y(), m.Z()) && !hidden(m))
+                        changed += mark(e.IsS(), [&] { e.SetS(); }, [&] { e.ClearS(); });
+                }
             }
         }
 
@@ -617,16 +690,20 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         }
 
         const qint64 elapsedMs = timer.elapsed();
-        const int total = doFaces ? mesh.FN() : mesh.VN();
+        // A triangle side is stored on each face it bounds, so for edges both figures count
+        // an interior side twice.
+        const int total = doEdges ? mesh.EN() + 3 * mesh.FN() : doFaces ? mesh.FN() : mesh.VN();
+        const QString elementName = doEdges ? QObject::tr("edges (triangle sides once per face)")
+            : doFaces ? QObject::tr("faces") : QObject::tr("vertices");
         QStringList messages = {
             QObject::tr("Rectangle %1: %2 %3 affected.")
                 .arg(mode)
                 .arg(changed)
-                .arg(doFaces ? QObject::tr("faces") : QObject::tr("vertices")),
+                .arg(elementName),
             QObject::tr("Projection over %1 %2 took %3 ms across %4 thread(s) "
                         "(GPU overlay update happens afterwards on the render thread).")
                 .arg(total)
-                .arg(doFaces ? QObject::tr("faces") : QObject::tr("vertices"))
+                .arg(elementName)
                 .arg(elapsedMs)
                 .arg(nThreads)
         };
@@ -1052,8 +1129,14 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         || filterId == QString::fromLatin1(kFilterSelectDilate)) {
         const bool erode = (filterId == QString::fromLatin1(kFilterSelectErode));
         const QString element = params.getEnum(QStringLiteral("element"), QStringLiteral("both"));
+        if (element == QStringLiteral("edge") ? mesh.EN() == 0
+                                              : element != QStringLiteral("vertex") && mesh.FN() == 0)
+            return fail(element == QStringLiteral("edge") ? QObject::tr("Current mesh has no edges.")
+                                                          : QObject::tr("Current mesh has no faces."));
         if (element == QStringLiteral("face")) {
-            erode ? erodeFaceSelection(mesh) : dilateFaceSelection(mesh);
+            erode ? erodeCellSelection<3>(mesh, mesh.face) : dilateCellSelection<3>(mesh, mesh.face);
+        } else if (element == QStringLiteral("edge")) {
+            erode ? erodeCellSelection<2>(mesh, mesh.edge) : dilateCellSelection<2>(mesh, mesh.edge);
         } else if (element == QStringLiteral("vertex")) {
             erode ? erodeVertexSelection(mesh) : dilateVertexSelection(mesh);
         } else if (erode) {

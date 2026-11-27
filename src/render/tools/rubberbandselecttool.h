@@ -1,6 +1,7 @@
 #pragma once
 
 #include "interactivetool.h"
+#include "selectionshortcuts.h"
 
 #include <QPoint>
 #include <QVariantMap>
@@ -72,8 +73,8 @@ private:
     QRubberBand *m_band = nullptr;
     QPoint m_origin;
     bool m_dragging = false;
-    bool m_selectFaces = true;
-    bool m_visibleOnly = false; // faces: keep only faces not occluded from the viewpoint
+    SelectionElement m_element = SelectionElement::Face;
+    bool m_visibleOnly = false; // faces and edges: keep only those not occluded from the viewpoint
     // What the hit set grows to, the filter's expand_to. C and T each toggle their own
     // choice, so pressing one switches the other off.
     enum class Expansion { None, Components, UvIslands };

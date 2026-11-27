@@ -102,8 +102,11 @@ std::vector<ToolControl> RubberBandSelectTool::controls() const
           QObject::tr("Select faces"), { Qt::Key_F }, QStringLiteral("element") },
         { QStringLiteral("vertices"), Kind::Toggle, QObject::tr("Vertices"),
           QObject::tr("Select vertices"), { Qt::Key_V }, QStringLiteral("element") },
+        { QStringLiteral("edges"), Kind::Toggle, QObject::tr("Edges"),
+          QObject::tr("Select edges, by their midpoint: the edges of a polyline and the sides of "
+                      "triangles"), { Qt::Key_E }, QStringLiteral("element") },
         { QStringLiteral("visible"), Kind::Toggle, QObject::tr("Visible Only"),
-          QObject::tr("Select only the faces in sight, not those hidden behind others"),
+          QObject::tr("Select only the faces or edges in sight, not those hidden behind others"),
           { Qt::Key_B }, QStringLiteral("options") },
         { QStringLiteral("components"), Kind::Toggle, QObject::tr("Components"),
           QObject::tr("Grow the selection to whole connected components"),
@@ -134,11 +137,13 @@ std::vector<ToolControl> RubberBandSelectTool::controls() const
 bool RubberBandSelectTool::isControlChecked(const QString &id) const
 {
     if (id == QLatin1String("faces"))
-        return m_selectFaces;
+        return m_element == SelectionElement::Face;
     if (id == QLatin1String("vertices"))
-        return !m_selectFaces;
+        return m_element == SelectionElement::Vertex;
+    if (id == QLatin1String("edges"))
+        return m_element == SelectionElement::Edge;
     if (id == QLatin1String("visible"))
-        return m_visibleOnly && m_selectFaces;
+        return m_visibleOnly && m_element != SelectionElement::Vertex;
     if (id == QLatin1String("components"))
         return m_expansion == Expansion::Components;
     if (id == QLatin1String("islands"))
@@ -150,13 +155,24 @@ bool RubberBandSelectTool::isControlChecked(const QString &id) const
 
 bool RubberBandSelectTool::isControlEnabled(const QString &id) const
 {
-    // Occlusion applies to faces only.
+    // Occlusion applies to faces and edges; growth to faces and vertices.
     if (id == QLatin1String("visible"))
-        return m_selectFaces;
-    // The selection must not change underneath an outline that is still being drawn.
-    for (const char *edit : { "all", "none", "invert", "dilate", "erode", "remove" }) {
-        if (id == QLatin1String(edit))
-            return !gestureInFlight();
+        return m_element != SelectionElement::Vertex;
+    if (id == QLatin1String("components") || id == QLatin1String("islands"))
+        return m_element != SelectionElement::Edge;
+    // The selection must not change underneath an outline that is still being drawn. An
+    // editing action is there only if it has a form for this kind of element; with edges,
+    // only on a layer with polyline edges, since triangle sides have none.
+    for (const ToolControl &control : controls()) {
+        if (control.id != id || control.kind != ToolControl::Kind::Action)
+            continue;
+        if (gestureInFlight() || !selectionShortcutFor(control.keys.front(), m_element))
+            return false;
+        if (m_element != SelectionElement::Edge)
+            return true;
+        const Document *doc = m_view ? m_view->document() : nullptr;
+        const int meshIndex = doc ? doc->currentMeshIndex() : -1;
+        return meshIndex >= 0 && meshIndex < doc->meshCount() && doc->mesh(meshIndex).mesh.EN() > 0;
     }
     return true;
 }
@@ -169,14 +185,19 @@ void RubberBandSelectTool::triggerControl(const QString &id, Qt::KeyboardModifie
         if (doc)
             doc->writeLog(text, Document::LogSource::Application);
     };
-    if (id == QLatin1String("faces") || id == QLatin1String("vertices")) {
-        m_selectFaces = (id == QLatin1String("faces"));
-        log(m_selectFaces ? QObject::tr("Rubber-band: selecting faces")
-                          : QObject::tr("Rubber-band: selecting vertices"));
+    if (id == QLatin1String("faces")) {
+        m_element = SelectionElement::Face;
+        log(QObject::tr("Rubber-band: selecting faces"));
+    } else if (id == QLatin1String("vertices")) {
+        m_element = SelectionElement::Vertex;
+        log(QObject::tr("Rubber-band: selecting vertices"));
+    } else if (id == QLatin1String("edges")) {
+        m_element = SelectionElement::Edge;
+        log(QObject::tr("Rubber-band: selecting edges"));
     } else if (id == QLatin1String("visible")) {
         m_visibleOnly = !m_visibleOnly;
-        log(m_visibleOnly ? QObject::tr("Rubber-band: visible (non-occluded) faces only")
-                          : QObject::tr("Rubber-band: all faces (ignore occlusion)"));
+        log(m_visibleOnly ? QObject::tr("Rubber-band: visible (non-occluded) faces and edges only")
+                          : QObject::tr("Rubber-band: all faces and edges (ignore occlusion)"));
     } else if (id == QLatin1String("components") || id == QLatin1String("islands")) {
         const Expansion pressed =
             (id == QLatin1String("components")) ? Expansion::Components : Expansion::UvIslands;
@@ -288,9 +309,9 @@ static QPixmap polygonizeCursor(const QPixmap &sprite)
 QCursor RubberBandSelectTool::cursor() const
 {
     // Reflect the composition modifier: Shift = add (+), Ctrl = subtract (−).
-    // The eye variant marks visible-only mode (occlusion applies to faces only).
+    // The eye variant marks visible-only mode (occlusion applies to faces and edges).
     const Qt::KeyboardModifiers mods = QGuiApplication::queryKeyboardModifiers();
-    const bool eye = m_visibleOnly && m_selectFaces;
+    const bool eye = m_visibleOnly && m_element != SelectionElement::Vertex;
     const QString img = (mods & Qt::ShiftModifier)
         ? (eye ? QStringLiteral(":/img/cur_sel_rect_plus_eye.png")
                : QStringLiteral(":/img/cur_sel_rect_plus.png"))
@@ -502,11 +523,12 @@ void RubberBandSelectTool::commitSelection(const QString &filterId, QVariantMap 
         : QStringLiteral("replace");
 
     params[QStringLiteral("aspect")] = double(std::max(1, scene.width())) / double(std::max(1, scene.height()));
-    params[QStringLiteral("element")] = m_selectFaces ? QStringLiteral("face") : QStringLiteral("vertex");
+    params[QStringLiteral("element")] = m_element == SelectionElement::Face ? QStringLiteral("face")
+        : m_element == SelectionElement::Edge ? QStringLiteral("edge") : QStringLiteral("vertex");
     params[QStringLiteral("mode")] = mode;
     params[QStringLiteral("visible_only")] = m_visibleOnly;
-    params[QStringLiteral("expand_to")] =
-        m_expansion == Expansion::Components ? QStringLiteral("connected_components")
+    params[QStringLiteral("expand_to")] = m_element == SelectionElement::Edge ? QStringLiteral("none")
+        : m_expansion == Expansion::Components ? QStringLiteral("connected_components")
         : m_expansion == Expansion::UvIslands ? QStringLiteral("uv_islands")
                                               : QStringLiteral("none");
     // Provide the parameters for BOTH spaces (the unused ones are ignored by the
@@ -561,7 +583,7 @@ bool RubberBandSelectTool::keyPress(QKeyEvent *e)
 // element the tool is picking (see selectionshortcuts.h), by the key the control lists.
 void RubberBandSelectTool::runEditingShortcut(int key)
 {
-    const std::optional<SelectionShortcut> shortcut = selectionShortcutFor(key, m_selectFaces);
+    const std::optional<SelectionShortcut> shortcut = selectionShortcutFor(key, m_element);
     if (!shortcut)
         return;
 
@@ -576,8 +598,10 @@ void RubberBandSelectTool::runEditingShortcut(int key)
         || key == Qt::Key_Equal || key == Qt::Key_Minus;
     if (changesExisting) {
         const VCGMesh &mesh = doc->mesh(meshIndex).mesh;
-        const size_t selected = m_selectFaces
+        const size_t selected = m_element == SelectionElement::Face
             ? vcg::tri::UpdateSelection<VCGMesh>::FaceCount(mesh)
+            : m_element == SelectionElement::Edge
+            ? vcg::tri::UpdateSelection<VCGMesh>::EdgeCount(mesh)
             : vcg::tri::UpdateSelection<VCGMesh>::VertexCount(mesh);
         if (selected == 0)
             return;

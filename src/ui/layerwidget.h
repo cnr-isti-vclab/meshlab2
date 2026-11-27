@@ -80,6 +80,7 @@ private:
     // of them -- each one walking every layer, and each landing after the filter had
     // already reported itself finished.
     void scheduleRebuild();
+    void refreshSelectionCounts(int meshIndex);
     void rebuildTree();
     void rebuildTable();
     // Columns track their contents until the user drags one, after which they are the

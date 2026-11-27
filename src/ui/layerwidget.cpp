@@ -397,6 +397,12 @@ int selectedFaceCount(const VCGMesh &mesh)
     return count;
 }
 
+// A count, or nothing for zero: used where a zero would only be noise.
+QString countOrBlank(int count)
+{
+    return count > 0 ? QLocale::system().toString(static_cast<qlonglong>(count)) : QString();
+}
+
 int displayedFaceCount(const Document::MeshEntry &entry)
 {
     return entry.polygonFaceCount >= 0 ? entry.polygonFaceCount : entry.mesh.FN();
@@ -554,15 +560,19 @@ QString meshDataTooltip(const Document::MeshEntry &entry, int faceCount)
         (entry.ioMask & vcg::tri::io::Mask::IOM_BITPOLYGONAL) != 0
             ? QObject::tr(" T=%1").arg(entry.mesh.FN())
             : QString();
-    lines << QObject::tr("Counts: V=%1 F=%2%3 E=%4")
-                 .arg(entry.mesh.VN())
-                 .arg(faceCount)
-                 .arg(triangleDetail)
-                 .arg(entry.mesh.EN());
-    lines << QObject::tr("Selected: V=%1 F=%2 E=%3")
-                 .arg(selectedVertexCount(entry.mesh))
-                 .arg(selectedFaceCount(entry.mesh))
-                 .arg(selectedEdgeCount(entry.mesh));
+    // Only the kinds the layer has: a point cloud is counted in vertices alone.
+    QStringList counts{ QObject::tr("V=%1").arg(entry.mesh.VN()) };
+    QStringList selected{ QObject::tr("V=%1").arg(selectedVertexCount(entry.mesh)) };
+    if (faceCount > 0) {
+        counts << QObject::tr("F=%1%2").arg(faceCount).arg(triangleDetail);
+        selected << QObject::tr("F=%1").arg(selectedFaceCount(entry.mesh));
+    }
+    if (entry.mesh.EN() > 0) {
+        counts << QObject::tr("E=%1").arg(entry.mesh.EN());
+        selected << QObject::tr("E=%1").arg(selectedEdgeCount(entry.mesh));
+    }
+    lines << QObject::tr("Counts: %1").arg(counts.join(QLatin1Char(' ')));
+    lines << QObject::tr("Selected: %1").arg(selected.join(QLatin1Char(' ')));
     if (!isIdentityTransform(entry.transform))
         lines << QObject::tr("Transform: %1").arg(meshTransformSummary(entry.transform));
     if (attrs.vertexCount() > 0) {
@@ -1521,13 +1531,17 @@ LayerWidget::LayerWidget(Document *doc, QWidget *parent)
         scheduleRebuild();
     });
     // A selection counts as a change to save, but it must stay cheap: rebuild only when it
-    // turns a layer's mark, not on every stroke of a brush.
+    // turns a layer's mark, and otherwise update the selected counts in place. Those cannot
+    // wait for a rebuild: a layer that stays Modified, or was never saved, would show the
+    // counts of whatever selection it had when it was last rebuilt.
     connect(m_doc, &Document::meshSelectionChanged, this, [this](int index) {
         if (index < 0 || index >= m_doc->meshCount())
             return;
         const auto shown = m_shownStoredStates.constFind(m_doc->mesh(index).meshId);
         if (shown == m_shownStoredStates.constEnd() || shown.value() != int(m_doc->meshStoredState(index)))
             scheduleRebuild();
+        else
+            refreshSelectionCounts(index);
     });
     connect(m_doc, &Document::rasterAdded, this, [this](int) {
         scheduleRebuild();
@@ -1589,6 +1603,29 @@ void LayerWidget::scheduleRebuild()
 // here run from one digit to eight, and a width chosen while the table was empty would
 // clip most documents. Columns therefore track their contents until the user drags or
 // double-clicks a handle, and after that they are the user's and nothing moves them again.
+// The selected column of one layer's Vert, Edge and Face rows, and the table's tooltip that
+// repeats them; the rest of the layer has not changed.
+void LayerWidget::refreshSelectionCounts(int meshIndex)
+{
+    const Document::MeshEntry &entry = m_doc->mesh(meshIndex);
+    for (int t = 0; t < m_meshTree->topLevelItemCount(); ++t) {
+        QTreeWidgetItem *layer = m_meshTree->topLevelItem(t);
+        if (layer->data(0, kRoleMeshId).toULongLong() != qulonglong(entry.meshId))
+            continue;
+        for (int c = 0; c < layer->childCount(); ++c) {
+            QTreeWidgetItem *row = layer->child(c);
+            if (row->text(1) == tr("Vert"))
+                row->setText(2, countOrBlank(selectedVertexCount(entry.mesh)));
+            else if (row->text(1) == tr("Edge"))
+                row->setText(2, countOrBlank(selectedEdgeCount(entry.mesh)));
+            else if (row->text(1) == tr("Face"))
+                row->setText(2, countOrBlank(selectedFaceCount(entry.mesh)));
+        }
+    }
+    if (QTableWidgetItem *name = m_meshTable->item(meshIndex, 1))
+        name->setToolTip(meshDataTooltip(entry, displayedFaceCount(entry)));
+}
+
 void LayerWidget::makeColumnsResizable(QTableWidget *table, int firstResizable)
 {
     QHeaderView *header = table->horizontalHeader();
@@ -1912,10 +1949,15 @@ void LayerWidget::updateSummary()
         edges += entry.mesh.EN();
         vertices += entry.mesh.VN();
     }
+    // As in each layer's rows, a kind no layer has is left out rather than shown as zero.
     const QLocale locale = QLocale::system();
-    m_summaryText = tr("%1 T").arg(locale.toString(triangles))
-        + QStringLiteral("  ") + tr("%1 E").arg(locale.toString(edges))
-        + QStringLiteral("  ") + tr("%1 V").arg(locale.toString(vertices));
+    QStringList parts;
+    if (triangles > 0)
+        parts << tr("%1 T").arg(locale.toString(triangles));
+    if (edges > 0)
+        parts << tr("%1 E").arg(locale.toString(edges));
+    parts << tr("%1 V").arg(locale.toString(vertices));
+    m_summaryText = parts.join(QStringLiteral("  "));
     emit summaryChanged(m_summaryText);
 }
 
@@ -2005,19 +2047,9 @@ void LayerWidget::rebuildTree()
             const QString vertCountText = locale.toString(static_cast<qlonglong>(entry.mesh.VN()));
             const QString edgeCountText = locale.toString(static_cast<qlonglong>(entry.mesh.EN()));
             const QString faceCountText = locale.toString(static_cast<qlonglong>(faceCount));
-            const int selectedVertCount = selectedVertexCount(entry.mesh);
-            const int selectedEdgeCountValue = selectedEdgeCount(entry.mesh);
-            const int selectedFaceCountValue = selectedFaceCount(entry.mesh);
-            const QString selectedVertText =
-                selectedVertCount > 0 ? locale.toString(static_cast<qlonglong>(selectedVertCount)) : QString();
-            const QString selectedEdgeText =
-                selectedEdgeCountValue > 0
-                    ? locale.toString(static_cast<qlonglong>(selectedEdgeCountValue))
-                    : QString();
-            const QString selectedFaceText =
-                selectedFaceCountValue > 0
-                    ? locale.toString(static_cast<qlonglong>(selectedFaceCountValue))
-                    : QString();
+            const QString selectedVertText = countOrBlank(selectedVertexCount(entry.mesh));
+            const QString selectedEdgeText = countOrBlank(selectedEdgeCount(entry.mesh));
+            const QString selectedFaceText = countOrBlank(selectedFaceCount(entry.mesh));
             maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(vertCountText));
             maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(edgeCountText));
             maxCountTextWidth = std::max(maxCountTextWidth, fm.horizontalAdvance(faceCountText));
@@ -2027,16 +2059,22 @@ void LayerWidget::rebuildTree()
             vItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
             vItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
             item->addChild(vItem);
-            auto *eItem = new QTreeWidgetItem({edgeCountText, tr("Edge"), selectedEdgeText});
-            eItem->setFlags(eItem->flags() & ~Qt::ItemIsSelectable);
-            eItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
-            eItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
-            item->addChild(eItem);
-            auto *fItem = new QTreeWidgetItem({faceCountText, tr("Face"), selectedFaceText});
-            fItem->setFlags(fItem->flags() & ~Qt::ItemIsSelectable);
-            fItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
-            fItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
-            item->addChild(fItem);
+            // A row for each kind the layer has, and Vert always: a point cloud shows one
+            // row, a polyline two, a surface Vert and Face (and Edge, if it carries both).
+            if (entry.mesh.EN() > 0) {
+                auto *eItem = new QTreeWidgetItem({edgeCountText, tr("Edge"), selectedEdgeText});
+                eItem->setFlags(eItem->flags() & ~Qt::ItemIsSelectable);
+                eItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+                eItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
+                item->addChild(eItem);
+            }
+            if (faceCount > 0) {
+                auto *fItem = new QTreeWidgetItem({faceCountText, tr("Face"), selectedFaceText});
+                fItem->setFlags(fItem->flags() & ~Qt::ItemIsSelectable);
+                fItem->setTextAlignment(0, Qt::AlignRight | Qt::AlignVCenter);
+                fItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
+                item->addChild(fItem);
+            }
             auto *dItem = new QTreeWidgetItem({QString(), tr("Data"), meshDataSummary(entry)});
             dItem->setFlags(dItem->flags() & ~Qt::ItemIsSelectable);
             item->addChild(dItem);
@@ -2281,9 +2319,10 @@ void LayerWidget::rebuildTable()
             vItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             m_meshTable->setItem(i, 3, vItem);
 
-            // E column (4)
+            // E column (4). E and F are left blank for a layer without that kind, as the
+            // tree leaves out the row; the value still sorts as zero.
             auto *eItem = new NumericTableItem(
-                locale.toString(static_cast<qlonglong>(entry.mesh.EN())),
+                countOrBlank(entry.mesh.EN()),
                 static_cast<qlonglong>(entry.mesh.EN()));
             eItem->setFlags(eItem->flags() & ~Qt::ItemIsEditable);
             eItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -2291,7 +2330,7 @@ void LayerWidget::rebuildTable()
 
             // F column (5)
             auto *fItem = new NumericTableItem(
-                locale.toString(static_cast<qlonglong>(faceCount)),
+                countOrBlank(faceCount),
                 static_cast<qlonglong>(faceCount));
             fItem->setFlags(fItem->flags() & ~Qt::ItemIsEditable);
             fItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);

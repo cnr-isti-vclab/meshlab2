@@ -649,6 +649,7 @@ private slots:
     void polylineComponentsColorsAndEdgeAttributes();
     void edgeExpressionsMeasureAlongChains();
     void selectAllNoneAndInvertCoverPolylineEdges();
+    void screenSelectionTakesEdgesByTheirMidpoint();
     void expressionsReadCustomAttributesAsTheirOwnType();
     void documentedExpressionExamplesRun();
     void incrementalSelectionPreservesEdges();
@@ -15309,7 +15310,8 @@ void FilterTests::selectionToolShortcutsActOnTheKindOfElementBeingPicked()
         }
         MeshFilterRunResult press(int key, bool faceMode)
         {
-            const auto shortcut = selectionShortcutFor(key, faceMode);
+            const auto shortcut = selectionShortcutFor(
+                key, faceMode ? SelectionElement::Face : SelectionElement::Vertex);
             if (!shortcut)
                 return {};
             return doc.runFilter(QStringLiteral("meshlab2.filter.select::") + shortcut->filterId, shortcut->params);
@@ -15320,10 +15322,12 @@ void FilterTests::selectionToolShortcutsActOnTheKindOfElementBeingPicked()
     };
 
     // The keys the tool already owns must stay out of this mapping.
-    for (int taken : { Qt::Key_F, Qt::Key_V, Qt::Key_B, Qt::Key_C, Qt::Key_T, Qt::Key_P,
+    for (int taken : { Qt::Key_F, Qt::Key_V, Qt::Key_E, Qt::Key_B, Qt::Key_C, Qt::Key_T, Qt::Key_P,
                        Qt::Key_Escape, Qt::Key_Tab, Qt::Key_Return, Qt::Key_Backspace })
-        QVERIFY(!selectionShortcutFor(taken, true) && !selectionShortcutFor(taken, false));
-    QVERIFY(selectionShortcutFor(Qt::Key_Equal, true)->filterId == selectionShortcutFor(Qt::Key_Plus, true)->filterId);
+        for (SelectionElement element : { SelectionElement::Face, SelectionElement::Vertex, SelectionElement::Edge })
+            QVERIFY(!selectionShortcutFor(taken, element));
+    QVERIFY(selectionShortcutFor(Qt::Key_Equal, SelectionElement::Face)->filterId
+            == selectionShortcutFor(Qt::Key_Plus, SelectionElement::Face)->filterId);
 
     for (const bool faceMode : { true, false }) {
         const char *kind = faceMode ? "face mode" : "vertex mode";
@@ -16355,12 +16359,140 @@ void FilterTests::selectAllNoneAndInvertCoverPolylineEdges()
     QCOMPARE(selectedEdges(), QList<int>({ 0, 2 }));
 
     // The A key in vertex mode selects the vertices and leaves the edges as they were.
-    const auto shortcut = selectionShortcutFor(Qt::Key_A, false);
+    const auto shortcut = selectionShortcutFor(Qt::Key_A, SelectionElement::Vertex);
     QVERIFY(shortcut.has_value());
     QVERIFY(doc.runFilter(QStringLiteral("meshlab2.filter.select::") + shortcut->filterId,
                           shortcut->params).success);
     QCOMPARE(selectedEdges(), QList<int>({ 0, 2 }));
     QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(doc.mesh(index).mesh)), 4);
+}
+
+// The rubber band's edge mode: an edge is taken when its midpoint projects inside the region,
+// as a face is by its barycenter. A polyline edge sets its own bit; a triangle side sets the
+// face-edge bit on each face it bounds, and both faces agree because they test the same point.
+// The camera looks down -Z at the origin through a view 2 * 0.5 * tan(60 deg) tall, so a
+// point at x lands at 0.5 + 0.577 x across the screen.
+void FilterTests::screenSelectionTakesEdgesByTheirMidpoint()
+{
+    Document doc;
+    VCGMesh polyline;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(polyline, 5);
+    for (int i = 0; i < 5; ++i)
+        polyline.vert[std::size_t(i)].P() = vcg::Point3f(-0.4f + 0.2f * float(i), 0, 0);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(polyline, 4);
+    for (int i = 0; i < 4; ++i) {
+        polyline.edge[std::size_t(i)].V(0) = &polyline.vert[std::size_t(i)];
+        polyline.edge[std::size_t(i)].V(1) = &polyline.vert[std::size_t(i + 1)];
+    }
+    vcg::tri::UpdateBounding<VCGMesh>::Box(polyline);
+    const int line = doc.addMesh(polyline, QStringLiteral("polyline"), vcg::tri::io::Mask::IOM_EDGEINDEX);
+
+    // A square split along its diagonal: the diagonal's midpoint is the origin.
+    VCGMesh square;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(square, vcg::Point3f(-0.4f, -0.4f, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(square, vcg::Point3f(0.4f, -0.4f, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(square, vcg::Point3f(0.4f, 0.4f, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(square, vcg::Point3f(-0.4f, 0.4f, 0));
+    vcg::tri::Allocator<VCGMesh>::AddFace(square, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(square, size_t(0), size_t(2), size_t(3));
+    vcg::tri::UpdateBounding<VCGMesh>::Box(square);
+    const int tris = doc.addMesh(square, QStringLiteral("square"));
+    QVERIFY(line >= 0 && tris >= 0);
+
+    const QString key = filterKeyForId(doc, QStringLiteral("select_by_screen_rectangle"));
+    const QString camera = QStringLiteral(
+        R"({"kind":"MeshLab.CameraState","version":1,"trackball":{"center":[0,0,0],)"
+        R"("rotation_xyzw":[0,0,0,1],"distance":0.5,"radius":1,"fov_y_degrees":120,)"
+        R"("projection":"orthographic"}})");
+    const auto select = [&](double minX, const QString &mode, const QString &expand = QStringLiteral("none")) {
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("space"), QStringLiteral("view3d"));
+        params.insert(QStringLiteral("camera_state"), camera);
+        params.insert(QStringLiteral("aspect"), 1.0);
+        params.insert(QStringLiteral("rect_min_x"), minX);
+        params.insert(QStringLiteral("rect_max_x"), 1.0);
+        params.insert(QStringLiteral("rect_min_y"), 0.0);
+        params.insert(QStringLiteral("rect_max_y"), 1.0);
+        params.insert(QStringLiteral("element"), QStringLiteral("edge"));
+        params.insert(QStringLiteral("mode"), mode);
+        params.insert(QStringLiteral("visible_only"), false);
+        params.insert(QStringLiteral("expand_to"), expand);
+        return doc.runFilter(key, params);
+    };
+    const auto selectedEdges = [&]() {
+        QList<int> on;
+        const VCGMesh &m = doc.mesh(line).mesh;
+        for (int i = 0; i < int(m.edge.size()); ++i)
+            if (m.edge[std::size_t(i)].IsS())
+                on.append(i);
+        return on;
+    };
+    // Each face's selected sides, as "face:side".
+    const auto selectedSides = [&]() {
+        QStringList on;
+        const VCGMesh &m = doc.mesh(tris).mesh;
+        for (int f = 0; f < 2; ++f)
+            for (int i = 0; i < 3; ++i)
+                if (m.face[std::size_t(f)].IsFaceEdgeS(i))
+                    on << QStringLiteral("%1:%2").arg(f).arg(i);
+        return on;
+    };
+
+    // Midpoints at x = -0.3, -0.1, 0.1, 0.3 land at 0.33, 0.44, 0.56, 0.67: the right half
+    // takes the last two, and subtracting from 0.62 leaves the third.
+    doc.setCurrentMeshIndex(line);
+    MeshFilterRunResult r = select(0.5, QStringLiteral("replace"));
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(selectedEdges(), QList<int>({ 2, 3 }));
+    r = select(0.62, QStringLiteral("subtract"));
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(selectedEdges(), QList<int>({ 2 }));
+    // Growth is for faces and vertices; edges refuse it rather than ignore it.
+    QVERIFY(!select(0.0, QStringLiteral("replace"), QStringLiteral("connected_components")).success);
+    QCOMPARE(selectedEdges(), QList<int>({ 2 }));
+
+    const auto press = [&](int key, SelectionElement element) {
+        const auto shortcut = selectionShortcutFor(key, element);
+        return shortcut.has_value()
+            && doc.runFilter(QStringLiteral("meshlab2.filter.select::") + shortcut->filterId,
+                             shortcut->params).success;
+    };
+    // In edge mode + and - grow and shrink along the chain by one edge, leaving vertices be.
+    // The open end of the chain is a border, as for faces: nothing unselected touches edge 3
+    // there, so shrinking keeps it.
+    QVERIFY(press(Qt::Key_Plus, SelectionElement::Edge));
+    QCOMPARE(selectedEdges(), QList<int>({ 1, 2, 3 }));
+    QVERIFY(press(Qt::Key_Minus, SelectionElement::Edge));
+    QCOMPARE(selectedEdges(), QList<int>({ 2, 3 }));
+    QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(doc.mesh(line).mesh)), 0);
+    // A vertex selection grows along a polyline too, though it has no faces to walk.
+    VCGMesh &lineMesh = doc.mesh(line).mesh;
+    lineMesh.vert[2].SetS();
+    QVERIFY(press(Qt::Key_Plus, SelectionElement::Vertex));
+    QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(lineMesh)), 3);
+    QVERIFY(lineMesh.vert[1].IsS() && lineMesh.vert[3].IsS());
+    QVERIFY(press(Qt::Key_Minus, SelectionElement::Vertex));
+    QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(lineMesh)), 1);
+    QVERIFY(lineMesh.vert[2].IsS());
+    lineMesh.vert[2].ClearS();
+    QCOMPARE(selectedEdges(), QList<int>({ 2, 3 }));
+
+    // In edge mode the A key selects every polyline edge.
+    QVERIFY(press(Qt::Key_A, SelectionElement::Edge));
+    QCOMPARE(selectedEdges(), QList<int>({ 0, 1, 2, 3 }));
+    QCOMPARE(int(vcg::tri::UpdateSelection<VCGMesh>::VertexCount(doc.mesh(line).mesh)), 0);
+    QVERIFY(!selectionShortcutFor(Qt::Key_X, SelectionElement::Edge));
+
+    // On the square, from 0.6 the screen holds one side, x = 0.4 at 0.73 (face 0, side 1).
+    // The whole screen takes all six sides, the diagonal on both faces.
+    doc.setCurrentMeshIndex(tris);
+    r = select(0.6, QStringLiteral("replace"));
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(selectedSides(), QStringList({ QStringLiteral("0:1") }));
+    r = select(0.0, QStringLiteral("replace"));
+    QVERIFY2(r.success, qPrintable(r.errorMessage));
+    QCOMPARE(selectedSides().size(), 6);
+    QCOMPARE(doc.mesh(tris).mesh.face[0].IsS(), false);
 }
 
 // Integer attributes hold labels -- a part tag, a branch id -- and selecting by label is the
