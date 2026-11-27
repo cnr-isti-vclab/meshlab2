@@ -332,7 +332,7 @@ MeshFilterRunResult runVoronoiSampling(const FilterParams &params, Document &doc
             vcg::tri::VoronoiProcessing<VCGMesh>::ConvertVoronoiDiagramToMesh(
                 mesh, voronoiMesh, voronoiPoly, seedVertices, vpp);
             vcg::tri::VoronoiProcessing<VCGMesh>::ConvertDelaunayTriangulationToMesh(
-                mesh, delaunayMesh, seedVertices, false);
+                mesh, delaunayMesh, seedVertices, false, params.getBool(QStringLiteral("delaunayToBorder")));
         }
         VCGMesh samples;
         for (VCGMesh::VertexPointer seedVertex : seedVertices) {

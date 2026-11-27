@@ -567,6 +567,7 @@ private slots:
     void voronoiSurfaceSamplingKeepsOnlyTheSamplesWhenARegionIsNotADisk();
     void voronoiSurfaceSamplingPreprocessesACoarseMesh();
     void voronoiSurfaceSamplingVariesTheRadiusOnlyWhereTheScalarDoes();
+    void voronoiSurfaceSamplingExtendsTheDelaunayTriangulationToTheBorder();
     void voronoiSolidWireframeRunsOnLoadedMesh();
     void icpBetweenPointCloudsUpdatesSourceTransform();
     void translateFilterMovesOnlyCurrentMesh();
@@ -10233,6 +10234,75 @@ void FilterTests::voronoiSurfaceSamplingVariesTheRadiusOnlyWhereTheScalarDoes()
         doc.runFilter(filterKeyForId(doc, QStringLiteral("sample_surface_by_voronoi_relaxation")), params);
     QVERIFY2(result.success, qPrintable(result.errorMessage));
     QVERIFY(doc.mesh(result.newMeshIndices.last()).mesh.VN() >= 20);
+}
+
+// On an open mesh the triangulation of the seeds stops at the polygon through the outermost
+// seeds; extended, it adds the points where the cell boundaries meet the border and reaches it.
+void FilterTests::voronoiSurfaceSamplingExtendsTheDelaunayTriangulationToTheBorder()
+{
+    VCGMesh sphere;
+    vcg::tri::Sphere(sphere, 4);
+    for (auto &f : sphere.face)
+        if (vcg::Barycenter(f)[2] > 0.3f)
+            vcg::tri::Allocator<VCGMesh>::DeleteFace(sphere, f);
+    vcg::tri::Clean<VCGMesh>::RemoveUnreferencedVertex(sphere);
+    vcg::tri::Allocator<VCGMesh>::CompactEveryVector(sphere);
+    vcg::tri::UpdateNormal<VCGMesh>::PerVertexNormalizedPerFaceNormalized(sphere);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(sphere);
+    const float sphereArea = vcg::tri::Stat<VCGMesh>::ComputeMeshArea(sphere);
+
+    float area[2] = {0, 0};
+    for (int extend = 0; extend < 2; ++extend) {
+        Document doc;
+        QCOMPARE(doc.addMesh(sphere, QStringLiteral("Open sphere"),
+                             vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_VERTNORMAL
+                                 | vcg::tri::io::Mask::IOM_FACENORMAL),
+                 0);
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("sampleNum"), 30);
+        params.insert(QStringLiteral("iterNum"), 5);
+        params.insert(QStringLiteral("randomSeed"), 1);
+        params.insert(QStringLiteral("delaunayToBorder"), extend == 1);
+        const MeshFilterRunResult result =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("sample_surface_by_voronoi_relaxation")), params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+        QCOMPARE(result.newMeshIndices.size(), 4);
+        VCGMesh &delaunay = doc.mesh(result.newMeshIndices[2]).mesh;
+        const int seedCount = doc.mesh(result.newMeshIndices[3]).mesh.VN();
+
+        // A single disk, manifold, facing out (the sphere is centered at the origin).
+        VCGMeshFFAdjScope ffAdj(delaunay);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(delaunay);
+        QCOMPARE(vcg::tri::Clean<VCGMesh>::CountNonManifoldEdgeFF(delaunay), 0);
+        QCOMPARE(vcg::tri::Clean<VCGMesh>::CountHoles(delaunay), 1);
+        int borderEdges = 0;
+        int facingIn = 0;
+        for (const auto &f : delaunay.face) {
+            for (int i = 0; i < 3; ++i)
+                borderEdges += vcg::face::IsBorder(f, i) ? 1 : 0;
+            facingIn += (vcg::TriangleNormal(f) * vcg::Barycenter(f) < 0) ? 1 : 0;
+        }
+        QVERIFY2(facingIn * 100 < delaunay.FN(), qPrintable(QString::number(facingIn)));
+        // Without the extension the outline runs through the seeds; with it, through the border
+        // points, one per boundary between two border cells: as many as the outline edges.
+        QCOMPARE(delaunay.VN() - seedCount, extend ? borderEdges : 0);
+        // A border cell is closed by the chord between its two border points, the same points:
+        // the cells' outline has as many edges as the extended triangulation's.
+        if (extend) {
+            VCGMesh &cells = doc.mesh(result.newMeshIndices[0]).mesh;
+            VCGMeshFFAdjScope cellsFFAdj(cells);
+            vcg::tri::UpdateTopology<VCGMesh>::FaceFace(cells);
+            int cellsBorderEdges = 0;
+            for (const auto &f : cells.face)
+                for (int i = 0; i < 3; ++i)
+                    cellsBorderEdges += vcg::face::IsBorder(f, i) ? 1 : 0;
+            QCOMPARE(cellsBorderEdges, borderEdges);
+            QCOMPARE(doc.mesh(result.newMeshIndices[0]).polygonFaceCount, seedCount);
+        }
+        area[extend] = vcg::tri::Stat<VCGMesh>::ComputeMeshArea(delaunay);
+    }
+    QVERIFY2(area[0] < 0.9f * sphereArea && area[1] > 0.9f * sphereArea && area[1] < sphereArea,
+             qPrintable(QStringLiteral("%1 %2 of %3").arg(area[0]).arg(area[1]).arg(sphereArea)));
 }
 
 // Few seeds on a torus give regions that wrap around the tube and meet themselves on the other

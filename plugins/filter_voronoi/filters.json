@@ -7,7 +7,7 @@
       "name": "Sample Surface by Voronoi Relaxation",
       "pythonName": "sample_surface_by_voronoi_relaxation",
       "shortDescription": "Sample a surface and relax the samples with a geodesic Voronoi/Lloyd process.",
-      "longDescriptionMarkdown": "Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The final seeds are added as a point cloud layer. When every Voronoi region is a disk, three more layers are added: the Voronoi cells as polygons, their boundaries as a polyline, and the dual Delaunay triangulation of the seeds. A region that wraps around a thin part of the mesh, such as the tube of a torus sampled sparsely, is not a disk; then only the samples are added. The current mesh keeps its colors: the chosen quantity of the final diagram (seed distance, border distance or region area) is stored as its vertex scalar.",
+      "longDescriptionMarkdown": "Compute a point sampling over the current mesh and perform Lloyd relaxation on the surface. The final seeds are added as a point cloud layer. When every Voronoi region is a disk, three more layers are added: the Voronoi cells as polygons, their boundaries as a polyline, and the dual Delaunay triangulation of the seeds, which on an open mesh can be extended to the border. A region that wraps around a thin part of the mesh, such as the tube of a torus sampled sparsely, is not a disk; then only the samples are added. The current mesh keeps its colors: the chosen quantity of the final diagram (seed distance, border distance or region area) is stored as its vertex scalar.",
       "tags": [
         "sampling",
         "voronoi",
@@ -121,6 +121,14 @@
           "group": "main",
           "type": "bool",
           "default": true
+        },
+        {
+          "id": "delaunayToBorder",
+          "label": "Extend Delaunay to Border",
+          "help": "On an open mesh the Delaunay triangulation of the seeds stops at the polygon through the outermost seeds. When checked, the points where the Voronoi boundaries meet the mesh border are added too, and each border cell is joined to its stretch of border by a straight chord, so the triangulation reaches the border.",
+          "group": "main",
+          "type": "bool",
+          "default": false
         },
         {
           "id": "refineFactor",
