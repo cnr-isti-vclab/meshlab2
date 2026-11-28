@@ -33,6 +33,12 @@ std::uint64_t pickedLayerId(const Document &doc, const SurfacePick &pick)
 {
     return pick.meshIndex >= 0 && pick.meshIndex < doc.meshCount() ? doc.mesh(pick.meshIndex).meshId : 0;
 }
+
+// A measured point in true coordinates: the document origin added back, in double.
+vcg::Point3d truePosition(const Document &doc, const QVector3D &p)
+{
+    return doc.origin().value_or(vcg::Point3d(0, 0, 0)) + vcg::Point3d(p.x(), p.y(), p.z());
+}
 }
 
 QString MeasureTool::id() const
@@ -472,13 +478,13 @@ void MeasureTool::printMeasurements() const
                   Document::LogSource::Application);
     for (std::size_t i = 0; i < m_measurements.size(); ++i) {
         const Measurement &m = m_measurements[i];
-        const QVector3D &a = m_points[m.a];
-        const QVector3D &b = m_points[m.b];
+        const vcg::Point3d a = truePosition(*doc, m_points[m.a]);
+        const vcg::Point3d b = truePosition(*doc, m_points[m.b]);
         doc->writeLog(
             QStringLiteral("M%1: %2 [%3, %4, %5] [%6, %7, %8]")
                 .arg(i).arg(lengthText(measurementLength(m), 12))
-                .arg(a.x(), 0, 'g', 12).arg(a.y(), 0, 'g', 12).arg(a.z(), 0, 'g', 12)
-                .arg(b.x(), 0, 'g', 12).arg(b.y(), 0, 'g', 12).arg(b.z(), 0, 'g', 12),
+                .arg(a[0], 0, 'g', 12).arg(a[1], 0, 'g', 12).arg(a[2], 0, 'g', 12)
+                .arg(b[0], 0, 'g', 12).arg(b[1], 0, 'g', 12).arg(b[2], 0, 'g', 12),
             Document::LogSource::Application);
     }
 }
@@ -525,11 +531,11 @@ void MeasureTool::saveMeasurements() const
     out << '\n';
     for (std::size_t i = 0; i < m_measurements.size(); ++i) {
         const Measurement &m = m_measurements[i];
-        const QVector3D &a = m_points[m.a];
-        const QVector3D &b = m_points[m.b];
+        const vcg::Point3d a = truePosition(*doc, m_points[m.a]);
+        const vcg::Point3d b = truePosition(*doc, m_points[m.b]);
         out << 'M' << i << '\t' << measurementLength(m)
-            << '\t' << a.x() << '\t' << a.y() << '\t' << a.z()
-            << '\t' << b.x() << '\t' << b.y() << '\t' << b.z() << '\n';
+            << '\t' << a[0] << '\t' << a[1] << '\t' << a[2]
+            << '\t' << b[0] << '\t' << b[1] << '\t' << b[2] << '\n';
     }
     if (!file.commit()) {
         doc->writeLog(QObject::tr("Cannot finish writing measurements to '%1'.").arg(path),

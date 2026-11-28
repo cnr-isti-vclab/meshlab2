@@ -302,6 +302,14 @@ void MeshSetCore::loadRasterImage(const std::string &path)
         throw std::runtime_error("Failed to load raster image: " + path);
 }
 
+std::optional<std::array<double, 3>> MeshSetCore::documentOrigin() const
+{
+    const std::optional<vcg::Point3d> &origin = m_document->origin();
+    if (!origin)
+        return std::nullopt;
+    return std::array<double, 3>{ (*origin)[0], (*origin)[1], (*origin)[2] };
+}
+
 void MeshSetCore::clear()
 {
     while (m_document->rasterCount() > 0)

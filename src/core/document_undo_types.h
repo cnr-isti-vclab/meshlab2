@@ -124,6 +124,7 @@ struct UndoState {
     std::uint64_t nextRasterId = 1;
     std::vector<VisibilitySet> visibilitySets;
     LengthUnit unit = LengthUnit::Unknown;
+    std::optional<vcg::Point3d> origin;
     ViewState viewState;
 };
 

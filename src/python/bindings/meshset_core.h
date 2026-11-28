@@ -15,8 +15,10 @@
 
 #include <QString>
 #include <QVariant>
+#include <array>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -91,6 +93,9 @@ public:
     void loadRasterImage(const std::string &path);
 
     void clear();
+    // The document origin as (x, y, z), or None: what every mesh's coordinates are relative to
+    // (Document::origin). Add it to a mesh's positions to get true ones.
+    std::optional<std::array<double, 3>> documentOrigin() const;
     void loadProject(const std::string &path);
     void saveProject(const std::string &path);
 

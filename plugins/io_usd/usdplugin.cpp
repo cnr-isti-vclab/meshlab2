@@ -818,17 +818,18 @@ public:
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
-        return load(filename, mesh, cb, outLoadMask, nullptr, nullptr);
+        return load(filename, mesh, cb, outLoadMask, nullptr);
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask,
         MeshIOMaterialSet *outMaterialSet) const override
     {
-        return load(filename, mesh, cb, outLoadMask, outMaterialSet, nullptr);
+        MeshIOLoadContext context;
+        return load(filename, mesh, cb, outLoadMask, outMaterialSet, context);
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask,
-        MeshIOMaterialSet *outMaterialSet, LengthUnit *outUnit) const override
+        MeshIOMaterialSet *outMaterialSet, MeshIOLoadContext &context) const override
     {
         if (outLoadMask)
             *outLoadMask = 0;
@@ -877,16 +878,14 @@ public:
 
         // metersPerUnit falls back to centimeters by the USD specification; the converter's own
         // fallback (meters) is not used, as it does not distinguish an authored value.
-        if (outUnit) {
-            const auto &meta = stage.GetMeta();
-            const double metersPerUnit = meta.metersPerUnit_set ? result.scene.meters_per_unit : 0.01;
-            *outUnit = unitFromMetersPerUnit(metersPerUnit);
-            if (!meta.metersPerUnit_set)
-                report(cb, 100, QObject::tr("USD stage authors no metersPerUnit: centimeters, by the USD specification."));
-            else if (*outUnit == LengthUnit::Unknown)
-                report(cb, 100, QObject::tr("USD metersPerUnit %1 is not a unit MeshLab names: unit left unset.")
-                                    .arg(metersPerUnit));
-        }
+        const auto &meta = stage.GetMeta();
+        const double metersPerUnit = meta.metersPerUnit_set ? result.scene.meters_per_unit : 0.01;
+        context.unit = unitFromMetersPerUnit(metersPerUnit);
+        if (!meta.metersPerUnit_set)
+            report(cb, 100, QObject::tr("USD stage authors no metersPerUnit: centimeters, by the USD specification."));
+        else if (context.unit == LengthUnit::Unknown)
+            report(cb, 100, QObject::tr("USD metersPerUnit %1 is not a unit MeshLab names: unit left unset.")
+                                .arg(metersPerUnit));
         return 0;
     }
 

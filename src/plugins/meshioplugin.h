@@ -6,6 +6,9 @@
 #include <QImage>
 #include <QString>
 #include <QStringList>
+#include <cmath>
+#include <limits>
+#include <optional>
 #include <vector>
 
 struct MeshIOTextureAsset
@@ -80,7 +83,42 @@ struct MeshIOSaveOptions
     // The document's unit (Unknown when the user has not said), for formats that record one.
     // Document::saveMesh fills it in; a caller's value is replaced.
     LengthUnit unit = LengthUnit::Unknown;
+    // The document origin (zero when it has none), in double precision. A georeferenced
+    // format (isGeoreferenced) adds it back, in double, to write true coordinates; every
+    // other format writes the coordinates as the layer holds them, relative to it.
+    // Document::saveMesh fills it in.
+    vcg::Point3d origin = vcg::Point3d(0, 0, 0);
 };
+
+// What a load is told, and tells back, besides the mesh.
+struct MeshIOLoadContext
+{
+    // In and out: the point the mesh's coordinates are relative to, in the file's coordinates
+    // and in double precision -- the document origin (Document::origin). A georeferenced
+    // format (isGeoreferenced) subtracts it in double, before converting to float, since
+    // float keeps only multiples of 0.5 at 5,000,000. Given none, such a format sets one when
+    // the file lies far from zero (isFarFromZero), and none otherwise. Other formats leave it
+    // alone: their coordinates are taken as they are, relative to it.
+    std::optional<vcg::Point3d> origin;
+    // Out: the unit the file says its coordinates are in, for the formats that say one -- by
+    // their definition (glTF and E57 are in meters) or in the file (3MF). Unknown when the
+    // file does not say, which is what most formats do.
+    LengthUnit unit = LengthUnit::Unknown;
+};
+
+// Whether a box lies too far from zero for float coordinates: the float step at its centre is
+// coarser than a millionth of its size (about 16 diagonals away, since float keeps 24 bits).
+// A UTM survey is far by any measure -- at 5,000,000 m the step is 0.5 m -- while a scan in
+// its scanner's frame, or an object a few sizes from zero, is not. A box with no size is
+// never far: a single point loses nothing to rounding. The rule by which a georeferenced
+// importer chooses an origin, and by which a layer is reported imprecise.
+inline bool isFarFromZero(const vcg::Box3d &box)
+{
+    if (box.IsNull() || box.Diag() == 0)
+        return false;
+    const float centre = float(box.Center().Norm());
+    return std::nextafter(centre, std::numeric_limits<float>::infinity()) - centre > 1e-6 * box.Diag();
+}
 
 // On save, an asset's sourcePath is the file holding exactly its image (Document::saveMesh
 // resolves it), so a saver copies or refers to that file and writes the image only when the
@@ -160,28 +198,38 @@ public:
         return load(filename, mesh, cb, outLoadMask);
     }
 
-    // Also reports the unit the file says its coordinates are in, for the formats that say one --
-    // by their definition (glTF and E57 are in meters) or in the file (3MF). *outUnit is left
-    // alone, Unknown, when the file does not say, which is what most formats do. Document::loadMesh
-    // uses this overload.
+    // Also takes and reports what MeshIOLoadContext holds: the origin and the unit. Document::loadMesh
+    // and reloadMesh use this overload.
     virtual int load(
         const QString &filename,
         VCGMesh &mesh,
         vcg::CallBackPos *cb,
         int *outLoadMask,
         MeshIOMaterialSet *outMaterialSet,
-        LengthUnit *outUnit) const
+        MeshIOLoadContext &context) const
     {
-        (void) outUnit;
+        (void) context;
         return load(filename, mesh, cb, outLoadMask, outMaterialSet);
     }
 
-    // The images the file holds with their cameras, read after a successful load(). Most
-    // formats have none. What could not be read goes to warnings, for the log: it never
-    // fails the mesh load.
-    virtual std::vector<MeshIORaster> loadRasters(const QString &filename, QStringList &warnings) const
+    // Whether the format's coordinates are true, georeferenced ones (E57): it subtracts the
+    // document origin on load and adds it back on save (MeshIOLoadContext, MeshIOSaveOptions).
+    // The others hold coordinates relative to it, both ways.
+    virtual bool isGeoreferenced(const QString &filename) const
     {
         (void) filename;
+        return false;
+    }
+
+    // The images the file holds with their cameras, read after a successful load(). Most
+    // formats have none. The cameras are relative to the origin the load used (context, as
+    // load() left it). What could not be read goes to warnings, for the log: it never fails the
+    // mesh load.
+    virtual std::vector<MeshIORaster> loadRasters(
+        const QString &filename, const MeshIOLoadContext &context, QStringList &warnings) const
+    {
+        (void) filename;
+        (void) context;
         (void) warnings;
         return {};
     }

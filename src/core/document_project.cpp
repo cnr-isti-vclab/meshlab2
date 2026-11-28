@@ -18,13 +18,14 @@ int Document::loadMeshLabProject(const QString &filename)
     std::vector<MeshLabProjectRasterEntry> projectRasters;
     std::vector<MeshLabProjectVisibilitySetEntry> projectSets;
     LengthUnit projectUnit = LengthUnit::Unknown;
+    std::optional<vcg::Point3d> projectOrigin;
     // A COLMAP model opens as a project too: its images are the rasters, its points a layer
     const bool colmap = isColmapModelFile(normalizedFilename);
     ColmapModel colmapModel;
     QString parseError;
     if (colmap ? !parseColmapModel(normalizedFilename, colmapModel, parseError)
                : !parseMeshLabProjectFile(
-                     normalizedFilename, projectMeshes, projectRasters, projectSets, projectUnit, parseError)) {
+                     normalizedFilename, projectMeshes, projectRasters, projectSets, projectUnit, projectOrigin, parseError)) {
         writeLog(parseError, LogSource::Application, LogLevel::Warning);
         return -1;
     }
@@ -53,6 +54,19 @@ int Document::loadMeshLabProject(const QString &filename)
     // its layers may be joining others.
     if (projectUnit != LengthUnit::Unknown)
         setUnit(projectUnit);
+    // So is its origin, which its layers' files are relative to: it comes first too, and a
+    // georeferenced layer subtracts it. It is taken only into an empty document: other layers
+    // are relative to the document's own origin, or to none.
+    if (projectOrigin && projectOrigin != m_origin) {
+        if (meshCount() == 0 && rasterCount() == 0)
+            setOrigin(projectOrigin);
+        else
+            writeLog(tr("The project's layers are relative to the origin %1, but the document's is %2: "
+                        "open the project in a new document to place them right.")
+                         .arg(originText(*projectOrigin),
+                              m_origin ? originText(*m_origin) : tr("unset")),
+                LogSource::Application, LogLevel::Warning);
+    }
 
     // The id each entry of the file got, by its position in the file; 0 for one that was skipped.
     // What the visibility sets name.
@@ -501,6 +515,15 @@ bool Document::saveMeshLabProject(
         xml.writeStartElement(QStringLiteral("LengthUnit"));
         xml.writeAttribute(QStringLiteral("name"), LengthUnits::symbol(unit()));
         xml.writeEndElement(); // LengthUnit
+    }
+    // The origin the layers' coordinates are relative to, when there is one; old versions skip
+    // the element too.
+    if (m_origin) {
+        xml.writeStartElement(QStringLiteral("Origin"));
+        xml.writeAttribute(QStringLiteral("x"), QString::number((*m_origin)[0], 'g', 17));
+        xml.writeAttribute(QStringLiteral("y"), QString::number((*m_origin)[1], 'g', 17));
+        xml.writeAttribute(QStringLiteral("z"), QString::number((*m_origin)[2], 'g', 17));
+        xml.writeEndElement(); // Origin
     }
 
     xml.writeEndElement(); // MeshLabProject

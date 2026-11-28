@@ -3,6 +3,10 @@
 
 #include <QImageWriter>
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
 using namespace DocumentInternal;
 
 QString Document::openDialogFilter() const
@@ -223,11 +227,11 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     g_callbackDocument = this;
     int loadMask = 0;
     MeshIOMaterialSet loadedMaterialSet;
-    LengthUnit fileUnit = LengthUnit::Unknown;
+    MeshIOLoadContext loadContext = this->loadContext();
     // Pre-enable storable OCF fields so the importer can write into them.
     entry->mesh.vert.EnableTexCoord();
     entry->mesh.face.EnableWedgeTexCoord();
-    int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask, &loadedMaterialSet, &fileUnit);
+    int err = plugin->load(filename, entry->mesh, logCallback(), &loadMask, &loadedMaterialSet, loadContext);
     // Disable storable OCF fields that the importer did not actually populate.
     if (!(loadMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD))  entry->mesh.vert.DisableTexCoord();
     if (!(loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))  entry->mesh.face.DisableWedgeTexCoord();
@@ -250,6 +254,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     if (err != 0)
         writeLog(tr("Load warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
+    adoptFileOrigin(loadContext, entry->mesh, filename, meshCount() == 0);
     mergeImportedStlVertices(filename, entry->mesh);
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.
@@ -332,7 +337,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
         .arg(meshEntry.mesh.FN())
         .arg(meshEntry.mesh.EN()),
         LogSource::Application);
-    adoptFileUnit(fileUnit, filename);
+    adoptFileUnit(loadContext.unit, filename);
     if (elapsedMs >= 250) {
         writeLog(tr("Load timing '%1': import %2 ms, post %3 ms")
                 .arg(meshEntry.name)
@@ -402,7 +407,10 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     // lists its rasters itself, these among them once it has been saved with them.
     if (!m_bulkLoading) {
         QStringList warnings;
-        const std::vector<MeshIORaster> rasters = plugin->loadRasters(filename, warnings);
+        // Relative to the origin the points were loaded with, the document's by now if any.
+        if (!m_origin)
+            loadContext.origin.reset();
+        const std::vector<MeshIORaster> rasters = plugin->loadRasters(filename, loadContext, warnings);
         for (const QString &warning : warnings)
             writeLog(warning, LogSource::Application, LogLevel::Warning);
         for (const MeshIORaster &raster : rasters)
@@ -476,7 +484,8 @@ int Document::reloadMesh(int index)
     // Pre-enable storable OCF fields so the importer can write into them.
     reloadedMesh.vert.EnableTexCoord();
     reloadedMesh.face.EnableWedgeTexCoord();
-    const int err = plugin->load(sourcePath, reloadedMesh, logCallback(), &loadMask, &loadedMaterialSet);
+    MeshIOLoadContext loadContext = this->loadContext();
+    const int err = plugin->load(sourcePath, reloadedMesh, logCallback(), &loadMask, &loadedMaterialSet, loadContext);
     // Disable storable OCF fields that the importer did not actually populate.
     if (!(loadMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD))  reloadedMesh.vert.DisableTexCoord();
     if (!(loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))  reloadedMesh.face.DisableWedgeTexCoord();
@@ -499,6 +508,7 @@ int Document::reloadMesh(int index)
     if (err != 0)
         writeLog(tr("Reload warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
+    adoptFileOrigin(loadContext, reloadedMesh, sourcePath, meshCount() == 1);
     mergeImportedStlVertices(sourcePath, reloadedMesh);
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.
@@ -652,6 +662,53 @@ void Document::adoptFileUnit(LengthUnit fileUnit, const QString &filename)
     }
 }
 
+MeshIOLoadContext Document::loadContext() const
+{
+    MeshIOLoadContext context;
+    context.origin = m_origin;
+    return context;
+}
+
+void Document::adoptFileOrigin(const MeshIOLoadContext &context, VCGMesh &mesh, const QString &filename, bool onlyLayer)
+{
+    if (!context.origin)
+        return;
+    const QString fileName = QFileInfo(filename).fileName();
+    vcg::Box3d box;
+    for (const auto &v : mesh.vert)
+        box.Add(vcg::Point3d::Construct(v.cP()));
+    // Half the float step at the largest coordinate: how far a position may be from the file's.
+    const auto precision = [&box] {
+        const double m = std::max({ std::abs(box.min[0]), std::abs(box.min[1]), std::abs(box.min[2]),
+            std::abs(box.max[0]), std::abs(box.max[1]), std::abs(box.max[2]) });
+        const float f = float(m);
+        return QString::number((std::nextafter(f, std::numeric_limits<float>::infinity()) - f) / 2, 'g', 2);
+    };
+    if (context.origin == m_origin) {
+        if (isFarFromZero(box))
+            writeLog(tr("'%1' lies far from the document origin %2: its positions are kept only to %3. "
+                        "Open it in a document of its own to keep its precision.")
+                         .arg(fileName, originText(*m_origin), precision()),
+                LogSource::Application, LogLevel::Warning);
+        return;
+    }
+    if (!m_origin && onlyLayer && rasterCount() == 0 && !m_bulkLoading) {
+        setOrigin(context.origin);
+        writeLog(tr("The document origin is %1, as '%2' lies far from zero: positions are relative to it.")
+                     .arg(originText(*m_origin), fileName),
+            LogSource::Application);
+        return;
+    }
+    // Back to the file's coordinates, which the other layers share.
+    for (auto &v : mesh.vert)
+        v.P() = vcg::Point3f::Construct(vcg::Point3d::Construct(v.cP()) + *context.origin);
+    box.Translate(*context.origin);
+    writeLog(tr("'%1' lies far from zero, and the document already has layers: its positions are kept only to %2. "
+                "Open it in a document of its own to keep its precision.")
+                 .arg(fileName, precision()),
+        LogSource::Application, LogLevel::Warning);
+}
+
 int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptions &options)
 {
     if (index < 0 || index >= meshCount()) {
@@ -711,6 +768,7 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
     // The formats that record a unit get the document's.
     MeshIOSaveOptions saveOptions = options;
     saveOptions.unit = m_unit;
+    saveOptions.origin = m_origin.value_or(vcg::Point3d(0, 0, 0));
     // No mask asks for what the layer holds, as the Save dialog proposes; left to the exporter, it
     // asked for everything the format can hold, and a project or Python save wrote white colors
     // and zero scalars the layer never had.
@@ -748,6 +806,10 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
             .arg(entry.name, normalizedFilename)
             .arg(elapsedMs),
         LogSource::Application);
+    if (m_origin && !plugin->isGeoreferenced(normalizedFilename))
+        writeLog(tr("'%1' holds coordinates relative to the document origin %2: add it to get true ones.")
+                     .arg(QFileInfo(normalizedFilename).fileName(), originText(*m_origin)),
+            LogSource::Application);
 
     // Saving names the layer's file, as in any document application, and a label that was
     // still the old file's name follows it. Not an undo step: it is a fact about the disk.

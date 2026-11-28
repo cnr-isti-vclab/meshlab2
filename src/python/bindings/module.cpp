@@ -11,6 +11,8 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
+#include <nanobind/stl/array.h>
+#include <nanobind/stl/optional.h>
 
 namespace nb = nanobind;
 
@@ -134,6 +136,10 @@ NB_MODULE(_meshlab, m)
         .def("set_current_raster", &MeshSetCore::setCurrentRaster,  nb::arg("index"))
         .def("load_new_raster",    &MeshSetCore::loadRasterImage,   nb::arg("file_name"))
         .def("clear",              &MeshSetCore::clear)
+        .def("document_origin",    &MeshSetCore::documentOrigin,
+             "The point, in true coordinates, that every mesh's coordinates are relative to, as\n"
+             "(x, y, z); None when there is none. A georeferenced file (E57) far from zero sets it\n"
+             "on load, so float positions keep their precision: add it to get true positions.")
         .def("load_project",       &MeshSetCore::loadProject,       nb::arg("file_name"))
         .def("save_project",       &MeshSetCore::saveProject,       nb::arg("file_name"))
         .def("filter_list",        &MeshSetCore::filterList)

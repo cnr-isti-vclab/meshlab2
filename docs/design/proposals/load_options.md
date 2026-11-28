@@ -60,11 +60,14 @@ Two additions to `MeshIOPlugin`, both optional:
 // extra fields). Empty, the default, means the format has no options.
 virtual std::vector<MeshFilterParameterDescriptor> loadParameters(const QString &filename) const;
 
-// options holds every declared parameter, defaults filled in by the Document.
-// (One more overload; the alternative is a MeshIOLoadRequest struct, see §6.)
-virtual int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask,
-                 MeshIOMaterialSet *outMaterialSet, LengthUnit *outUnit,
-                 const QVariantMap &options) const;
+// MeshIOLoadContext (src/plugins/meshioplugin.h, which already carries the document origin
+// and the file's unit) gains the options: every declared parameter, defaults filled in by
+// the Document. No new overload.
+struct MeshIOLoadContext {
+    std::optional<vcg::Point3d> origin;
+    LengthUnit unit;
+    QVariantMap options;   // new
+};
 ```
 
 A plugin with no options changes nothing. Declarations may live in the plugin's JSON, read by
@@ -147,10 +150,10 @@ That one exception is worth it: the merge is the Document's, not the importer's.
 
 ## 6. Open questions
 
-1. **An overload or a request struct.** `MeshIOPlugin::load` already has three overloads,
-   each adding one out-parameter, and `loadRasters` is a fourth call. A fourth overload is the
-   smallest change. A `MeshIOLoadRequest` / `MeshIOLoadResult` pair would end the growth, but
-   would mean touching six plugins, so it should be done only if a later need forces it.
+1. ~~**An overload or a request struct.**~~ Settled 2026-11-28 by the document origin
+   ([LAS Support §2](las_support.md#2-the-real-problem-precision)): `MeshIOLoadContext`
+   replaced the last overload's `LengthUnit *outUnit`, and `loadRasters` takes it too. The
+   options go into it. Folding the three `load` overloads into one remains a separate cleanup.
 2. **Save options.** `MeshIOSaveOptions` is a fixed struct holding glTF's Draco settings for
    every format. Declared save parameters would be the same mechanism; they are not proposed
    here.

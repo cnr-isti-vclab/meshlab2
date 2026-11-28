@@ -321,6 +321,18 @@ public:
     LengthUnit unit() const { return m_unit; }
     void setUnit(LengthUnit unit);
 
+    // The document origin: the point, in true coordinates and double precision, that every
+    // layer's coordinates are relative to. Vertices are float, which at a UTM northing of
+    // 5,000,000 m keeps only multiples of 0.5 m; survey coordinates stay precise as offsets
+    // from an origin near them. Unset for everyday meshes. Only a load sets it: the first
+    // georeferenced file (MeshIOPlugin::isGeoreferenced) that lies far from zero, in a document
+    // with no other layer, or a project that holds one. Georeferenced formats subtract it on
+    // load and add it back on save; the others hold coordinates relative to it. Part of the
+    // project and of the undo state; File > New forgets it.
+    const std::optional<vcg::Point3d> &origin() const { return m_origin; }
+    // "(x, y, z)", in full precision, as the log and the status bar show an origin.
+    static QString originText(const vcg::Point3d &origin);
+
     // Visibility sets: a name and the layers that show together, for jumping between the
     // arrangements of a project (before / after, one scan at a time...). They hold persistent
     // mesh ids, so they follow a layer through moves and renames, and a layer that is gone
@@ -541,6 +553,7 @@ signals:
     // A visibility set was added, removed, renamed or redefined.
     void visibilitySetsChanged();
     void unitChanged();
+    void originChanged();
     void directoryChanged();
     void currentMeshChanged(int index);
     void meshDataChanged(int index);
@@ -610,6 +623,16 @@ private:
     // only one and the unit is not set. Otherwise it is reported when it differs from the
     // unit the user chose, and nothing is converted.
     void adoptFileUnit(LengthUnit fileUnit, const QString &filename);
+    // The origin a georeferenced file has just been loaded relative to (context.origin after
+    // load()), into mesh, the layer it gave. When the document gave it, the layer is reported
+    // if it is still far from zero, and so imprecise. When the file chose it, the document
+    // adopts it if the layer is its only one (onlyLayer, no rasters, not inside a project,
+    // whose layers are relative to the origin the project says); otherwise the layer is moved
+    // back to the file's coordinates, as precise as float allows there, and that is reported.
+    void adoptFileOrigin(const MeshIOLoadContext &context, VCGMesh &mesh, const QString &filename, bool onlyLayer);
+    void setOrigin(const std::optional<vcg::Point3d> &origin);
+    // A load context carrying the document origin.
+    MeshIOLoadContext loadContext() const;
 
     std::unique_ptr<MeshIOPluginManager> m_pluginManager;
     std::unique_ptr<MeshFilterPluginManager> m_filterPluginManager;
@@ -617,6 +640,7 @@ private:
     std::vector<std::unique_ptr<MeshEntry>> m_meshes;
     std::vector<VisibilitySet> m_visibilitySets;
     LengthUnit m_unit = LengthUnit::Unknown;
+    std::optional<vcg::Point3d> m_origin;
     QString m_projectFilePath;
     QString m_directory;
     // Sets directory() to the folder of file when it is not set yet.

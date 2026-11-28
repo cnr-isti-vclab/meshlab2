@@ -22,6 +22,21 @@ Document::Document(QObject *parent)
 
 Document::~Document() = default;
 
+void Document::setOrigin(const std::optional<vcg::Point3d> &origin)
+{
+    if (origin == m_origin)
+        return;
+    m_origin = origin;
+    emit originChanged();
+}
+
+QString Document::originText(const vcg::Point3d &origin)
+{
+    return QStringLiteral("(%1, %2, %3)")
+        .arg(QString::number(origin[0], 'g', 17), QString::number(origin[1], 'g', 17),
+             QString::number(origin[2], 'g', 17));
+}
+
 void Document::setUnit(LengthUnit unit)
 {
     if (unit == m_unit)

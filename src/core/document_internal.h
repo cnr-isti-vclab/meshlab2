@@ -98,6 +98,7 @@ bool parseMeshLabProjectFile(
     std::vector<MeshLabProjectRasterEntry> &rasters,
     std::vector<MeshLabProjectVisibilitySetEntry> &visibilitySets,
     LengthUnit &unit,
+    std::optional<vcg::Point3d> &origin,
     QString &errorMessage);
 QString resolveTexturePath(const QString &meshFilePath, const QString &declaredTextureName);
 MeshIOMaterialTextureRef normalizeMaterialTextureRef(

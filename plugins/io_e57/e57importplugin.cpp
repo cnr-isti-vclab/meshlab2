@@ -16,6 +16,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <E57SimpleReader.h>
@@ -227,23 +228,36 @@ public:
         vcg::CallBackPos *cb,
         int *outLoadMask,
         MeshIOMaterialSet *outMaterialSet,
-        LengthUnit *outUnit) const override
+        MeshIOLoadContext &context) const override
     {
         if (outMaterialSet)
             outMaterialSet->clear();
-        const int err = load(filename, mesh, cb, outLoadMask);
+        const int err = loadOrReport(filename, mesh, cb, outLoadMask, context.origin);
         // The E57 standard (ASTM E2807) has its Cartesian coordinates in meters.
-        if (err == 0 && outUnit)
-            *outUnit = LengthUnit::Meter;
+        if (err == 0)
+            context.unit = LengthUnit::Meter;
         return err;
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
+        std::optional<vcg::Point3d> origin;
+        return loadOrReport(filename, mesh, cb, outLoadMask, origin);
+    }
+
+    // E57 coordinates are survey coordinates, often in the millions of meters.
+    bool isGeoreferenced(const QString &) const override
+    {
+        return true;
+    }
+
+    static int loadOrReport(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask,
+        std::optional<vcg::Point3d> &origin)
+    {
         if (outLoadMask)
             *outLoadMask = 0;
         try {
-            return loadScans(filename, mesh, cb, outLoadMask);
+            return loadScans(filename, mesh, cb, outLoadMask, origin);
         } catch (const e57::E57Exception &e) {
             reportProgress(cb, 100, QObject::tr("E57 import failed: %1 (%2)")
                 .arg(QString::fromStdString(e.errorStr()), QString::fromStdString(e.context())), true);
@@ -259,7 +273,14 @@ public:
     // the fields it has: Cartesian or spherical coordinates, color, intensity (into vertex
     // quality, unscaled, as the writer stores it) and surface normals (E57_EXT_surface_normals).
     // A field only some scans have is defaulted on the others: white, zero, no normal.
-    static int loadScans(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask)
+    //
+    // Positions are made relative to origin in double precision, before they become float
+    // (MeshIOLoadContext::origin). Given none, the points are first read relative to the first
+    // one, rounded, which keeps them precise whatever the file's coordinates; if the cloud then
+    // proves far from zero, the origin is the corner of its bounding box rounded down to whole
+    // meters, and none otherwise.
+    static int loadScans(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask,
+        std::optional<vcg::Point3d> &origin)
     {
         e57::Reader reader(filename.toStdString(), {});
         if (!reader.IsOpen())
@@ -271,6 +292,10 @@ public:
 
         mesh.Clear();
         int loadMask = vcg::tri::io::Mask::IOM_VERTCOORD;
+        const bool originGiven = origin.has_value();
+        vcg::Point3d shift = origin.value_or(vcg::Point3d(0, 0, 0));
+        bool shiftChosen = originGiven;
+        vcg::Box3d bounds;   // in the file's coordinates
 
         for (int64_t scanIndex = 0; scanIndex < scanCount; ++scanIndex) {
             e57::Data3D header;
@@ -346,7 +371,13 @@ public:
                         p = vcg::Point3d(r * std::cos(el) * std::cos(az), r * std::cos(el) * std::sin(az),
                             r * std::sin(el));
                     }
-                    vi->P() = vcg::Point3f::Construct(rotation.Rotate(p) + translation);
+                    const vcg::Point3d position = rotation.Rotate(p) + translation;
+                    if (!shiftChosen) {
+                        shift = vcg::Point3d(std::round(position[0]), std::round(position[1]), std::round(position[2]));
+                        shiftChosen = true;
+                    }
+                    bounds.Add(position);
+                    vi->P() = vcg::Point3f::Construct(position - shift);
                     vi->C() = vcg::Color4b::White;
                     if (color && (colorInvalid.empty() || colorInvalid[i] == 0))
                         vi->C() = vcg::Color4b(toByte(red[i], limits.colorRedMinimum, limits.colorRedMaximum),
@@ -364,6 +395,15 @@ public:
         }
 
         reader.Close();
+        if (!originGiven) {
+            if (isFarFromZero(bounds))
+                origin = vcg::Point3d(std::floor(bounds.min[0]), std::floor(bounds.min[1]), std::floor(bounds.min[2]));
+            // From the provisional shift to the origin, or back to the file's own coordinates.
+            const vcg::Point3d move = shift - origin.value_or(vcg::Point3d(0, 0, 0));
+            if (move != vcg::Point3d(0, 0, 0))
+                for (auto &v : mesh.vert)
+                    v.P() = vcg::Point3f::Construct(vcg::Point3d::Construct(v.P()) + move);
+        }
         if (outLoadMask)
             *outLoadMask = loadMask;
         return 0;
@@ -381,8 +421,10 @@ public:
     // front; the file's scan poses do follow the standard, its image poses this. A pixel
     // centre is at an integer coordinate (511.5 is the centre of a 1024-pixel image).
     // Spherical images become pinhole views (panoramaViews); cylindrical ones are skipped.
-    std::vector<MeshIORaster> loadRasters(const QString &filename, QStringList &warnings) const override
+    std::vector<MeshIORaster> loadRasters(
+        const QString &filename, const MeshIOLoadContext &context, QStringList &warnings) const override
     {
+        const vcg::Point3d origin = context.origin.value_or(vcg::Point3d(0, 0, 0));
         std::vector<MeshIORaster> rasters;
         try {
             e57::Reader reader(filename.toStdString(), {});
@@ -435,7 +477,7 @@ public:
                 if (projection == e57::ProjectionSpherical) {
                     const e57::SphericalRepresentation &sphere = header.sphericalRepresentation;
                     std::vector<MeshIORaster> views = panoramaViews(image, name, rotation(header.pose.rotation),
-                        translation(header.pose.translation), scanRotation.GetColumn(2),
+                        translation(header.pose.translation) - origin, scanRotation.GetColumn(2),
                         sphere.pixelWidth, sphere.pixelHeight);
                     std::move(views.begin(), views.end(), std::back_inserter(rasters));
                     continue;
@@ -445,7 +487,7 @@ public:
                 raster.name = name;
                 raster.image = std::move(image);
                 raster.shot = pinholeShot(rotation(header.pose.rotation) * scanRotation.transpose(),
-                    translation(pose.translation) + scanRotation * translation(header.pose.translation),
+                    translation(pose.translation) + scanRotation * translation(header.pose.translation) - origin,
                     pinhole.focalLength * 1000, vcg::Point2d(pinhole.pixelWidth * 1000, pinhole.pixelHeight * 1000),
                     vcg::Point2i(int(width), int(height)),
                     vcg::Point2d(pinhole.principalPointX + 0.5, height - pinhole.principalPointY - 0.5));
@@ -530,9 +572,10 @@ public:
             if (!std::isfinite(p[0]) || !std::isfinite(p[1]) || !std::isfinite(p[2]))
                 continue;
 
-            const double x = double(p[0]);
-            const double y = double(p[1]);
-            const double z = double(p[2]);
+            // True coordinates: the document origin added back in double.
+            const double x = double(p[0]) + options.origin[0];
+            const double y = double(p[1]) + options.origin[1];
+            const double z = double(p[2]) + options.origin[2];
             cartesianX[outIndex] = x;
             cartesianY[outIndex] = y;
             cartesianZ[outIndex] = z;

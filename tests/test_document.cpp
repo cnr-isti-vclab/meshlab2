@@ -12,6 +12,7 @@
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/create/platonic.h>
 #include <cmath>
+#include <set>
 #include <clocale>
 
 #include "document.h"
@@ -32,6 +33,7 @@
 #include <wrap/io_trimesh/import_obj.h>
 #include <wrap/io_trimesh/io_mask.h>
 #if __has_include(<E57SimpleWriter.h>)
+#include <E57SimpleReader.h>
 #include <E57SimpleWriter.h>
 #endif
 
@@ -165,6 +167,8 @@ private slots:
     void e57RoundTripsPointAttributes();
     void e57PinholeImagesBecomeRasters();
     void e57PanoramasBecomePinholeViews();
+    void e57FarFromZeroKeepsItsPrecision();
+    void theDocumentOriginTravelsWithTheProject();
     void savingWritesTheTexturesNoFileHolds();
     void savingNamesTheLayersFileAndUndoKeepsIt();
     void savingOneTextureOrPlaneNamesItsFile();
@@ -4959,6 +4963,191 @@ void DocumentTests::e57PanoramasBecomePinholeViews()
         }
         QCOMPARE(checked, blocksX * p.blocksY);
     }
+#endif
+}
+
+#if __has_include(<E57SimpleWriter.h>)
+namespace {
+// Where the grid lies: a UTM-like easting and northing, where float keeps multiples of 3 cm
+// and 0.5 m.
+const vcg::Point3d kSurveyPlace(500000.25, 5000000.75, 100.5);
+
+// A 100 x 100 grid of points 1 mm apart at kSurveyPlace, in double precision: in the
+// coordinates, or at zero and placed by the scan pose, with a photo taken 1 m above it.
+void writeSurveyGrid(const QString &path, bool byPose)
+{
+    e57::Writer writer(path.toStdString(), e57::WriterOptions{});
+    e57::Data3D scan;
+    scan.guid = "grid";
+    scan.pointCount = 100 * 100;
+    scan.pointFields.cartesianXField = scan.pointFields.cartesianYField = scan.pointFields.cartesianZField = true;
+    scan.pointFields.pointRangeNodeType = e57::NumericalNodeType::Double;
+    scan.pose.rotation = { 1, 0, 0, 0 };
+    const vcg::Point3d base = byPose ? vcg::Point3d(0, 0, 0) : kSurveyPlace;
+    if (byPose)
+        scan.pose.translation = { kSurveyPlace[0], kSurveyPlace[1], kSurveyPlace[2] };
+    std::vector<double> x, y, z;
+    for (int i = 0; i < 100; ++i)
+        for (int j = 0; j < 100; ++j) {
+            x.push_back(base[0] + i * 0.001);
+            y.push_back(base[1] + j * 0.001);
+            z.push_back(base[2]);
+        }
+    e57::Data3DPointsDouble points;
+    points.cartesianX = x.data();
+    points.cartesianY = y.data();
+    points.cartesianZ = z.data();
+    writer.WriteData3DData(scan, points);
+    if (byPose) {
+        QImage image(16, 16, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        QByteArray jpeg;
+        QBuffer buffer(&jpeg);
+        image.save(&buffer, "JPG");
+        e57::Image2D photo;
+        photo.guid = "photo";
+        photo.name = "photo";
+        photo.associatedData3DGuid = "grid";
+        photo.pose.rotation = { 1, 0, 0, 0 };
+        photo.pose.translation = { 0, 0, 1 };
+        photo.pinholeRepresentation.jpegImageSize = jpeg.size();
+        photo.pinholeRepresentation.imageWidth = photo.pinholeRepresentation.imageHeight = 16;
+        photo.pinholeRepresentation.focalLength = 0.01;
+        photo.pinholeRepresentation.pixelWidth = photo.pinholeRepresentation.pixelHeight = 0.0001;
+        photo.pinholeRepresentation.principalPointX = photo.pinholeRepresentation.principalPointY = 7.5;
+        const int64_t index = writer.NewImage2D(photo);
+        writer.WriteImage2DData(index, e57::ImageJPEG, e57::ProjectionPinhole, jpeg.data(), 0, jpeg.size());
+    }
+    writer.Close();
+}
+}
+#endif
+
+// The grid measured in docs/design/proposals/las_support.md §2: read without an origin, its
+// 10,000 points came back as 4 columns and 1 row, up to 99 mm off. With one, every point is
+// where the file puts it, to well under 0.01 mm, and a save writes the true coordinates back.
+void DocumentTests::e57FarFromZeroKeepsItsPrecision()
+{
+#if !__has_include(<E57SimpleWriter.h>)
+    QSKIP("This build has no E57 support.");
+#else
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const vcg::Point3d expectedOrigin(500000, 5000000, 100);   // the grid's corner, rounded down
+    for (const bool byPose : { false, true }) {
+        const QString path = dir.filePath(byPose ? QStringLiteral("posed.e57") : QStringLiteral("absolute.e57"));
+        writeSurveyGrid(path, byPose);
+
+        Document doc;
+        QCOMPARE(doc.loadMesh(path), 0);
+        QVERIFY(doc.origin().has_value());
+        QVERIFY(*doc.origin() == expectedOrigin);
+        const VCGMesh &mesh = doc.mesh(0).mesh;
+        QCOMPARE(mesh.VN(), 100 * 100);
+        std::set<std::pair<long, long>> cells;
+        double worst = 0;
+        for (const auto &v : mesh.vert) {
+            const vcg::Point3d p = *doc.origin() + vcg::Point3d::Construct(v.cP()) - kSurveyPlace;
+            const long i = std::lround(p[0] / 0.001), j = std::lround(p[1] / 0.001);
+            cells.insert({ i, j });
+            worst = std::max({ worst, (p - vcg::Point3d(i * 0.001, j * 0.001, 0)).Norm() });
+        }
+        QCOMPARE(cells.size(), size_t(100 * 100));
+        QVERIFY2(worst < 1e-5, qPrintable(QString::number(worst)));
+        // The photo's camera is relative to the same origin, 1 m above the grid's corner.
+        if (byPose) {
+            QCOMPARE(doc.rasterCount(), 1);
+            const QVector3D eye = doc.raster(0).shot.viewPoint();
+            const vcg::Point3d trueEye = *doc.origin() + vcg::Point3d(eye.x(), eye.y(), eye.z());
+            QVERIFY2((trueEye - (kSurveyPlace + vcg::Point3d(0, 0, 1))).Norm() < 1e-5,
+                qPrintable(QStringLiteral("%1 %2 %3").arg(eye.x()).arg(eye.y()).arg(eye.z())));
+        }
+
+        // Saved, the file holds true coordinates, and reads back to the same floats.
+        const QString saved = dir.filePath(QStringLiteral("saved.e57"));
+        QCOMPARE(doc.saveMesh(0, saved), 0);
+        {
+            e57::Reader reader(saved.toStdString(), {});
+            e57::Data3D header;
+            QVERIFY(reader.ReadData3D(0, header));
+            QVERIFY(std::abs(header.cartesianBounds.xMinimum - kSurveyPlace[0]) < 1e-6);
+            QVERIFY(std::abs(header.cartesianBounds.yMinimum - kSurveyPlace[1]) < 1e-6);
+        }
+        Document reread;
+        QCOMPARE(reread.loadMesh(saved), 0);
+        QVERIFY(reread.origin() == doc.origin());
+        QVERIFY(reread.mesh(0).mesh.vert[17].cP() == mesh.vert[17].cP());
+
+        // The origin came with the load, and goes with it.
+        QVERIFY(doc.undo());
+        QVERIFY(!doc.origin().has_value());
+    }
+
+    // A file near zero sets none.
+    {
+        const QString near = dir.filePath(QStringLiteral("near.e57"));
+        e57::Writer writer(near.toStdString(), e57::WriterOptions{});
+        e57::Data3D scan;
+        scan.guid = "near";
+        scan.pointCount = 2;
+        scan.pointFields.cartesianXField = scan.pointFields.cartesianYField = scan.pointFields.cartesianZField = true;
+        scan.pose.rotation = { 1, 0, 0, 0 };
+        double x[2] = { 1, 2 }, y[2] = { 1, 2 }, z[2] = { 0, 1 };
+        e57::Data3DPointsDouble points;
+        points.cartesianX = x;
+        points.cartesianY = y;
+        points.cartesianZ = z;
+        writer.WriteData3DData(scan, points);
+        writer.Close();
+        Document doc;
+        QCOMPARE(doc.loadMesh(near), 0);
+        QVERIFY(!doc.origin().has_value());
+        QVERIFY(std::abs(doc.mesh(0).mesh.vert[1].cP()[0] - 2.0f) < 1e-6);
+
+        // Nor does a far one joining it: its layer is in the file's coordinates, as the
+        // other's, and the log says what that costs.
+        const QString far = dir.filePath(QStringLiteral("far.e57"));
+        writeSurveyGrid(far, false);
+        QCOMPARE(doc.loadMesh(far), 0);
+        QVERIFY(!doc.origin().has_value());
+        QVERIFY(std::abs(doc.mesh(1).mesh.vert[0].cP()[1] - 5000000.75f) < 1.0f);
+        QVERIFY(std::any_of(doc.logMessages().begin(), doc.logMessages().end(), [](const Document::LogEntry &e) {
+            return e.message.contains(QStringLiteral("already has layers"));
+        }));
+    }
+#endif
+}
+
+// A project keeps the origin its layers are relative to: a PLY layer, saved relative to it,
+// reopens where it was, and a georeferenced file loaded next lands on it.
+void DocumentTests::theDocumentOriginTravelsWithTheProject()
+{
+#if !__has_include(<E57SimpleWriter.h>)
+    QSKIP("This build has no E57 support.");
+#else
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString grid = dir.filePath(QStringLiteral("grid.e57"));
+    writeSurveyGrid(grid, false);
+
+    Document doc;
+    QCOMPARE(doc.loadMesh(grid), 0);
+    QVERIFY(doc.origin().has_value());
+    const vcg::Point3f first = doc.mesh(0).mesh.vert[123].cP();
+    QCOMPARE(doc.saveMesh(0, dir.filePath(QStringLiteral("grid.ply"))), 0);
+    QVERIFY(std::any_of(doc.logMessages().begin(), doc.logMessages().end(), [](const Document::LogEntry &e) {
+        return e.message.contains(QStringLiteral("relative to the document origin"));
+    }));
+    QString error;
+    const QString project = dir.filePath(QStringLiteral("survey.mlp"));
+    QVERIFY2(doc.saveMeshLabProject(project, {}, &error), qPrintable(error));
+
+    Document reopened;
+    QCOMPARE(reopened.loadMeshLabProject(project), 0);
+    QVERIFY(reopened.origin() == doc.origin());
+    QVERIFY(reopened.mesh(0).mesh.vert[123].cP() == first);
+    QCOMPARE(reopened.loadMesh(grid), 0);
+    QVERIFY(reopened.mesh(1).mesh.vert[123].cP() == first);
 #endif
 }
 

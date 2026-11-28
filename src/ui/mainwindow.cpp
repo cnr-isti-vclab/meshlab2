@@ -594,6 +594,21 @@ MainWindow::MainWindow(QWidget *parent)
     showUnit();
     connect(m_doc, &Document::unitChanged, this, showUnit);
     statusBar()->addPermanentWidget(unitButton, 0);
+    // The document origin, when a georeferenced file has set one: positions are relative to it.
+    auto *originLabel = new QLabel(statusBar());
+    const auto showOrigin = [this, originLabel] {
+        const std::optional<vcg::Point3d> &origin = m_doc->origin();
+        originLabel->setVisible(origin.has_value());
+        if (!origin)
+            return;
+        originLabel->setText(tr("Origin: %1").arg(Document::originText(*origin)));
+        originLabel->setToolTip(tr("Positions are relative to this point, in true coordinates. "
+                                   "Georeferenced formats (E57) add it back on save, measurements "
+                                   "include it; other formats write positions relative to it."));
+    };
+    showOrigin();
+    connect(m_doc, &Document::originChanged, this, showOrigin);
+    statusBar()->addPermanentWidget(originLabel, 0);
 
     m_layerWidget = new LayerWidget(m_doc, this);
     connect(m_layerWidget, &LayerWidget::filterActionRequested, this,

@@ -829,12 +829,12 @@ public:
         vcg::CallBackPos *cb,
         int *outLoadMask,
         MeshIOMaterialSet *outMaterialSet,
-        LengthUnit *outUnit) const override
+        MeshIOLoadContext &context) const override
     {
         const int err = load(filename, mesh, cb, outLoadMask, outMaterialSet);
         // The glTF specification measures every distance in meters.
-        if (err == 0 && outUnit)
-            *outUnit = LengthUnit::Meter;
+        if (err == 0)
+            context.unit = LengthUnit::Meter;
         return err;
     }
 

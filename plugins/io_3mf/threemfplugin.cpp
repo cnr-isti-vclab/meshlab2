@@ -231,7 +231,8 @@ public:
         int *mask,
         MeshIOMaterialSet *materials) const override
     {
-        return load(filename, mesh, cb, mask, materials, nullptr);
+        MeshIOLoadContext context;
+        return load(filename, mesh, cb, mask, materials, context);
     }
 
     int load(
@@ -240,7 +241,7 @@ public:
         vcg::CallBackPos *cb,
         int *mask,
         MeshIOMaterialSet *materials,
-        LengthUnit *outUnit) const override
+        MeshIOLoadContext &context) const override
     {
         if (mask)
             *mask = 0;
@@ -322,8 +323,7 @@ public:
             if (mask)
                 *mask = loadMask;
             // Every 3MF file has a unit: the one it declares, millimeters when it does not.
-            if (outUnit)
-                *outUnit = fromModelUnit(model->GetUnit());
+            context.unit = fromModelUnit(model->GetUnit());
             progress(cb, 100,
                 QObject::tr("Loaded %1 3MF mesh object(s).").arg(ctx.meshObjects));
             return Ok;

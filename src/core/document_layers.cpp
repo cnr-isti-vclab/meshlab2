@@ -386,6 +386,8 @@ void Document::clearAllLayers()
         m_unit = LengthUnit::Unknown;
         emit unitChanged();
     }
+    // And so is the origin.
+    setOrigin(std::nullopt);
 }
 
 QMatrix4x4 Document::meshTransform(int index) const
