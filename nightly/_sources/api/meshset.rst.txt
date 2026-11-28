@@ -104,10 +104,7 @@ Methods
 .. py:method:: MeshSet.load_new_mesh(...)
    :module: _meshlab
 
-   load_new_mesh(self, path: str, \\*\\*options) -> None
-   
-   Loads a mesh file as a new layer. Keyword arguments are the format's load options,
-   by id (STL: mergeDuplicateVertices=True); an unknown one or a bad value raises.
+   load_new_mesh(self, path: str) -> None
 
 .. py:method:: MeshSet.load_new_raster(...)
    :module: _meshlab
