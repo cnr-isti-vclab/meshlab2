@@ -75,6 +75,7 @@ private:
     bool m_dragging = false;
     SelectionElement m_element = SelectionElement::Face;
     bool m_visibleOnly = false; // faces and edges: keep only those not occluded from the viewpoint
+    bool m_touch = false;       // faces and edges: take any the region touches, not just centers
     // What the hit set grows to, the filter's expand_to. C and T each toggle their own
     // choice, so pressing one switches the other off.
     enum class Expansion { None, Components, UvIslands };

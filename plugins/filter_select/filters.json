@@ -484,6 +484,30 @@
       ]
     },
     {
+      "id": "remove_selected_edges",
+      "categories": [
+        "Meshing/Deletion"
+      ],
+      "name": "Remove Selected Edges",
+      "pythonName": "remove_selected_edges",
+      "shortDescription": "Delete the selected edges of a polyline, and the vertices they leave unused.",
+      "longDescriptionMarkdown": "Delete the selected polyline edges. An end of a removed edge is deleted too when no remaining edge or face uses it, so cutting a piece out of a polyline leaves no stray points; vertices that were already on their own are kept.\n\nThe sides of triangles are not edges here: a triangle mesh stores none.\n\nSelection tool shortcut, in edge mode: `X`.",
+      "tags": [
+        "selection",
+        "delete",
+        "edge"
+      ],
+      "inputDomain": "SingleMesh",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireEdges": true
+      },
+      "parameters": [],
+      "outputModifies": [
+        "VG"
+      ]
+    },
+    {
       "id": "remove_selected_faces_and_vertices",
       "categories": [
         "Meshing/Deletion"
@@ -1205,7 +1229,7 @@
       "name": "Select by Screen Polygon",
       "pythonName": "select_by_screen_polygon",
       "shortDescription": "Select vertices or faces whose screen projection falls inside a polygon.",
-      "longDescriptionMarkdown": "Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside it. Edges are both the edges of a polyline layer and the sides of triangles, whose selection is kept on each face they bound. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool's polygon mode (**P**), and is equally usable from scripting.\n\nEverything else -- *Composition*, *Visible faces only*, *Expand to* -- is as in *Select by Screen Rectangle*.",
+      "longDescriptionMarkdown": "Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside it. Edges are the edges of a polyline layer, selected in the 3D view; a triangle mesh stores no edges, so its sides are not selectable. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool's polygon mode (**P**), and is equally usable from scripting.\n\nEverything else -- *Composition*, *Touching*, *Visible faces only*, *Expand to* -- is as in *Select by Screen Rectangle*.",
       "tags": [
         "selection"
       ],
@@ -1280,7 +1304,7 @@
         {
           "id": "element",
           "label": "Elements",
-          "help": "Whether to select vertices, faces (by centroid) or edges (by midpoint): the edges of a polyline layer and the sides of triangles, which keep their selection on each face they bound.",
+          "help": "Whether to select vertices, faces (by centroid) or the edges of a polyline layer (by midpoint).",
           "group": "main",
           "type": "enum",
           "default": "face",
@@ -1322,9 +1346,17 @@
           ]
         },
         {
+          "id": "touch",
+          "label": "Touching",
+          "help": "Select every face or edge that any part of projects inside the region, not only those whose centroid or midpoint does. A face reaching behind the camera is judged by the part in front of it. Vertices are points, so this changes nothing for them.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
           "id": "visible_only",
           "label": "Visible faces only",
-          "help": "When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). Needs faces to occlude: a polyline layer alone is all visible.",
+          "help": "When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). With *Touching*, a face or edge counts as visible when its centroid, a corner or the midpoint of a side can be seen. Edges are hidden only by faces of the same layer: a polyline layer alone is all visible.",
           "group": "main",
           "type": "bool",
           "default": false
@@ -1355,8 +1387,7 @@
       "outputModifies": [
         "VS",
         "FS",
-        "ES",
-        "FES"
+        "ES"
       ]
     },
     {
@@ -1367,7 +1398,7 @@
       "name": "Select by Screen Rectangle",
       "pythonName": "select_by_screen_rectangle",
       "shortDescription": "Select vertices or faces whose screen projection falls inside a rectangle.",
-      "longDescriptionMarkdown": "Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside the rectangle. Edges are both the edges of a polyline layer and the sides of triangles, whose selection is kept on each face they bound. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.\n\n*Expand to* is what the rubber-band tool's **C** (connected components) and **T** (UV islands) modifiers set: the rectangle only has to graze a piece for all of it to be selected.",
+      "longDescriptionMarkdown": "Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside the rectangle. With *Touching*, a face or edge is selected when any part of it projects inside, not only its centroid or midpoint. Edges are the edges of a polyline layer, selected in the 3D view; a triangle mesh stores no edges, so its sides are not selectable. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.\n\n*Expand to* is what the rubber-band tool's **C** (connected components) and **T** (UV islands) modifiers set: the rectangle only has to graze a piece for all of it to be selected.",
       "tags": [
         "selection"
       ],
@@ -1466,7 +1497,7 @@
         {
           "id": "element",
           "label": "Elements",
-          "help": "Whether to select vertices, faces (by centroid) or edges (by midpoint): the edges of a polyline layer and the sides of triangles, which keep their selection on each face they bound.",
+          "help": "Whether to select vertices, faces (by centroid) or the edges of a polyline layer (by midpoint).",
           "group": "main",
           "type": "enum",
           "default": "face",
@@ -1508,9 +1539,17 @@
           ]
         },
         {
+          "id": "touch",
+          "label": "Touching",
+          "help": "Select every face or edge that any part of projects inside the region, not only those whose centroid or midpoint does. A face reaching behind the camera is judged by the part in front of it. Vertices are points, so this changes nothing for them.",
+          "group": "main",
+          "type": "bool",
+          "default": false
+        },
+        {
           "id": "visible_only",
           "label": "Visible faces only",
-          "help": "When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). Needs faces to occlude: a polyline layer alone is all visible.",
+          "help": "When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). With *Touching*, a face or edge counts as visible when its centroid, a corner or the midpoint of a side can be seen. Edges are hidden only by faces of the same layer: a polyline layer alone is all visible.",
           "group": "main",
           "type": "bool",
           "default": false
@@ -1541,8 +1580,7 @@
       "outputModifies": [
         "VS",
         "FS",
-        "ES",
-        "FES"
+        "ES"
       ]
     },
     {

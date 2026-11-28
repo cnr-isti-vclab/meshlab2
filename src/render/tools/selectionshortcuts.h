@@ -21,7 +21,8 @@
 //
 // Kept in a header of its own, free of any widget, so a test can run exactly what the tool
 // would send without a view to send it from.
-// What the selection tool picks. Edges are both kinds: polyline edges and triangle sides.
+// What the selection tool picks. Edges are the edges of a polyline layer: a triangle mesh
+// stores none.
 enum class SelectionElement { Face, Vertex, Edge };
 
 struct SelectionShortcut
@@ -37,10 +38,7 @@ inline std::optional<SelectionShortcut> selectionShortcutFor(int key, SelectionE
     const QString element = faces ? QStringLiteral("face")
                             : edges ? QStringLiteral("edge")
                                     : QStringLiteral("vertex");
-    // In edge mode every key but X reaches polyline edges only: the set-operation filters
-    // have no option for triangle sides. Deleting has no edge form at all.
-    if (edges && key == Qt::Key_X)
-        return std::nullopt;
+    // In edge mode every key runs the filters' edge option, or their edge counterpart.
     switch (key) {
     case Qt::Key_A:
         return SelectionShortcut{ QStringLiteral("select_all"),
@@ -65,9 +63,11 @@ inline std::optional<SelectionShortcut> selectionShortcutFor(int key, SelectionE
         // Deleting faces also removes the vertices that no face uses any more, and that
         // filter works the vertex set out for itself, so a stale vertex selection cannot
         // make it delete the wrong ones. Deleting vertices takes their faces with them.
+        // Deleting edges takes the ends no other edge or face uses.
         return SelectionShortcut{
-            faces ? QStringLiteral("remove_selected_faces_and_vertices")
-                  : QStringLiteral("remove_selected_vertices"),
+            faces   ? QStringLiteral("remove_selected_faces_and_vertices")
+            : edges ? QStringLiteral("remove_selected_edges")
+                    : QStringLiteral("remove_selected_vertices"),
             {} };
     default:
         return std::nullopt;

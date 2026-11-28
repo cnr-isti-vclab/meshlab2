@@ -11,7 +11,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
-#include <QPointF>
 #include <QMatrix4x4>
 #include <QVector3D>
 #include <QVector4D>
@@ -29,6 +28,7 @@
 #include <vcg/complex/algorithms/update/normal.h>
 #include <vcg/complex/algorithms/update/selection.h>
 #include <vcg/complex/algorithms/update/topology.h>
+#include <vcg/space/intersection2.h>
 #include <vcg/math/base.h>
 #include <vcg/space/colorspace.h>
 #include <vcg/space/fitting3.h>
@@ -57,6 +57,7 @@ constexpr QLatin1StringView kFilterDeleteSelectedVerts("remove_selected_vertices
 constexpr QLatin1StringView kFilterDeleteAllFaces("remove_all_faces");
 constexpr QLatin1StringView kFilterDeleteSelectedFaces("remove_selected_faces");
 constexpr QLatin1StringView kFilterDeleteSelectedFaceVerts("remove_selected_faces_and_vertices");
+constexpr QLatin1StringView kFilterDeleteSelectedEdges("remove_selected_edges");
 constexpr QLatin1StringView kFilterSelectErode("erode_selection");
 constexpr QLatin1StringView kFilterSelectDilate("dilate_selection");
 constexpr QLatin1StringView kFilterSelectBorder("select_border");
@@ -104,7 +105,7 @@ QString flagFacesOnTexels(const VCGMesh &mesh, const std::vector<int> &faceChart
 
 // The polygon of select_by_screen_polygon: a JSON array of [x, y] points in normalized screen
 // coordinates (origin bottom-left, y up), at least three, implicitly closed.
-bool parseScreenPolygon(const QString &text, std::vector<QPointF> &polygon, QString &error)
+bool parseScreenPolygon(const QString &text, std::vector<vcg::Point2d> &polygon, QString &error)
 {
     QJsonParseError parseError;
     const QJsonDocument doc = QJsonDocument::fromJson(text.toUtf8(), &parseError);
@@ -120,28 +121,13 @@ bool parseScreenPolygon(const QString &text, std::vector<QPointF> &polygon, QStr
             error = QObject::tr("every polygon point must be a pair of finite numbers.");
             return false;
         }
-        polygon.push_back(QPointF(point.at(0).toDouble(), point.at(1).toDouble()));
+        polygon.push_back(vcg::Point2d(point.at(0).toDouble(), point.at(1).toDouble()));
     }
     if (polygon.size() < 3) {
         error = QObject::tr("the polygon needs at least three points.");
         return false;
     }
     return true;
-}
-
-// Even-odd rule: a point is inside when a ray to the right of it crosses the outline an odd
-// number of times.
-bool pointInPolygon(const std::vector<QPointF> &polygon, double x, double y)
-{
-    bool inside = false;
-    for (std::size_t i = 0, j = polygon.size() - 1; i < polygon.size(); j = i++) {
-        const QPointF &a = polygon[i];
-        const QPointF &b = polygon[j];
-        if ((a.y() > y) != (b.y() > y)
-            && x < (b.x() - a.x()) * (y - a.y()) / (b.y() - a.y()) + a.x())
-            inside = !inside;
-    }
-    return inside;
 }
 
 // An edge cannot outlive either endpoint: the compaction every filter run ends with would
@@ -394,7 +380,7 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         // The region of the screen that selects, in normalized coordinates (origin
         // bottom-left, y up): the rectangle, or the polygon the lasso drew.
-        std::vector<QPointF> polygon;
+        std::vector<vcg::Point2d> polygon;
         if (filterId == QString::fromLatin1(kFilterSelectByPolygon)) {
             QString polygonError;
             if (!parseScreenPolygon(params.getString(QStringLiteral("polygon")), polygon, polygonError))
@@ -406,10 +392,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             const double y1 = params.getDouble(QStringLiteral("rect_max_y"));
             polygon = { {x0, y0}, {x1, y0}, {x1, y1}, {x0, y1} };
         }
-        double lox = polygon.front().x(), hix = lox, loy = polygon.front().y(), hiy = loy;
-        for (const QPointF &p : polygon) {
-            lox = std::min(lox, p.x()); hix = std::max(hix, p.x());
-            loy = std::min(loy, p.y()); hiy = std::max(hiy, p.y());
+        double lox = polygon.front().X(), hix = lox, loy = polygon.front().Y(), hiy = loy;
+        for (const vcg::Point2d &p : polygon) {
+            lox = std::min(lox, p.X()); hix = std::max(hix, p.X());
+            loy = std::min(loy, p.Y()); hiy = std::max(hiy, p.Y());
         }
         // A rectangle is its own bounding box; anything else is tested against the outline
         // (even-odd, so a lasso that crosses itself leaves the doubly-wound part out).
@@ -425,14 +411,52 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             const float sy = (clip.y() / clip.w()) * 0.5f + 0.5f;
             if (sx < lox || sx > hix || sy < loy || sy > hiy)
                 return false;
-            return boxOnly || pointInPolygon(polygon, sx, sy);
+            return boxOnly || vcg::PointInsidePolygonEvenOdd(vcg::Point2d(sx, sy), polygon);
+        };
+
+        // Touch: a face or an edge is taken when any part of it projects inside the region,
+        // not only its center. Its outline is clipped in front of the eye (clip w > 0) before
+        // the divide, so a face reaching behind the camera is judged by the part in view.
+        const bool touch = params.getBool(QStringLiteral("touch"));
+        const auto touches = [&](const vcg::Point3f *corners, int n) -> bool {
+            constexpr float kNearW = 1e-6f;
+            QVector4D clip[3];
+            for (int k = 0; k < n; ++k)
+                clip[k] = mvp * QVector4D(corners[k].X(), corners[k].Y(), corners[k].Z(), 1.0f);
+            thread_local std::vector<vcg::Point2d> outline;
+            outline.clear();
+            const auto add = [](const QVector4D &c) {
+                outline.push_back(vcg::Point2d((c.x() / c.w()) * 0.5 + 0.5, (c.y() / c.w()) * 0.5 + 0.5));
+            };
+            // Sutherland-Hodgman against the one plane. A segment is walked as a closed
+            // outline of two whose second side is the first reversed, so it crosses once.
+            for (int k = 0; k < n; ++k) {
+                const QVector4D &a = clip[k];
+                const QVector4D &b = clip[(k + 1) % n];
+                if (a.w() > kNearW)
+                    add(a);
+                if ((a.w() > kNearW) != (b.w() > kNearW) && (n > 2 || k == 0))
+                    add(a + (b - a) * ((kNearW - a.w()) / (b.w() - a.w())));
+            }
+            if (outline.empty())
+                return false;
+            // The region's box rejects most elements before the exact test, which would
+            // otherwise walk a long lasso for every face of the mesh.
+            double ox0 = outline[0].X(), ox1 = ox0, oy0 = outline[0].Y(), oy1 = oy0;
+            for (const vcg::Point2d &q : outline) {
+                ox0 = std::min(ox0, q.X()); ox1 = std::max(ox1, q.X());
+                oy0 = std::min(oy0, q.Y()); oy1 = std::max(oy1, q.Y());
+            }
+            if (ox1 < lox || ox0 > hix || oy1 < loy || oy0 > hiy)
+                return false;
+            return vcg::PolygonPolygonIntersect2D(outline, polygon);
         };
 
         const QString element = params.getEnum(QStringLiteral("element"));
         const QString mode = params.getEnum(QStringLiteral("mode"));
-        // An edge is taken by its midpoint, as a face is by its barycenter: a polyline edge
-        // sets its own bit, a triangle side the face-edge bit of each face it bounds. Both
-        // faces test the same midpoint, so they agree without any adjacency.
+        // Edges are the edges of a polyline, each taken by its midpoint as a face is by its
+        // barycenter. The sides of a triangle are not edges here: a triangle mesh stores no
+        // edges, and selection works on the elements a layer has.
         const bool doEdges = (element == QStringLiteral("edge"));
         const bool doFaces = (element == QStringLiteral("face"));
 
@@ -442,7 +466,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         // along the view direction instead). The occlusion query is
         // delegated to ViewpointOccluder (embree when built, vcglib grid otherwise),
         // cached by geometryRevision so repeated drags reuse it. 3D, faces and edges (by
-        // their midpoint); a polyline alone has nothing to hide behind.
+        // their midpoint): a polyline is hidden only by faces of its own layer, and a
+        // polyline alone has nothing to hide behind.
         const bool visibleOnly =
             params.getBool(QStringLiteral("visible_only")) && !uvSpace && (doFaces || doEdges)
             && mesh.FN() > 0;
@@ -453,12 +478,34 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
 
         if (doFaces && mesh.FN() <= 0)
             return fail(QObject::tr("Current mesh has no faces."));
-        if (doEdges && mesh.FN() <= 0 && mesh.EN() <= 0)
+        if (doEdges && mesh.EN() <= 0)
             return fail(QObject::tr("Current mesh has no edges."));
+        if (doEdges && uvSpace)
+            return fail(QObject::tr("Edges have no UV coordinates: select them in the 3D view."));
         const auto hidden = [&](const vcg::Point3f &p) {
             return visibleOnly
                 && (orthographicView ? occluder->isOccludedAlong(p, towardViewerLocal)
                                      : occluder->isOccluded(p, eyeLocal));
+        };
+        // Whether the region takes a face (three corners) or an edge (two). By default its
+        // center must project inside, and be in sight. Touching, any part will do, and it is
+        // in sight when its center, a corner or the midpoint of a side is: one ray cannot
+        // tell whether the part inside the region is the part that shows.
+        const auto hitBy = [&](const vcg::Point3f *corners, int n) {
+            vcg::Point3f center(0, 0, 0);
+            for (int k = 0; k < n; ++k)
+                center += corners[k];
+            center /= float(n);
+            if (!touch)
+                return inRect(center.X(), center.Y(), center.Z()) && !hidden(center);
+            if (!touches(corners, n))
+                return false;
+            if (!visibleOnly || !hidden(center))
+                return true;
+            for (int k = 0; k < n; ++k)
+                if (!hidden(corners[k]) || (n > 2 && !hidden((corners[k] + corners[(k + 1) % n]) * 0.5f)))
+                    return true;
+            return false;
         };
 
         // "Expand to": grow what the rectangle touched to the whole connected component, or
@@ -494,23 +541,12 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         if (expandComponents || mode == QStringLiteral("replace")) {
             if (doEdges) {
                 Sel::EdgeClear(mesh);
-                vcg::tri::UpdateFlags<VCGMesh>::FaceClearFaceEdgeS(mesh);
             } else if (doFaces) {
                 Sel::FaceClear(mesh);
             } else {
                 Sel::VertexClear(mesh);
             }
         }
-        // One selection bit hit by the region: set it, or clear it when subtracting. Returns
-        // 1 if it changed.
-        const auto mark = [subtract](bool selected, auto &&set, auto &&clear) {
-            if (subtract == selected) {
-                subtract ? clear() : set();
-                return 1;
-            }
-            return 0;
-        };
-
         QElapsedTimer timer;
         timer.start();
         unsigned nThreads = 1;
@@ -529,17 +565,10 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                     || !vcgFaceCornerUV(ioMask, f, 1, u[1], v[1])
                     || !vcgFaceCornerUV(ioMask, f, 2, u[2], v[2]))
                     continue;
-                if (doEdges) {
-                    for (int c = 0; c < 3; ++c) {
-                        const int d = (c + 1) % 3;
-                        if (inRect(0.5f * (u[c] + u[d]), 0.5f * (v[c] + v[d]), 0.0f))
-                            changed += mark(f.IsFaceEdgeS(c), [&] { f.SetFaceEdgeS(c); },
-                                            [&] { f.ClearFaceEdgeS(c); });
-                    }
-                } else if (doFaces) {
-                    const float cu = (u[0] + u[1] + u[2]) / 3.0f;
-                    const float cv = (v[0] + v[1] + v[2]) / 3.0f;
-                    if (!inRect(cu, cv, 0.0f))
+                if (doFaces) {
+                    const vcg::Point3f corners[3] = { { u[0], v[0], 0.0f }, { u[1], v[1], 0.0f },
+                                                      { u[2], v[2], 0.0f } };
+                    if (!hitBy(corners, 3))
                         continue;
                     if (subtract) {
                         if (f.IsS()) { f.ClearS(); ++changed; }
@@ -564,27 +593,13 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
             // BitFlags (a fixed per-element component), so ranges need no locking.
             auto worker = [&](std::size_t lo, std::size_t hi) -> int {
                 int local = 0;
-                if (doEdges) {
+                if (doFaces) {
                     for (std::size_t i = lo; i < hi; ++i) {
                         VCGFace &f = mesh.face[i];
                         if (f.IsD())
                             continue;
-                        for (int c = 0; c < 3; ++c) {
-                            const vcg::Point3f m = (f.cP(c) + f.cP((c + 1) % 3)) * 0.5f;
-                            if (inRect(m.X(), m.Y(), m.Z()) && !hidden(m))
-                                local += mark(f.IsFaceEdgeS(c), [&] { f.SetFaceEdgeS(c); },
-                                              [&] { f.ClearFaceEdgeS(c); });
-                        }
-                    }
-                } else if (doFaces) {
-                    for (std::size_t i = lo; i < hi; ++i) {
-                        VCGFace &f = mesh.face[i];
-                        if (f.IsD())
-                            continue;
-                        const vcg::Point3f b = vcg::Barycenter(f);
-                        if (!inRect(b.X(), b.Y(), b.Z()))
-                            continue;
-                        if (hidden(b))
+                        const vcg::Point3f corners[3] = { f.cP(0), f.cP(1), f.cP(2) };
+                        if (!hitBy(corners, 3))
                             continue;
                         if (subtract) {
                             if (f.IsS()) { f.ClearS(); ++local; }
@@ -610,7 +625,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                 return local;
             };
 
-            const std::size_t elemCount = (doFaces || doEdges) ? mesh.face.size() : mesh.vert.size();
+            // Polylines are small next to faces and vertices: their edges take one pass below.
+            const std::size_t elemCount = doEdges ? 0 : doFaces ? mesh.face.size() : mesh.vert.size();
             nThreads = std::max(1u, std::thread::hardware_concurrency());
             if (elemCount < 200000)
                 nThreads = 1; // thread setup isn't worth it below this size
@@ -633,14 +649,18 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
                 for (int c : counts)
                     changed += c;
             }
-            // Polylines are small next to the faces, so their edges take one pass here.
             if (doEdges) {
                 for (VCGEdge &e : mesh.edge) {
                     if (e.IsD())
                         continue;
-                    const vcg::Point3f m = (e.cP(0) + e.cP(1)) * 0.5f;
-                    if (inRect(m.X(), m.Y(), m.Z()) && !hidden(m))
-                        changed += mark(e.IsS(), [&] { e.SetS(); }, [&] { e.ClearS(); });
+                    const vcg::Point3f ends[2] = { e.cP(0), e.cP(1) };
+                    if (!hitBy(ends, 2))
+                        continue;
+                    if (subtract) {
+                        if (e.IsS()) { e.ClearS(); ++changed; }
+                    } else if (!e.IsS()) {
+                        e.SetS(); ++changed;
+                    }
                 }
             }
         }
@@ -690,10 +710,8 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         }
 
         const qint64 elapsedMs = timer.elapsed();
-        // A triangle side is stored on each face it bounds, so for edges both figures count
-        // an interior side twice.
-        const int total = doEdges ? mesh.EN() + 3 * mesh.FN() : doFaces ? mesh.FN() : mesh.VN();
-        const QString elementName = doEdges ? QObject::tr("edges (triangle sides once per face)")
+        const int total = doEdges ? mesh.EN() : doFaces ? mesh.FN() : mesh.VN();
+        const QString elementName = doEdges ? QObject::tr("edges")
             : doFaces ? QObject::tr("faces") : QObject::tr("vertices");
         QStringList messages = {
             QObject::tr("Rectangle %1: %2 %3 affected.")
@@ -1082,6 +1100,54 @@ MeshFilterRunResult SelectFilterPlugin::runFilter(
         result.infoMessages = {
             QObject::tr("Deleted %1 faces.")
                 .arg(beforeF - mesh.FN())
+        };
+        return result;
+    }
+
+    if (filterId == QString::fromLatin1(kFilterDeleteSelectedEdges)) {
+        if (Sel::EdgeCount(mesh) == 0) {
+            MeshFilterRunResult result;
+            result.success = true;
+            result.documentModified = false;
+            result.infoMessages = { QObject::tr("Nothing done: no edges selected.") };
+            return result;
+        }
+
+        // An end of a removed edge goes with it when nothing else uses it any more, so a
+        // polyline is not left with stray points. Vertices that were already on their own,
+        // the points of a mixed layer, are not this filter's business and stay.
+        const int beforeV = mesh.VN();
+        const int beforeE = mesh.EN();
+        std::vector<char> orphaned(mesh.vert.size(), 0);
+        for (VCGEdge &e : mesh.edge) {
+            if (e.IsD() || !e.IsS())
+                continue;
+            orphaned[vcg::tri::Index(mesh, e.V(0))] = 1;
+            orphaned[vcg::tri::Index(mesh, e.V(1))] = 1;
+            vcg::tri::Allocator<VCGMesh>::DeleteEdge(mesh, e);
+        }
+        for (const VCGEdge &e : mesh.edge)
+            if (!e.IsD())
+                orphaned[vcg::tri::Index(mesh, e.cV(0))] = orphaned[vcg::tri::Index(mesh, e.cV(1))] = 0;
+        for (const VCGFace &f : mesh.face)
+            if (!f.IsD())
+                for (int k = 0; k < 3; ++k)
+                    orphaned[vcg::tri::Index(mesh, f.cV(k))] = 0;
+        for (std::size_t i = 0; i < mesh.vert.size(); ++i)
+            if (orphaned[i] && !mesh.vert[i].IsD())
+                vcg::tri::Allocator<VCGMesh>::DeleteVertex(mesh, mesh.vert[i]);
+        updateGeometryAfterDeletion(mesh);
+        doc.markMeshGeometryChanged(
+            meshIndex,
+            QObject::tr("Deleted selected edges from '%1'.").arg(entry.name));
+
+        MeshFilterRunResult result;
+        result.success = true;
+        result.documentModified = true;
+        result.infoMessages = {
+            QObject::tr("Deleted %1 edges, %2 vertices.")
+                .arg(beforeE - mesh.EN())
+                .arg(beforeV - mesh.VN())
         };
         return result;
     }

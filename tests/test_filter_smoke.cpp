@@ -344,6 +344,7 @@ const QHash<QString, QString> &expectedRefusals()
     static const QHash<QString, QString> table = {
 
         // Needs a mesh shape the ladder does not build.
+        {QStringLiteral("remove_selected_edges"),                          QStringLiteral("needs selected edges, and the polyline rung has none (FilterTests::screenSelectionTakesEdgesByTheirMidpoint drives it)")},
         {QStringLiteral("create_polyline_from_self_intersections_trueform"), QStringLiteral("needs a self-intersecting mesh")},
         {QStringLiteral("close_holes_trueform"), QStringLiteral("needs a hole: the open rung's only rim is the sheet's own 44-edge outline, which the 30-edge default leaves alone by design (FilterTests::trueFormCloseHolesSealsInPlace drives it)")},
         {QStringLiteral("set_texture_from_file"),                          QStringLiteral("needs an image file to load (FilterTests::setTextureAcceptsPerVertexTexCoords writes one and drives it)")},

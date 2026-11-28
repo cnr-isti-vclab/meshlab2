@@ -103,8 +103,11 @@ std::vector<ToolControl> RubberBandSelectTool::controls() const
         { QStringLiteral("vertices"), Kind::Toggle, QObject::tr("Vertices"),
           QObject::tr("Select vertices"), { Qt::Key_V }, QStringLiteral("element") },
         { QStringLiteral("edges"), Kind::Toggle, QObject::tr("Edges"),
-          QObject::tr("Select edges, by their midpoint: the edges of a polyline and the sides of "
-                      "triangles"), { Qt::Key_E }, QStringLiteral("element") },
+          QObject::tr("Select the edges of a polyline, by their midpoint"),
+          { Qt::Key_E }, QStringLiteral("element") },
+        { QStringLiteral("touch"), Kind::Toggle, QObject::tr("Touching"),
+          QObject::tr("Select every face or edge the region touches, not only those whose center "
+                      "is inside"), { Qt::Key_O }, QStringLiteral("options") },
         { QStringLiteral("visible"), Kind::Toggle, QObject::tr("Visible Only"),
           QObject::tr("Select only the faces or edges in sight, not those hidden behind others"),
           { Qt::Key_B }, QStringLiteral("options") },
@@ -144,6 +147,8 @@ bool RubberBandSelectTool::isControlChecked(const QString &id) const
         return m_element == SelectionElement::Edge;
     if (id == QLatin1String("visible"))
         return m_visibleOnly && m_element != SelectionElement::Vertex;
+    if (id == QLatin1String("touch"))
+        return m_touch && m_element != SelectionElement::Vertex;
     if (id == QLatin1String("components"))
         return m_expansion == Expansion::Components;
     if (id == QLatin1String("islands"))
@@ -155,14 +160,15 @@ bool RubberBandSelectTool::isControlChecked(const QString &id) const
 
 bool RubberBandSelectTool::isControlEnabled(const QString &id) const
 {
-    // Occlusion applies to faces and edges; growth to faces and vertices.
-    if (id == QLatin1String("visible"))
+    // Occlusion and touching apply to faces and edges, which have an extent; growth to
+    // faces and vertices.
+    if (id == QLatin1String("visible") || id == QLatin1String("touch"))
         return m_element != SelectionElement::Vertex;
     if (id == QLatin1String("components") || id == QLatin1String("islands"))
         return m_element != SelectionElement::Edge;
     // The selection must not change underneath an outline that is still being drawn. An
     // editing action is there only if it has a form for this kind of element; with edges,
-    // only on a layer with polyline edges, since triangle sides have none.
+    // only on a layer that has some.
     for (const ToolControl &control : controls()) {
         if (control.id != id || control.kind != ToolControl::Kind::Action)
             continue;
@@ -194,6 +200,10 @@ void RubberBandSelectTool::triggerControl(const QString &id, Qt::KeyboardModifie
     } else if (id == QLatin1String("edges")) {
         m_element = SelectionElement::Edge;
         log(QObject::tr("Rubber-band: selecting edges"));
+    } else if (id == QLatin1String("touch")) {
+        m_touch = !m_touch;
+        log(m_touch ? QObject::tr("Rubber-band: every face and edge the region touches")
+                    : QObject::tr("Rubber-band: faces and edges whose center is inside"));
     } else if (id == QLatin1String("visible")) {
         m_visibleOnly = !m_visibleOnly;
         log(m_visibleOnly ? QObject::tr("Rubber-band: visible (non-occluded) faces and edges only")
@@ -527,6 +537,7 @@ void RubberBandSelectTool::commitSelection(const QString &filterId, QVariantMap 
         : m_element == SelectionElement::Edge ? QStringLiteral("edge") : QStringLiteral("vertex");
     params[QStringLiteral("mode")] = mode;
     params[QStringLiteral("visible_only")] = m_visibleOnly;
+    params[QStringLiteral("touch")] = m_touch;
     params[QStringLiteral("expand_to")] = m_element == SelectionElement::Edge ? QStringLiteral("none")
         : m_expansion == Expansion::Components ? QStringLiteral("connected_components")
         : m_expansion == Expansion::UvIslands ? QStringLiteral("uv_islands")
