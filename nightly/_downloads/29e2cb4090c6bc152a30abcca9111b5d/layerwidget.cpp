@@ -2985,6 +2985,14 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
         m_doc->setCurrentMeshIndex(index);
         emit reloadMeshRequested();
     });
+    // Only for a layer read from a file whose format has load options.
+    const QString sourcePath = m_doc->mesh(index).sourcePath;
+    if (!sourcePath.isEmpty() && !m_doc->loadParameters(sourcePath).empty()) {
+        connect(menu.addAction(tr("Reload with Options...")), &QAction::triggered, this, [this, index] {
+            m_doc->setCurrentMeshIndex(index);
+            emit reloadMeshWithOptionsRequested();
+        });
+    }
     menu.addSeparator();
 
     if (const Document::FilterInfo *info = filterById(placed[2]))

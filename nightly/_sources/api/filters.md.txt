@@ -2,7 +2,7 @@
 
 # Filters
 
-This reference contains all 428 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
+This reference contains all 430 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a `MeshSet` object, for example `ms.apply_filter("remove_duplicate_vertices", ...)`, or using the dynamically-bound snake_case name: `ms.remove_duplicate_vertices(...)`.
 
 A combined bibliography for cited algorithms is available as {download}`BibTeX <references.bib>`.
 
@@ -2290,6 +2290,46 @@ Unsharp masking exaggerates local variation by adding back the difference betwee
 - **weight** (*double*, default: `0.3`) — Unsharp weight applied to the high-frequency quality component.
 - **weightOrig** (*double*, default: `1.0`) — Weight of the original quality signal.
 - **iterations** (*int*, default: `5`) — Number of Laplacian smoothing iterations used to build the low-pass quality signal.
+```
+
+---
+
+(filter-smooth-edge-scalar)=
+
+## Smooth Edge Scalar
+
+**Categories:** `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.unsharp
+
+Laplacian smoothing of edge scalar values.
+
+```{py:function} ms.smooth_edge_scalar(**params)
+:module: _meshlab
+
+Laplacian smooth of the scalar per edge of a **polyline layer**: each edge takes the average of its own value and those of the edges sharing a vertex with it. Apply it several times for a stronger smoothing.
+
+This filter has no parameters.
+```
+
+---
+
+(filter-smooth-face-scalar)=
+
+## Smooth Face Scalar
+
+**Categories:** `Attribute/Scalar`
+
+**Plugin:** meshlab2.filter.unsharp
+
+Laplacian smoothing of face scalar values.
+
+```{py:function} ms.smooth_face_scalar(**params)
+:module: _meshlab
+
+Laplacian smooth of the scalar per face: each face takes the average of its own value and those of the faces sharing an edge with it. Apply it several times for a stronger smoothing.
+
+This filter has no parameters.
 ```
 
 ---

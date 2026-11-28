@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 428 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 430 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="filter-add-noise-to-vertex-color">
 <span id="add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#filter-add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -2079,6 +2079,34 @@ Insert three function each one for quality of the three vertex of a face</p>
 <li><p><strong>weightOrig</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Weight of the original quality signal.</p></li>
 <li><p><strong>iterations</strong> (<em>int</em>, default: <code class="docutils literal notranslate"><span class="pre">5</span></code>) — Number of Laplacian smoothing iterations used to build the low-pass quality signal.</p></li>
 </ul>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-smooth-edge-scalar">
+<span id="smooth-edge-scalar"></span><h2>Smooth Edge Scalar<a class="headerlink" href="#filter-smooth-edge-scalar" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.unsharp</p>
+<p>Laplacian smoothing of edge scalar values.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.smooth_edge_scalar">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_edge_scalar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.smooth_edge_scalar" title="Link to this definition">¶</a></dt>
+<dd><p>Laplacian smooth of the scalar per edge of a <strong>polyline layer</strong>: each edge takes the average of its own value and those of the edges sharing a vertex with it. Apply it several times for a stronger smoothing.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
+<section id="filter-smooth-face-scalar">
+<span id="smooth-face-scalar"></span><h2>Smooth Face Scalar<a class="headerlink" href="#filter-smooth-face-scalar" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Attribute/Scalar</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.unsharp</p>
+<p>Laplacian smoothing of face scalar values.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.smooth_face_scalar">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">smooth_face_scalar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.smooth_face_scalar" title="Link to this definition">¶</a></dt>
+<dd><p>Laplacian smooth of the scalar per face: each face takes the average of its own value and those of the faces sharing an edge with it. Apply it several times for a stronger smoothing.</p>
+<p>This filter has no parameters.</p>
 </dd></dl>
 
 <hr class="docutils" />
@@ -10444,6 +10472,14 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-sharpen-vertex-scalar-by-unsharp-mask">Sharpen Vertex Scalar by Unsharp Mask</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.sharpen_vertex_scalar_by_unsharp_mask"><code class="docutils literal notranslate"><span class="pre">ms.sharpen_vertex_scalar_by_unsharp_mask()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-smooth-edge-scalar">Smooth Edge Scalar</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.smooth_edge_scalar"><code class="docutils literal notranslate"><span class="pre">ms.smooth_edge_scalar()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-smooth-face-scalar">Smooth Face Scalar</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.smooth_face_scalar"><code class="docutils literal notranslate"><span class="pre">ms.smooth_face_scalar()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-smooth-vertex-scalar">Smooth Vertex Scalar</a><ul>
