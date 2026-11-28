@@ -18,7 +18,7 @@ for flattening a scene).
 |---|---|---|
 | 0 | LightUSD as a submodule; read and write the stage-0 fixtures; check against OpenUSD | done 2026-11-27 (§3.1): go; `external/lightusd` at v1.0.0 |
 | 1 | `io_usd`: flattened import, single-layer export, four material channels, units and up axis | done 2026-11-27 (§4.4), with the departures from the plan listed there |
-| 2 | Scene I/O: export visible layers to one file, import as separate layers | interface approved 2026-11-28; cameras left out (5.3) |
+| 2 | Scene I/O: export visible layers to one file, import as separate layers | done 2026-11-28 (5.5); cameras left out (5.3) |
 | 3 | The material model, extended once for USD and glTF | not started; needs its own mapping table |
 
 ## 1. What USD asks of MeshLab
@@ -305,6 +305,50 @@ Considered and not proposed: X3D/VRML and COLLADA (scene graphs, but superseded 
 inconsistent across tools), FBX (writing needs Autodesk's proprietary SDK; a ufbx-based import
 is possible), OBJ (named objects but no transforms). Bundler, NVM, COLMAP and Agisoft camera
 files are photo alignments rather than scenes: an import of rasters onto existing layers.
+
+### 5.5 As implemented (2026-11-28)
+
+**Interface** (`src/plugins/meshioplugin.h`): `holdsScenes(filename)`, `loadScene(filename,
+layers, cb, context)` filling `MeshIOSceneLayer`s (mesh, load mask, material set, matrix,
+label, visibility), and `saveScene(filename, views, options, cb)` taking
+`MeshIOSceneLayerView`s (mesh, mask, matrix, label, texture context). **Document**:
+`importLayers(filename, error, options)` and `exportVisibleLayers(filename, error)`, *File >
+Import Layers...* and *File > Export Visible Layers...* (offered for the formats whose plugin
+holds scenes), Python `ms.import_layers(path, **options)` and `ms.export_visible_layers(path)`.
+An import is one undo step, recorded as `import_layers` with its load options; an export changes
+no layer and no layer's file.
+
+**Import.** Each `Mesh`, `Points` and `BasisCurves` prim is a layer in the prim's own
+coordinates; its world transform is the layer matrix, its `displayName` (or name) the label;
+an invisible prim is a hidden layer. Curves come from Tydra's tessellation, one polyline per
+curve, its vertices shared; a polyline whose last point repeats its first closes on it. The
+`rotateYUpToZUp` option turns a Y-up stage by a rotation in front of every layer matrix, the
+coordinates untouched. Plain *Open* flattens as before, now with curve prims as edges too.
+
+**Export.** Each visible layer is a prim under `/World`, named from its label and unique,
+with the label as `displayName` and the matrix as `xformOp:transform`, not baked. A layer with
+faces is a `Mesh`, without a `Points`; its edges are linear `BasisCurves` beside it (alone for a
+polyline), one curve per chain of `Clean::EdgeMeshChains`, so a polyline's vertices stay shared
+when read back. Materials of every layer go under `/World/Looks`; a texture file or image used
+by several layers is written once. A one-layer *Save* goes through the same writer, without a
+transform or `displayName`, and now writes edges too (stage 1 dropped them).
+
+**Shared with load and save** (the table approved before the move): `Document::prepareImportedMesh`
+and `logImportedMesh` are the post-import steps of `loadMesh`, `reloadMesh` and `importLayers`
+(reload used to skip registering the PBR channel textures, so a reloaded layer lost its normal,
+occlusion and roughness maps); `texturesToSave` and `maskToSave` the save preparation of
+`saveMesh` and `exportVisibleLayers`; `Document::CallbackScope` the progress-callback setup
+each of them repeated.
+
+**Not done**: cameras (5.3); provenance of an imported layer (5.3); per-layer up axis (a Z-up
+stage read as it is comes back declared Y-up); a branching polyline (a vertex of degree 3 or
+more) comes back with that vertex once per chain; the mirrored-matrix winding that the
+flattened import reverses is left to the layer matrix.
+
+**Measured**: `usdScenesRoundTripVisibleLayers` (usda, usdc, usdz: three visible layers and a
+hidden one; labels, matrices, local coordinates, a polyline and a closed loop back, one undo
+step, the flattened Open placing each prim, a polyline saved alone keeping its edges);
+`reloadKeepsMaterialChannelTextures`.
 
 ## 6. Stage 3: the material model
 

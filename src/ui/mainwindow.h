@@ -67,6 +67,8 @@ private slots:
     void openRasterImage();
     void reloadCurrentMesh();
     void reloadCurrentMeshWithOptions();
+    void importLayers();
+    void exportVisibleLayers();
     void reloadAllMeshes();
     void undo();
     void redo();

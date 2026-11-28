@@ -5,10 +5,12 @@
 #include "vcgmesh.h"
 #include <vcg/math/shot.h>
 #include <QImage>
+#include <QMatrix4x4>
 #include <QString>
 #include <QStringList>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -127,6 +129,33 @@ inline bool isFarFromZero(const vcg::Box3d &box)
     return std::nextafter(centre, std::numeric_limits<float>::infinity()) - centre > 1e-6 * box.Diag();
 }
 
+// One layer of a scene file (MeshIOPlugin::holdsScenes), as loadScene gives it: its mesh in
+// the coordinates of its own prim or node, and the matrix that places it, which becomes the
+// layer matrix. Wedge texture coordinates are enabled on mesh; the Document disables them
+// when loadMask says there are none.
+struct MeshIOSceneLayer
+{
+    std::unique_ptr<VCGMesh> mesh = std::make_unique<VCGMesh>();
+    int loadMask = 0;
+    MeshIOMaterialSet materialSet;
+    QMatrix4x4 transform;
+    QString label;
+    bool visible = true;
+};
+
+struct MeshIOTextureContext;
+
+// One layer handed to saveScene: its mesh, what of it to write (mask), the matrix that places
+// it, written as the prim's transform rather than baked, its label, and its textures.
+struct MeshIOSceneLayerView
+{
+    VCGMesh *mesh = nullptr;
+    int mask = 0;
+    QMatrix4x4 transform;
+    QString label;
+    const MeshIOTextureContext *textures = nullptr;
+};
+
 // The load option of the formats that declare an up axis (USD, glTF): MeshLab keeps a file's
 // own frame, so a Y-up file is read as it is unless the user asks to turn it Z-up. Not the
 // default and never automatic; when applied, the log says so (docs/design/data_model.md,
@@ -242,6 +271,37 @@ public:
     {
         (void) filename;
         return {};
+    }
+
+    // Whether the format holds a scene: several layers, each with its matrix and label, which
+    // loadScene reads as layers and saveScene writes from them (docs/design/proposals/
+    // usd_support.md §5). load() and save() still read and write one mesh, the scene flattened.
+    virtual bool holdsScenes(const QString &filename) const
+    {
+        (void) filename;
+        return false;
+    }
+    // Reads every mesh, point cloud and polyline of the scene as a layer of its own. options and
+    // messages travel in context as for load(). Returns 0 or an error code for errorString().
+    virtual int loadScene(const QString &filename, std::vector<MeshIOSceneLayer> &layers,
+        vcg::CallBackPos *cb, MeshIOLoadContext &context) const
+    {
+        (void) filename;
+        (void) layers;
+        (void) cb;
+        (void) context;
+        return -1;
+    }
+    // Writes the layers as one scene file; options give the unit and the origin, the masks
+    // are per layer.
+    virtual int saveScene(const QString &filename, const std::vector<MeshIOSceneLayerView> &layers,
+        const MeshIOSaveOptions &options, vcg::CallBackPos *cb) const
+    {
+        (void) filename;
+        (void) layers;
+        (void) options;
+        (void) cb;
+        return -1;
     }
 
     // Whether the format's coordinates are true, georeferenced ones (E57): it subtracts the

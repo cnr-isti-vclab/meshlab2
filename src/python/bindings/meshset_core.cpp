@@ -265,6 +265,20 @@ void MeshSetCore::loadNewMesh(const std::string &path, const nb::dict &options)
         throw std::runtime_error("Failed to load mesh: " + path + (error.isEmpty() ? "" : ": " + toStdString(error)));
 }
 
+void MeshSetCore::importLayers(const std::string &path, const nb::dict &options)
+{
+    QString error;
+    if (m_document->importLayers(toQString(path), &error, pythonDictToFilterParams(options)) != 0)
+        throw std::runtime_error("Failed to import layers: " + path + (error.isEmpty() ? "" : ": " + toStdString(error)));
+}
+
+void MeshSetCore::exportVisibleLayers(const std::string &path)
+{
+    QString error;
+    if (m_document->exportVisibleLayers(toQString(path), &error) != 0)
+        throw std::runtime_error("Failed to export layers: " + path + (error.isEmpty() ? "" : ": " + toStdString(error)));
+}
+
 void MeshSetCore::saveCurrentMesh(const std::string &path)
 {
     const int err = m_document->saveCurrentMesh(toQString(path));

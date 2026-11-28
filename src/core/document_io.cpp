@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 
 using namespace DocumentInternal;
 
@@ -152,6 +153,21 @@ void Document::setPreferredImportPluginForExtension(const QString &extension, co
     if (!m_pluginManager)
         return;
     m_pluginManager->setPreferredPluginForExtension(extension, pluginId);
+}
+
+Document::CallbackScope::CallbackScope(Document &doc, CallbackMode mode)
+    : m_doc(doc), m_previousDocument(g_callbackDocument), m_previousMode(doc.m_callbackMode)
+{
+    doc.m_callbackMode = mode;
+    doc.m_cancelRequested.store(false, std::memory_order_relaxed);
+    g_callbackDocument = &doc;
+}
+
+Document::CallbackScope::~CallbackScope()
+{
+    g_callbackDocument = m_previousDocument;
+    m_doc.m_callbackMode = m_previousMode;
+    m_doc.clearProgressLog();
 }
 
 std::vector<MeshFilterParameterDescriptor> Document::loadParameters(const QString &filename) const
@@ -394,11 +410,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     emit loadProgressStarted(filename);
     emit loadProgressUpdated(0, tr("Opening %1").arg(QFileInfo(filename).fileName()));
 
-    Document *previousCallbackDocument = g_callbackDocument;
-    const CallbackMode previousCallbackMode = m_callbackMode;
-    m_callbackMode = CallbackMode::Load;
-    m_cancelRequested.store(false, std::memory_order_relaxed);
-    g_callbackDocument = this;
+    std::optional<CallbackScope> callbacks(std::in_place, *this, CallbackMode::Load);
     int loadMask = 0;
     MeshIOMaterialSet loadedMaterialSet;
     MeshIOLoadContext loadContext = this->loadContext();
@@ -410,9 +422,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     // Disable storable OCF fields that the importer did not actually populate.
     if (!(loadMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD))  entry->mesh.vert.DisableTexCoord();
     if (!(loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))  entry->mesh.face.DisableWedgeTexCoord();
-    g_callbackDocument = previousCallbackDocument;
-    m_callbackMode = previousCallbackMode;
-    clearProgressLog();
+    callbacks.reset();
     const qint64 importElapsedMs = loadTimer.elapsed();
 
     if (err != 0 && plugin->isLoadErrorCritical(filename, err)) {
@@ -460,7 +470,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
         .arg(meshEntry.mesh.EN()),
         LogSource::Application);
     logLoadContext(loadContext, *plugin, filename);
-    adoptFileUnit(loadContext.unit, filename);
+    adoptFileUnit(loadContext.unit, filename, meshCount() == 1);
     if (elapsedMs >= 250) {
         writeLog(tr("Load timing '%1': import %2 ms, post %3 ms")
                 .arg(meshEntry.name)
@@ -582,11 +592,7 @@ int Document::reloadMesh(int index, const MeshFilterParameterValues *options, QS
     // Read into a layer of its own first: the live one is replaced only once it all worked.
     MeshEntry staged;
     VCGMesh &reloadedMesh = staged.mesh;
-    Document *previousCallbackDocument = g_callbackDocument;
-    const CallbackMode previousCallbackMode = m_callbackMode;
-    m_callbackMode = CallbackMode::Load;
-    m_cancelRequested.store(false, std::memory_order_relaxed);
-    g_callbackDocument = this;
+    std::optional<CallbackScope> callbacks(std::in_place, *this, CallbackMode::Load);
     int loadMask = 0;
     MeshIOMaterialSet loadedMaterialSet;
     // Pre-enable storable OCF fields so the importer can write into them.
@@ -598,9 +604,7 @@ int Document::reloadMesh(int index, const MeshFilterParameterValues *options, QS
     // Disable storable OCF fields that the importer did not actually populate.
     if (!(loadMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD))  reloadedMesh.vert.DisableTexCoord();
     if (!(loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))  reloadedMesh.face.DisableWedgeTexCoord();
-    g_callbackDocument = previousCallbackDocument;
-    m_callbackMode = previousCallbackMode;
-    clearProgressLog();
+    callbacks.reset();
     const qint64 importElapsedMs = loadTimer.elapsed();
 
     if (err != 0 && plugin->isLoadErrorCritical(sourcePath, err)) {
@@ -673,7 +677,7 @@ int Document::reloadMesh(int index, const MeshFilterParameterValues *options, QS
     return 0;
 }
 
-void Document::adoptFileUnit(LengthUnit fileUnit, const QString &filename)
+void Document::adoptFileUnit(LengthUnit fileUnit, const QString &filename, bool onlyLayers)
 {
     if (fileUnit == LengthUnit::Unknown || fileUnit == m_unit)
         return;
@@ -683,7 +687,7 @@ void Document::adoptFileUnit(LengthUnit fileUnit, const QString &filename)
                      .arg(fileName, LengthUnits::name(fileUnit).toLower(),
                           LengthUnits::name(m_unit).toLower()),
                  LogSource::Application, LogLevel::Warning);
-    } else if (meshCount() == 1) {   // the layer just loaded is the only one
+    } else if (onlyLayers) {
         setUnit(fileUnit);
         writeLog(tr("The unit of the document is %1, as '%2' says.")
                      .arg(LengthUnits::name(fileUnit).toLower(), fileName),
@@ -806,11 +810,7 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
             .arg(entry.name, normalizedFilename),
         LogSource::Application);
 
-    Document *previousCallbackDocument = g_callbackDocument;
-    const CallbackMode previousCallbackMode = m_callbackMode;
-    m_callbackMode = CallbackMode::Save;
-    m_cancelRequested.store(false, std::memory_order_relaxed);
-    g_callbackDocument = this;
+    std::optional<CallbackScope> callbacks(std::in_place, *this, CallbackMode::Save);
     std::vector<MeshIOTextureAsset> savedAssets = texturesToSave(entry);
     QStringList savedTexturePaths;
     const MeshIOTextureContext textureContext{
@@ -831,9 +831,7 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
         saveOptions,
         logCallback(),
         &textureContext);
-    g_callbackDocument = previousCallbackDocument;
-    m_callbackMode = previousCallbackMode;
-    clearProgressLog();
+    callbacks.reset();
 
     const qint64 elapsedMs = timer.elapsed();
     if (err != 0) {
@@ -1075,4 +1073,141 @@ int Document::saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &
 int Document::saveCurrentMesh(const QString &filename)
 {
     return saveCurrentMesh(filename, MeshIOSaveOptions{});
+}
+
+bool Document::holdsScenes(const QString &filename) const
+{
+    const MeshIOPlugin *plugin = m_pluginManager ? m_pluginManager->pluginFor(filename) : nullptr;
+    return plugin && plugin->holdsScenes(filename);
+}
+
+int Document::importLayers(const QString &filename, QString *errorMessage, const MeshFilterParameterValues &options)
+{
+    const auto fail = [&](const QString &why, int code) {
+        writeLog(tr("Cannot import layers from %1: %2").arg(filename, why), LogSource::Application, LogLevel::Warning);
+        if (errorMessage)
+            *errorMessage = why;
+        return code;
+    };
+    const MeshIOPlugin *plugin = m_pluginManager->pluginFor(filename);
+    if (!plugin || !plugin->holdsScenes(filename))
+        return fail(tr(".%1 files hold no scene of layers").arg(QFileInfo(filename).suffix().toLower()), -1);
+    MeshFilterParameterValues loadOptions, changedOptions;
+    QString optionError;
+    if (!resolveLoadOptions(*plugin, filename, options, loadOptions, changedOptions, optionError))
+        return fail(optionError, -1);
+
+    const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
+    if (ownUndoStep) {
+        ScriptAction sa;
+        sa.kind = QStringLiteral("import_layers");
+        sa.filePaths = QStringList{filename};
+        sa.params = changedOptions;
+        beginUndoStep(tr("Import Layers"), sa);
+    }
+    writeLog(tr("Importing layers: %1 (%2)").arg(filename, plugin->name()), LogSource::Application);
+    emit loadProgressStarted(filename);
+
+    std::vector<MeshIOSceneLayer> layers;
+    MeshIOLoadContext context = loadContext();
+    context.options = loadOptions;
+    int err = 0;
+    {
+        CallbackScope callbacks(*this, CallbackMode::Load);
+        err = plugin->loadScene(filename, layers, logCallback(), context);
+    }
+    if (err != 0) {
+        emit loadProgressFinished(false, plugin->errorString(err));
+        if (ownUndoStep)
+            endUndoStep(false);
+        return fail(plugin->errorString(err), err);
+    }
+
+    const bool documentWasEmpty = meshCount() == 0;
+    int firstIndex = -1;
+    for (MeshIOSceneLayer &layer : layers) {
+        auto entry = std::make_unique<MeshEntry>();
+        deepCopyMesh(*layer.mesh, entry->mesh);
+        layer.mesh.reset();
+        if (!(layer.loadMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD))
+            entry->mesh.vert.DisableTexCoord();
+        if (!(layer.loadMask & vcg::tri::io::Mask::IOM_WEDGTEXCOORD))
+            entry->mesh.face.DisableWedgeTexCoord();
+        adoptFileOrigin(context, entry->mesh, filename, documentWasEmpty && firstIndex < 0);
+        entry->loadOptions = loadOptions;
+        entry->meshId = m_nextMeshId++;
+        entry->geometryRevision = m_nextGeometryRevision++;
+        entry->materialRevision = m_nextGeometryRevision++;
+        entry->transform = layer.transform;
+        entry->visible = layer.visible;
+        entry->name = uniqueMeshName(layer.label.trimmed().isEmpty() ? QFileInfo(filename).completeBaseName()
+                                                                     : layer.label.trimmed());
+        const ImportedTextureInfo textureInfo = prepareImportedMesh(*entry, filename, layer.loadMask, layer.materialSet);
+        const int index = meshCount();
+        m_meshes.push_back(std::move(entry));
+        refreshMeshPolygonFaceCount(index);
+        logImportedMesh(mesh(index), layer.loadMask, textureInfo);
+        emit meshAdded(index);
+        if (firstIndex < 0)
+            firstIndex = index;
+    }
+    writeLog(tr("Imported %n layer(s) from '%1'", nullptr, int(layers.size())).arg(QFileInfo(filename).fileName()),
+        LogSource::Application);
+    logLoadContext(context, *plugin, filename);
+    adoptFileUnit(context.unit, filename, documentWasEmpty);
+    adoptDirectoryOf(filename);
+    if (firstIndex >= 0)
+        setCurrentMeshIndex(firstIndex);
+    emit loadProgressFinished(true, tr("Imported %1").arg(QFileInfo(filename).fileName()));
+    if (ownUndoStep)
+        endUndoStep(true);
+    return 0;
+}
+
+int Document::exportVisibleLayers(const QString &filename, QString *errorMessage)
+{
+    const auto fail = [&](const QString &why, int code) {
+        writeLog(tr("Cannot export layers to %1: %2").arg(filename, why), LogSource::Application, LogLevel::Warning);
+        if (errorMessage)
+            *errorMessage = why;
+        return code;
+    };
+    const MeshIOPlugin *plugin = m_pluginManager->pluginForSave(filename);
+    if (!plugin || !plugin->holdsScenes(filename))
+        return fail(tr(".%1 files hold no scene of layers").arg(QFileInfo(filename).suffix().toLower()), -1);
+
+    // What each visible layer hands the exporter, as saveMesh prepares it for one; the texture
+    // lists live here for as long as the views point at them.
+    const int capability = plugin->saveMaskCapability(filename);
+    std::vector<int> visible;
+    for (int i = 0; i < meshCount(); ++i)
+        if (mesh(i).visible)
+            visible.push_back(i);
+    if (visible.empty())
+        return fail(tr("no layer is visible"), -2);
+    std::vector<std::vector<MeshIOTextureAsset>> assets(visible.size());
+    std::vector<MeshIOTextureContext> contexts(visible.size());
+    std::vector<MeshIOSceneLayerView> views(visible.size());
+    for (size_t k = 0; k < visible.size(); ++k) {
+        MeshEntry &entry = mesh(visible[k]);
+        assets[k] = texturesToSave(entry);
+        contexts[k] = { &entry.textureFileNames, &entry.textureFilePaths, &assets[k], &entry.materialSet, nullptr };
+        views[k].mesh = &entry.mesh;
+        views[k].mask = maskToSave(entry, 0, capability);
+        views[k].transform = entry.transform;
+        views[k].label = entry.name;
+        views[k].textures = &contexts[k];
+    }
+    MeshIOSaveOptions options;
+    options.unit = m_unit;
+    options.origin = m_origin.value_or(vcg::Point3d(0, 0, 0));
+    int err = 0;
+    {
+        CallbackScope callbacks(*this, CallbackMode::Save);
+        err = plugin->saveScene(filename, views, options, logCallback());
+    }
+    if (err != 0)
+        return fail(plugin->errorString(err), err);
+    writeLog(tr("Exported %n visible layer(s) to %1", nullptr, int(views.size())).arg(filename), LogSource::Application);
+    return 0;
 }

@@ -163,6 +163,8 @@ private slots:
     void usdReadsYUpLeftHandedAndUnauthoredUnit();
     void usdReadsReferencesAndMirroredInstances();
     void usdRoundTripsALayer();
+    void usdScenesRoundTripVisibleLayers();
+    void reloadKeepsMaterialChannelTextures();
     void savingWithoutAMaskWritesWhatTheLayerHolds();
     void e57SavesAConstantColor();
     void e57RoundTripsPointAttributes();
@@ -5231,6 +5233,166 @@ void DocumentTests::theDocumentOriginTravelsWithTheProject()
     QCOMPARE(reopened.loadMesh(grid), 0);
     QVERIFY(reopened.mesh(1).mesh.vert[123].cP() == first);
 #endif
+}
+
+// Export Visible Layers writes each visible layer as a prim with its label and matrix, Import
+// Layers reads them back as layers: the same labels, matrices and coordinates, polylines as
+// edges with shared vertices (a closed one too); a hidden layer is not written. Plain Open still
+// flattens the scene, each prim placed by its matrix.
+void DocumentTests::usdScenesRoundTripVisibleLayers()
+{
+    VCGMesh quad;
+    for (const auto &p : { VCGMesh::CoordType(0, 0, 0), VCGMesh::CoordType(2, 0, 0), VCGMesh::CoordType(0, 3, 0),
+                           VCGMesh::CoordType(2, 3, 0) })
+        vcg::tri::Allocator<VCGMesh>::AddVertex(quad, p);
+    vcg::tri::Allocator<VCGMesh>::AddFace(quad, size_t(0), size_t(1), size_t(2));
+    vcg::tri::Allocator<VCGMesh>::AddFace(quad, size_t(1), size_t(3), size_t(2));
+    VCGMesh path;
+    for (int i = 0; i < 5; ++i)
+        vcg::tri::Allocator<VCGMesh>::AddVertex(path, VCGMesh::CoordType(float(i), float(i % 2), 0));
+    for (int i = 0; i + 1 < 5; ++i)
+        vcg::tri::Allocator<VCGMesh>::AddEdge(path, size_t(i), size_t(i + 1));
+    VCGMesh loop;
+    for (const auto &p : { VCGMesh::CoordType(0, 0, 1), VCGMesh::CoordType(1, 0, 1), VCGMesh::CoordType(1, 1, 1),
+                           VCGMesh::CoordType(0, 1, 1) })
+        vcg::tri::Allocator<VCGMesh>::AddVertex(loop, p);
+    for (int i = 0; i < 4; ++i)
+        vcg::tri::Allocator<VCGMesh>::AddEdge(loop, size_t(i), size_t((i + 1) % 4));
+
+    Document source;
+    if (!source.holdsScenes(QStringLiteral("probe.usda")))
+        QSKIP("This build has no USD support.");
+    using M = vcg::tri::io::Mask;
+    source.addMesh(quad, QStringLiteral("Base plate"), M::IOM_VERTCOORD | M::IOM_FACEINDEX);
+    source.addMesh(path, QStringLiteral("Path"), M::IOM_VERTCOORD | M::IOM_EDGEINDEX);
+    source.addMesh(loop, QStringLiteral("Loop"), M::IOM_VERTCOORD | M::IOM_EDGEINDEX);
+    source.addMesh(quad, QStringLiteral("Hidden"), M::IOM_VERTCOORD | M::IOM_FACEINDEX);
+    source.mesh(0).transform.translate(10, 0, 0);
+    source.mesh(1).transform.rotate(90, 0, 0, 1);
+    source.setMeshVisible(3, false);
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    for (const QString suffix : { QStringLiteral("usda"), QStringLiteral("usdc"), QStringLiteral("usdz") }) {
+        const QString path = dir.filePath(QStringLiteral("scene.") + suffix);
+        QString error;
+        QVERIFY2(source.exportVisibleLayers(path, &error) == 0, qPrintable(error));
+
+        Document imported;
+        QVERIFY2(imported.importLayers(path, &error) == 0, qPrintable(error));
+        QCOMPARE(imported.meshCount(), 3);
+        QCOMPARE(imported.mesh(0).name, QStringLiteral("Base plate"));
+        QCOMPARE(imported.mesh(1).name, QStringLiteral("Path"));
+        QCOMPARE(imported.mesh(2).name, QStringLiteral("Loop"));
+        for (int i = 0; i < 3; ++i) {
+            QVERIFY(qFuzzyCompare(imported.mesh(i).transform, source.mesh(i).transform));
+            QVERIFY(imported.mesh(i).sourcePath.isEmpty());
+        }
+        QCOMPARE(imported.mesh(0).mesh.FN(), 2);
+        QVERIFY((imported.mesh(0).mesh.vert[3].cP() - VCGMesh::CoordType(2, 3, 0)).Norm() < 1e-6f);
+        QCOMPARE(imported.mesh(1).mesh.VN(), 5);   // shared, not two vertices per edge
+        QCOMPARE(imported.mesh(1).mesh.EN(), 4);
+        QCOMPARE(imported.mesh(2).mesh.VN(), 4);   // the loop closes on its first vertex
+        QCOMPARE(imported.mesh(2).mesh.EN(), 4);
+        // One undo step takes them all back.
+        QVERIFY(imported.undo());
+        QCOMPARE(imported.meshCount(), 0);
+
+        // Opened, the scene is one layer, every prim placed by its matrix.
+        Document flat;
+        QCOMPARE(flat.loadMesh(path), 0);
+        QCOMPARE(flat.meshCount(), 1);
+        QCOMPARE(flat.mesh(0).mesh.FN(), 2);
+        QCOMPARE(flat.mesh(0).mesh.EN(), 8);
+        bool movedCorner = false;
+        for (const VCGVertex &v : flat.mesh(0).mesh.vert)
+            movedCorner |= (v.cP() - VCGMesh::CoordType(12, 3, 0)).Norm() < 1e-5f;
+        QVERIFY(movedCorner);
+    }
+
+    // A polyline saved alone is written as curves, no longer dropped.
+    const QString single = dir.filePath(QStringLiteral("path.usda"));
+    QCOMPARE(source.saveMesh(1, single), 0);
+    Document reread;
+    QCOMPARE(reread.loadMesh(single), 0);
+    QCOMPARE(reread.mesh(0).mesh.EN(), 4);
+    QCOMPARE(reread.mesh(0).mesh.VN(), 5);
+}
+
+// A material's channel textures other than the base color (here a normal map) are listed with
+// the layer's textures when it is loaded, and again when it is reloaded: reload used to read
+// only the base color list, so a reloaded layer lost its normal, occlusion and roughness maps.
+void DocumentTests::reloadKeepsMaterialChannelTextures()
+{
+    Document doc;
+    if (doc.saveMaskCapability(QStringLiteral("probe.usda")) == 0)
+        QSKIP("This build has no USD support.");
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString checker = QStringLiteral(TEST_SOURCE_DIR "/tests/data/usd/checker.png");
+    QVERIFY(QFile::copy(checker, dir.filePath(QStringLiteral("base.png"))));
+    QVERIFY(QFile::copy(checker, dir.filePath(QStringLiteral("normal.png"))));
+    const QString path = dir.filePath(QStringLiteral("normal_mapped.usda"));
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+    file.write(R"(#usda 1.0
+(
+    defaultPrim = "World"
+)
+def Xform "World"
+{
+    def Mesh "Triangle" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]
+        int[] faceVertexCounts = [3]
+        int[] faceVertexIndices = [0, 1, 2]
+        texCoord2f[] primvars:st = [(0, 0), (1, 0), (0, 1)] (
+            interpolation = "vertex"
+        )
+        rel material:binding = </World/Looks/Mapped>
+    }
+    def Scope "Looks"
+    {
+        def Material "Mapped"
+        {
+            token outputs:surface.connect = </World/Looks/Mapped/Surface.outputs:surface>
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor.connect = </World/Looks/Mapped/Base.outputs:rgb>
+                normal3f inputs:normal.connect = </World/Looks/Mapped/Normal.outputs:rgb>
+                token outputs:surface
+            }
+            def Shader "Base"
+            {
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @base.png@
+                float3 outputs:rgb
+            }
+            def Shader "Normal"
+            {
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @normal.png@
+                float3 outputs:rgb
+            }
+        }
+    }
+}
+)");
+    file.close();
+
+    const auto listsNormalMap = [&doc] {
+        for (const QString &texture : doc.mesh(0).textureFilePaths)
+            if (texture.endsWith(QStringLiteral("normal.png")))
+                return true;
+        return false;
+    };
+    QCOMPARE(doc.loadMesh(path), 0);
+    QVERIFY(listsNormalMap());
+    QCOMPARE(doc.reloadMesh(0), 0);
+    QVERIFY(listsNormalMap());
 }
 
 // A layer whose first texture exists only in memory -- what Texture Defragmentation leaves --

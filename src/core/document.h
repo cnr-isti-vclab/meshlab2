@@ -201,6 +201,18 @@ public:
     // is given, with those (one undo step, "Reload with Options", recorded as reload_mesh).
     // errorMessage as for loadMesh.
     int reloadMesh(int index, const MeshFilterParameterValues *options = nullptr, QString *errorMessage = nullptr);
+    // Scenes (docs/design/proposals/usd_support.md §5). importLayers reads every mesh, point
+    // cloud and polyline of a scene file (MeshIOPlugin::holdsScenes) as a layer of its own,
+    // placed by its matrix and named by its label, hidden when the scene hides it: one undo
+    // step ("Import Layers"), recorded as import_layers with the options that differ from the
+    // defaults (options and errorMessage as for loadMesh). The layers have no file of their
+    // own for now -- they cannot be reloaded, and Save asks for a file. exportVisibleLayers
+    // writes the visible layers to one scene file, each with its matrix and label; it changes
+    // no layer, and no layer's file. Both return 0 or an error.
+    bool holdsScenes(const QString &filename) const;
+    int importLayers(const QString &filename, QString *errorMessage = nullptr,
+                     const MeshFilterParameterValues &options = {});
+    int exportVisibleLayers(const QString &filename, QString *errorMessage = nullptr);
     // The load options of a file's format (MeshIOPlugin::loadParameters); empty when it has
     // none or no importer takes the file.
     std::vector<MeshFilterParameterDescriptor> loadParameters(const QString &filename) const;
@@ -628,6 +640,21 @@ private:
         Filter,
         Save
     };
+    // While it lives, the progress callbacks of importers, exporters and filters
+    // (logCallback) report to this document in mode, with cancellation cleared; on its end the
+    // previous document and mode are back and the passing progress line is gone.
+    class CallbackScope
+    {
+    public:
+        CallbackScope(Document &doc, CallbackMode mode);
+        ~CallbackScope();
+        CallbackScope(const CallbackScope &) = delete;
+        CallbackScope &operator=(const CallbackScope &) = delete;
+    private:
+        Document &m_doc;
+        Document *m_previousDocument;
+        CallbackMode m_previousMode;
+    };
     vcg::CallBackPos *logCallback();
     bool handleLogCallback(int pos, const char *message);
     void appendOrReplaceLog(const QString &message, LogSource source, LogLevel level, bool replaceLast);
@@ -662,9 +689,9 @@ private:
     void logLoadContext(const MeshIOLoadContext &context, const MeshIOPlugin &plugin, const QString &filename);
     // What a file that has just been loaded says its unit is (Unknown when it says none). It
     // becomes the document's unit only if nothing else has said so: the file's layer is the
-    // only one and the unit is not set. Otherwise it is reported when it differs from the
+    // only one (onlyLayers: the file's layers are the only ones) and the unit is not set. Otherwise it is reported when it differs from the
     // unit the user chose, and nothing is converted.
-    void adoptFileUnit(LengthUnit fileUnit, const QString &filename);
+    void adoptFileUnit(LengthUnit fileUnit, const QString &filename, bool onlyLayers);
     // The origin a georeferenced file has just been loaded relative to (context.origin after
     // load()), into mesh, the layer it gave. When the document gave it, the layer is reported
     // if it is still far from zero, and so imprecise. When the file chose it, the document

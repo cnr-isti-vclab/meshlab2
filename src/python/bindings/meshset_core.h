@@ -87,6 +87,11 @@ public:
     // arguments: ms.load_new_mesh("part.stl", mergeDuplicateVertices=False).
     void loadNewMesh(const std::string &path, const nanobind::dict &options = nanobind::dict());
     void saveCurrentMesh(const std::string &path);
+    // Scenes: every mesh, point cloud and polyline of a scene file (USD) as a layer of its
+    // own, with its matrix and label (options as for loadNewMesh); the visible layers into one
+    // scene file.
+    void importLayers(const std::string &path, const nanobind::dict &options = nanobind::dict());
+    void exportVisibleLayers(const std::string &path);
     void saveCurrentMeshTexture(int textureIndex, const std::string &path);
 
     int rasterCount() const;

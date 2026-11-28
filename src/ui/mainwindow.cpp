@@ -1072,14 +1072,15 @@ MainWindow::MainWindow(QWidget *parent)
         // load went: a reload with options rewrites that line, so the script reads the file
         // once, with the options the user ended with.
         QHash<QString, int> loadLineOfFile;
-        const auto loadCall = [this, &commonDir](const QString &path, const QVariantMap &options) {
+        const auto loadCall = [this, &commonDir](const QString &path, const QVariantMap &options,
+                                  const QString &function = QStringLiteral("load_new_mesh")) {
             QString rel = commonDir.isEmpty() ? path : QDir(commonDir).relativeFilePath(path);
             QStringList args { QStringLiteral("\"%1\"").arg(rel.replace('\\', '/')) };
             for (const MeshFilterParameterDescriptor &parameter : m_doc->loadParameters(path))
                 if (options.contains(parameter.id))
                     args << QStringLiteral("%1=%2").arg(parameter.id,
                         filterParamValueToPythonLiteral(options.value(parameter.id), parameter.type));
-            return QStringLiteral("ms.load_new_mesh(%1)").arg(args.join(QStringLiteral(", ")));
+            return QStringLiteral("ms.%1(%2)").arg(function, args.join(QStringLiteral(", ")));
         };
 
         for (const auto &pn : path) {
@@ -1117,6 +1118,10 @@ MainWindow::MainWindow(QWidget *parent)
                         lines << loadCall(fp, sa.params);
                         exportedCurrentMeshIndex = -1;
                     }
+                } else if (sa.kind == QStringLiteral("import_layers")) {
+                    for (const QString &fp : sa.filePaths)
+                        lines << loadCall(fp, sa.params, QStringLiteral("import_layers"));
+                    exportedCurrentMeshIndex = -1;
                 } else if (sa.kind == QStringLiteral("reload_mesh")) {
                     for (const QString &fp : sa.filePaths) {
                         if (loadLineOfFile.contains(fp))
@@ -1351,10 +1356,12 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu->addSeparator();
     fileMenu->addAction(tr("&Open..."), QKeySequence::Open, this, &MainWindow::openFile);
     fileMenu->addAction(tr("Open &Raster Image..."), this, &MainWindow::openRasterImage);
+    fileMenu->addAction(tr("&Import Layers..."), this, &MainWindow::importLayers);
     fileMenu->addAction(tr("Reload &Current Mesh"), this, &MainWindow::reloadCurrentMesh);
     fileMenu->addAction(tr("Reload &All Meshes"), this, &MainWindow::reloadAllMeshes);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("&Save Mesh..."), QKeySequence::Save, this, &MainWindow::saveCurrentMesh);
+    fileMenu->addAction(tr("Export &Visible Layers..."), this, &MainWindow::exportVisibleLayers);
     fileMenu->addAction(
         tr("Save Project &As..."),
         QKeySequence(QStringLiteral("Ctrl+Shift+P")),
@@ -2188,6 +2195,62 @@ void MainWindow::openFile()
             .arg(failures.size())
             .arg(fileNames.size())
             .arg(listed.join(QStringLiteral("\n"))));
+}
+
+// The file patterns of the formats that hold a scene of layers (MeshIOPlugin::holdsScenes),
+// one filter entry each, for Import Layers and Export Visible Layers.
+static QStringList sceneFileFilters(const Document &doc)
+{
+    QStringList filters;
+    for (const Document::ImportPluginInfo &info : doc.importPluginInfos())
+        for (const QString &extension : info.extensions)
+            if (doc.holdsScenes(QStringLiteral("scene.") + extension))
+                filters << QStringLiteral("%1 (*.%2)").arg(extension.toUpper(), extension);
+    return filters;
+}
+
+// Each mesh, point cloud and polyline of a scene file as a layer of its own.
+void MainWindow::importLayers()
+{
+    const QStringList filters = sceneFileFilters(*m_doc);
+    if (filters.isEmpty())
+        return;
+    QStringList patterns;
+    for (const QString &filter : filters)
+        patterns << filter.section(QLatin1Char('('), 1).chopped(1);
+    const QString fileName = QFileDialog::getOpenFileName(this, tr("Import Layers"),
+        FileDialogDirectory::startingDirectory(QStringLiteral("mesh")),
+        tr("Scenes (%1);;%2").arg(patterns.join(QLatin1Char(' ')), filters.join(QStringLiteral(";;"))));
+    if (fileName.isEmpty())
+        return;
+    FileDialogDirectory::remember(QStringLiteral("mesh"), fileName);
+    QString error;
+    if (m_doc->importLayers(fileName, &error) != 0) {
+        QMessageBox::warning(this, tr("Import Layers"), tr("Cannot import layers from %1:\n%2").arg(fileName, error));
+        return;
+    }
+    statusBar()->showMessage(tr("Imported layers from %1").arg(QFileInfo(fileName).fileName()), 2500);
+}
+
+// The visible layers into one scene file, each with its matrix and label.
+void MainWindow::exportVisibleLayers()
+{
+    const QStringList filters = sceneFileFilters(*m_doc);
+    if (filters.isEmpty() || m_doc->meshCount() == 0)
+        return;
+    QString selected;
+    const QString fileName = QFileDialog::getSaveFileName(this, tr("Export Visible Layers"),
+        FileDialogDirectory::startingPath(QStringLiteral("export"), QStringLiteral("scene.usdz")),
+        filters.join(QStringLiteral(";;")), &selected);
+    if (fileName.isEmpty())
+        return;
+    FileDialogDirectory::remember(QStringLiteral("export"), fileName);
+    QString error;
+    if (m_doc->exportVisibleLayers(fileName, &error) != 0) {
+        QMessageBox::warning(this, tr("Export Visible Layers"), tr("Cannot export to %1:\n%2").arg(fileName, error));
+        return;
+    }
+    statusBar()->showMessage(tr("Exported visible layers to %1").arg(QFileInfo(fileName).fileName()), 2500);
 }
 
 void MainWindow::openRasterImage()

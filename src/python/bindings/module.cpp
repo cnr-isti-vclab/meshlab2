@@ -133,6 +133,14 @@ NB_MODULE(_meshlab, m)
              "Loads a mesh file as a new layer. Keyword arguments are the format's load options,\n"
              "by id (STL: mergeDuplicateVertices=True); an unknown one or a bad value raises.")
         .def("save_current_mesh",  &MeshSetCore::saveCurrentMesh,   nb::arg("path"))
+        .def("import_layers",
+             [](MeshSetCore &ms, const std::string &path, const nb::kwargs &options) { ms.importLayers(path, options); },
+             nb::arg("path"), nb::arg("options"),
+             "Reads every mesh, point cloud and polyline of a scene file (USD) as a layer of its own,\n"
+             "placed by its matrix and named by its label. Keyword arguments are the format's load\n"
+             "options, as for load_new_mesh.")
+        .def("export_visible_layers", &MeshSetCore::exportVisibleLayers, nb::arg("path"),
+             "Writes the visible layers into one scene file (USD), each with its matrix and label.")
         .def("save_current_mesh_texture", &MeshSetCore::saveCurrentMeshTexture,
              nb::arg("texture_index"), nb::arg("path"))
         .def("raster_number",      &MeshSetCore::rasterCount)
