@@ -579,6 +579,55 @@
       ]
     },
     {
+      "id": "smooth_face_scalar",
+      "categories": ["Attribute/Scalar"],
+      "name": "Smooth Face Scalar",
+      "pythonName": "smooth_face_scalar",
+      "shortDescription": "Laplacian smoothing of face scalar values.",
+      "longDescriptionMarkdown": "Laplacian smooth of the scalar per face: each face takes the average of its own value and those of the faces sharing an edge with it. Apply it several times for a stronger smoothing.",
+      "tags": [
+        "smoothing",
+        "quality",
+        "scalar field",
+        "faces"
+      ],
+      "inputDomain": "SingleMesh",
+      "selectionScope": "faces",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireFaces": true,
+        "requireFaceQuality": true
+      },
+      "outputModifies": [
+        "FQ"
+      ]
+    },
+    {
+      "id": "smooth_edge_scalar",
+      "categories": ["Attribute/Scalar"],
+      "name": "Smooth Edge Scalar",
+      "pythonName": "smooth_edge_scalar",
+      "shortDescription": "Laplacian smoothing of edge scalar values.",
+      "longDescriptionMarkdown": "Laplacian smooth of the scalar per edge of a **polyline layer**: each edge takes the average of its own value and those of the edges sharing a vertex with it. Apply it several times for a stronger smoothing.",
+      "tags": [
+        "smoothing",
+        "quality",
+        "scalar field",
+        "edge",
+        "polyline"
+      ],
+      "inputDomain": "SingleMesh",
+      "selectionScope": "edges",
+      "outputDomain": "ModifyCurrentMesh",
+      "inputRequirements": {
+        "requireEdges": true,
+        "requireEdgeQuality": true
+      },
+      "outputModifies": [
+        "EQ"
+      ]
+    },
+    {
       "id": "smooth_face_normals",
       "categories": ["Attribute/Normal"],
       "name": "Smooth Face Normals",

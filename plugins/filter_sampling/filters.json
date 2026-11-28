@@ -891,7 +891,7 @@
           "id": "multisample",
           "label": "Multi-sample",
           "help": "Compute the distance field more accurately by multisampling the volume.",
-          "group": "advanced",
+          "group": "main",
           "type": "bool",
           "default": false
         },
@@ -899,7 +899,7 @@
           "id": "absDist",
           "label": "Absolute Distance",
           "help": "Use an unsigned distance field to create an inner and outer shell around the input mesh.",
-          "group": "advanced",
+          "group": "main",
           "type": "bool",
           "default": false
         }

@@ -562,6 +562,8 @@ private slots:
     void voronoiAtlasHandlesCoarseMeshes();
     void geodesicQualityFilterDoesNotBakeVertexColors();
     void triOptimizeFiltersRunOnLoadedMesh();
+    void smoothFaceScalarAveragesAcrossEdges();
+    void smoothEdgeScalarAveragesAcrossVertices();
     void voronoiSurfaceSamplingRunsOnCube();
     void voronoiSurfaceSamplingCellsCloseAndFaceOutOnSharpCorners();
     void voronoiSurfaceSamplingKeepsOnlyTheSamplesWhenARegionIsNotADisk();
@@ -10026,6 +10028,73 @@ void FilterTests::triOptimizeFiltersRunOnLoadedMesh()
         QVERIFY(result.documentModified);
         QVERIFY((doc.mesh(0).ioMask & vcg::tri::io::Mask::IOM_VERTNORMAL) != 0);
     }
+}
+
+// One face holds 1, the rest 0. A step gives each face the mean of itself and its edge
+// neighbours: the spike drops to 1/4 and its three neighbours rise to 1/4. With a selection,
+// only the selected face changes.
+void FilterTests::smoothFaceScalarAveragesAcrossEdges()
+{
+    for (int selectedOnly = 0; selectedOnly < 2; ++selectedOnly) {
+        Document doc;
+        VCGMesh cube;
+        makeCubeMesh(cube, 0.0f, 0.0f, 0.0f);
+        for (auto &f : cube.face)
+            f.Q() = 0.0f;
+        cube.face[0].Q() = 1.0f;
+        if (selectedOnly)
+            cube.face[0].SetS();
+        QCOMPARE(doc.addMesh(cube, QStringLiteral("Cube"),
+                             vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEQUALITY),
+                 0);
+        MeshFilterParameterValues params;
+        params.insert(QStringLiteral("selectedOnly"), selectedOnly == 1);
+        const MeshFilterRunResult result =
+            doc.runFilter(filterKeyForId(doc, QStringLiteral("smooth_face_scalar")), params);
+        QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+        const VCGMesh &m = doc.mesh(0).mesh;
+        QCOMPARE(m.face[0].cQ(), 0.25f);
+        int raised = 0;
+        float total = 0.0f;
+        for (const auto &f : m.face) {
+            raised += (&f != &m.face[0] && f.cQ() == 0.25f) ? 1 : 0;
+            total += f.cQ();
+        }
+        QCOMPARE(raised, selectedOnly ? 0 : 3);
+        QCOMPARE(total, selectedOnly ? 0.25f : 1.0f);
+    }
+}
+
+// A chain of five edges, the middle one holding 1. A step gives each edge the mean of itself
+// and the edges sharing a vertex with it: the middle and its two neighbours all become 1/3, the
+// ends stay 0.
+void FilterTests::smoothEdgeScalarAveragesAcrossVertices()
+{
+    Document doc;
+    VCGMesh chain;
+    vcg::tri::Allocator<VCGMesh>::AddVertices(chain, 6);
+    for (int i = 0; i < 6; ++i)
+        chain.vert[i].P() = vcg::Point3f(float(i), 0.0f, 0.0f);
+    vcg::tri::Allocator<VCGMesh>::AddEdges(chain, 5);
+    for (int i = 0; i < 5; ++i) {
+        chain.edge[i].V(0) = &chain.vert[i];
+        chain.edge[i].V(1) = &chain.vert[i + 1];
+        chain.edge[i].Q() = (i == 2) ? 1.0f : 0.0f;
+    }
+    QCOMPARE(doc.addMesh(chain, QStringLiteral("Chain"),
+                         vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_EDGEINDEX
+                             | vcg::tri::io::Mask::IOM_EDGEQUALITY),
+             0);
+    const MeshFilterRunResult result =
+        doc.runFilter(filterKeyForId(doc, QStringLiteral("smooth_edge_scalar")), MeshFilterParameterValues());
+    QVERIFY2(result.success, qPrintable(result.errorMessage));
+
+    const VCGMesh &m = doc.mesh(0).mesh;
+    const float expected[5] = {0.0f, 1.0f / 3, 1.0f / 3, 1.0f / 3, 0.0f};
+    for (int i = 0; i < 5; ++i)
+        QVERIFY2(std::abs(m.edge[i].cQ() - expected[i]) < 1e-6f,
+                 qPrintable(QStringLiteral("edge %1: %2").arg(i).arg(m.edge[i].cQ())));
 }
 
 void FilterTests::voronoiSurfaceSamplingRunsOnCube()

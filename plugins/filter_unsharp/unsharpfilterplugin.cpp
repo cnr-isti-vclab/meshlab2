@@ -34,6 +34,8 @@ constexpr QLatin1StringView kFilterTaubin("smooth_vertices_by_taubin_vcglib");
 constexpr QLatin1StringView kFilterDepth("smooth_vertices_along_one_direction");
 constexpr QLatin1StringView kFilterDirectional("project_vertices_onto_line_of_sight");
 constexpr QLatin1StringView kFilterVertexQualitySmooth("smooth_vertex_scalar");
+constexpr QLatin1StringView kFilterFaceQualitySmooth("smooth_face_scalar");
+constexpr QLatin1StringView kFilterEdgeQualitySmooth("smooth_edge_scalar");
 constexpr QLatin1StringView kFilterFaceNormalSmooth("smooth_face_normals");
 constexpr QLatin1StringView kFilterUnsharpNormal("sharpen_face_normals_by_unsharp_mask");
 constexpr QLatin1StringView kFilterUnsharpGeometry("sharpen_vertices_by_unsharp_mask");
@@ -257,6 +259,22 @@ MeshFilterRunResult UnsharpFilterPlugin::runFilter(
         vcg::tri::Smooth<VCGMesh>::VertexQualityLaplacian(mesh, 1, params.getBool(QStringLiteral("selectedOnly")));
         entry.ioMask |= Mask::IOM_VERTQUALITY;
         doc.markMeshScalarChanged(meshIndex, QObject::tr("Smoothed vertex quality of '%1'.").arg(meshName(entry, meshIndex)));
+        return successResult();
+    }
+
+    if (filterId == QString::fromLatin1(kFilterFaceQualitySmooth)) {
+        VCGMeshFFAdjScope _ffAdj(mesh);
+        vcg::tri::UpdateTopology<VCGMesh>::FaceFace(mesh);
+        vcg::tri::Smooth<VCGMesh>::FaceQualityLaplacian(mesh, 1, params.getBool(QStringLiteral("selectedOnly")));
+        entry.ioMask |= Mask::IOM_FACEQUALITY;
+        doc.markMeshScalarChanged(meshIndex, QObject::tr("Smoothed face scalar of '%1'.").arg(meshName(entry, meshIndex)));
+        return successResult();
+    }
+
+    if (filterId == QString::fromLatin1(kFilterEdgeQualitySmooth)) {
+        vcg::tri::Smooth<VCGMesh>::EdgeQualityLaplacian(mesh, 1, params.getBool(QStringLiteral("selectedOnly")));
+        entry.ioMask |= Mask::IOM_EDGEQUALITY;
+        doc.markMeshScalarChanged(meshIndex, QObject::tr("Smoothed edge scalar of '%1'.").arg(meshName(entry, meshIndex)));
         return successResult();
     }
 
