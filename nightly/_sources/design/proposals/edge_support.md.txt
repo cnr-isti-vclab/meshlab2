@@ -49,18 +49,25 @@ which one is meant.
 `Rubber-band Select` has an *Edges* mode (`E`), committed as `element: edge` of
 `select_by_screen_rectangle` and `select_by_screen_polygon`. An edge is taken when
 its midpoint projects inside the region, as a face is by its barycenter, so no new
-rule had to be chosen between "both endpoints in" and "the segment crosses it". One
-mode serves both kinds: a polyline edge sets `VCGEdge::IsS()`, a triangle side the
-face-edge bit of each face it bounds, and the two faces agree because they test
-the same point, with no adjacency. *Visible Only* casts its ray to the midpoint;
+rule had to be chosen between "both endpoints in" and "the segment crosses it". It
+selects polyline edges only (`VCGEdge::IsS()`), and only in the 3D view, since a
+polyline has no UVs. *Visible Only* casts its ray to the midpoint;
 growing to components or islands is refused for edges. All on the CPU, in the
 filter: the GPU depth-mask path this section once proposed was not needed.
 
 In edge mode the tool's A, N, I, + and - run the set-operation filters' edge option
-(`dilate_selection` and `erode_selection` take `element: edge`), which covers polyline
-edges only, so they are disabled on a layer without them; nothing selects, clears,
-inverts, grows or shrinks the triangle sides of a mesh except a drag over the whole
-view. Vertex-mode dilate and erode step along polyline edges as well as faces.
+(`dilate_selection` and `erode_selection` take `element: edge`), and X runs *Remove
+Selected Edges* (2026-11-28), which also removes the ends no other edge or face uses;
+all are disabled on a layer without polyline edges. Vertex-mode dilate and erode step along polyline
+edges as well as faces.
+
+**Edge selection is for polylines only** (decided 2026-11-27). A triangle mesh
+stores no edges: its sides exist only as bits on each incident face, with no
+identity, so a side selection could not be counted, listed or acted on as a set
+the way a polyline's can. The rubber band first marked triangle sides too, and
+that was taken out the same day; on a triangle mesh the edge mode refuses. The
+face-edge bits stay what the crease, non-manifold-edge and defragmentation filters
+write, and *Create Polyline from Selected Edges* turns them into real edges.
 
 **A crease-edge decorator** is separate work. Crease filters write the same
 per-face selection bits as everything else, so their output shows in the
@@ -83,9 +90,6 @@ the description of *Transfer Color from Edge to Vertex* says.
 
 ## Open questions
 
-- **Triangle sides in the set-operation filters.** Select All, None and Invert
-  could clear, set and flip the face-edge bits too, so the tool's A/N/I work on a
-  mesh in edge mode; whether `allEdges` should mean both kinds is undecided.
 - **The edge option of the set-operation filters shows on triangle meshes too**,
   where it does nothing: the parameter schema cannot hide a row by what the layer
   holds. The flag was chosen over separate polyline filters (2026-11-27) as less

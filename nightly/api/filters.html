@@ -246,7 +246,7 @@
         <article role="main" id="furo-main-content">
           <section class="tex2jax_ignore mathjax_ignore" id="filters">
 <span id="id1"></span><h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>This reference contains all 427 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
+<p>This reference contains all 428 filters found in the descriptor registry when it was generated. Each filter can be called as a method on a <code class="docutils literal notranslate"><span class="pre">MeshSet</span></code> object, for example <code class="docutils literal notranslate"><span class="pre">ms.apply_filter(&quot;remove_duplicate_vertices&quot;,</span> <span class="pre">...)</span></code>, or using the dynamically-bound snake_case name: <code class="docutils literal notranslate"><span class="pre">ms.remove_duplicate_vertices(...)</span></code>.</p>
 <p>A combined bibliography for cited algorithms is available as <a class="reference download internal" download="" href="../_downloads/56bee1c1a2b746abad29fa6cd7e7e0bb/references.bib"><code class="xref download docutils literal notranslate"><span class="pre">BibTeX</span></code></a>.</p>
 <section id="filter-add-noise-to-vertex-color">
 <span id="add-noise-to-vertex-color"></span><h2>Add Noise to Vertex Color<a class="headerlink" href="#filter-add-noise-to-vertex-color" title="Link to this heading">¶</a></h2>
@@ -6416,6 +6416,22 @@ You can change x,y,z for every vertex according to the function specified.</p>
 
 <hr class="docutils" />
 </section>
+<section id="filter-remove-selected-edges">
+<span id="remove-selected-edges"></span><h2>Remove Selected Edges<a class="headerlink" href="#filter-remove-selected-edges" title="Link to this heading">¶</a></h2>
+<p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code></p>
+<p><strong>Plugin:</strong> meshlab2.filter.select</p>
+<p>Delete the selected edges of a polyline, and the vertices they leave unused.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="meshlab.ms.remove_selected_edges">
+<span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">remove_selected_edges</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.remove_selected_edges" title="Link to this definition">¶</a></dt>
+<dd><p>Delete the selected polyline edges. An end of a removed edge is deleted too when no remaining edge or face uses it, so cutting a piece out of a polyline leaves no stray points; vertices that were already on their own are kept.</p>
+<p>The sides of triangles are not edges here: a triangle mesh stores none.</p>
+<p>Selection tool shortcut, in edge mode: <code class="docutils literal notranslate"><span class="pre">X</span></code>.</p>
+<p>This filter has no parameters.</p>
+</dd></dl>
+
+<hr class="docutils" />
+</section>
 <section id="filter-remove-selected-faces">
 <span id="remove-selected-faces"></span><h2>Remove Selected Faces<a class="headerlink" href="#filter-remove-selected-faces" title="Link to this heading">¶</a></h2>
 <p><strong>Categories:</strong> <code class="docutils literal notranslate"><span class="pre">Meshing/Deletion</span></code></p>
@@ -9150,8 +9166,8 @@ Angle between face normal is considered signed according to convexity/concavity.
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.select_by_screen_polygon">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_by_screen_polygon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_by_screen_polygon" title="Link to this definition">¶</a></dt>
-<dd><p>Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside it. Edges are both the edges of a polyline layer and the sides of triangles, whose selection is kept on each face they bound. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool’s polygon mode (<strong>P</strong>), and is equally usable from scripting.</p>
-<p>Everything else – <em>Composition</em>, <em>Visible faces only</em>, <em>Expand to</em> – is as in <em>Select by Screen Rectangle</em>.</p>
+<dd><p>Screen-space lasso selection. Given a camera and a polygon in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside it. Edges are the edges of a polyline layer, selected in the 3D view; a triangle mesh stores no edges, so its sides are not selectable. The polygon is a list of at least three points, closed implicitly, and is tested with the even-odd rule, so a lasso that crosses itself leaves the doubly-enclosed part out. This is the filter committed by the interactive selection tool’s polygon mode (<strong>P</strong>), and is equally usable from scripting.</p>
+<p>Everything else – <em>Composition</em>, <em>Touching</em>, <em>Visible faces only</em>, <em>Expand to</em> – is as in <em>Select by Screen Rectangle</em>.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
 <li><p><strong>camera_state</strong> (<em>camerastate</em>) — Camera state (MeshLab.CameraState JSON) defining the projection.</p></li>
@@ -9161,9 +9177,10 @@ Angle between face normal is considered signed according to convexity/concavity.
 <li><p><strong>uv_pan_y</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.5</span></code>) — UV-view pan (Y), used when space = uv.</p></li>
 <li><p><strong>uv_zoom</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — UV-view zoom, used when space = uv.</p></li>
 <li><p><strong>polygon</strong> (<em>string</em>, default: <code class="docutils literal notranslate"><span class="pre">[[0,0],[1,0],[1,1],[0,1]]</span></code>) — The outline, as a JSON array of [x, y] points in normalized viewport coordinates (origin bottom-left, y up, 0..1): at least three, closed implicitly. The default covers the whole viewport.</p></li>
-<li><p><strong>element</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">face</span></code>) — Whether to select vertices, faces (by centroid) or edges (by midpoint): the edges of a polyline layer and the sides of triangles, which keep their selection on each face they bound.</p></li>
+<li><p><strong>element</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">face</span></code>) — Whether to select vertices, faces (by centroid) or the edges of a polyline layer (by midpoint).</p></li>
 <li><p><strong>mode</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">replace</span></code>) — Replace the current selection, add to it, or subtract from it.</p></li>
-<li><p><strong>visible_only</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). Needs faces to occlude: a polyline layer alone is all visible.</p></li>
+<li><p><strong>touch</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Select every face or edge that any part of projects inside the region, not only those whose centroid or midpoint does. A face reaching behind the camera is judged by the part in front of it. Vertices are points, so this changes nothing for them.</p></li>
+<li><p><strong>visible_only</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). With <em>Touching</em>, a face or edge counts as visible when its centroid, a corner or the midpoint of a side can be seen. Edges are hidden only by faces of the same layer: a polyline layer alone is all visible.</p></li>
 <li><p><strong>expand_to</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">none</span></code>) — Grow what the polygon touched to the whole piece it belongs to, so grazing one triangle takes all of it. <em>Connected components</em> follow the mesh’s own connectivity. <em>UV islands</em> also stop at UV seams, the edges whose two sides have different UVs, so each island is one piece of the UV layout; the mesh needs UVs for it. The growth starts from what the polygon hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole piece under the polygon instead of growing whatever was left behind. Vertices are grown through their faces, so a vertex on a seam takes the islands on both sides. Face-face adjacency is built on demand, so this costs more than a plain drag.</p></li>
 </ul>
 </dd></dl>
@@ -9178,7 +9195,7 @@ Angle between face normal is considered signed according to convexity/concavity.
 <dl class="py function">
 <dt class="sig sig-object py" id="meshlab.ms.select_by_screen_rectangle">
 <span class="sig-prename descclassname"><span class="pre">ms.</span></span><span class="sig-name descname"><span class="pre">select_by_screen_rectangle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.ms.select_by_screen_rectangle" title="Link to this definition">¶</a></dt>
-<dd><p>Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside the rectangle. Edges are both the edges of a polyline layer and the sides of triangles, whose selection is kept on each face they bound. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.</p>
+<dd><p>Screen-space rubber-band selection. Given a camera and a rectangle in normalized viewport coordinates (origin bottom-left, y up, range 0..1), selects the vertices, face centroids or edge midpoints of the current mesh that project inside the rectangle. With <em>Touching</em>, a face or edge is selected when any part of it projects inside, not only its centroid or midpoint. Edges are the edges of a polyline layer, selected in the 3D view; a triangle mesh stores no edges, so its sides are not selectable. This is the filter committed by the interactive rubber-band tool, and is equally usable from scripting.</p>
 <p><em>Expand to</em> is what the rubber-band tool’s <strong>C</strong> (connected components) and <strong>T</strong> (UV islands) modifiers set: the rectangle only has to graze a piece for all of it to be selected.</p>
 <p><strong>Parameters:</strong></p>
 <ul class="simple">
@@ -9192,9 +9209,10 @@ Angle between face normal is considered signed according to convexity/concavity.
 <li><p><strong>rect_min_y</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">0.0</span></code>) — Bottom edge, normalized [0..1], y up.</p></li>
 <li><p><strong>rect_max_x</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Right edge, normalized [0..1].</p></li>
 <li><p><strong>rect_max_y</strong> (<em>double</em>, default: <code class="docutils literal notranslate"><span class="pre">1.0</span></code>) — Top edge, normalized [0..1], y up.</p></li>
-<li><p><strong>element</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">face</span></code>) — Whether to select vertices, faces (by centroid) or edges (by midpoint): the edges of a polyline layer and the sides of triangles, which keep their selection on each face they bound.</p></li>
+<li><p><strong>element</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">face</span></code>) — Whether to select vertices, faces (by centroid) or the edges of a polyline layer (by midpoint).</p></li>
 <li><p><strong>mode</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">replace</span></code>) — Replace the current selection, add to it, or subtract from it.</p></li>
-<li><p><strong>visible_only</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). Needs faces to occlude: a polyline layer alone is all visible.</p></li>
+<li><p><strong>touch</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — Select every face or edge that any part of projects inside the region, not only those whose centroid or midpoint does. A face reaching behind the camera is judged by the part in front of it. Vertices are points, so this changes nothing for them.</p></li>
+<li><p><strong>visible_only</strong> (<em>bool</em>, default: <code class="docutils literal notranslate"><span class="pre">False</span></code>) — When selecting faces or edges in the 3D view, keep only those not occluded from the current viewpoint (ray-traced visibility, from the face centroid or the edge midpoint). With <em>Touching</em>, a face or edge counts as visible when its centroid, a corner or the midpoint of a side can be seen. Edges are hidden only by faces of the same layer: a polyline layer alone is all visible.</p></li>
 <li><p><strong>expand_to</strong> (<em>enum</em>, default: <code class="docutils literal notranslate"><span class="pre">none</span></code>) — Grow what the rectangle touched to the whole piece it belongs to, so grazing one triangle takes all of it. <em>Connected components</em> follow the mesh’s own connectivity. <em>UV islands</em> also stop at UV seams, the edges whose two sides have different UVs, so each island is one piece of the UV layout; the mesh needs UVs for it. The growth starts from what the rectangle hit rather than from the finished selection, so it composes with the modes as you would expect: subtract removes the whole piece under the rectangle instead of growing whatever was left behind. Vertices are grown through their faces, so a vertex on a seam takes the islands on both sides. Face-face adjacency is built on demand, so this costs more than a plain drag.</p></li>
 </ul>
 </dd></dl>
@@ -11146,6 +11164,10 @@ The algorithm assumes that the two meshes are reasonably similar and aligned.</p
 </li>
 <li><a class="reference internal" href="#filter-remove-all-faces">Remove All Faces</a><ul>
 <li><a class="reference internal" href="#meshlab.ms.remove_all_faces"><code class="docutils literal notranslate"><span class="pre">ms.remove_all_faces()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-remove-selected-edges">Remove Selected Edges</a><ul>
+<li><a class="reference internal" href="#meshlab.ms.remove_selected_edges"><code class="docutils literal notranslate"><span class="pre">ms.remove_selected_edges()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#filter-remove-selected-faces">Remove Selected Faces</a><ul>
