@@ -8,6 +8,7 @@
 #include <QMatrix4x4>
 #include <QString>
 #include <QStringList>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -31,11 +32,17 @@ struct MeshIOTextureAsset
     }
 };
 
+// Which channel of its image a texture is read from: all three color channels (base color,
+// normal, emissive), or one, as glTF packs roughness in green and metallic in blue of one image
+// and USD names the output it connects.
+enum class MeshIOTextureChannel { RGB, R, G, B, A };
+
 struct MeshIOMaterialTextureRef
 {
     QString fileName;
     QString filePath;
     int assetIndex = -1;
+    MeshIOTextureChannel channel = MeshIOTextureChannel::RGB;
 
     bool isValid() const
     {
@@ -43,6 +50,12 @@ struct MeshIOMaterialTextureRef
     }
 };
 
+enum class MeshIOAlphaMode { Opaque, Mask, Blend };
+
+// A material: the metallic-roughness model that glTF 2.0 and USD's UsdPreviewSurface share
+// (docs/design/proposals/usd_support.md §6). The view draws the base color, normal, occlusion
+// and roughness; the base color factor, metallic, emissive and alpha are kept and written back,
+// and not drawn yet.
 struct MeshIOMaterialSlot
 {
     QString name;
@@ -50,17 +63,43 @@ struct MeshIOMaterialSlot
     MeshIOMaterialTextureRef normalTexture;
     MeshIOMaterialTextureRef occlusionTexture;
     MeshIOMaterialTextureRef roughnessTexture;
+    MeshIOMaterialTextureRef metallicTexture;
+    MeshIOMaterialTextureRef emissiveTexture;
     float normalScale = 1.0f;
     float occlusionStrength = 1.0f;
     float roughnessFactor = 1.0f;
+    // Multiplies the base color texture; its alpha is the opacity.
+    std::array<float, 4> baseColorFactor { 1.0f, 1.0f, 1.0f, 1.0f };
+    // 0, a dielectric, unless a file says otherwise (glTF's own default, 1, is applied by its
+    // importer when a material omits it).
+    float metallicFactor = 0.0f;
+    std::array<float, 3> emissiveFactor { 0.0f, 0.0f, 0.0f };
+    MeshIOAlphaMode alphaMode = MeshIOAlphaMode::Opaque;
+    float alphaCutoff = 0.5f;
 };
+
+enum class MeshIOTextureRole { BaseColor, Normal, Occlusion, Roughness, Metallic, Emissive };
+
+// Calls f(role, ref) on every texture reference of slot, in the order of MeshIOTextureRole: the
+// one walk over a material's textures, so that a reference added here is seen everywhere.
+template<class Slot, class F>
+void forEachTextureRef(Slot &slot, F &&f)
+{
+    f(MeshIOTextureRole::BaseColor, slot.baseColorTexture);
+    f(MeshIOTextureRole::Normal, slot.normalTexture);
+    f(MeshIOTextureRole::Occlusion, slot.occlusionTexture);
+    f(MeshIOTextureRole::Roughness, slot.roughnessTexture);
+    f(MeshIOTextureRole::Metallic, slot.metallicTexture);
+    f(MeshIOTextureRole::Emissive, slot.emissiveTexture);
+}
 
 struct MeshIOMaterialSet
 {
     std::vector<MeshIOMaterialSlot> entries;
-    // In-memory texture images.  Plugins can avoid writing embedded textures to
-    // disk by providing QImage objects here alongside the material refs.
-    // The GPU cache prefers these over on-disk file paths.
+    // In-memory texture images an importer hands over alongside the material refs, so that
+    // embedded textures need no file. Only on the way in: Document::loadMesh moves them to the
+    // layer (MeshEntry::textureAssets, which a ref's assetIndex then names), and the material
+    // set a layer keeps has none.
     std::vector<MeshIOTextureAsset> textureAssets;
 
     bool empty() const { return entries.empty(); }

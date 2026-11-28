@@ -19,7 +19,7 @@ for flattening a scene).
 | 0 | LightUSD as a submodule; read and write the stage-0 fixtures; check against OpenUSD | done 2026-11-27 (§3.1): go; `external/lightusd` at v1.0.0 |
 | 1 | `io_usd`: flattened import, single-layer export, four material channels, units and up axis | done 2026-11-27 (§4.4), with the departures from the plan listed there |
 | 2 | Scene I/O: export visible layers to one file, import as separate layers | done 2026-11-28 (5.5); cameras left out (5.3) |
-| 3 | The material model, extended once for USD and glTF | not started; needs its own mapping table |
+| 3 | The material model, extended once for USD and glTF: data only, nothing new drawn | done 2026-11-28 (§6.1) |
 
 ## 1. What USD asks of MeshLab
 
@@ -169,9 +169,8 @@ UDIM paths (`<UDIM>`) are not supported in stage 1, and say so.
 
 **A known limit that stage 1 inherits.** `UsdUVTexture` reads named channels: roughness is
 often the green channel of a packed image whose blue is metallic, as in glTF. The renderer
-reads the roughness texture as the **mean of its three channels** (`fill_smooth.frag`,
-`roughSample`), so a packed texture already renders wrong roughness from glTF today. Stage 3
-adds the channel; stage 1 records the image and logs the channel it ignored.
+read the roughness texture as the **mean of its three channels**, so a packed texture rendered
+wrong roughness from glTF; stage 3 added the channel (§6.1).
 
 ### 4.3 Export, one layer
 
@@ -350,21 +349,102 @@ hidden one; labels, matrices, local coordinates, a polyline and a closed loop ba
 step, the flattened Open placing each prim, a polyline saved alone keeping its edges);
 `reloadKeepsMaterialChannelTextures`.
 
-## 6. Stage 3: the material model
+## 6. Stage 3: the material model (data only)
 
-Extended once, for USD and glTF together, since both carry what MeshLab drops today:
+**Scope, decided 2026-11-28.** Stage 3 is about what MeshLab *keeps*: every material input that
+glTF and USD share is read, kept on the layer and written back by both, so that neither format
+loses material data on a round trip. It draws nothing new. The view's PBR material mode is not
+physically based today -- Blinn-Phong, roughness choosing the highlight's exponent and strength,
+a constant ambient, no Fresnel and no environment lighting (`shaders/fill_smooth.frag:150-185`)
+-- and metallic and transparency only mean something under a real metallic-roughness shading
+with image-based lighting. That is a rendering proposal of its own; it will also decide what the
+current mode becomes. The Plain material mode reads none of these fields.
 
-| Channel | glTF | USD |
-|---|---|---|
-| base color factor | `baseColorFactor` (now baked into vertex color) | `diffuseColor` constant |
-| metallic, texture and factor | `metallicFactor`, blue of `metallicRoughnessTexture` | `metallic` |
-| emissive, texture and factor | `emissiveTexture`, `emissiveFactor` | `emissiveColor` |
-| opacity and its mode | `alphaMode` (`OPAQUE`, `MASK` with `alphaCutoff`, `BLEND`) | `opacity`, `opacityThreshold`, `opacityMode` |
-| the channel a texture is read from | fixed by the specification (roughness green, metallic blue, occlusion red) | the `UsdUVTexture` output connected |
+glTF 2.0 (core metallic-roughness model) and USD's `UsdPreviewSurface` share one set of inputs:
+base color, metallic, roughness, normal, occlusion, emissive, opacity with a cutoff. They differ
+in that glTF packs roughness and metallic into the green and blue of one image where USD
+connects each channel by name, and in what each adds beyond them (USD: specular workflow,
+clearcoat, ior; glTF: extensions). One slot model carries both.
 
-This touches `MeshIOMaterialSlot`, undo snapshots, the GPU cache, the fill shaders and the
-glTF plugin, so by the mapping-table rule it gets its own table, field by field, approved
-before code. It also fixes the roughness averaging of 4.2.
+**Measured 2026-11-28** (every read and write of `MeshIOMaterialSlot`, with the evidence below):
+the glTF importer indexes its slots by material and its faces' texture index by base-color
+image, while every consumer reads the face index as the slot; the renderer reads a roughness
+texture as the mean of its channels; the glTF exporter writes the base color only, and
+tinygltf's omitted defaults make every exported material fully metallic; USD reads and writes
+neither normal scale nor occlusion strength; undo copies the material set whole, and `.mlp`
+stores no material.
+
+| # | Current | Target | Evidence | Verdict |
+|---|---|---|---|---|
+| 0 | glTF: slots by material, a face's texture index by base-color image, numbered in visiting order; a face whose material has no base texture gets 0 | one slot per glTF material, each face's texture index its material's slot | `gltfimportplugin.cpp:1249-1295`, `:1463`; the face index read as the slot at `meshgpuresourcecache.cpp:486-501`, glTF export `:1798`, USD `writeLayer`, `texturefilterplugin.cpp:1555` | **fix first** |
+| 0b | a slot with no base-color texture is skipped by the GPU cache, its other maps unloaded | white albedo, the slot's other maps loaded | `meshgpuresourcecache.cpp:579-605`; needed once row 0 gives such materials slots | **change** |
+| 1 | roughness drawn from the mean of a texture's three channels | `MeshIOMaterialTextureRef::channel` (RGB, R, G, B, A), set by the importers, written by the exporters, and the one existing roughness read uses it | `fill_smooth.frag:156-161`, `fill_flat.frag:166-169`; glTF packs roughness in green, USD names the output it connects (`usdplugin.cpp:565-568`) | **add**; the one draw change, as a fix |
+| 2 | USD reads and writes neither `normalScale` nor `occlusionStrength` | the normal scale through `UsdUVTexture` scale and bias, both ways; occlusion strength, which USD has no input for, logged | `usdplugin.cpp:502-515`, `:814-877` | **complete** |
+| 3 | glTF export: base color only; every material fully metallic by omitted defaults | the whole slot: normal, occlusion, metallic-roughness (one image packed from two when they differ, as glTF requires), factors, alpha | `gltfimportplugin.cpp:1781-1855`; `tiny_gltf.h:733-759` | **complete** |
+| 4 | glTF `baseColorFactor` baked into vertex colors when there is no `COLOR_0`, ignored otherwise; USD's constant `diffuseColor` dropped on textured materials | `MeshIOMaterialSlot::baseColorFactor` (RGBA, default 1); untextured materials keep today's face or vertex colors (question 5) | `gltfimportplugin.cpp:1297-1311`, `:1406-1410`; `usdplugin.cpp:502-521` | **add**, kept, not drawn |
+| 5 | metallic: not read by glTF, dropped with a log line by USD | `metallicTexture` (glTF: the blue channel of the metallic-roughness image) and `metallicFactor` | `gltfimportplugin.cpp:1283-1284`; `usdplugin.cpp:535-550` | **add**, kept, not drawn |
+| 6 | emissive: not read by glTF, dropped by USD | `emissiveTexture`, `emissiveFactor` | as row 5 | **add**, kept, not drawn |
+| 7 | alpha: glTF `alphaMode`/`alphaCutoff` not read; USD `opacity` kept only on untextured faces, `opacityThreshold` not even logged (4.2 says it is) | `alphaMode` (opaque, mask, blend), `alphaCutoff`, `opacity` | `usdplugin.cpp:521`, `:535-550`; this document 4.2 | **add**, kept, not drawn |
+| 8 | the four texture references walked by hand in about eight places | one `forEachTextureRef(slot, fn)` over all six (with metallic and emissive), used by every walk: texture registration on load, removal, the layer widget's list, the GPU cache | `document_io.cpp:291-305`, `textureassociationutils.cpp:516-558`, `layerwidget.cpp:666-679`, `meshgpuresourcecache.cpp:515-541` | **merge** |
+| 9 | two near-identical batch-fill blocks in the GPU cache | one | `meshgpuresourcecache.cpp:758-830`, `:853-941` | **merge** |
+| 10 | `MeshIOMaterialSet::textureAssets` always empty inside the document (`normalizeMaterialSet` moves images to `MeshEntry::textureAssets`), yet memory accounting walks it | those reads removed | `document_internal.cpp:248-281`; `document_memory.cpp:61`; `documentundomanager.cpp:91,112` | **remove** |
+
+Totals: one fix and one change it needs (0, 0b), one added field drawn as a fix (1), two
+completions (2, 3), four added fields kept but not drawn (4-7), three cleanups (8-10): eleven
+rows. Undo and `.mlp` need nothing. About 500-700 lines, most of them in the glTF importer and
+exporter and in the USD material code.
+
+Approved 2026-11-28, with untextured materials kept as face or vertex colors (question 5).
+
+### 6.1 As implemented (2026-11-28)
+
+`MeshIOMaterialSlot` gained `metallicTexture`, `emissiveTexture`, `baseColorFactor` (RGBA, the
+alpha the opacity), `metallicFactor` (0 unless a file says otherwise), `emissiveFactor`,
+`alphaMode` and `alphaCutoff`; `MeshIOMaterialTextureRef` gained `channel` (RGB, R, G, B, A);
+`forEachTextureRef(slot, f)` walks all six references, and every former hand-written walk uses
+it (reference normalization, texture registration on load, the load log, texture removal, the
+layer widget's list, which now tags Metal and Emissive).
+
+- **glTF import** (row 0): one slot per material whose base color texture could be read, each
+  face's texture index its material's slot, a material with no base color texture giving its
+  faces its base color factor and slot -1. Base color assets sit at their slot's index, channel
+  images after, once each. Every input is read: roughness green and metallic blue of the
+  metallic-roughness image, occlusion red, emissive, the factors (tinygltf supplies the
+  specification's defaults), alpha mode and cutoff. A textured material's base color factor is
+  kept in the slot and no longer baked into vertex colors.
+- **glTF export** (row 3): one material per slot the faces use, written whole, each image once;
+  the metallic-roughness image is the slot's own when roughness and metallic name it in green and
+  blue (or there is no metallic map and the factor is 0), else packed from the two maps;
+  a single-channel map in another channel than glTF's is repacked; factors are written always,
+  so a slot with no metallic of its own no longer reads as fully metallic.
+- **USD** (row 2): channels from the connected `UsdUVTexture` output, both ways; each texture's
+  `scale` carries the factor that multiplies it (base color, roughness, metallic, emissive), the
+  normal scale as scale and bias; opacity is the base texture's alpha (or a value), a threshold
+  a mask. The converter makes one texture per connected output, so the base color and its
+  alpha are matched by prim, not by texture id. USD has no occlusion strength: a strength other
+  than 1 is not written (a save has no channel to the log, so this is said in the code only).
+  `ior` and `displacement` are now noted as dropped; `metallic`, `emissiveColor` and an
+  opacity read from the base texture no longer are.
+- **Drawn** (row 1): the roughness texture's channel reaches the fill shaders in the roughness
+  flag (mode + 4 × channel), so the uniform block's layout is unchanged; a glTF roughness is
+  read from green, no longer from the mean of three channels. Nothing else new is drawn.
+- **Row 0b dropped**: with untextured materials kept as colors (question 5), no slot is ever
+  without a base color texture, so the GPU cache needs no change for it.
+- **Cleanups**: the GPU cache's two batch-filling blocks are one (`takeGroupMaterial`), and the
+  memory accounting no longer walks the material set's assets, which only travel in from an
+  importer (the field's comment now says so).
+
+Measured: `gltfFacesUseTheirOwnMaterial` (fixture `tests/data/gltf/shared_materials.gltf`);
+`materialsRoundTripThroughGltfAndUsd` (every field through `.glb` and `.usda`, the packed image's
+channels, a red roughness map repacked to green). Not measured: the draw of the roughness
+channel, which only a render probe sees.
+
+**Left to the rendering proposal**: drawing the base color factor, metallic, emissive and
+alpha; sRGB decoding of base color and emissive (every image is uploaded as plain RGBA8,
+`meshgpuresourcecache.cpp:566-568`); the global PBR values written to the uniform block and
+always overwritten (`renderwidget_internal.h:403-448`). **A separate fix**: six texture filters
+rebuild a layer's slots from base colors only, dropping its normal, occlusion and roughness maps
+and its factors (`replaceTextureAssociations`, `textureassociationutils.cpp:359-375`).
 
 ## 7. Validation
 
@@ -399,3 +479,7 @@ whose size its mapping table will tell.
    Cameras are left to the annotations framework, and imported layers have no file of their
    own for now (5.3).
 4. **Stage 3 timing**: right after stage 1, or after stage 2?
+5. **Untextured materials** (stage 3, row 4). Kept as today -- face or vertex colors, so that the
+   renderer's grouping by texture is unchanged, and their metallic, emissive and alpha are lost
+   on a round trip -- or slots of their own carrying only factors, which keeps the material but
+   makes every material a draw group?

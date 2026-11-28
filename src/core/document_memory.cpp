@@ -58,10 +58,6 @@ Document::CpuImageMemoryStats Document::cpuImageMemoryStats() const
             if (accountImage(asset.image, seen, stats.meshTextureBytes))
                 ++stats.uniqueMeshTextureImages;
         }
-        for (const MeshIOTextureAsset &asset : entry->materialSet.textureAssets) {
-            if (accountImage(asset.image, seen, stats.meshTextureBytes))
-                ++stats.uniqueMeshTextureImages;
-        }
     }
 
     for (const auto &entry : m_rasters) {

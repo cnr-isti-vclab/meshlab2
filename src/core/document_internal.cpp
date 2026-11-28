@@ -256,10 +256,9 @@ MeshIOMaterialSet normalizeMaterialSet(
         MeshIOMaterialSlot slot = src.entries[i];
         if (slot.name.trimmed().isEmpty())
             slot.name = QObject::tr("Material %1").arg(i + 1);
-        slot.baseColorTexture = normalizeMaterialTextureRef(meshFilePath, slot.baseColorTexture);
-        slot.normalTexture = normalizeMaterialTextureRef(meshFilePath, slot.normalTexture);
-        slot.occlusionTexture = normalizeMaterialTextureRef(meshFilePath, slot.occlusionTexture);
-        slot.roughnessTexture = normalizeMaterialTextureRef(meshFilePath, slot.roughnessTexture);
+        forEachTextureRef(slot, [&](MeshIOTextureRole, MeshIOMaterialTextureRef &ref) {
+            ref = normalizeMaterialTextureRef(meshFilePath, ref);
+        });
         dst.entries.push_back(std::move(slot));
     }
 

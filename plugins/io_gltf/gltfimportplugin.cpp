@@ -645,6 +645,60 @@ void setAccessorMinMaxVec3(tinygltf::Accessor &accessor, const std::vector<float
     accessor.maxValues = { double(maxX), double(maxY), double(maxZ) };
 }
 
+// One channel of a pixel: a named one, or the mean of the color channels for RGB.
+int channelValue(QRgb p, MeshIOTextureChannel channel)
+{
+    switch (channel) {
+    case MeshIOTextureChannel::R: return qRed(p);
+    case MeshIOTextureChannel::G: return qGreen(p);
+    case MeshIOTextureChannel::B: return qBlue(p);
+    case MeshIOTextureChannel::A: return qAlpha(p);
+    case MeshIOTextureChannel::RGB: break;
+    }
+    return (qRed(p) + qGreen(p) + qBlue(p)) / 3;
+}
+
+// An image whose channel `to` holds channel `from` of a (and, when b is given, whose other
+// target is filled from b the same way), the rest white: how a value glTF reads from a fixed
+// channel is written when the material read it from another. b is scaled to a's size.
+QImage packChannels(const QImage &a, MeshIOTextureChannel from, const QImage &b, MeshIOTextureChannel bFrom,
+    MeshIOTextureChannel to, MeshIOTextureChannel bTo = MeshIOTextureChannel::RGB)
+{
+    const QImage first = a.isNull() ? b : a;
+    if (first.isNull())
+        return {};
+    QImage out(first.size(), QImage::Format_ARGB32);
+    out.fill(Qt::white);
+    const auto fill = [&](const QImage &source, MeshIOTextureChannel src, MeshIOTextureChannel dst) {
+        if (source.isNull() || dst == MeshIOTextureChannel::RGB)
+            return;
+        const QImage img = source.size() == out.size() ? source.convertToFormat(QImage::Format_ARGB32)
+            : source.scaled(out.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation).convertToFormat(QImage::Format_ARGB32);
+        for (int y = 0; y < out.height(); ++y) {
+            const QRgb *in = reinterpret_cast<const QRgb *>(img.constScanLine(y));
+            QRgb *line = reinterpret_cast<QRgb *>(out.scanLine(y));
+            for (int x = 0; x < out.width(); ++x) {
+                const int v = channelValue(in[x], src);
+                const QRgb p = line[x];
+                line[x] = qRgba(dst == MeshIOTextureChannel::R ? v : qRed(p), dst == MeshIOTextureChannel::G ? v : qGreen(p),
+                    dst == MeshIOTextureChannel::B ? v : qBlue(p), dst == MeshIOTextureChannel::A ? v : qAlpha(p));
+            }
+        }
+    };
+    fill(a, from, to);
+    fill(b, bFrom, bTo);
+    return out;
+}
+
+// glTF's metallic-roughness image: roughness in green, metallic in blue, either white (the
+// factor alone) when the material has no map for it.
+QImage packMetallicRoughness(const QImage &roughness, MeshIOTextureChannel roughnessChannel, const QImage &metallic,
+    MeshIOTextureChannel metallicChannel)
+{
+    return packChannels(roughness, roughnessChannel, metallic, metallicChannel, MeshIOTextureChannel::G,
+        MeshIOTextureChannel::B);
+}
+
 QString makeCopiedTextureUri(
     const QString &targetFilePath,
     const QString &sourceTexturePath,
@@ -1093,8 +1147,9 @@ public:
 
         // -- Texture resolution ------------------------------------------------
 
-        std::unordered_map<int, int> imageToTextureSlot;
-        std::unordered_map<int, int> imageToAssetIndex;
+        // Images embedded in the file, decoded, by glTF image index; placed in the material
+        // set's asset list once the slots are known.
+        std::unordered_map<int, MeshIOTextureAsset> embeddedImages;
         std::unordered_map<int, QString> imageToResolvedUri;
         std::vector<std::string> textureFiles;
         MeshIOMaterialSet materialSet;
@@ -1153,10 +1208,8 @@ public:
                 MeshIOTextureAsset asset;
                 asset.name = QFileInfo(imageName).fileName();
                 asset.image = std::move(qimg);
-                const int assetIndex = int(materialSet.textureAssets.size());
-                materialSet.textureAssets.push_back(std::move(asset));
-                imageToAssetIndex[imageIndex] = assetIndex;
-                uri = materialSet.textureAssets[size_t(assetIndex)].name;
+                uri = asset.name;
+                embeddedImages[imageIndex] = std::move(asset);
             } else {
                 QString resolvedTexturePath = uri;
                 if (QFileInfo(uri).isRelative())
@@ -1178,21 +1231,8 @@ public:
             return uri;
         };
 
-        auto textureRefFromTextureIndex = [&](int texIndex) -> MeshIOMaterialTextureRef {
-            MeshIOMaterialTextureRef ref;
-            if (texIndex < 0 || texIndex >= int(model.textures.size()))
-                return ref;
-            const int imageIndex = model.textures[size_t(texIndex)].source;
-            const QString resolvedUri = resolveImageUri(imageIndex);
-            if (resolvedUri.isEmpty())
-                return ref;
-            ref.fileName = QFileInfo(resolvedUri).fileName();
-            const auto asset = imageToAssetIndex.find(imageIndex);
-            if (asset != imageToAssetIndex.end())
-                ref.assetIndex = asset->second;
-            else
-                ref.filePath = resolvedUri;
-            return ref;
+        auto imageOfTexture = [&](int texIndex) -> int {
+            return texIndex >= 0 && texIndex < int(model.textures.size()) ? model.textures[size_t(texIndex)].source : -1;
         };
 
         constexpr int kMaxTextureEntriesInLog = 20;
@@ -1216,7 +1256,7 @@ public:
                 if (displayName.isEmpty())
                     displayName = QObject::tr("Texture %1").arg(ti);
 
-                const bool embedded = imageToAssetIndex.find(imageIndex) != imageToAssetIndex.end();
+                const bool embedded = embeddedImages.count(imageIndex) > 0;
                 const QString status = resolvedUri.trimmed().isEmpty()
                     ? QObject::tr("missing")
                     : (embedded ? QObject::tr("embedded") : QObject::tr("found"));
@@ -1246,56 +1286,102 @@ public:
             reportProgress(cb, 10, details.join(QLatin1Char('\n')));
         }
 
-        auto textureSlotForMaterial = [&](int materialIndex) -> int {
-            if (materialIndex < 0 || materialIndex >= int(model.materials.size()))
-                return -1;
-            const auto &mat = model.materials[size_t(materialIndex)];
-            const int texIndex = mat.pbrMetallicRoughness.baseColorTexture.index;
-            if (texIndex < 0 || texIndex >= int(model.textures.size()))
-                return -1;
-            const int imageIndex = model.textures[size_t(texIndex)].source;
-            if (imageIndex < 0 || imageIndex >= int(model.images.size()))
-                return -1;
-            const auto existing = imageToTextureSlot.find(imageIndex);
-            if (existing != imageToTextureSlot.end())
-                return existing->second;
-
-            const QString resolvedUri = resolveImageUri(imageIndex);
-            if (resolvedUri.isEmpty())
-                return -1;
-            const int slot = int(textureFiles.size());
-            textureFiles.push_back(resolvedUri.toStdString());
-            imageToTextureSlot[imageIndex] = slot;
-            return slot;
-        };
-
+        // One slot per material whose base color is a texture that could be read; a face's
+        // texture index is its material's slot. A material with no base color texture has no
+        // slot: its faces take its base color factor as their color, and their slot is -1
+        // (docs/design/proposals/usd_support.md §6). Each base color asset sits at its slot's
+        // index, as Document::loadMesh pairs mesh.textures[i] with textureAssets[i]; the other
+        // channels' embedded images are appended after, once each.
+        std::vector<int> materialSlot(model.materials.size(), -1);
+        std::vector<MeshIOTextureAsset> baseAssets;
         for (size_t mi = 0; mi < model.materials.size(); ++mi) {
             const tinygltf::Material &mat = model.materials[mi];
+            const int baseImage = imageOfTexture(mat.pbrMetallicRoughness.baseColorTexture.index);
+            const QString baseUri = resolveImageUri(baseImage);
+            if (baseUri.isEmpty())
+                continue;
             MeshIOMaterialSlot slot;
             slot.name = QString::fromStdString(mat.name).trimmed();
             if (slot.name.isEmpty())
                 slot.name = QObject::tr("Material %1").arg(mi + 1);
-
-            slot.baseColorTexture =
-                textureRefFromTextureIndex(mat.pbrMetallicRoughness.baseColorTexture.index);
-            slot.normalTexture = textureRefFromTextureIndex(mat.normalTexture.index);
-            slot.occlusionTexture = textureRefFromTextureIndex(mat.occlusionTexture.index);
-            slot.roughnessTexture =
-                textureRefFromTextureIndex(mat.pbrMetallicRoughness.metallicRoughnessTexture.index);
-
-            if (std::isfinite(mat.normalTexture.scale) && mat.normalTexture.scale >= 0.0)
-                slot.normalScale = static_cast<float>(mat.normalTexture.scale);
-            if (std::isfinite(mat.occlusionTexture.strength) && mat.occlusionTexture.strength >= 0.0)
-                slot.occlusionStrength = static_cast<float>(mat.occlusionTexture.strength);
-            if (std::isfinite(mat.pbrMetallicRoughness.roughnessFactor)
-                && mat.pbrMetallicRoughness.roughnessFactor >= 0.0)
-                slot.roughnessFactor = static_cast<float>(mat.pbrMetallicRoughness.roughnessFactor);
-
+            const auto embedded = embeddedImages.find(baseImage);
+            MeshIOTextureAsset asset;
+            if (embedded != embeddedImages.end()) {
+                asset = embedded->second;
+            } else {
+                asset.name = QFileInfo(baseUri).fileName();
+                asset.sourcePath = baseUri;
+                slot.baseColorTexture.filePath = baseUri;
+            }
+            slot.baseColorTexture.fileName = asset.name;
+            slot.baseColorTexture.assetIndex = int(baseAssets.size());
+            materialSlot[mi] = int(baseAssets.size());
+            textureFiles.push_back(baseUri.toStdString());
+            baseAssets.push_back(std::move(asset));
             materialSet.entries.push_back(std::move(slot));
         }
+        materialSet.textureAssets = baseAssets;
+        std::unordered_map<int, int> channelAsset;
+        auto channelRef = [&](int texIndex, MeshIOTextureChannel channel) -> MeshIOMaterialTextureRef {
+            MeshIOMaterialTextureRef ref;
+            const int imageIndex = imageOfTexture(texIndex);
+            const QString uri = resolveImageUri(imageIndex);
+            if (uri.isEmpty())
+                return ref;
+            ref.fileName = QFileInfo(uri).fileName();
+            ref.channel = channel;
+            const auto embedded = embeddedImages.find(imageIndex);
+            if (embedded == embeddedImages.end()) {
+                ref.filePath = uri;
+                return ref;
+            }
+            const auto placed = channelAsset.find(imageIndex);
+            if (placed != channelAsset.end()) {
+                ref.assetIndex = placed->second;
+            } else {
+                ref.assetIndex = int(materialSet.textureAssets.size());
+                channelAsset[imageIndex] = ref.assetIndex;
+                materialSet.textureAssets.push_back(embedded->second);
+            }
+            return ref;
+        };
+        const auto finite = [](double v, double lo) { return std::isfinite(v) && v >= lo; };
+        for (size_t mi = 0; mi < model.materials.size(); ++mi) {
+            if (materialSlot[mi] < 0)
+                continue;
+            const tinygltf::Material &mat = model.materials[mi];
+            const tinygltf::PbrMetallicRoughness &pbr = mat.pbrMetallicRoughness;
+            MeshIOMaterialSlot &slot = materialSet.entries[size_t(materialSlot[mi])];
+            // glTF packs roughness in green and metallic in blue of one image, occlusion in red.
+            slot.normalTexture = channelRef(mat.normalTexture.index, MeshIOTextureChannel::RGB);
+            slot.occlusionTexture = channelRef(mat.occlusionTexture.index, MeshIOTextureChannel::R);
+            slot.roughnessTexture = channelRef(pbr.metallicRoughnessTexture.index, MeshIOTextureChannel::G);
+            slot.metallicTexture = channelRef(pbr.metallicRoughnessTexture.index, MeshIOTextureChannel::B);
+            slot.emissiveTexture = channelRef(mat.emissiveTexture.index, MeshIOTextureChannel::RGB);
+            if (finite(mat.normalTexture.scale, 0.0))
+                slot.normalScale = float(mat.normalTexture.scale);
+            if (finite(mat.occlusionTexture.strength, 0.0))
+                slot.occlusionStrength = float(mat.occlusionTexture.strength);
+            if (finite(pbr.roughnessFactor, 0.0))
+                slot.roughnessFactor = float(pbr.roughnessFactor);
+            // tinygltf fills in the specification's defaults (metallic 1, base color white).
+            if (finite(pbr.metallicFactor, 0.0))
+                slot.metallicFactor = float(pbr.metallicFactor);
+            for (size_t c = 0; c < 4 && c < pbr.baseColorFactor.size(); ++c)
+                slot.baseColorFactor[c] = float(pbr.baseColorFactor[c]);
+            for (size_t c = 0; c < 3 && c < mat.emissiveFactor.size(); ++c)
+                slot.emissiveFactor[c] = float(mat.emissiveFactor[c]);
+            slot.alphaMode = mat.alphaMode == "MASK" ? MeshIOAlphaMode::Mask
+                : mat.alphaMode == "BLEND"           ? MeshIOAlphaMode::Blend
+                                                     : MeshIOAlphaMode::Opaque;
+            if (finite(mat.alphaCutoff, 0.0))
+                slot.alphaCutoff = float(mat.alphaCutoff);
+        }
 
+        // The color of a primitive's vertices when it has no COLOR_0: its material's base color
+        // factor when the material has no slot; a slot keeps its factor itself.
         auto primitiveBaseColor = [&](int materialIndex) -> vcg::Color4b {
-            if (materialIndex < 0 || materialIndex >= int(model.materials.size()))
+            if (materialIndex < 0 || materialIndex >= int(model.materials.size()) || materialSlot[size_t(materialIndex)] >= 0)
                 return vcg::Color4b::White;
             const auto &factor = model.materials[size_t(materialIndex)].pbrMetallicRoughness.baseColorFactor;
             if (factor.size() < 3)
@@ -1355,7 +1441,8 @@ public:
                         hasVertexColors = true;
                     const bool hasIndices = (prim.indices >= 0) && makeAccessorView(model, prim.indices, idxView);
 
-                    const int texSlot = textureSlotForMaterial(prim.material);
+                    const int texSlot = prim.material >= 0 && prim.material < int(materialSlot.size())
+                        ? materialSlot[size_t(prim.material)] : -1;
                     const vcg::Color4b baseColor = primitiveBaseColor(prim.material);
                     const QMatrix3x3 normalMat = world.normalMatrix();
 
@@ -1460,7 +1547,7 @@ public:
                                 f.V(2) = &mesh.vert[baseVert + li[2]];
                                 if (uvView.valid) {
                                     hasWedgeTexCoords = true;
-                                    const int wedgeSlot = (texSlot >= 0) ? texSlot : 0;
+                                    const int wedgeSlot = texSlot;
                                     for (int c = 0; c < 3; ++c) {
                                         const QVector2D uv =
                                             (idx[c] < uvView.count)
@@ -1778,7 +1865,9 @@ public:
         model.asset.version = "2.0";
         model.asset.generator = "MeshLab";
 
-        // Prepare texture/material mapping (only for triangle groups with valid texture slots).
+        // One glTF material per material slot the faces use, carrying all of it: base color,
+        // normal, occlusion, metallic-roughness and emissive textures with their factors, and
+        // the alpha mode. Each image is written once, however many slots or channels use it.
         std::unordered_map<int, int> textureSlotToMaterial;
         // Assets with no file are missing from mesh.textures, so it alone undercounts them.
         const int textureSlotCount = std::max(int(mesh.textures.size()),
@@ -1786,71 +1875,143 @@ public:
                 ? int(textureContext->textureAssets->size()) : 0);
         QStringList savedTexturePaths(textureContext && textureContext->textureAssets
             ? qsizetype(textureContext->textureAssets->size()) : 0);
+        const MeshIOMaterialSlot *const noSlot = nullptr;
+        auto slotOf = [&](int slot) -> const MeshIOMaterialSlot * {
+            return textureContext && textureContext->materialSet && slot >= 0
+                    && slot < int(textureContext->materialSet->entries.size())
+                ? &textureContext->materialSet->entries[size_t(slot)] : noSlot;
+        };
+        // The asset a reference names, and the file that holds its image (empty when none does).
+        auto assetOf = [&](const MeshIOMaterialTextureRef &ref, int fallbackIndex, int *assetIndex)
+            -> std::pair<const MeshIOTextureAsset *, QString> {
+            int index = ref.assetIndex >= 0 ? ref.assetIndex : fallbackIndex;
+            const MeshIOTextureAsset *asset = textureContext && textureContext->textureAssets && index >= 0
+                    && index < int(textureContext->textureAssets->size())
+                ? &textureContext->textureAssets->at(size_t(index)) : nullptr;
+            if (assetIndex)
+                *assetIndex = asset ? index : -1;
+            QString path = asset ? asset->sourcePath.trimmed() : ref.filePath.trimmed();
+            if (path.isEmpty() && fallbackIndex >= 0 && fallbackIndex < int(mesh.textures.size()))
+                path = QString::fromStdString(mesh.textures[size_t(fallbackIndex)]);
+            return { asset, QFileInfo(path).isFile() ? path : QString() };
+        };
+        auto imageOf = [&](const MeshIOMaterialTextureRef &ref) -> QImage {
+            const auto [asset, path] = assetOf(ref, -1, nullptr);
+            return !path.isEmpty() ? QImage(path) : (asset ? asset->image : QImage());
+        };
+        // Writes an image as a glTF image and texture, from its file when it has one (a JPEG stays
+        // a JPEG), else from pixels; returns the texture index, -1 when it could not be written.
+        std::map<QString, int> writtenTextures;
+        auto writeTexture = [&](const QString &key, const QString &file, const QImage &pixels,
+                                const QString &name, int number, int assetIndex) -> int {
+            const auto done = writtenTextures.find(key);
+            if (done != writtenTextures.end())
+                return done->second;
+            tinygltf::Image image;
+            QString savedPath;
+            if (embedTextures) {
+                const bool loaded = file.isEmpty() ? fillTinyGltfImage(image, pixels, number, cb)
+                                                   : fillTinyGltfImageFromFile(image, file, number, cb);
+                if (!loaded)
+                    return writtenTextures[key] = -1;
+                savedPath = QFileInfo(filename).absoluteFilePath();
+            } else {
+                const QString uri = file.isEmpty() ? saveTextureImage(filename, pixels, name, number, cb)
+                                                   : makeCopiedTextureUri(filename, file, cb, number);
+                if (uri.isEmpty())
+                    return writtenTextures[key] = -1;
+                image.uri = uri.toStdString();
+                image.name = QFileInfo(uri).fileName().toStdString();
+                savedPath = QFileInfo(filename).absoluteDir().absoluteFilePath(uri);
+            }
+            if (assetIndex >= 0 && assetIndex < savedTexturePaths.size())
+                savedTexturePaths[assetIndex] = savedPath;
+            model.images.push_back(std::move(image));
+            tinygltf::Texture texture;
+            texture.source = int(model.images.size() - 1);
+            model.textures.push_back(std::move(texture));
+            return writtenTextures[key] = int(model.textures.size() - 1);
+        };
+        // A reference written as it is, its image read by glTF in the channel glTF fixes for the
+        // role (wanted); an image whose channel is another is repacked into that one.
+        auto writeRef = [&](const MeshIOMaterialTextureRef &ref, int fallbackIndex, MeshIOTextureChannel wanted,
+                            int number) -> int {
+            if (!ref.isValid() && fallbackIndex < 0)
+                return -1;
+            int assetIndex = -1;
+            const auto [asset, file] = assetOf(ref, fallbackIndex, &assetIndex);
+            if (!asset && file.isEmpty())
+                return -1;
+            const QString key = !file.isEmpty() ? QFileInfo(file).absoluteFilePath()
+                                                : QStringLiteral("asset:%1").arg(assetIndex);
+            if (ref.channel == wanted || ref.channel == MeshIOTextureChannel::RGB)
+                return writeTexture(key, file, asset ? asset->image : QImage(),
+                    asset ? asset->name : QFileInfo(file).fileName(), number, assetIndex);
+            const QImage packed = packChannels(imageOf(ref), ref.channel, QImage(), MeshIOTextureChannel::RGB, wanted);
+            return writeTexture(key + QStringLiteral("#") + QString::number(int(wanted)), QString(), packed,
+                QStringLiteral("channel_%1.png").arg(number), number, -1);
+        };
+        // glTF reads roughness from the green and metallic from the blue of one image: the
+        // slot's image when both name it in those channels (or there is no metallic map and the
+        // factor leaves metallic at 0), else one packed from the two.
+        auto writeMetallicRoughness = [&](const MeshIOMaterialSlot &slot, int number) -> int {
+            const MeshIOMaterialTextureRef &r = slot.roughnessTexture, &m = slot.metallicTexture;
+            if (!r.isValid() && !m.isValid())
+                return -1;
+            const bool sameImage = r.isValid() && m.isValid() && r.assetIndex == m.assetIndex
+                && r.filePath == m.filePath && r.fileName == m.fileName;
+            if ((sameImage && r.channel == MeshIOTextureChannel::G && m.channel == MeshIOTextureChannel::B)
+                || (!m.isValid() && slot.metallicFactor == 0.0f && r.channel == MeshIOTextureChannel::G))
+                return writeRef(r, -1, MeshIOTextureChannel::G, number);
+            const QImage packed = packMetallicRoughness(r.isValid() ? imageOf(r) : QImage(), r.channel,
+                m.isValid() ? imageOf(m) : QImage(), m.channel);
+            return writeTexture(QStringLiteral("metallicRoughness:%1").arg(number), QString(), packed,
+                QStringLiteral("metallic_roughness_%1.png").arg(number), number, -1);
+        };
         if (textureSlotCount > 0 && !usedTextureSlots.empty()) {
             for (const auto &entry : usedTextureSlots) {
-                const int slot = entry.first;
-                if (slot < 0 || slot >= textureSlotCount)
+                const int slotIndex = entry.first;
+                if (slotIndex < 0 || slotIndex >= textureSlotCount)
+                    continue;
+                const MeshIOMaterialSlot *slot = slotOf(slotIndex);
+                // A slot listed only in mesh.textures is a base color texture of the same index.
+                const int baseTexture = writeRef(slot ? slot->baseColorTexture : MeshIOMaterialTextureRef{},
+                    slot && slot->baseColorTexture.isValid() ? -1 : slotIndex, MeshIOTextureChannel::RGB, slotIndex);
+                if (baseTexture < 0)
                     continue;
 
-                const MeshIOTextureAsset *asset = nullptr;
-                int assetIndex = slot;
-                if (textureContext && textureContext->textureAssets) {
-                    if (textureContext->materialSet
-                        && slot < int(textureContext->materialSet->entries.size())) {
-                        const int referenced = textureContext->materialSet->entries[size_t(slot)]
-                                                   .baseColorTexture.assetIndex;
-                        if (referenced >= 0)
-                            assetIndex = referenced;
-                    }
-                    if (assetIndex >= 0
-                        && assetIndex < int(textureContext->textureAssets->size())) {
-                        asset = &textureContext->textureAssets->at(size_t(assetIndex));
-                    }
-                }
-                const QString sourceTexturePath = asset
-                    ? asset->sourcePath.trimmed()
-                    : (slot < int(mesh.textures.size()) ? QString::fromStdString(mesh.textures[size_t(slot)])
-                                                         : QString());
-                // A texture's file holds exactly its image (Document::saveMesh sees to it), so
-                // copy the file rather than re-encode the image: a JPEG stays a JPEG.
-                const bool fromImage = asset && asset->hasImage() && !QFileInfo(sourceTexturePath).isFile();
-                tinygltf::Image image;
-                QString savedPath;
-                if (embedTextures) {
-                    const bool loaded = fromImage
-                        ? fillTinyGltfImage(image, asset->image, slot, cb)
-                        : fillTinyGltfImageFromFile(image, sourceTexturePath, slot, cb);
-                    if (!loaded)
-                        continue;
-                    savedPath = QFileInfo(filename).absoluteFilePath();
-                } else {
-                    const QString uri = fromImage
-                        ? saveTextureImage(filename, asset->image, asset->name, slot, cb)
-                        : makeCopiedTextureUri(filename, sourceTexturePath, cb, slot);
-                    if (uri.isEmpty())
-                        continue;
-                    image.uri = uri.toStdString();
-                    image.name = QFileInfo(uri).fileName().toStdString();
-                    savedPath = QFileInfo(filename).absoluteDir().absoluteFilePath(uri);
-                }
-                if (asset)
-                    savedTexturePaths[assetIndex] = savedPath;
-                model.images.push_back(std::move(image));
-                const int imageIndex = int(model.images.size() - 1);
-
-                tinygltf::Texture texture;
-                texture.source = imageIndex;
-                model.textures.push_back(std::move(texture));
-                const int textureIndex = int(model.textures.size() - 1);
-
                 tinygltf::Material material;
-                material.name = QStringLiteral("mat_%1").arg(slot).toStdString();
-                material.pbrMetallicRoughness.baseColorFactor = { 1.0, 1.0, 1.0, 1.0 };
-                material.pbrMetallicRoughness.baseColorTexture.index = textureIndex;
-                material.pbrMetallicRoughness.baseColorTexture.texCoord = 0;
+                material.name = (slot && !slot->name.trimmed().isEmpty() ? slot->name.trimmed()
+                                                                          : QStringLiteral("mat_%1").arg(slotIndex))
+                                    .toStdString();
+                tinygltf::PbrMetallicRoughness &pbr = material.pbrMetallicRoughness;
+                pbr.baseColorTexture.index = baseTexture;
+                pbr.baseColorTexture.texCoord = 0;
+                // Written always: tinygltf leaves out a value equal to the specification's default,
+                // and a slot with no metallic of its own must not read as fully metallic.
+                const MeshIOMaterialSlot plain;
+                const MeshIOMaterialSlot &m = slot ? *slot : plain;
+                pbr.baseColorFactor = { m.baseColorFactor[0], m.baseColorFactor[1], m.baseColorFactor[2], m.baseColorFactor[3] };
+                pbr.metallicFactor = m.metallicFactor;
+                pbr.roughnessFactor = m.roughnessFactor;
+                if (slot) {
+                    pbr.metallicRoughnessTexture.index = writeMetallicRoughness(*slot, slotIndex);
+                    material.normalTexture.index = writeRef(slot->normalTexture, -1, MeshIOTextureChannel::RGB, slotIndex);
+                    material.normalTexture.scale = slot->normalScale;
+                    material.occlusionTexture.index =
+                        writeRef(slot->occlusionTexture, -1, MeshIOTextureChannel::R, slotIndex);
+                    material.occlusionTexture.strength = slot->occlusionStrength;
+                    material.emissiveTexture.index =
+                        writeRef(slot->emissiveTexture, -1, MeshIOTextureChannel::RGB, slotIndex);
+                    material.emissiveFactor = { slot->emissiveFactor[0], slot->emissiveFactor[1], slot->emissiveFactor[2] };
+                    material.alphaMode = slot->alphaMode == MeshIOAlphaMode::Mask ? "MASK"
+                        : slot->alphaMode == MeshIOAlphaMode::Blend              ? "BLEND"
+                                                                                 : "OPAQUE";
+                    material.alphaCutoff = slot->alphaCutoff;
+                }
                 material.doubleSided = true;
                 model.materials.push_back(std::move(material));
-                textureSlotToMaterial[slot] = int(model.materials.size() - 1);
+                textureSlotToMaterial[slotIndex] = int(model.materials.size() - 1);
             }
         }
 

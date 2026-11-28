@@ -165,6 +165,8 @@ private slots:
     void usdRoundTripsALayer();
     void usdScenesRoundTripVisibleLayers();
     void reloadKeepsMaterialChannelTextures();
+    void gltfFacesUseTheirOwnMaterial();
+    void materialsRoundTripThroughGltfAndUsd();
     void savingWithoutAMaskWritesWhatTheLayerHolds();
     void e57SavesAConstantColor();
     void e57RoundTripsPointAttributes();
@@ -5393,6 +5395,159 @@ def Xform "World"
     QVERIFY(listsNormalMap());
     QCOMPARE(doc.reloadMesh(0), 0);
     QVERIFY(listsNormalMap());
+}
+
+// Three glTF materials: the first and the third share one base color image, only the third has
+// a normal map, the second has no base color texture. Each face must name its own material's
+// slot: the importer used to number its faces' slots by base color image, so the third
+// material's faces read the first's slot, without its normal map, and the second's took slot 0.
+void DocumentTests::gltfFacesUseTheirOwnMaterial()
+{
+    Document doc;
+    QCOMPARE(doc.loadMesh(QStringLiteral(TEST_SOURCE_DIR "/tests/data/gltf/shared_materials.gltf")), 0);
+    const Document::MeshEntry &entry = doc.mesh(0);
+    QCOMPARE(int(entry.materialSet.entries.size()), 2);   // the untextured material has no slot
+    QCOMPARE(entry.materialSet.entries[0].name, QStringLiteral("First"));
+    QCOMPARE(entry.materialSet.entries[1].name, QStringLiteral("Third"));
+    QVERIFY(!entry.materialSet.entries[0].normalTexture.isValid());
+    QVERIFY(entry.materialSet.entries[1].normalTexture.isValid());
+    // The triangles are written side by side, one per material, at x = 0, 2 and 4.
+    QCOMPARE(entry.mesh.FN(), 3);
+    for (const VCGFace &f : entry.mesh.face) {
+        const int material = int(std::lround(f.cP(0)[0] / 2.0f));
+        const int expectedSlot = material == 0 ? 0 : (material == 1 ? -1 : 1);
+        QCOMPARE(int(f.cWT(0).N()), expectedSlot);
+        // The untextured material's faces take its base color.
+        if (material == 1)
+            QCOMPARE(f.cV(0)->cC(), vcg::Color4b(0, 0, 255, 255));
+    }
+}
+
+namespace {
+// The image a material texture reference names in a loaded layer.
+QImage referencedImage(const Document::MeshEntry &entry, const MeshIOMaterialTextureRef &ref)
+{
+    if (ref.assetIndex >= 0 && ref.assetIndex < int(entry.textureAssets.size())) {
+        const MeshIOTextureAsset &asset = entry.textureAssets[size_t(ref.assetIndex)];
+        if (asset.hasImage())
+            return asset.image;
+        if (!asset.sourcePath.isEmpty())
+            return QImage(asset.sourcePath);
+    }
+    return QImage(ref.filePath);
+}
+}
+
+// Every input glTF and USD share comes back from both: the base color factor (alpha as the
+// opacity), roughness and metallic packed in green and blue of one image, their factors, the
+// normal map and its scale, occlusion, emissive, and a masked alpha with its cutoff. A
+// roughness map read from red, with no metallic map, goes to glTF repacked into green.
+void DocumentTests::materialsRoundTripThroughGltfAndUsd()
+{
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0, 0, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(1, 0, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0, 1, 0));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    mesh.face.EnableWedgeTexCoord();
+    mesh.textures.push_back("base.png");
+    for (int corner = 0; corner < 3; ++corner) {
+        mesh.face[0].WT(corner).N() = 0;
+        mesh.face[0].WT(corner).U() = corner == 1 ? 1.0f : 0.0f;
+        mesh.face[0].WT(corner).V() = corner == 2 ? 1.0f : 0.0f;
+    }
+    const auto solid = [](QColor c) {
+        QImage image(2, 2, QImage::Format_RGBA8888);
+        image.fill(c);
+        return image;
+    };
+    const auto asset = [](const QString &name, const QImage &image) {
+        MeshIOTextureAsset a;
+        a.name = name;
+        a.image = image;
+        return a;
+    };
+    const auto ref = [](int index, const QString &name, MeshIOTextureChannel channel) {
+        MeshIOMaterialTextureRef r;
+        r.assetIndex = index;
+        r.fileName = name;
+        r.channel = channel;
+        return r;
+    };
+    using C = MeshIOTextureChannel;
+    MeshIOMaterialSlot slot;
+    slot.name = QStringLiteral("Painted");
+    slot.baseColorTexture = ref(0, QStringLiteral("base.png"), C::RGB);
+    slot.roughnessTexture = ref(1, QStringLiteral("mr.png"), C::G);
+    slot.metallicTexture = ref(1, QStringLiteral("mr.png"), C::B);
+    slot.normalTexture = ref(2, QStringLiteral("normal.png"), C::RGB);
+    slot.occlusionTexture = ref(3, QStringLiteral("ao.png"), C::R);
+    slot.emissiveTexture = ref(4, QStringLiteral("glow.png"), C::RGB);
+    slot.baseColorFactor = { 0.5f, 0.25f, 1.0f, 0.75f };
+    slot.roughnessFactor = 0.6f;
+    slot.metallicFactor = 0.7f;
+    slot.normalScale = 0.5f;
+    slot.emissiveFactor = { 1.0f, 0.5f, 0.0f };
+    slot.alphaMode = MeshIOAlphaMode::Mask;
+    slot.alphaCutoff = 0.3f;
+
+    Document source;
+    using M = vcg::tri::io::Mask;
+    const int index = source.addMesh(mesh, QStringLiteral("painted"), M::IOM_VERTCOORD | M::IOM_FACEINDEX | M::IOM_WEDGTEXCOORD);
+    source.mesh(index).textureAssets = { asset(QStringLiteral("base.png"), solid(QColor(200, 100, 50))),
+        asset(QStringLiteral("mr.png"), solid(QColor(0, 180, 60))),
+        asset(QStringLiteral("normal.png"), solid(QColor(128, 128, 255))),
+        asset(QStringLiteral("ao.png"), solid(QColor(90, 0, 0))),
+        asset(QStringLiteral("glow.png"), solid(QColor(10, 20, 30))) };
+    source.mesh(index).materialSet.entries = { slot };
+
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    for (const QString name : { QStringLiteral("painted.glb"), QStringLiteral("painted.usda") }) {
+        if (source.saveMaskCapability(dir.filePath(name)) == 0)
+            continue;
+        MeshIOSaveOptions options;
+        options.embedTextures = true;
+        QCOMPARE(source.saveMesh(index, dir.filePath(name), options), 0);
+        Document loaded;
+        QCOMPARE(loaded.loadMesh(dir.filePath(name)), 0);
+        const Document::MeshEntry &entry = loaded.mesh(0);
+        QCOMPARE(int(entry.materialSet.entries.size()), 1);
+        const MeshIOMaterialSlot &back = entry.materialSet.entries[0];
+        const auto near = [](float a, float b) { return std::abs(a - b) < 1e-3f; };
+        QVERIFY2(near(back.baseColorFactor[0], 0.5f) && near(back.baseColorFactor[1], 0.25f)
+                && near(back.baseColorFactor[2], 1.0f) && near(back.baseColorFactor[3], 0.75f), qPrintable(name));
+        QVERIFY2(near(back.roughnessFactor, 0.6f) && near(back.metallicFactor, 0.7f), qPrintable(name));
+        QVERIFY2(near(back.normalScale, 0.5f), qPrintable(name));
+        QVERIFY2(near(back.emissiveFactor[0], 1.0f) && near(back.emissiveFactor[1], 0.5f)
+                && near(back.emissiveFactor[2], 0.0f), qPrintable(name));
+        QCOMPARE(back.alphaMode, MeshIOAlphaMode::Mask);
+        QVERIFY2(near(back.alphaCutoff, 0.3f), qPrintable(name));
+        QCOMPARE(back.roughnessTexture.channel, C::G);
+        QCOMPARE(back.metallicTexture.channel, C::B);
+        QCOMPARE(back.occlusionTexture.channel, C::R);
+        QCOMPARE(referencedImage(entry, back.roughnessTexture).pixelColor(0, 0).green(), 180);
+        QCOMPARE(referencedImage(entry, back.metallicTexture).pixelColor(0, 0).blue(), 60);
+        QCOMPARE(referencedImage(entry, back.occlusionTexture).pixelColor(0, 0).red(), 90);
+        QCOMPARE(referencedImage(entry, back.emissiveTexture).pixelColor(0, 0), QColor(10, 20, 30));
+        QVERIFY2(back.normalTexture.isValid(), qPrintable(name));
+    }
+
+    // Roughness read from red, no metallic map: glTF gets it repacked into green.
+    MeshIOMaterialSlot &red = source.mesh(index).materialSet.entries[0];
+    red.roughnessTexture = ref(3, QStringLiteral("ao.png"), C::R);
+    red.metallicTexture = MeshIOMaterialTextureRef();
+    red.metallicFactor = 0.0f;
+    const QString repacked = dir.filePath(QStringLiteral("repacked.glb"));
+    MeshIOSaveOptions options;
+    options.embedTextures = true;
+    QCOMPARE(source.saveMesh(index, repacked, options), 0);
+    Document loaded;
+    QCOMPARE(loaded.loadMesh(repacked), 0);
+    const MeshIOMaterialSlot &back = loaded.mesh(0).materialSet.entries[0];
+    QCOMPARE(back.roughnessTexture.channel, C::G);
+    QCOMPARE(referencedImage(loaded.mesh(0), back.roughnessTexture).pixelColor(0, 0).green(), 90);
+    QVERIFY(std::abs(back.metallicFactor) < 1e-6f);
 }
 
 // A layer whose first texture exists only in memory -- what Texture Defragmentation leaves --

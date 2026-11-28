@@ -200,7 +200,8 @@ public:
             MainUbufMaterialOverrides {
                 pbr.normalScale * batch.normalScale,
                 pbr.occlusionStrength * batch.occlusionStrength,
-                pbr.roughnessFactor * batch.roughnessFactor },
+                pbr.roughnessFactor * batch.roughnessFactor,
+                batch.roughnessChannel },
             ubufOffset);
         frame.services.setShaderResourcesWithOffset(
             frame.cb,

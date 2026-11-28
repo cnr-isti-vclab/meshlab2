@@ -13,7 +13,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 fillColor;
     vec4 lightingParams;
     vec4 edgeColor;
-    vec4 materialFlags;  // x=normalMode (2=tangent, 3=object), y=aoMode, z=roughnessMode, w=albedoMode
+    vec4 materialFlags;  // x=normalMode (2=tangent, 3=object), y=aoMode, z=roughnessMode + 4*channel, w=albedoMode
     vec4 materialParams; // x=param0 (normalScale/enhancement), y=occlusionStrength, z=roughnessFactor, w=material-id
     vec4 lightDir;        // view-space light direction (w unused)
     // Mesh-LOCAL clipping plane: a vertex survives when dot(vec4(pos,1), clipPlane) >= 0.
@@ -122,7 +122,11 @@ void main()
     int albedoMode = int(ub.materialFlags.w + 0.5);
     int normalMode = int(ub.materialFlags.x + 0.5);
     int aoMode = int(ub.materialFlags.y + 0.5);
-    int roughnessMode = int(ub.materialFlags.z + 0.5);
+    // materialFlags.z: the roughness source (0 none, 1 constant, 2 texture) plus 4 times the
+    // channel the material reads the texture from (0 the mean of R, G and B, 1 R, 2 G, 3 B, 4 A).
+    int roughnessFlags = int(ub.materialFlags.z + 0.5);
+    int roughnessMode = roughnessFlags % 4;
+    int roughnessChannel = roughnessFlags / 4;
     // materialParams.w: 0 plain, 1 PBR, 2 plain with radiance scaling.
     bool enablePbr = ub.materialParams.w > 0.5 && ub.materialParams.w < 1.5;
     const bool rsEnabled = ub.materialParams.w > 1.5;
@@ -155,8 +159,13 @@ void main()
 
         float roughness = (roughnessMode == 0) ? 1.0 : max(0.02, ub.materialParams.z);
         if (hasUv && roughnessMode == 2) {
-            vec3 roughSample = texture(roughnessTex, uv).rgb;
-            roughness *= clamp(dot(roughSample, vec3(0.3333333)), 0.0, 1.0);
+            vec4 roughSample = texture(roughnessTex, uv);
+            float roughValue = roughnessChannel == 1 ? roughSample.r
+                : roughnessChannel == 2 ? roughSample.g
+                : roughnessChannel == 3 ? roughSample.b
+                : roughnessChannel == 4 ? roughSample.a
+                : dot(roughSample.rgb, vec3(0.3333333));
+            roughness *= clamp(roughValue, 0.0, 1.0);
             roughness = clamp(roughness, 0.02, 1.0);
         }
 

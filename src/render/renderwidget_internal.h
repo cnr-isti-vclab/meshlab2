@@ -219,6 +219,9 @@ struct MainUbufMaterialOverrides {
     float normalScale = 1.0f;
     float occlusionStrength = 1.0f;
     float roughnessFactor = 1.0f;
+    // The channel a roughness texture is read from (MeshIOTextureChannel: 0 the mean of R, G and
+    // B, 1 R, 2 G, 3 B, 4 A), added to the roughness flag as 4 times its value.
+    int roughnessChannel = 0;
     QColor fillColorOverride = QColor(); // invalid = no override, use settings.fillColor
 };
 
@@ -422,6 +425,7 @@ inline void writeMainMaterialOverridesToUbuf(
     ubufData[kUbufMaterialParamsOffset + 0] = overrides.normalScale;
     ubufData[kUbufMaterialParamsOffset + 1] = overrides.occlusionStrength;
     ubufData[kUbufMaterialParamsOffset + 2] = overrides.roughnessFactor;
+    ubufData[kUbufMaterialFlagsOffset + 2] += 4.0f * float(overrides.roughnessChannel);
 }
 
 inline void writeMainUbuf(

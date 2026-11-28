@@ -88,7 +88,6 @@ void accountStateImages(
 {
     for (const MeshSnapshot &mesh : state.meshes) {
         accountTextureAssets(mesh.textureAssets, seen, bytes, count);
-        accountTextureAssets(mesh.materialSet.textureAssets, seen, bytes, count);
     }
     for (const RasterSnapshot &raster : state.rasters) {
         for (const RasterPlane &plane : raster.planes)
@@ -109,7 +108,6 @@ struct HistoryBytes {
         qint64 live = 0;
         for (int i = 0; i < doc.meshCount(); ++i) {
             accountTextureAssets(doc.mesh(i).textureAssets, images, live);
-            accountTextureAssets(doc.mesh(i).materialSet.textureAssets, images, live);
         }
         for (int i = 0; i < doc.rasterCount(); ++i) {
             for (const RasterPlane &plane : doc.raster(i).planes)

@@ -80,6 +80,8 @@ public:
         float normalScale = 1.0f;
         float occlusionStrength = 1.0f;
         float roughnessFactor = 1.0f;
+        // The channel the roughness texture is read from (MeshIOTextureChannel as an int).
+        int roughnessChannel = 0;
         int vertexCount = 0;
         int indexCount = 0;
         int textureGroupIndex = -1;

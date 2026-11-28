@@ -32,6 +32,7 @@
 #include <QSet>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <fstream>
 #include <map>
@@ -504,11 +505,45 @@ private:
             MeshIOMaterialSlot slot;
             slot.name = QString::fromStdString(material.name);
             slot.baseColorTexture = base;
+            // The base texture's scale is the base color factor; its alpha the opacity's, when the
+            // opacity reads the base texture's alpha, as MeshLab writes it.
+            const tn::RenderTexture *baseTexture = texture(surface->diffuse_color.texture_id);
+            slot.baseColorFactor = { baseTexture->scale_value.x, baseTexture->scale_value.y, baseTexture->scale_value.z,
+                1.0f };
             slot.normalTexture = textureRef(surface->normal.texture_id, false);
+            // MeshLab's normal scale s is written as scale (2s, 2s, 2) and bias (-s, -s, -1).
+            if (const tn::RenderTexture *normal = texture(surface->normal.texture_id))
+                slot.normalScale = std::max(0.0f, normal->scale_value.x / 2.0f);
             slot.occlusionTexture = textureRef(surface->occlusion.texture_id, false);
+            // A map's factor is its texture's scale (one channel is read, so any component will do).
+            const auto factor = [&](const tn::ShaderParam &p) {
+                const tn::RenderTexture *t = texture(p.texture_id);
+                return std::clamp(t ? t->scale_value.x : p.as_float(), 0.0f, 1.0f);
+            };
             slot.roughnessTexture = textureRef(surface->roughness.texture_id, false);
-            if (surface->roughness.is_value())
-                slot.roughnessFactor = std::clamp(surface->roughness.as_float(), 0.0f, 1.0f);
+            slot.roughnessFactor = factor(surface->roughness);
+            slot.metallicTexture = textureRef(surface->metallic.texture_id, false);
+            slot.metallicFactor = factor(surface->metallic);
+            slot.emissiveTexture = textureRef(surface->emissive_color.texture_id, false);
+            if (surface->emissive_color.is_value()) {
+                const tn::Float4 &e = surface->emissive_color.value;
+                slot.emissiveFactor = { e.x, e.y, e.z };
+            } else if (const tn::RenderTexture *emissive = texture(surface->emissive_color.texture_id)) {
+                slot.emissiveFactor = { emissive->scale_value.x, emissive->scale_value.y, emissive->scale_value.z };
+            }
+            // Opacity: a value, or the base texture's alpha; a threshold above 0 makes it a mask.
+            if (surface->opacity.is_value())
+                slot.baseColorFactor[3] = std::clamp(surface->opacity.as_float(), 0.0f, 1.0f);
+            else if (sameTexturePrim(surface->opacity.texture_id, surface->diffuse_color.texture_id))
+                slot.baseColorFactor[3] = baseTexture->scale_value.w;
+            const bool translucent = surface->opacity.is_texture() || slot.baseColorFactor[3] < 1.0f;
+            const float threshold = surface->opacity_threshold.is_value() ? surface->opacity_threshold.as_float() : 0.0f;
+            if (threshold > 0.0f) {
+                slot.alphaMode = MeshIOAlphaMode::Mask;
+                slot.alphaCutoff = threshold;
+            } else if (translucent) {
+                slot.alphaMode = MeshIOAlphaMode::Blend;
+            }
             info.slot = int(m_t->materials.entries.size());
             m_t->materials.entries.push_back(std::move(slot));
             ++m_texturedMaterials;
@@ -531,22 +566,37 @@ private:
         return vcg::Color4b(byte(r), byte(g), byte(b), byte(a));
     }
 
-    // The inputs stage 1 cannot carry, logged once each when they differ from the fallback.
+    // The inputs MeshLab's material cannot carry, logged once each when they differ from the
+    // fallback.
     void noteDropped(const tn::PreviewSurfaceShader &s)
     {
         const auto differs = [](const tn::ShaderParam &p, float x, float y = 0, float z = 0) {
             return p.is_texture() || p.value.x != x || p.value.y != y || p.value.z != z;
         };
-        if (differs(s.metallic, 0))
-            m_droppedInputs.insert(QStringLiteral("metallic"));
-        if (differs(s.emissive_color, 0))
-            m_droppedInputs.insert(QStringLiteral("emissiveColor"));
-        if (s.opacity.is_texture())
-            m_droppedInputs.insert(QStringLiteral("opacity (texture)"));
+        if (s.opacity.is_texture() && !sameTexturePrim(s.opacity.texture_id, s.diffuse_color.texture_id))
+            m_droppedInputs.insert(QStringLiteral("opacity (from a texture other than the base color's)"));
+        if (differs(s.ior, 1.5f))
+            m_droppedInputs.insert(QStringLiteral("ior"));
+        if (differs(s.displacement, 0))
+            m_droppedInputs.insert(QStringLiteral("displacement"));
         if (differs(s.clearcoat, 0))
             m_droppedInputs.insert(QStringLiteral("clearcoat"));
         if (s.use_specular_workflow)
             m_droppedInputs.insert(QStringLiteral("useSpecularWorkflow"));
+    }
+
+    // Whether two inputs read one UsdUVTexture prim: the converter makes a texture per connected
+    // output, so the base color's rgb and the opacity's alpha are two textures of one prim.
+    bool sameTexturePrim(int32_t a, int32_t b) const
+    {
+        const tn::RenderTexture *ta = texture(a), *tb = texture(b);
+        return ta && tb && ta->prim_path == tb->prim_path;
+    }
+
+    const tn::RenderTexture *texture(int32_t textureId) const
+    {
+        return textureId >= 0 && size_t(textureId) < m_scene.textures.size() ? &m_scene.textures[size_t(textureId)]
+                                                                              : nullptr;
     }
 
     // A reference to a texture's image. A base color image lands in the asset list at the
@@ -562,10 +612,14 @@ private:
             return ref;
         if (texture.is_udim)
             m_droppedInputs.insert(QObject::tr("UDIM texture %1").arg(QString::fromStdString(texture.asset_path)));
-        if (!baseColor && texture.output_channel != tn::RenderTexture::Channel::RGB
-            && texture.output_channel != tn::RenderTexture::Channel::RGBA)
-            m_droppedInputs.insert(QObject::tr("the channel selection of %1 (MeshLab reads all channels)")
-                                       .arg(QString::fromStdString(texture.asset_path)));
+        // The channel the shader input reads, as the UsdUVTexture output it connects names.
+        switch (texture.output_channel) {
+        case tn::RenderTexture::Channel::R: ref.channel = MeshIOTextureChannel::R; break;
+        case tn::RenderTexture::Channel::G: ref.channel = MeshIOTextureChannel::G; break;
+        case tn::RenderTexture::Channel::B: ref.channel = MeshIOTextureChannel::B; break;
+        case tn::RenderTexture::Channel::A: ref.channel = MeshIOTextureChannel::A; break;
+        default: ref.channel = MeshIOTextureChannel::RGB; break;
+        }
 
         const QString resolved = QString::fromStdString(m_scene.images[size_t(texture.image_id)].resolved_path);
         MeshIOTextureAsset asset;
@@ -808,9 +862,27 @@ private:
     std::map<std::string, std::vector<uint8_t>> m_entries;
 };
 
-// One UsdShadeMaterial with a UsdPreviewSurface, fed by a UsdUVTexture for each channel the
-// slot has. Normal maps are read raw and remapped from [0, 1] to [-1, 1]; roughness reads the
-// green channel and occlusion the red one, where glTF packs them.
+// The UsdUVTexture output a single-value input reads: the channel the material names, red
+// for a texture read whole (a grey map).
+const char *singleOutput(MeshIOTextureChannel channel)
+{
+    switch (channel) {
+    case MeshIOTextureChannel::G: return "outputs:g";
+    case MeshIOTextureChannel::B: return "outputs:b";
+    case MeshIOTextureChannel::A: return "outputs:a";
+    case MeshIOTextureChannel::R:
+    case MeshIOTextureChannel::RGB: break;
+    }
+    return "outputs:r";
+}
+
+// One UsdShadeMaterial with a UsdPreviewSurface, fed by a UsdUVTexture for each texture the slot
+// has. A texture's scale carries the factor that multiplies it (base color, roughness,
+// metallic, emissive); normal maps are read raw and remapped from [0, 1] to [-1, 1], the normal
+// scale s as scale (2s, 2s, 2) and bias (-s, -s, -1); single-value inputs read the channel the
+// slot names. Opacity is the base color factor's alpha, read through the base texture's alpha
+// unless the material is opaque; a mask's cutoff is opacityThreshold. USD has no occlusion
+// strength: a slot whose strength is not 1 writes its map at full strength.
 void writeMaterial(ln::LayerBuilder &b, const std::string &path, const std::string &name,
     const MeshIOMaterialSlot &slot, TextureWriter &textures, const MeshIOTextureContext *context)
 {
@@ -821,18 +893,27 @@ void writeMaterial(ln::LayerBuilder &b, const std::string &path, const std::stri
         const char *input, *shader, *output, *inputType;
         ln::TypeId outputType;
         const char *outputTypeName;
-        bool raw, remap;
+        bool raw;
+        std::array<float, 4> scale, bias;
         std::string asset;
     };
+    const auto &f = slot.baseColorFactor;
+    const auto &e = slot.emissiveFactor;
+    const float n = slot.normalScale, r = slot.roughnessFactor, m = slot.metallicFactor;
+    const bool translucent = slot.alphaMode != MeshIOAlphaMode::Opaque;
     std::vector<Channel> channels = {
-        { "inputs:diffuseColor", "BaseColor", "outputs:rgb", "color3f", ln::TypeId::Float3, "float3", false, false,
-            textures.assetPath(slot.baseColorTexture, context) },
-        { "inputs:normal", "Normal", "outputs:rgb", "normal3f", ln::TypeId::Float3, "float3", true, true,
-            textures.assetPath(slot.normalTexture, context) },
-        { "inputs:occlusion", "Occlusion", "outputs:r", "float", ln::TypeId::Float, "float", true, false,
-            textures.assetPath(slot.occlusionTexture, context) },
-        { "inputs:roughness", "Roughness", "outputs:g", "float", ln::TypeId::Float, "float", true, false,
-            textures.assetPath(slot.roughnessTexture, context) },
+        { "inputs:diffuseColor", "BaseColor", "outputs:rgb", "color3f", ln::TypeId::Float3, "float3", false,
+            { f[0], f[1], f[2], f[3] }, { 0, 0, 0, 0 }, textures.assetPath(slot.baseColorTexture, context) },
+        { "inputs:normal", "Normal", "outputs:rgb", "normal3f", ln::TypeId::Float3, "float3", true,
+            { 2 * n, 2 * n, 2, 1 }, { -n, -n, -1, 0 }, textures.assetPath(slot.normalTexture, context) },
+        { "inputs:occlusion", "Occlusion", singleOutput(slot.occlusionTexture.channel), "float", ln::TypeId::Float,
+            "float", true, { 1, 1, 1, 1 }, { 0, 0, 0, 0 }, textures.assetPath(slot.occlusionTexture, context) },
+        { "inputs:roughness", "Roughness", singleOutput(slot.roughnessTexture.channel), "float", ln::TypeId::Float,
+            "float", true, { r, r, r, r }, { 0, 0, 0, 0 }, textures.assetPath(slot.roughnessTexture, context) },
+        { "inputs:metallic", "Metallic", singleOutput(slot.metallicTexture.channel), "float", ln::TypeId::Float,
+            "float", true, { m, m, m, m }, { 0, 0, 0, 0 }, textures.assetPath(slot.metallicTexture, context) },
+        { "inputs:emissiveColor", "Emissive", "outputs:rgb", "color3f", ln::TypeId::Float3, "float3", false,
+            { e[0], e[1], e[2], 1 }, { 0, 0, 0, 0 }, textures.assetPath(slot.emissiveTexture, context) },
     };
     const uint16_t uniform = ln::PropSlot::kFlagUniform;
     b.begin_prim("Surface", "Shader");
@@ -844,8 +925,23 @@ void writeMaterial(ln::LayerBuilder &b, const std::string &path, const std::stri
             anyTexture = true;
         }
     }
+    // The values of the inputs no texture feeds.
+    if (channels[0].asset.empty())
+        addTyped(b, "inputs:diffuseColor", ln::Value::MakeColor3f(f[0], f[1], f[2]), "color3f");
     if (channels[3].asset.empty())
         addTyped(b, "inputs:roughness", ln::Value(slot.roughnessFactor), "float");
+    if (channels[4].asset.empty())
+        addTyped(b, "inputs:metallic", ln::Value(slot.metallicFactor), "float");
+    if (channels[5].asset.empty() && (e[0] != 0 || e[1] != 0 || e[2] != 0))
+        addTyped(b, "inputs:emissiveColor", ln::Value::MakeColor3f(e[0], e[1], e[2]), "color3f");
+    if (translucent) {
+        if (!channels[0].asset.empty())
+            connect(b, "inputs:opacity", path + "/BaseColor.outputs:a", "float");
+        else
+            addTyped(b, "inputs:opacity", ln::Value(f[3]), "float");
+        if (slot.alphaMode == MeshIOAlphaMode::Mask)
+            addTyped(b, "inputs:opacityThreshold", ln::Value(slot.alphaCutoff), "float");
+    }
     declareOutput(b, "outputs:surface", ln::TypeId::Token, "token");
     b.end_prim();
 
@@ -858,12 +954,14 @@ void writeMaterial(ln::LayerBuilder &b, const std::string &path, const std::stri
         addTyped(b, "inputs:sourceColorSpace", ln::Value::MakeToken(c.raw ? "raw" : "sRGB"), "token");
         addTyped(b, "inputs:wrapS", ln::Value::MakeToken("repeat"), "token");
         addTyped(b, "inputs:wrapT", ln::Value::MakeToken("repeat"), "token");
-        if (c.remap) {
-            addTyped(b, "inputs:scale", ln::Value::MakeFloat4(2, 2, 2, 1), "float4");
-            addTyped(b, "inputs:bias", ln::Value::MakeFloat4(-1, -1, -1, 0), "float4");
-        }
+        if (c.scale != std::array<float, 4> { 1, 1, 1, 1 })
+            addTyped(b, "inputs:scale", ln::Value::MakeFloat4(c.scale[0], c.scale[1], c.scale[2], c.scale[3]), "float4");
+        if (c.bias != std::array<float, 4> { 0, 0, 0, 0 })
+            addTyped(b, "inputs:bias", ln::Value::MakeFloat4(c.bias[0], c.bias[1], c.bias[2], c.bias[3]), "float4");
         connect(b, "inputs:st", path + "/TexCoords.outputs:result", "float2");
         declareOutput(b, c.output, c.outputType, c.outputTypeName);
+        if (c.shader == std::string("BaseColor") && translucent)
+            declareOutput(b, "outputs:a", ln::TypeId::Float, "float");
         b.end_prim();
     }
     if (anyTexture) {

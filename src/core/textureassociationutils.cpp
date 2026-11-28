@@ -545,11 +545,10 @@ int removeTextureAsset(Document::MeshEntry &entry, int textureIndex)
         std::vector<MeshIOMaterialSlot> kept;
         for (MeshIOMaterialSlot &slot : materials) {
             bool named = false;
-            for (MeshIOMaterialTextureRef *ref : { &slot.baseColorTexture, &slot.normalTexture,
-                                                   &slot.occlusionTexture, &slot.roughnessTexture })
-                named = release(*ref) || named;
-            const bool emptied = named && !slot.baseColorTexture.isValid() && !slot.normalTexture.isValid()
-                && !slot.occlusionTexture.isValid() && !slot.roughnessTexture.isValid();
+            bool anyLeft = false;
+            forEachTextureRef(slot, [&](MeshIOTextureRole, MeshIOMaterialTextureRef &ref) { named = release(ref) || named; });
+            forEachTextureRef(slot, [&](MeshIOTextureRole, const MeshIOMaterialTextureRef &ref) { anyLeft |= ref.isValid(); });
+            const bool emptied = named && !anyLeft;
             remap.push_back(emptied ? -1 : int(kept.size()));
             if (!emptied)
                 kept.push_back(std::move(slot));

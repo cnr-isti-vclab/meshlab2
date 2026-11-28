@@ -288,20 +288,16 @@ Document::ImportedTextureInfo Document::prepareImportedMesh(
         entry.mesh.textures,
         loadedMaterialSet.textureAssets);
 
-    // Also register any PBR channel textures from materialSet that were not listed in
-    // mesh.textures (e.g. glTF normal / occlusion / roughness maps that have no UV slot).
+    // Also register any channel textures from materialSet that were not listed in
+    // mesh.textures (e.g. glTF normal / occlusion / metallic-roughness maps that have no UV slot).
     for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
-        auto addIfNew = [&](const MeshIOMaterialTextureRef &ref) {
+        forEachTextureRef(slot, [&](MeshIOTextureRole, const MeshIOMaterialTextureRef &ref) {
             const QString p = ref.filePath.trimmed();
             if (p.isEmpty() || entry.textureFilePaths.contains(p))
                 return;
             entry.textureFileNames.append(QFileInfo(p).fileName());
             entry.textureFilePaths.append(p);
-        };
-        addIfNew(slot.baseColorTexture);
-        addIfNew(slot.normalTexture);
-        addIfNew(slot.occlusionTexture);
-        addIfNew(slot.roughnessTexture);
+        });
     }
     return info;
 }
@@ -329,28 +325,16 @@ void Document::logImportedMesh(const MeshEntry &entry, int loadMask, const Impor
             LogSource::Application, LogLevel::Debug);
     }
     if (!entry.materialSet.empty()) {
-        int baseCount = 0;
-        int normalCount = 0;
-        int aoCount = 0;
-        int roughnessCount = 0;
-        for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
-            if (slot.baseColorTexture.isValid())
-                ++baseCount;
-            if (slot.normalTexture.isValid())
-                ++normalCount;
-            if (slot.occlusionTexture.isValid())
-                ++aoCount;
-            if (slot.roughnessTexture.isValid())
-                ++roughnessCount;
-        }
+        int count[6] = {};
+        for (const MeshIOMaterialSlot &slot : entry.materialSet.entries)
+            forEachTextureRef(slot, [&](MeshIOTextureRole role, const MeshIOMaterialTextureRef &ref) {
+                count[int(role)] += ref.isValid() ? 1 : 0;
+            });
         writeLog(
-            tr("Material info for '%1': %2 slot(s), base=%3, normal=%4, ao=%5, roughness=%6")
+            tr("Material info for '%1': %2 slot(s), base=%3, normal=%4, ao=%5, roughness=%6, metallic=%7, emissive=%8")
                 .arg(entry.name)
                 .arg(entry.materialSet.entries.size())
-                .arg(baseCount)
-                .arg(normalCount)
-                .arg(aoCount)
-                .arg(roughnessCount),
+                .arg(count[0]).arg(count[1]).arg(count[2]).arg(count[3]).arg(count[4]).arg(count[5]),
             LogSource::Application);
     }
 }
