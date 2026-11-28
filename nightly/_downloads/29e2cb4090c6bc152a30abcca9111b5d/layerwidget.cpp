@@ -668,14 +668,15 @@ std::vector<LayerTextureInfo> collectLayerTextures(const Document::MeshEntry &en
             const MeshIOMaterialSlot &slot = entry.materialSet.entries[size_t(slotIndex)];
             const QString materialName = slot.name.trimmed();
             const QString prefix = materialName.isEmpty() ? QString() : materialName + QStringLiteral(":");
-            appendLayerTexture(out, byKey, slot.baseColorTexture,
-                prefix + QObject::tr("Base"), slot.baseColorTexture.assetIndex);
-            appendLayerTexture(out, byKey, slot.normalTexture,
-                prefix + QObject::tr("Normal"), slot.normalTexture.assetIndex);
-            appendLayerTexture(out, byKey, slot.occlusionTexture,
-                prefix + QObject::tr("AO"), slot.occlusionTexture.assetIndex);
-            appendLayerTexture(out, byKey, slot.roughnessTexture,
-                prefix + QObject::tr("Rough"), slot.roughnessTexture.assetIndex);
+            forEachTextureRef(slot, [&](MeshIOTextureRole role, const MeshIOMaterialTextureRef &ref) {
+                const QString usage = role == MeshIOTextureRole::BaseColor ? QObject::tr("Base")
+                    : role == MeshIOTextureRole::Normal                    ? QObject::tr("Normal")
+                    : role == MeshIOTextureRole::Occlusion                 ? QObject::tr("AO")
+                    : role == MeshIOTextureRole::Roughness                 ? QObject::tr("Rough")
+                    : role == MeshIOTextureRole::Metallic                  ? QObject::tr("Metal")
+                                                                           : QObject::tr("Emissive");
+                appendLayerTexture(out, byKey, ref, prefix + usage, ref.assetIndex);
+            });
         }
     }
 
@@ -2985,6 +2986,14 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *event)
         m_doc->setCurrentMeshIndex(index);
         emit reloadMeshRequested();
     });
+    // Only for a layer read from a file whose format has load options.
+    const QString sourcePath = m_doc->mesh(index).sourcePath;
+    if (!sourcePath.isEmpty() && !m_doc->loadParameters(sourcePath).empty()) {
+        connect(menu.addAction(tr("Reload with Options...")), &QAction::triggered, this, [this, index] {
+            m_doc->setCurrentMeshIndex(index);
+            emit reloadMeshWithOptionsRequested();
+        });
+    }
     menu.addSeparator();
 
     if (const Document::FilterInfo *info = filterById(placed[2]))

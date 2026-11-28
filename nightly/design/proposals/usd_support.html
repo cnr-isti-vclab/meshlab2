@@ -277,11 +277,11 @@ for flattening a scene).</p>
 </tr>
 <tr class="row-even"><td><p>2</p></td>
 <td><p>Scene I/O: export visible layers to one file, import as separate layers</p></td>
-<td><p>not started; needs approval of the interface</p></td>
+<td><p>done 2026-11-28 (5.5); cameras left out (5.3)</p></td>
 </tr>
 <tr class="row-odd"><td><p>3</p></td>
-<td><p>The material model, extended once for USD and glTF</p></td>
-<td><p>not started; needs its own mapping table</p></td>
+<td><p>The material model, extended once for USD and glTF: data only, nothing new drawn</p></td>
+<td><p>done 2026-11-28 (§6.1)</p></td>
 </tr>
 </tbody>
 </table>
@@ -303,8 +303,9 @@ can be <code class="docutils literal notranslate"><span class="pre">leftHanded</
 <code class="docutils literal notranslate"><span class="pre">materialBind</span></code>). The portable surface is <code class="docutils literal notranslate"><span class="pre">UsdPreviewSurface</span></code>, fed by <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> nodes,
 each of which reads one or more channels of an image, with a scale and a bias.</p></li>
 <li><p><strong>Units and orientation</strong> are stage metadata: <code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code>, whose fallback by the
-specification is 0.01 (centimeters), and <code class="docutils literal notranslate"><span class="pre">upAxis</span></code>, whose fallback is <strong>Y</strong>. MeshLab is
-Z-up.</p></li>
+specification is 0.01 (centimeters), and <code class="docutils literal notranslate"><span class="pre">upAxis</span></code>, whose fallback is <strong>Y</strong>. MeshLab keeps
+a file’s own frame (<a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a>, “Frames are kept”); its default view
+is Y-up.</p></li>
 <li><p><strong>Packaging</strong>: <code class="docutils literal notranslate"><span class="pre">.usdz</span></code> is an uncompressed zip with the stage and its textures inside, the
 form Apple’s Quick Look, Blender, Omniverse and Houdini exchange.</p></li>
 <li><p><strong>Composition</strong>: a file can be a root layer that references others; what the user sees is
@@ -563,9 +564,8 @@ in-memory assets with no file, as a <code class="docutils literal notranslate"><
 UDIM paths (<code class="docutils literal notranslate"><span class="pre">&lt;UDIM&gt;</span></code>) are not supported in stage 1, and say so.</p>
 <p><strong>A known limit that stage 1 inherits.</strong> <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> reads named channels: roughness is
 often the green channel of a packed image whose blue is metallic, as in glTF. The renderer
-reads the roughness texture as the <strong>mean of its three channels</strong> (<code class="docutils literal notranslate"><span class="pre">fill_smooth.frag</span></code>,
-<code class="docutils literal notranslate"><span class="pre">roughSample</span></code>), so a packed texture already renders wrong roughness from glTF today. Stage 3
-adds the channel; stage 1 records the image and logs the channel it ignored.</p>
+read the roughness texture as the <strong>mean of its three channels</strong>, so a packed texture rendered
+wrong roughness from glTF; stage 3 added the channel (§6.1).</p>
 </section>
 <section id="export-one-layer">
 <h3>4.3 Export, one layer<a class="headerlink" href="#export-one-layer" title="Link to this heading">¶</a></h3>
@@ -602,7 +602,7 @@ adds the channel; stage 1 records the image and logs the channel it ignored.</p>
 <td><p><code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code>; nothing authored while the unit is not set</p></td>
 </tr>
 <tr class="row-even"><td><p></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">upAxis</span></code> <code class="docutils literal notranslate"><span class="pre">Z</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">upAxis</span></code> <code class="docutils literal notranslate"><span class="pre">Y</span></code>, as MeshLab’s default view shows the coordinates (decided 2026-11-28; stage 1 wrote <code class="docutils literal notranslate"><span class="pre">Z</span></code>). A Y-up stage read as it is comes back as it was; a Z-up stage read as it is comes back declared Y-up, until a layer records the frame it came from (5.3)</p></td>
 </tr>
 </tbody>
 </table>
@@ -632,8 +632,8 @@ tools, tests, C API, bundled importers, audio and EXR off. The plugin compiles w
 <td><p><code class="docutils literal notranslate"><span class="pre">VCGFace</span></code> has no per-corner normal (<code class="docutils literal notranslate"><span class="pre">src/core/vcgmesh.h</span></code>); the OBJ path’s <code class="docutils literal notranslate"><span class="pre">IOM_WEDGNORMAL</span></code> is a mask bit with no storage behind it in MeshLab’s mesh</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">upAxis</span></code> Y as a rotation on the layer matrix (question 1)</p></td>
-<td><p>the rotation baked into the coordinates, with a log line</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">MeshIOPlugin::load</span></code> returns no matrix; carrying one is the request-struct change of <a class="reference internal" href="load_options.html#6-open-questions"><span class="std std-ref">Load Options §6.1</span></a>, not a stage 1 change. glTF, also Y-up, is not rotated at all today, so the two formats now disagree</p></td>
+<td><p>the coordinates kept as the file has them; the <code class="docutils literal notranslate"><span class="pre">rotateYUpToZUp</span></code> load option, off by default, rotates them, and the log says which (since 2026-11-28; stage 1 first rotated every Y-up stage automatically)</p></td>
+<td><p>MeshLab keeps a file’s own frame (question 1). glTF, Y-up by definition, has the same option</p></td>
 </tr>
 <tr class="row-even"><td><p>unfallbacked <code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code> (question 2)</p></td>
 <td><p>centimeters, by the specification, with a log line</p></td>
@@ -741,9 +741,19 @@ to keep in step.</p>
 <section id="import-as-separate-layers">
 <h3>5.3 Import as Separate Layers<a class="headerlink" href="#import-as-separate-layers" title="Link to this heading">¶</a></h3>
 <p>The other half: each <code class="docutils literal notranslate"><span class="pre">UsdGeomMesh</span></code>, <code class="docutils literal notranslate"><span class="pre">UsdGeomPoints</span></code> and <code class="docutils literal notranslate"><span class="pre">UsdGeomBasisCurves</span></code> prim becomes a
-layer, its world transform the layer matrix and its prim name (or <code class="docutils literal notranslate"><span class="pre">displayName</span></code>) the label;
-cameras become rasters without images. A file written by 5.2 then comes back as the layers
-that wrote it. A menu entry beside Import Mesh; plain Open keeps flattening.</p>
+layer, its world transform the layer matrix and its prim name (or <code class="docutils literal notranslate"><span class="pre">displayName</span></code>) the label.
+A file written by 5.2 then comes back as the layers that wrote it. A menu entry beside Import
+Mesh; plain Open keeps flattening.</p>
+<p><strong>Cameras are left out of stage 2</strong> (decided 2026-11-28), both ways: a camera with no image is
+not a raster, and the place for it is the annotations framework to come, which will attach
+geometric information of several kinds to layers.</p>
+<p><strong>Where an imported layer comes from is an open problem</strong> (recorded 2026-11-28). For now a
+layer imported from a scene has no file of its own: it is not reloadable, and <em>Save</em> asks for a
+new file. A layer could instead record the scene file and its prim (as <code class="docutils literal notranslate"><span class="pre">package.usdz[entry]</span></code>
+names a texture inside a package), so that <em>Reload</em> reads that prim again and the stored-state
+mark knows the layer still holds it; that needs provenance below the file level in
+<code class="docutils literal notranslate"><span class="pre">MeshEntry</span></code>, in the stored-state record and in the project, and is worth doing once more than
+one format imports scenes.</p>
 </section>
 <section id="other-formats-that-would-use-the-same-interface">
 <h3>5.4 Other formats that would use the same interface<a class="headerlink" href="#other-formats-that-would-use-the-same-interface" title="Link to this heading">¶</a></h3>
@@ -791,45 +801,207 @@ inconsistent across tools), FBX (writing needs Autodesk’s proprietary SDK; a u
 is possible), OBJ (named objects but no transforms). Bundler, NVM, COLMAP and Agisoft camera
 files are photo alignments rather than scenes: an import of rasters onto existing layers.</p>
 </section>
+<section id="as-implemented-2026-11-28">
+<h3>5.5 As implemented (2026-11-28)<a class="headerlink" href="#as-implemented-2026-11-28" title="Link to this heading">¶</a></h3>
+<p><strong>Interface</strong> (<code class="docutils literal notranslate"><span class="pre">src/plugins/meshioplugin.h</span></code>): <code class="docutils literal notranslate"><span class="pre">holdsScenes(filename)</span></code>, <code class="docutils literal notranslate"><span class="pre">loadScene(filename,</span> <span class="pre">layers,</span> <span class="pre">cb,</span> <span class="pre">context)</span></code> filling <code class="docutils literal notranslate"><span class="pre">MeshIOSceneLayer</span></code>s (mesh, load mask, material set, matrix,
+label, visibility), and <code class="docutils literal notranslate"><span class="pre">saveScene(filename,</span> <span class="pre">views,</span> <span class="pre">options,</span> <span class="pre">cb)</span></code> taking
+<code class="docutils literal notranslate"><span class="pre">MeshIOSceneLayerView</span></code>s (mesh, mask, matrix, label, texture context). <strong>Document</strong>:
+<code class="docutils literal notranslate"><span class="pre">importLayers(filename,</span> <span class="pre">error,</span> <span class="pre">options)</span></code> and <code class="docutils literal notranslate"><span class="pre">exportVisibleLayers(filename,</span> <span class="pre">error)</span></code>, <em>File &gt;
+Import Layers…</em> and <em>File &gt; Export Visible Layers…</em> (offered for the formats whose plugin
+holds scenes), Python <code class="docutils literal notranslate"><span class="pre">ms.import_layers(path,</span> <span class="pre">**options)</span></code> and <code class="docutils literal notranslate"><span class="pre">ms.export_visible_layers(path)</span></code>.
+An import is one undo step, recorded as <code class="docutils literal notranslate"><span class="pre">import_layers</span></code> with its load options; an export changes
+no layer and no layer’s file.</p>
+<p><strong>Import.</strong> Each <code class="docutils literal notranslate"><span class="pre">Mesh</span></code>, <code class="docutils literal notranslate"><span class="pre">Points</span></code> and <code class="docutils literal notranslate"><span class="pre">BasisCurves</span></code> prim is a layer in the prim’s own
+coordinates; its world transform is the layer matrix, its <code class="docutils literal notranslate"><span class="pre">displayName</span></code> (or name) the label;
+an invisible prim is a hidden layer. Curves come from Tydra’s tessellation, one polyline per
+curve, its vertices shared; a polyline whose last point repeats its first closes on it. The
+<code class="docutils literal notranslate"><span class="pre">rotateYUpToZUp</span></code> option turns a Y-up stage by a rotation in front of every layer matrix, the
+coordinates untouched. Plain <em>Open</em> flattens as before, now with curve prims as edges too.</p>
+<p><strong>Export.</strong> Each visible layer is a prim under <code class="docutils literal notranslate"><span class="pre">/World</span></code>, named from its label and unique,
+with the label as <code class="docutils literal notranslate"><span class="pre">displayName</span></code> and the matrix as <code class="docutils literal notranslate"><span class="pre">xformOp:transform</span></code>, not baked. A layer with
+faces is a <code class="docutils literal notranslate"><span class="pre">Mesh</span></code>, without a <code class="docutils literal notranslate"><span class="pre">Points</span></code>; its edges are linear <code class="docutils literal notranslate"><span class="pre">BasisCurves</span></code> beside it (alone for a
+polyline), one curve per chain of <code class="docutils literal notranslate"><span class="pre">Clean::EdgeMeshChains</span></code>, so a polyline’s vertices stay shared
+when read back. Materials of every layer go under <code class="docutils literal notranslate"><span class="pre">/World/Looks</span></code>; a texture file or image used
+by several layers is written once. A one-layer <em>Save</em> goes through the same writer, without a
+transform or <code class="docutils literal notranslate"><span class="pre">displayName</span></code>, and now writes edges too (stage 1 dropped them).</p>
+<p><strong>Shared with load and save</strong> (the table approved before the move): <code class="docutils literal notranslate"><span class="pre">Document::prepareImportedMesh</span></code>
+and <code class="docutils literal notranslate"><span class="pre">logImportedMesh</span></code> are the post-import steps of <code class="docutils literal notranslate"><span class="pre">loadMesh</span></code>, <code class="docutils literal notranslate"><span class="pre">reloadMesh</span></code> and <code class="docutils literal notranslate"><span class="pre">importLayers</span></code>
+(reload used to skip registering the PBR channel textures, so a reloaded layer lost its normal,
+occlusion and roughness maps); <code class="docutils literal notranslate"><span class="pre">texturesToSave</span></code> and <code class="docutils literal notranslate"><span class="pre">maskToSave</span></code> the save preparation of
+<code class="docutils literal notranslate"><span class="pre">saveMesh</span></code> and <code class="docutils literal notranslate"><span class="pre">exportVisibleLayers</span></code>; <code class="docutils literal notranslate"><span class="pre">Document::CallbackScope</span></code> the progress-callback setup
+each of them repeated.</p>
+<p><strong>Not done</strong>: cameras (5.3); provenance of an imported layer (5.3); per-layer up axis (a Z-up
+stage read as it is comes back declared Y-up); a branching polyline (a vertex of degree 3 or
+more) comes back with that vertex once per chain; the mirrored-matrix winding that the
+flattened import reverses is left to the layer matrix.</p>
+<p><strong>Measured</strong>: <code class="docutils literal notranslate"><span class="pre">usdScenesRoundTripVisibleLayers</span></code> (usda, usdc, usdz: three visible layers and a
+hidden one; labels, matrices, local coordinates, a polyline and a closed loop back, one undo
+step, the flattened Open placing each prim, a polyline saved alone keeping its edges);
+<code class="docutils literal notranslate"><span class="pre">reloadKeepsMaterialChannelTextures</span></code>.</p>
 </section>
-<section id="stage-3-the-material-model">
-<h2>6. Stage 3: the material model<a class="headerlink" href="#stage-3-the-material-model" title="Link to this heading">¶</a></h2>
-<p>Extended once, for USD and glTF together, since both carry what MeshLab drops today:</p>
+</section>
+<section id="stage-3-the-material-model-data-only">
+<h2>6. Stage 3: the material model (data only)<a class="headerlink" href="#stage-3-the-material-model-data-only" title="Link to this heading">¶</a></h2>
+<p><strong>Scope, decided 2026-11-28.</strong> Stage 3 is about what MeshLab <em>keeps</em>: every material input that
+glTF and USD share is read, kept on the layer and written back by both, so that neither format
+loses material data on a round trip. It draws nothing new. The view’s PBR material mode is not
+physically based today – Blinn-Phong, roughness choosing the highlight’s exponent and strength,
+a constant ambient, no Fresnel and no environment lighting (<code class="docutils literal notranslate"><span class="pre">shaders/fill_smooth.frag:150-185</span></code>)
+– and metallic and transparency only mean something under a real metallic-roughness shading
+with image-based lighting. That is a rendering proposal of its own; it will also decide what the
+current mode becomes. The Plain material mode reads none of these fields.</p>
+<p>glTF 2.0 (core metallic-roughness model) and USD’s <code class="docutils literal notranslate"><span class="pre">UsdPreviewSurface</span></code> share one set of inputs:
+base color, metallic, roughness, normal, occlusion, emissive, opacity with a cutoff. They differ
+in that glTF packs roughness and metallic into the green and blue of one image where USD
+connects each channel by name, and in what each adds beyond them (USD: specular workflow,
+clearcoat, ior; glTF: extensions). One slot model carries both.</p>
+<p><strong>Measured 2026-11-28</strong> (every read and write of <code class="docutils literal notranslate"><span class="pre">MeshIOMaterialSlot</span></code>, with the evidence below):
+the glTF importer indexes its slots by material and its faces’ texture index by base-color
+image, while every consumer reads the face index as the slot; the renderer reads a roughness
+texture as the mean of its channels; the glTF exporter writes the base color only, and
+tinygltf’s omitted defaults make every exported material fully metallic; USD reads and writes
+neither normal scale nor occlusion strength; undo copies the material set whole, and <code class="docutils literal notranslate"><span class="pre">.mlp</span></code>
+stores no material.</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
-<tr class="row-odd"><th class="head"><p>Channel</p></th>
-<th class="head"><p>glTF</p></th>
-<th class="head"><p>USD</p></th>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Current</p></th>
+<th class="head"><p>Target</p></th>
+<th class="head"><p>Evidence</p></th>
+<th class="head"><p>Verdict</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>base color factor</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">baseColorFactor</span></code> (now baked into vertex color)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">diffuseColor</span></code> constant</p></td>
+<tr class="row-even"><td><p>0</p></td>
+<td><p>glTF: slots by material, a face’s texture index by base-color image, numbered in visiting order; a face whose material has no base texture gets 0</p></td>
+<td><p>one slot per glTF material, each face’s texture index its material’s slot</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gltfimportplugin.cpp:1249-1295</span></code>, <code class="docutils literal notranslate"><span class="pre">:1463</span></code>; the face index read as the slot at <code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:486-501</span></code>, glTF export <code class="docutils literal notranslate"><span class="pre">:1798</span></code>, USD <code class="docutils literal notranslate"><span class="pre">writeLayer</span></code>, <code class="docutils literal notranslate"><span class="pre">texturefilterplugin.cpp:1555</span></code></p></td>
+<td><p><strong>fix first</strong></p></td>
 </tr>
-<tr class="row-odd"><td><p>metallic, texture and factor</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">metallicFactor</span></code>, blue of <code class="docutils literal notranslate"><span class="pre">metallicRoughnessTexture</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">metallic</span></code></p></td>
+<tr class="row-odd"><td><p>0b</p></td>
+<td><p>a slot with no base-color texture is skipped by the GPU cache, its other maps unloaded</p></td>
+<td><p>white albedo, the slot’s other maps loaded</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:579-605</span></code>; needed once row 0 gives such materials slots</p></td>
+<td><p><strong>change</strong></p></td>
 </tr>
-<tr class="row-even"><td><p>emissive, texture and factor</p></td>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>roughness drawn from the mean of a texture’s three channels</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshIOMaterialTextureRef::channel</span></code> (RGB, R, G, B, A), set by the importers, written by the exporters, and the one existing roughness read uses it</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fill_smooth.frag:156-161</span></code>, <code class="docutils literal notranslate"><span class="pre">fill_flat.frag:166-169</span></code>; glTF packs roughness in green, USD names the output it connects (<code class="docutils literal notranslate"><span class="pre">usdplugin.cpp:565-568</span></code>)</p></td>
+<td><p><strong>add</strong>; the one draw change, as a fix</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>USD reads and writes neither <code class="docutils literal notranslate"><span class="pre">normalScale</span></code> nor <code class="docutils literal notranslate"><span class="pre">occlusionStrength</span></code></p></td>
+<td><p>the normal scale through <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> scale and bias, both ways; occlusion strength, which USD has no input for, logged</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">usdplugin.cpp:502-515</span></code>, <code class="docutils literal notranslate"><span class="pre">:814-877</span></code></p></td>
+<td><p><strong>complete</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>glTF export: base color only; every material fully metallic by omitted defaults</p></td>
+<td><p>the whole slot: normal, occlusion, metallic-roughness (one image packed from two when they differ, as glTF requires), factors, alpha</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gltfimportplugin.cpp:1781-1855</span></code>; <code class="docutils literal notranslate"><span class="pre">tiny_gltf.h:733-759</span></code></p></td>
+<td><p><strong>complete</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>glTF <code class="docutils literal notranslate"><span class="pre">baseColorFactor</span></code> baked into vertex colors when there is no <code class="docutils literal notranslate"><span class="pre">COLOR_0</span></code>, ignored otherwise; USD’s constant <code class="docutils literal notranslate"><span class="pre">diffuseColor</span></code> dropped on textured materials</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshIOMaterialSlot::baseColorFactor</span></code> (RGBA, default 1); untextured materials keep today’s face or vertex colors (question 5)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gltfimportplugin.cpp:1297-1311</span></code>, <code class="docutils literal notranslate"><span class="pre">:1406-1410</span></code>; <code class="docutils literal notranslate"><span class="pre">usdplugin.cpp:502-521</span></code></p></td>
+<td><p><strong>add</strong>, kept, not drawn</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>metallic: not read by glTF, dropped with a log line by USD</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">metallicTexture</span></code> (glTF: the blue channel of the metallic-roughness image) and <code class="docutils literal notranslate"><span class="pre">metallicFactor</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gltfimportplugin.cpp:1283-1284</span></code>; <code class="docutils literal notranslate"><span class="pre">usdplugin.cpp:535-550</span></code></p></td>
+<td><p><strong>add</strong>, kept, not drawn</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>emissive: not read by glTF, dropped by USD</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">emissiveTexture</span></code>, <code class="docutils literal notranslate"><span class="pre">emissiveFactor</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">emissiveColor</span></code></p></td>
+<td><p>as row 5</p></td>
+<td><p><strong>add</strong>, kept, not drawn</p></td>
 </tr>
-<tr class="row-odd"><td><p>opacity and its mode</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">alphaMode</span></code> (<code class="docutils literal notranslate"><span class="pre">OPAQUE</span></code>, <code class="docutils literal notranslate"><span class="pre">MASK</span></code> with <code class="docutils literal notranslate"><span class="pre">alphaCutoff</span></code>, <code class="docutils literal notranslate"><span class="pre">BLEND</span></code>)</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">opacity</span></code>, <code class="docutils literal notranslate"><span class="pre">opacityThreshold</span></code>, <code class="docutils literal notranslate"><span class="pre">opacityMode</span></code></p></td>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>alpha: glTF <code class="docutils literal notranslate"><span class="pre">alphaMode</span></code>/<code class="docutils literal notranslate"><span class="pre">alphaCutoff</span></code> not read; USD <code class="docutils literal notranslate"><span class="pre">opacity</span></code> kept only on untextured faces, <code class="docutils literal notranslate"><span class="pre">opacityThreshold</span></code> not even logged (4.2 says it is)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">alphaMode</span></code> (opaque, mask, blend), <code class="docutils literal notranslate"><span class="pre">alphaCutoff</span></code>, <code class="docutils literal notranslate"><span class="pre">opacity</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">usdplugin.cpp:521</span></code>, <code class="docutils literal notranslate"><span class="pre">:535-550</span></code>; this document 4.2</p></td>
+<td><p><strong>add</strong>, kept, not drawn</p></td>
 </tr>
-<tr class="row-even"><td><p>the channel a texture is read from</p></td>
-<td><p>fixed by the specification (roughness green, metallic blue, occlusion red)</p></td>
-<td><p>the <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> output connected</p></td>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>the four texture references walked by hand in about eight places</p></td>
+<td><p>one <code class="docutils literal notranslate"><span class="pre">forEachTextureRef(slot,</span> <span class="pre">fn)</span></code> over all six (with metallic and emissive), used by every walk: texture registration on load, removal, the layer widget’s list, the GPU cache</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document_io.cpp:291-305</span></code>, <code class="docutils literal notranslate"><span class="pre">textureassociationutils.cpp:516-558</span></code>, <code class="docutils literal notranslate"><span class="pre">layerwidget.cpp:666-679</span></code>, <code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:515-541</span></code></p></td>
+<td><p><strong>merge</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>two near-identical batch-fill blocks in the GPU cache</p></td>
+<td><p>one</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:758-830</span></code>, <code class="docutils literal notranslate"><span class="pre">:853-941</span></code></p></td>
+<td><p><strong>merge</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MeshIOMaterialSet::textureAssets</span></code> always empty inside the document (<code class="docutils literal notranslate"><span class="pre">normalizeMaterialSet</span></code> moves images to <code class="docutils literal notranslate"><span class="pre">MeshEntry::textureAssets</span></code>), yet memory accounting walks it</p></td>
+<td><p>those reads removed</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">document_internal.cpp:248-281</span></code>; <code class="docutils literal notranslate"><span class="pre">document_memory.cpp:61</span></code>; <code class="docutils literal notranslate"><span class="pre">documentundomanager.cpp:91,112</span></code></p></td>
+<td><p><strong>remove</strong></p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>This touches <code class="docutils literal notranslate"><span class="pre">MeshIOMaterialSlot</span></code>, undo snapshots, the GPU cache, the fill shaders and the
-glTF plugin, so by the mapping-table rule it gets its own table, field by field, approved
-before code. It also fixes the roughness averaging of 4.2.</p>
+<p>Totals: one fix and one change it needs (0, 0b), one added field drawn as a fix (1), two
+completions (2, 3), four added fields kept but not drawn (4-7), three cleanups (8-10): eleven
+rows. Undo and <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> need nothing. About 500-700 lines, most of them in the glTF importer and
+exporter and in the USD material code.</p>
+<p>Approved 2026-11-28, with untextured materials kept as face or vertex colors (question 5).</p>
+<section id="id1">
+<h3>6.1 As implemented (2026-11-28)<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">MeshIOMaterialSlot</span></code> gained <code class="docutils literal notranslate"><span class="pre">metallicTexture</span></code>, <code class="docutils literal notranslate"><span class="pre">emissiveTexture</span></code>, <code class="docutils literal notranslate"><span class="pre">baseColorFactor</span></code> (RGBA, the
+alpha the opacity), <code class="docutils literal notranslate"><span class="pre">metallicFactor</span></code> (0 unless a file says otherwise), <code class="docutils literal notranslate"><span class="pre">emissiveFactor</span></code>,
+<code class="docutils literal notranslate"><span class="pre">alphaMode</span></code> and <code class="docutils literal notranslate"><span class="pre">alphaCutoff</span></code>; <code class="docutils literal notranslate"><span class="pre">MeshIOMaterialTextureRef</span></code> gained <code class="docutils literal notranslate"><span class="pre">channel</span></code> (RGB, R, G, B, A);
+<code class="docutils literal notranslate"><span class="pre">forEachTextureRef(slot,</span> <span class="pre">f)</span></code> walks all six references, and every former hand-written walk uses
+it (reference normalization, texture registration on load, the load log, texture removal, the
+layer widget’s list, which now tags Metal and Emissive).</p>
+<ul class="simple">
+<li><p><strong>glTF import</strong> (row 0): one slot per material whose base color texture could be read, each
+face’s texture index its material’s slot, a material with no base color texture giving its
+faces its base color factor and slot -1. Base color assets sit at their slot’s index, channel
+images after, once each. Every input is read: roughness green and metallic blue of the
+metallic-roughness image, occlusion red, emissive, the factors (tinygltf supplies the
+specification’s defaults), alpha mode and cutoff. A textured material’s base color factor is
+kept in the slot and no longer baked into vertex colors.</p></li>
+<li><p><strong>glTF export</strong> (row 3): one material per slot the faces use, written whole, each image once;
+the metallic-roughness image is the slot’s own when roughness and metallic name it in green and
+blue (or there is no metallic map and the factor is 0), else packed from the two maps;
+a single-channel map in another channel than glTF’s is repacked; factors are written always,
+so a slot with no metallic of its own no longer reads as fully metallic.</p></li>
+<li><p><strong>USD</strong> (row 2): channels from the connected <code class="docutils literal notranslate"><span class="pre">UsdUVTexture</span></code> output, both ways; each texture’s
+<code class="docutils literal notranslate"><span class="pre">scale</span></code> carries the factor that multiplies it (base color, roughness, metallic, emissive), the
+normal scale as scale and bias; opacity is the base texture’s alpha (or a value), a threshold
+a mask. The converter makes one texture per connected output, so the base color and its
+alpha are matched by prim, not by texture id. USD has no occlusion strength: a strength other
+than 1 is not written (a save has no channel to the log, so this is said in the code only).
+<code class="docutils literal notranslate"><span class="pre">ior</span></code> and <code class="docutils literal notranslate"><span class="pre">displacement</span></code> are now noted as dropped; <code class="docutils literal notranslate"><span class="pre">metallic</span></code>, <code class="docutils literal notranslate"><span class="pre">emissiveColor</span></code> and an
+opacity read from the base texture no longer are.</p></li>
+<li><p><strong>Drawn</strong> (row 1): the roughness texture’s channel reaches the fill shaders in the roughness
+flag (mode + 4 × channel), so the uniform block’s layout is unchanged; a glTF roughness is
+read from green, no longer from the mean of three channels. Nothing else new is drawn.</p></li>
+<li><p><strong>Row 0b dropped</strong>: with untextured materials kept as colors (question 5), no slot is ever
+without a base color texture, so the GPU cache needs no change for it.</p></li>
+<li><p><strong>Cleanups</strong>: the GPU cache’s two batch-filling blocks are one (<code class="docutils literal notranslate"><span class="pre">takeGroupMaterial</span></code>), and the
+memory accounting no longer walks the material set’s assets, which only travel in from an
+importer (the field’s comment now says so).</p></li>
+</ul>
+<p>Measured: <code class="docutils literal notranslate"><span class="pre">gltfFacesUseTheirOwnMaterial</span></code> (fixture <code class="docutils literal notranslate"><span class="pre">tests/data/gltf/shared_materials.gltf</span></code>);
+<code class="docutils literal notranslate"><span class="pre">materialsRoundTripThroughGltfAndUsd</span></code> (every field through <code class="docutils literal notranslate"><span class="pre">.glb</span></code> and <code class="docutils literal notranslate"><span class="pre">.usda</span></code>, the packed image’s
+channels, a red roughness map repacked to green). Not measured: the draw of the roughness
+channel, which only a render probe sees.</p>
+<p><strong>Left to the rendering proposal</strong>: drawing the base color factor, metallic, emissive and
+alpha; sRGB decoding of base color and emissive (every image is uploaded as plain RGBA8,
+<code class="docutils literal notranslate"><span class="pre">meshgpuresourcecache.cpp:566-568</span></code>); the global PBR values written to the uniform block and
+always overwritten (<code class="docutils literal notranslate"><span class="pre">renderwidget_internal.h:403-448</span></code>). <strong>A separate fix</strong>: six texture filters
+rebuild a layer’s slots from base colors only, dropping its normal, occlusion and roughness maps
+and its factors (<code class="docutils literal notranslate"><span class="pre">replaceTextureAssociations</span></code>, <code class="docutils literal notranslate"><span class="pre">textureassociationutils.cpp:359-375</span></code>).</p>
+</section>
 </section>
 <section id="validation">
 <h2>7. Validation<a class="headerlink" href="#validation" title="Link to this heading">¶</a></h2>
@@ -855,16 +1027,22 @@ whose size its mapping table will tell.</p>
 <section id="open-questions">
 <h2>9. Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
-<li><p><strong>Up axis.</strong> A rotation on the layer matrix (proposed), or baked into the coordinates as
-glTF’s node transforms are? <em>Stage 1 bakes it (4.4): the layer matrix needs the load request
-of Load Options. And should glTF, Y-up by definition, be rotated too?</em></p></li>
+<li><p>~~<strong>Up axis.</strong>~~ Settled 2026-11-28: MeshLab keeps a file’s own frame, for every format.
+A rotation is the user’s choice, the <code class="docutils literal notranslate"><span class="pre">rotateYUpToZUp</span></code> load option of USD and glTF, off by
+default and logged (<a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a>, “Frames are kept”).</p></li>
 <li><p><strong>Unit fallback.</strong> A stage that does not author <code class="docutils literal notranslate"><span class="pre">metersPerUnit</span></code> is in centimeters by the
 specification. Report centimeters (by definition, as glTF’s meters), or Unknown (as for a
 format that does not say)? Stage 0 showed the importer can tell the two apart
 (<code class="docutils literal notranslate"><span class="pre">metersPerUnit_set</span></code>); Tydra’s own fallback, 1.0, is used by neither choice. <em>Stage 1
 reports centimeters.</em></p></li>
-<li><p><strong>Scene interface</strong> (5.1): approve the two optional calls, or another shape?</p></li>
+<li><p>~~<strong>Scene interface</strong> (5.1).~~ Approved 2026-11-28: <code class="docutils literal notranslate"><span class="pre">holdsScenes</span></code>, <code class="docutils literal notranslate"><span class="pre">loadScene</span></code>, <code class="docutils literal notranslate"><span class="pre">saveScene</span></code>.
+Cameras are left to the annotations framework, and imported layers have no file of their
+own for now (5.3).</p></li>
 <li><p><strong>Stage 3 timing</strong>: right after stage 1, or after stage 2?</p></li>
+<li><p><strong>Untextured materials</strong> (stage 3, row 4). Kept as today – face or vertex colors, so that the
+renderer’s grouping by texture is unchanged, and their metallic, emissive and alpha are lost
+on a round trip – or slots of their own carrying only factors, which keeps the material but
+makes every material a draw group?</p></li>
 </ol>
 </section>
 </section>
@@ -926,9 +1104,13 @@ reports centimeters.</em></p></li>
 <li><a class="reference internal" href="#export-visible-layers-as-usd">5.2 Export Visible Layers as USD</a></li>
 <li><a class="reference internal" href="#import-as-separate-layers">5.3 Import as Separate Layers</a></li>
 <li><a class="reference internal" href="#other-formats-that-would-use-the-same-interface">5.4 Other formats that would use the same interface</a></li>
+<li><a class="reference internal" href="#as-implemented-2026-11-28">5.5 As implemented (2026-11-28)</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#stage-3-the-material-model">6. Stage 3: the material model</a></li>
+<li><a class="reference internal" href="#stage-3-the-material-model-data-only">6. Stage 3: the material model (data only)</a><ul>
+<li><a class="reference internal" href="#id1">6.1 As implemented (2026-11-28)</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#validation">7. Validation</a></li>
 <li><a class="reference internal" href="#cost">8. Cost</a></li>
 <li><a class="reference internal" href="#open-questions">9. Open questions</a></li>

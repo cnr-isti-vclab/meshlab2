@@ -72,6 +72,13 @@ Methods
    (x, y, z); None when there is none. A georeferenced file (E57) far from zero sets it
    on load, so float positions keep their precision: add it to get true positions.
 
+.. py:method:: MeshSet.export_visible_layers(...)
+   :module: _meshlab
+
+   export_visible_layers(self, path: str) -> None
+   
+   Writes the visible layers into one scene file (USD), each with its matrix and label.
+
 .. py:method:: MeshSet.filter_descriptor(...)
    :module: _meshlab
 
@@ -83,6 +90,15 @@ Methods
    :module: _meshlab
 
    filter_list(self) -> list[str]
+
+.. py:method:: MeshSet.import_layers(...)
+   :module: _meshlab
+
+   import_layers(self, path: str, \\*\\*options) -> None
+   
+   Reads every mesh, point cloud and polyline of a scene file (USD) as a layer of its own,
+   placed by its matrix and named by its label. Keyword arguments are the format's load
+   options, as for load_new_mesh.
 
 .. py:method:: MeshSet.is_current_mesh_visible(...)
    :module: _meshlab
@@ -104,7 +120,10 @@ Methods
 .. py:method:: MeshSet.load_new_mesh(...)
    :module: _meshlab
 
-   load_new_mesh(self, path: str) -> None
+   load_new_mesh(self, path: str, \\*\\*options) -> None
+   
+   Loads a mesh file as a new layer. Keyword arguments are the format's load options,
+   by id (STL: mergeDuplicateVertices=True); an unknown one or a bad value raises.
 
 .. py:method:: MeshSet.load_new_raster(...)
    :module: _meshlab

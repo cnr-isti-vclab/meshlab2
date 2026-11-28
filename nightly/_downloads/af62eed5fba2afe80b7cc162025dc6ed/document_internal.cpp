@@ -256,10 +256,9 @@ MeshIOMaterialSet normalizeMaterialSet(
         MeshIOMaterialSlot slot = src.entries[i];
         if (slot.name.trimmed().isEmpty())
             slot.name = QObject::tr("Material %1").arg(i + 1);
-        slot.baseColorTexture = normalizeMaterialTextureRef(meshFilePath, slot.baseColorTexture);
-        slot.normalTexture = normalizeMaterialTextureRef(meshFilePath, slot.normalTexture);
-        slot.occlusionTexture = normalizeMaterialTextureRef(meshFilePath, slot.occlusionTexture);
-        slot.roughnessTexture = normalizeMaterialTextureRef(meshFilePath, slot.roughnessTexture);
+        forEachTextureRef(slot, [&](MeshIOTextureRole, MeshIOMaterialTextureRef &ref) {
+            ref = normalizeMaterialTextureRef(meshFilePath, ref);
+        });
         dst.entries.push_back(std::move(slot));
     }
 
@@ -418,6 +417,7 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.materialSet = src.materialSet;
     dst.visible = src.visible;
     dst.ioMask = src.ioMask;
+    dst.loadOptions = src.loadOptions;
     dst.polygonFaceCount = src.polygonFaceCount;
     // Shared, not copied: the payloads are immutable, so a duplicate and its original
     // pointing at one instance cannot interfere. The copy is O(entries).

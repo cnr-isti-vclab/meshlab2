@@ -2,8 +2,9 @@
 
 This document proposes letting a mesh importer declare options -- what to read and how.
 **Opening a file never asks**: the layer is loaded with the default options, and *Reload with
-Options...* in the layer's context menu reads its file again with different ones. **Nothing
-described here is implemented.**
+Options...* in the layer's context menu reads its file again with different ones. Stage 1 is
+implemented (2026-11-28), with STL's merge and USD's and glTF's Y-up rotation as its options; the project (stage 2) and
+several layers from one file (stage 3) are not.
 
 See also: [Data Model](../data_model.md) (Layer Provenance, the I/O model),
 [Preferences](../preferences.md) (the precedent for reusing the filter parameter schema),
@@ -14,7 +15,7 @@ See also: [Data Model](../data_model.md) (Layer Provenance, the I/O model),
 
 | Stage | What | State |
 |---|---|---|
-| 1 | Declared options, loaded with defaults, kept on the layer, *Reload with Options...*, recorded in the action history and in Python; STL's merge moved onto them | not started; needs approval of the interface and of the mapping table in §5 |
+| 1 | Declared options, loaded with defaults, kept on the layer, *Reload with Options...*, recorded in the action history and in Python; STL's merge moved onto them | done 2026-11-28 |
 | 2 | Options kept in the project | not started |
 | 3 | Options that change how many layers a file gives (one per scan, per node) | not started; depends on the scene interface of [USD Support §5](usd_support.md#5-stage-2-scenes) |
 
@@ -25,11 +26,11 @@ in the importer or a global preference:
 
 | Format | The choice | Where it is today |
 |---|---|---|
-| STL | merge the duplicated corners into shared vertices | the global preference `document.mergeStlDuplicateVertices` |
+| STL | merge the duplicated corners into shared vertices | was the global preference `document.mergeStlDuplicateVertices`; now `io_vcg`'s load option `mergeDuplicateVertices` (§5) |
 | E57 | which scans; intensity as scalar; open the photos as rasters; panoramas resampled into pinhole views | all of it always done (`plugins/io_e57`) |
 | LAS/LAZ | keep every point or a subset; which per-point fields to keep; the coordinate offset | not supported ([LAS Support](las_support.md)) |
 | glTF, USD, 3MF, E57 | one layer, or one per node, item or scan | always one layer (stage 3) |
-| USD | apply the up axis to the layer matrix or to the coordinates | not supported ([USD Support §9](usd_support.md#9-open-questions)) |
+| USD, glTF | rotate a Y-up file Z-up | the `rotateYUpToZUp` load option, off by default (since 2026-11-28: MeshLab keeps a file's frame) |
 | OBJ | which of the three importers that accept `.obj` reads it | the plugin order |
 
 Legacy MeshLab had this mechanism (`IOPlugin::initPreOpenParameter`, in
@@ -112,21 +113,35 @@ the load directly (§4).
 
 ## 4. Provenance: recorded and kept
 
-**Recorded.** The `load_mesh` `ScriptAction` already has a `params` field, documented as "empty
-for load/save"; it carries the resolved options. A reload with options is recorded as a load
-of that file with those options, so the generated script reads the file once, with the values
-the user ended with. Python gains keyword arguments:
+**Recorded.** The `load_mesh` `ScriptAction` carries in `params` the options that differ from
+the declared defaults. A reload with options is a `reload_mesh` action with the same `params`;
+the script generator rewrites the line of that file's last load with them, so the generated
+script reads the file once, with the values the user ended with (a file whose load is not in
+the script, a project's layer, gets a comment). Remembered values are recorded like given
+ones, so a script does not depend on the machine it runs on. Python takes keyword arguments,
+named by the option ids as filter parameters are:
 
 ```python
-ms.load_new_mesh("tile.laz", max_points=20_000_000, keep_fields=["classification"])
+ms.load_new_mesh("part.stl", mergeDuplicateVertices=False)
 ```
 
-Unknown names and bad values are refused as a filter's are.
+Unknown names and bad values are refused as a filter's are (`convertParameterValue`).
 
-**Kept.** `MeshEntry` gets `loadOptions`, beside `sourcePath`. Plain *Reload* reads the file
-with them, so it repeats the load the user ended with rather than a default one. A save that
-makes another file the layer's own (`saveMesh`) clears them: the layer now comes from that
-file, read with its own format's defaults.
+**As implemented.** `MeshIOPlugin::loadParameters(filename)` declares; `MeshIOLoadContext`
+carries `options` in, and `messages` out, for what the load did that the log should keep
+(an importer's progress callback only shows a passing line). `Document::loadMesh(...,
+options)` and `reloadMesh(index, &options)` resolve them (`resolveLoadOptions`: declared
+default, then `setRememberedLoadOptions`, then given), and one log line names the values a
+load used. The remembered values live in `Preferences::loadOptions(pluginId)`, under
+`loadOptions/<pluginId>` in the settings, apart from the declared preferences; the app hands
+them to the document at startup and when *Remember for STL files* is ticked in the dialog,
+so the core and Python never read the machine's settings.
+
+**Kept.** `MeshEntry` has `loadOptions`, beside `sourcePath`, and the undo state keeps them.
+Plain *Reload* reads the file with them, so it repeats the load the user ended with rather
+than a default one. A save that makes another file the layer's own (`saveMesh`) clears them:
+the layer now comes from that file, read with its own format's defaults; a save over the
+same file keeps them.
 
 **In the project** (stage 2). An `.mlp` writes a layer's options as a child of its `MLMesh`,
 after `MLMatrix44`, and loading the project passes them back. Legacy MeshLab looks up the
@@ -135,18 +150,22 @@ children of `MLMesh` by name (`firstChildElement("MLMatrix44")`, `"RenderingOpti
 
 ## 5. Moving STL's merge onto it
 
-The one existing load choice moves first. Per the mapping-table rule:
+The one existing load choice moved first (done 2026-11-28). The table approved before the
+move, measured on the tree at `71d8fdcb`:
 
 | Current | Target | Evidence | Verdict |
 |---|---|---|---|
-| preference `document.mergeStlDuplicateVertices` (`resources/preferences.json`) | the default of the STL load option `mergeDuplicateVertices` | read only in `src/ui/mainwindow.cpp` (lines 419 and 935), to call the setter below | move; the stored preference value becomes the remembered default (step 2), migrated once |
-| `Document::mergeStlDuplicateVertices()` / `setMergeStlDuplicateVertices()` (`src/core/document.h`) | removed | callers: those two lines, and `tests/test_document.cpp` (4221, 4227, 4233), which would pass the option instead | remove |
-| the merge in `Document::loadMesh` (`document_io.cpp:113`) | stays in `Document`, driven by the option | it runs for every STL whichever of `io_vcg` and `io_trueform` read it | keep, read the option instead |
-| the mentions in `plugins/io_trueform/trueformioplugin.cpp:141` and `plugins/io_trueform/UPSTREAM.md:176` | name the option | comments only | reword |
+| preference `document.mergeStlDuplicateVertices` (`resources/preferences.json:494`) | the default of `io_vcg`'s STL load option `mergeDuplicateVertices` | read only at `mainwindow.cpp:377` and `:908`, both to call the setter below | move; a stored value migrates once to the remembered default (`Preferences::migrateSettings`) |
+| `Document::mergeStlDuplicateVertices()` / `setMergeStlDuplicateVertices()`, `m_mergeStlDuplicateVertices` (`document.h:194–195`, `:707`) | removed | callers `mainwindow.cpp:377`, `:909`; `test_document.cpp:4230`, `:4236`, `:4242` | remove |
+| `Document::mergeImportedStlVertices` (`document_io.cpp:157`, called at `:258` and `:512`) | `io_vcg`'s STL load, which declares the option | TrueForm's STL reader merges while reading, always (`trueformioplugin.cpp:139–141`), so only `io_vcg` gives a soup | move (the draft said keep) |
+| mentions: `trueformioplugin.cpp:141`, `io_trueform/UPSTREAM.md:176`, `data_model.md:115`, the test comment at `test_document.cpp:4206` | name the option | comments and docs only | reword |
+| test `stlOpensWithDuplicateVerticesMerged` (`test_document.cpp:4202`) | passes the option | its three setter calls | adapt |
 
-There is one move, one removal, one kept piece and one rewording, four rows in all. The STL option is
-declared once, by `Document`, for whichever STL importer runs, rather than by each plugin.
-That one exception is worth it: the merge is the Document's, not the importer's.
+Two moves, one removal, one rewording, one adaptation: five rows. The draft kept the merge in
+`Document` "for whichever STL importer runs"; but the only other STL reader already merges,
+and keeping it there meant a check of the file's extension in the shared load path, the
+kind of special case the working agreements call a hack. In `io_vcg` it is a declared option
+of the one reader that needs it, and `Document` has no STL code left.
 
 ## 6. Open questions
 

@@ -318,6 +318,13 @@ on load, so float positions keep their precision: add it to get true positions.<
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="meshlab.MeshSet.export_visible_layers">
+<span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">export_visible_layers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.export_visible_layers" title="Link to this definition">¶</a></dt>
+<dd><p>export_visible_layers(self, path: str) -&gt; None</p>
+<p>Writes the visible layers into one scene file (USD), each with its matrix and label.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="meshlab.MeshSet.filter_descriptor">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">filter_descriptor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.filter_descriptor" title="Link to this definition">¶</a></dt>
 <dd><p>filter_descriptor(self, filter: str) -&gt; object</p>
@@ -328,6 +335,15 @@ on load, so float positions keep their precision: add it to get true positions.<
 <dt class="sig sig-object py" id="meshlab.MeshSet.filter_list">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">filter_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.filter_list" title="Link to this definition">¶</a></dt>
 <dd><p>filter_list(self) -&gt; list[str]</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="meshlab.MeshSet.import_layers">
+<span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">import_layers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.import_layers" title="Link to this definition">¶</a></dt>
+<dd><p>import_layers(self, path: str, \*\*options) -&gt; None</p>
+<p>Reads every mesh, point cloud and polyline of a scene file (USD) as a layer of its own,
+placed by its matrix and named by its label. Keyword arguments are the format’s load
+options, as for load_new_mesh.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -352,7 +368,9 @@ on load, so float positions keep their precision: add it to get true positions.<
 <dl class="py method">
 <dt class="sig sig-object py" id="meshlab.MeshSet.load_new_mesh">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">load_new_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.load_new_mesh" title="Link to this definition">¶</a></dt>
-<dd><p>load_new_mesh(self, path: str) -&gt; None</p>
+<dd><p>load_new_mesh(self, path: str, \*\*options) -&gt; None</p>
+<p>Loads a mesh file as a new layer. Keyword arguments are the format’s load options,
+by id (STL: mergeDuplicateVertices=True); an unknown one or a bad value raises.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -520,8 +538,10 @@ on load, so float positions keep their precision: add it to get true positions.<
 <li><a class="reference internal" href="#meshlab.MeshSet.current_mesh_index"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_mesh_index()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_raster"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_raster()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.document_origin"><code class="docutils literal notranslate"><span class="pre">MeshSet.document_origin()</span></code></a></li>
+<li><a class="reference internal" href="#meshlab.MeshSet.export_visible_layers"><code class="docutils literal notranslate"><span class="pre">MeshSet.export_visible_layers()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.filter_descriptor"><code class="docutils literal notranslate"><span class="pre">MeshSet.filter_descriptor()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.filter_list"><code class="docutils literal notranslate"><span class="pre">MeshSet.filter_list()</span></code></a></li>
+<li><a class="reference internal" href="#meshlab.MeshSet.import_layers"><code class="docutils literal notranslate"><span class="pre">MeshSet.import_layers()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.is_current_mesh_visible"><code class="docutils literal notranslate"><span class="pre">MeshSet.is_current_mesh_visible()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.is_mesh_visible"><code class="docutils literal notranslate"><span class="pre">MeshSet.is_mesh_visible()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.list_filters"><code class="docutils literal notranslate"><span class="pre">MeshSet.list_filters()</span></code></a></li>

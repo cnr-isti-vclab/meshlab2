@@ -191,6 +191,7 @@ struct MeshGpuResourceCache::CacheState
         float normalScale = 1.0f;
         float occlusionStrength = 1.0f;
         float roughnessFactor = 1.0f;
+        int roughnessChannel = 0;
         int vertexCount = 0;
         int indexCount = 0;
         int textureGroupIndex = -1;
@@ -604,6 +605,52 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     return true;
                 };
 
+                // A batch's material: the textures its group prepared, moved in and
+                // uploaded, their paths (the slot's when nothing was prepared), and the
+                // slot's factors and the channel its roughness texture is read from.
+                auto takeGroupMaterial = [&](CacheState::FillBatchGpu &batch, int textureGroup) {
+                    const auto take = [&](PreparedTexture &prepared, std::unique_ptr<QRhiTexture> &texture) {
+                        if (!prepared.ready)
+                            return;
+                        texture = std::move(prepared.texture);
+                        if (texture && !prepared.image.isNull()) {
+                            QRhiTextureUploadEntry textureEntry(
+                                0, 0, QRhiTextureSubresourceUploadDescription(prepared.image));
+                            ensureUpdates()->uploadTexture(texture.get(), QRhiTextureUploadDescription({ textureEntry }));
+                        }
+                        prepared.image = QImage();
+                    };
+                    auto it = preparedGroups.find(textureGroup);
+                    if (it != preparedGroups.end() && it->second.ready) {
+                        PreparedGroup &group = it->second;
+                        batch.baseColorTexturePath = group.basePath;
+                        take(group.base, batch.baseColorTexture);
+                        if (group.normal.ready)
+                            batch.normalTexturePath = group.normalPath;
+                        take(group.normal, batch.normalTexture);
+                        if (group.occlusion.ready)
+                            batch.occlusionTexturePath = group.occlusionPath;
+                        take(group.occlusion, batch.occlusionTexture);
+                        if (group.roughness.ready)
+                            batch.roughnessTexturePath = group.roughnessPath;
+                        take(group.roughness, batch.roughnessTexture);
+                    }
+                    if (batch.baseColorTexturePath.isEmpty())
+                        batch.baseColorTexturePath = channelTexturePath(textureGroup, TextureChannel::BaseColor);
+                    if (const MeshIOMaterialSlot *slot = materialEntryForGroup(textureGroup)) {
+                        batch.normalScale = slot->normalScale;
+                        batch.occlusionStrength = slot->occlusionStrength;
+                        batch.roughnessFactor = slot->roughnessFactor;
+                        batch.roughnessChannel = int(slot->roughnessTexture.channel);
+                        if (batch.normalTexturePath.isEmpty())
+                            batch.normalTexturePath = slot->normalTexture.filePath.trimmed();
+                        if (batch.occlusionTexturePath.isEmpty())
+                            batch.occlusionTexturePath = slot->occlusionTexture.filePath.trimmed();
+                        if (batch.roughnessTexturePath.isEmpty())
+                            batch.roughnessTexturePath = slot->roughnessTexture.filePath.trimmed();
+                    }
+                };
+
                 auto packExpandedFace =
                     [&](const VCGFace &f,
                         float *groupData,
@@ -755,76 +802,8 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                         ensureUpdates()->uploadStaticBuffer(
                             batch.vbuf.get(), std::move(groupEntry.second));
 
-                        QImage baseTextureUploadImage;
-                        QImage normalTextureUploadImage;
-                        QImage occlusionTextureUploadImage;
-                        QImage roughnessTextureUploadImage;
-                        if (groupEntry.first >= 0) {
-                            auto it = preparedGroups.find(groupEntry.first);
-                            if (it != preparedGroups.end() && it->second.ready) {
-                                PreparedGroup &group = it->second;
-                                batch.baseColorTexturePath = group.basePath;
-                                if (group.base.ready) {
-                                    batch.baseColorTexture = std::move(group.base.texture);
-                                    baseTextureUploadImage = std::move(group.base.image);
-                                }
-                                if (group.normal.ready) {
-                                    batch.normalTexture = std::move(group.normal.texture);
-                                    batch.normalTexturePath = group.normalPath;
-                                    normalTextureUploadImage = std::move(group.normal.image);
-                                }
-                                if (group.occlusion.ready) {
-                                    batch.occlusionTexture = std::move(group.occlusion.texture);
-                                    batch.occlusionTexturePath = group.occlusionPath;
-                                    occlusionTextureUploadImage = std::move(group.occlusion.image);
-                                }
-                                if (group.roughness.ready) {
-                                    batch.roughnessTexture = std::move(group.roughness.texture);
-                                    batch.roughnessTexturePath = group.roughnessPath;
-                                    roughnessTextureUploadImage = std::move(group.roughness.image);
-                                }
-                            }
-                            if (batch.baseColorTexturePath.isEmpty()) {
-                                batch.baseColorTexturePath = channelTexturePath(
-                                    groupEntry.first,
-                                    TextureChannel::BaseColor);
-                            }
-                            if (const MeshIOMaterialSlot *slot =
-                                    materialEntryForGroup(groupEntry.first)) {
-                                batch.normalScale = slot->normalScale;
-                                batch.occlusionStrength = slot->occlusionStrength;
-                                batch.roughnessFactor = slot->roughnessFactor;
-                            }
-                        }
-
-                        if (batch.baseColorTexture && !baseTextureUploadImage.isNull()) {
-                            QRhiTextureUploadEntry textureEntry(
-                                0, 0, QRhiTextureSubresourceUploadDescription(baseTextureUploadImage));
-                            ensureUpdates()->uploadTexture(
-                                batch.baseColorTexture.get(),
-                                QRhiTextureUploadDescription({ textureEntry }));
-                        }
-                        if (batch.normalTexture && !normalTextureUploadImage.isNull()) {
-                            QRhiTextureUploadEntry textureEntry(
-                                0, 0, QRhiTextureSubresourceUploadDescription(normalTextureUploadImage));
-                            ensureUpdates()->uploadTexture(
-                                batch.normalTexture.get(),
-                                QRhiTextureUploadDescription({ textureEntry }));
-                        }
-                        if (batch.occlusionTexture && !occlusionTextureUploadImage.isNull()) {
-                            QRhiTextureUploadEntry textureEntry(
-                                0, 0, QRhiTextureSubresourceUploadDescription(occlusionTextureUploadImage));
-                            ensureUpdates()->uploadTexture(
-                                batch.occlusionTexture.get(),
-                                QRhiTextureUploadDescription({ textureEntry }));
-                        }
-                        if (batch.roughnessTexture && !roughnessTextureUploadImage.isNull()) {
-                            QRhiTextureUploadEntry textureEntry(
-                                0, 0, QRhiTextureSubresourceUploadDescription(roughnessTextureUploadImage));
-                            ensureUpdates()->uploadTexture(
-                                batch.roughnessTexture.get(),
-                                QRhiTextureUploadDescription({ textureEntry }));
-                        }
+                        if (groupEntry.first >= 0)
+                            takeGroupMaterial(batch, groupEntry.first);
 
                         dst.batches.push_back(std::move(batch));
                     }
@@ -843,91 +822,12 @@ MeshGpuResourceCache::EnsureStats MeshGpuResourceCache::ensureMeshResources(
                     if (preparedTextureGroups.contains(textureGroup))
                         continue;
 
-                    PreparedGroup *group = nullptr;
-                    if (ensureGroupPrepared(textureGroup)) {
-                        auto it = preparedGroups.find(textureGroup);
-                        if (it != preparedGroups.end() && it->second.ready)
-                            group = &it->second;
-                    }
-
+                    ensureGroupPrepared(textureGroup);
                     CacheState::FillBatchGpu batch;
                     batch.textureGroupIndex = textureGroup;
                     batch.vertexCount = 0;
                     batch.indexCount = 0;
-
-                    QImage baseTextureUploadImage;
-                    QImage normalTextureUploadImage;
-                    QImage occlusionTextureUploadImage;
-                    QImage roughnessTextureUploadImage;
-
-                    if (group) {
-                        batch.baseColorTexturePath = group->basePath;
-                        if (group->base.ready) {
-                            batch.baseColorTexture = std::move(group->base.texture);
-                            baseTextureUploadImage = std::move(group->base.image);
-                        }
-                        if (group->normal.ready) {
-                            batch.normalTexture = std::move(group->normal.texture);
-                            batch.normalTexturePath = group->normalPath;
-                            normalTextureUploadImage = std::move(group->normal.image);
-                        }
-                        if (group->occlusion.ready) {
-                            batch.occlusionTexture = std::move(group->occlusion.texture);
-                            batch.occlusionTexturePath = group->occlusionPath;
-                            occlusionTextureUploadImage = std::move(group->occlusion.image);
-                        }
-                        if (group->roughness.ready) {
-                            batch.roughnessTexture = std::move(group->roughness.texture);
-                            batch.roughnessTexturePath = group->roughnessPath;
-                            roughnessTextureUploadImage = std::move(group->roughness.image);
-                        }
-                    }
-
-                    if (batch.baseColorTexturePath.isEmpty()) {
-                        batch.baseColorTexturePath = channelTexturePath(
-                            textureGroup,
-                            TextureChannel::BaseColor);
-                    }
-                    if (const MeshIOMaterialSlot *slot = materialEntryForGroup(textureGroup)) {
-                        batch.normalScale = slot->normalScale;
-                        batch.occlusionStrength = slot->occlusionStrength;
-                        batch.roughnessFactor = slot->roughnessFactor;
-                        if (batch.normalTexturePath.isEmpty())
-                            batch.normalTexturePath = slot->normalTexture.filePath.trimmed();
-                        if (batch.occlusionTexturePath.isEmpty())
-                            batch.occlusionTexturePath = slot->occlusionTexture.filePath.trimmed();
-                        if (batch.roughnessTexturePath.isEmpty())
-                            batch.roughnessTexturePath = slot->roughnessTexture.filePath.trimmed();
-                    }
-
-                    if (batch.baseColorTexture && !baseTextureUploadImage.isNull()) {
-                        QRhiTextureUploadEntry textureEntry(
-                            0, 0, QRhiTextureSubresourceUploadDescription(baseTextureUploadImage));
-                        ensureUpdates()->uploadTexture(
-                            batch.baseColorTexture.get(),
-                            QRhiTextureUploadDescription({ textureEntry }));
-                    }
-                    if (batch.normalTexture && !normalTextureUploadImage.isNull()) {
-                        QRhiTextureUploadEntry textureEntry(
-                            0, 0, QRhiTextureSubresourceUploadDescription(normalTextureUploadImage));
-                        ensureUpdates()->uploadTexture(
-                            batch.normalTexture.get(),
-                            QRhiTextureUploadDescription({ textureEntry }));
-                    }
-                    if (batch.occlusionTexture && !occlusionTextureUploadImage.isNull()) {
-                        QRhiTextureUploadEntry textureEntry(
-                            0, 0, QRhiTextureSubresourceUploadDescription(occlusionTextureUploadImage));
-                        ensureUpdates()->uploadTexture(
-                            batch.occlusionTexture.get(),
-                            QRhiTextureUploadDescription({ textureEntry }));
-                    }
-                    if (batch.roughnessTexture && !roughnessTextureUploadImage.isNull()) {
-                        QRhiTextureUploadEntry textureEntry(
-                            0, 0, QRhiTextureSubresourceUploadDescription(roughnessTextureUploadImage));
-                        ensureUpdates()->uploadTexture(
-                            batch.roughnessTexture.get(),
-                            QRhiTextureUploadDescription({ textureEntry }));
-                    }
+                    takeGroupMaterial(batch, textureGroup);
 
                     if (batch.baseColorTexture
                         || batch.normalTexture
@@ -2036,6 +1936,7 @@ MeshGpuResourceCache::FillPassView MeshGpuResourceCache::fillPassView(
             batch.normalScale,
             batch.occlusionStrength,
             batch.roughnessFactor,
+            batch.roughnessChannel,
             batch.vertexCount,
             batch.indexCount,
             batch.textureGroupIndex

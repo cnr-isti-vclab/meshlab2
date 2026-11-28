@@ -248,8 +248,9 @@
 <h1>Load Options<a class="headerlink" href="#load-options" title="Link to this heading">¶</a></h1>
 <p>This document proposes letting a mesh importer declare options – what to read and how.
 <strong>Opening a file never asks</strong>: the layer is loaded with the default options, and <em>Reload with
-Options…</em> in the layer’s context menu reads its file again with different ones. <strong>Nothing
-described here is implemented.</strong></p>
+Options…</em> in the layer’s context menu reads its file again with different ones. Stage 1 is
+implemented (2026-11-28), with STL’s merge and USD’s and glTF’s Y-up rotation as its options; the project (stage 2) and
+several layers from one file (stage 3) are not.</p>
 <p>See also: <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (Layer Provenance, the I/O model),
 <a class="reference internal" href="../preferences.html"><span class="std std-doc">Preferences</span></a> (the precedent for reusing the filter parameter schema),
 <a class="reference internal" href="../adding_a_filter.html"><span class="std std-doc">Adding a Filter</span></a> (the schema itself),
@@ -267,7 +268,7 @@ described here is implemented.</strong></p>
 <tbody>
 <tr class="row-even"><td><p>1</p></td>
 <td><p>Declared options, loaded with defaults, kept on the layer, <em>Reload with Options…</em>, recorded in the action history and in Python; STL’s merge moved onto them</p></td>
-<td><p>not started; needs approval of the interface and of the mapping table in §5</p></td>
+<td><p>done 2026-11-28</p></td>
 </tr>
 <tr class="row-odd"><td><p>2</p></td>
 <td><p>Options kept in the project</p></td>
@@ -296,7 +297,7 @@ in the importer or a global preference:</p>
 <tbody>
 <tr class="row-even"><td><p>STL</p></td>
 <td><p>merge the duplicated corners into shared vertices</p></td>
-<td><p>the global preference <code class="docutils literal notranslate"><span class="pre">document.mergeStlDuplicateVertices</span></code></p></td>
+<td><p>was the global preference <code class="docutils literal notranslate"><span class="pre">document.mergeStlDuplicateVertices</span></code>; now <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code>’s load option <code class="docutils literal notranslate"><span class="pre">mergeDuplicateVertices</span></code> (§5)</p></td>
 </tr>
 <tr class="row-odd"><td><p>E57</p></td>
 <td><p>which scans; intensity as scalar; open the photos as rasters; panoramas resampled into pinhole views</p></td>
@@ -310,9 +311,9 @@ in the importer or a global preference:</p>
 <td><p>one layer, or one per node, item or scan</p></td>
 <td><p>always one layer (stage 3)</p></td>
 </tr>
-<tr class="row-even"><td><p>USD</p></td>
-<td><p>apply the up axis to the layer matrix or to the coordinates</p></td>
-<td><p>not supported (<a class="reference internal" href="usd_support.html#9-open-questions"><span class="std std-ref">USD Support §9</span></a>)</p></td>
+<tr class="row-even"><td><p>USD, glTF</p></td>
+<td><p>rotate a Y-up file Z-up</p></td>
+<td><p>the <code class="docutils literal notranslate"><span class="pre">rotateYUpToZUp</span></code> load option, off by default (since 2026-11-28: MeshLab keeps a file’s frame)</p></td>
 </tr>
 <tr class="row-odd"><td><p>OBJ</p></td>
 <td><p>which of the three importers that accept <code class="docutils literal notranslate"><span class="pre">.obj</span></code> reads it</p></td>
@@ -414,18 +415,30 @@ the load directly (§4).</p>
 </section>
 <section id="provenance-recorded-and-kept">
 <h2>4. Provenance: recorded and kept<a class="headerlink" href="#provenance-recorded-and-kept" title="Link to this heading">¶</a></h2>
-<p><strong>Recorded.</strong> The <code class="docutils literal notranslate"><span class="pre">load_mesh</span></code> <code class="docutils literal notranslate"><span class="pre">ScriptAction</span></code> already has a <code class="docutils literal notranslate"><span class="pre">params</span></code> field, documented as “empty
-for load/save”; it carries the resolved options. A reload with options is recorded as a load
-of that file with those options, so the generated script reads the file once, with the values
-the user ended with. Python gains keyword arguments:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ms</span><span class="o">.</span><span class="n">load_new_mesh</span><span class="p">(</span><span class="s2">"tile.laz"</span><span class="p">,</span> <span class="n">max_points</span><span class="o">=</span><span class="mi">20_000_000</span><span class="p">,</span> <span class="n">keep_fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"classification"</span><span class="p">])</span>
+<p><strong>Recorded.</strong> The <code class="docutils literal notranslate"><span class="pre">load_mesh</span></code> <code class="docutils literal notranslate"><span class="pre">ScriptAction</span></code> carries in <code class="docutils literal notranslate"><span class="pre">params</span></code> the options that differ from
+the declared defaults. A reload with options is a <code class="docutils literal notranslate"><span class="pre">reload_mesh</span></code> action with the same <code class="docutils literal notranslate"><span class="pre">params</span></code>;
+the script generator rewrites the line of that file’s last load with them, so the generated
+script reads the file once, with the values the user ended with (a file whose load is not in
+the script, a project’s layer, gets a comment). Remembered values are recorded like given
+ones, so a script does not depend on the machine it runs on. Python takes keyword arguments,
+named by the option ids as filter parameters are:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ms</span><span class="o">.</span><span class="n">load_new_mesh</span><span class="p">(</span><span class="s2">"part.stl"</span><span class="p">,</span> <span class="n">mergeDuplicateVertices</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Unknown names and bad values are refused as a filter’s are.</p>
-<p><strong>Kept.</strong> <code class="docutils literal notranslate"><span class="pre">MeshEntry</span></code> gets <code class="docutils literal notranslate"><span class="pre">loadOptions</span></code>, beside <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code>. Plain <em>Reload</em> reads the file
-with them, so it repeats the load the user ended with rather than a default one. A save that
-makes another file the layer’s own (<code class="docutils literal notranslate"><span class="pre">saveMesh</span></code>) clears them: the layer now comes from that
-file, read with its own format’s defaults.</p>
+<p>Unknown names and bad values are refused as a filter’s are (<code class="docutils literal notranslate"><span class="pre">convertParameterValue</span></code>).</p>
+<p><strong>As implemented.</strong> <code class="docutils literal notranslate"><span class="pre">MeshIOPlugin::loadParameters(filename)</span></code> declares; <code class="docutils literal notranslate"><span class="pre">MeshIOLoadContext</span></code>
+carries <code class="docutils literal notranslate"><span class="pre">options</span></code> in, and <code class="docutils literal notranslate"><span class="pre">messages</span></code> out, for what the load did that the log should keep
+(an importer’s progress callback only shows a passing line). <code class="docutils literal notranslate"><span class="pre">Document::loadMesh(...,</span> <span class="pre">options)</span></code> and <code class="docutils literal notranslate"><span class="pre">reloadMesh(index,</span> <span class="pre">&amp;options)</span></code> resolve them (<code class="docutils literal notranslate"><span class="pre">resolveLoadOptions</span></code>: declared
+default, then <code class="docutils literal notranslate"><span class="pre">setRememberedLoadOptions</span></code>, then given), and one log line names the values a
+load used. The remembered values live in <code class="docutils literal notranslate"><span class="pre">Preferences::loadOptions(pluginId)</span></code>, under
+<code class="docutils literal notranslate"><span class="pre">loadOptions/&lt;pluginId&gt;</span></code> in the settings, apart from the declared preferences; the app hands
+them to the document at startup and when <em>Remember for STL files</em> is ticked in the dialog,
+so the core and Python never read the machine’s settings.</p>
+<p><strong>Kept.</strong> <code class="docutils literal notranslate"><span class="pre">MeshEntry</span></code> has <code class="docutils literal notranslate"><span class="pre">loadOptions</span></code>, beside <code class="docutils literal notranslate"><span class="pre">sourcePath</span></code>, and the undo state keeps them.
+Plain <em>Reload</em> reads the file with them, so it repeats the load the user ended with rather
+than a default one. A save that makes another file the layer’s own (<code class="docutils literal notranslate"><span class="pre">saveMesh</span></code>) clears them:
+the layer now comes from that file, read with its own format’s defaults; a save over the
+same file keeps them.</p>
 <p><strong>In the project</strong> (stage 2). An <code class="docutils literal notranslate"><span class="pre">.mlp</span></code> writes a layer’s options as a child of its <code class="docutils literal notranslate"><span class="pre">MLMesh</span></code>,
 after <code class="docutils literal notranslate"><span class="pre">MLMatrix44</span></code>, and loading the project passes them back. Legacy MeshLab looks up the
 children of <code class="docutils literal notranslate"><span class="pre">MLMesh</span></code> by name (<code class="docutils literal notranslate"><span class="pre">firstChildElement(&quot;MLMatrix44&quot;)</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;RenderingOption&quot;</span></code> in
@@ -433,7 +446,8 @@ children of <code class="docutils literal notranslate"><span class="pre">MLMesh<
 </section>
 <section id="moving-stl-s-merge-onto-it">
 <h2>5. Moving STL’s merge onto it<a class="headerlink" href="#moving-stl-s-merge-onto-it" title="Link to this heading">¶</a></h2>
-<p>The one existing load choice moves first. Per the mapping-table rule:</p>
+<p>The one existing load choice moved first (done 2026-11-28). The table approved before the
+move, measured on the tree at <code class="docutils literal notranslate"><span class="pre">71d8fdcb</span></code>:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -444,32 +458,39 @@ children of <code class="docutils literal notranslate"><span class="pre">MLMesh<
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>preference <code class="docutils literal notranslate"><span class="pre">document.mergeStlDuplicateVertices</span></code> (<code class="docutils literal notranslate"><span class="pre">resources/preferences.json</span></code>)</p></td>
-<td><p>the default of the STL load option <code class="docutils literal notranslate"><span class="pre">mergeDuplicateVertices</span></code></p></td>
-<td><p>read only in <code class="docutils literal notranslate"><span class="pre">src/ui/mainwindow.cpp</span></code> (lines 419 and 935), to call the setter below</p></td>
-<td><p>move; the stored preference value becomes the remembered default (step 2), migrated once</p></td>
+<tr class="row-even"><td><p>preference <code class="docutils literal notranslate"><span class="pre">document.mergeStlDuplicateVertices</span></code> (<code class="docutils literal notranslate"><span class="pre">resources/preferences.json:494</span></code>)</p></td>
+<td><p>the default of <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code>’s STL load option <code class="docutils literal notranslate"><span class="pre">mergeDuplicateVertices</span></code></p></td>
+<td><p>read only at <code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:377</span></code> and <code class="docutils literal notranslate"><span class="pre">:908</span></code>, both to call the setter below</p></td>
+<td><p>move; a stored value migrates once to the remembered default (<code class="docutils literal notranslate"><span class="pre">Preferences::migrateSettings</span></code>)</p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Document::mergeStlDuplicateVertices()</span></code> / <code class="docutils literal notranslate"><span class="pre">setMergeStlDuplicateVertices()</span></code> (<code class="docutils literal notranslate"><span class="pre">src/core/document.h</span></code>)</p></td>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Document::mergeStlDuplicateVertices()</span></code> / <code class="docutils literal notranslate"><span class="pre">setMergeStlDuplicateVertices()</span></code>, <code class="docutils literal notranslate"><span class="pre">m_mergeStlDuplicateVertices</span></code> (<code class="docutils literal notranslate"><span class="pre">document.h:194–195</span></code>, <code class="docutils literal notranslate"><span class="pre">:707</span></code>)</p></td>
 <td><p>removed</p></td>
-<td><p>callers: those two lines, and <code class="docutils literal notranslate"><span class="pre">tests/test_document.cpp</span></code> (4221, 4227, 4233), which would pass the option instead</p></td>
+<td><p>callers <code class="docutils literal notranslate"><span class="pre">mainwindow.cpp:377</span></code>, <code class="docutils literal notranslate"><span class="pre">:909</span></code>; <code class="docutils literal notranslate"><span class="pre">test_document.cpp:4230</span></code>, <code class="docutils literal notranslate"><span class="pre">:4236</span></code>, <code class="docutils literal notranslate"><span class="pre">:4242</span></code></p></td>
 <td><p>remove</p></td>
 </tr>
-<tr class="row-even"><td><p>the merge in <code class="docutils literal notranslate"><span class="pre">Document::loadMesh</span></code> (<code class="docutils literal notranslate"><span class="pre">document_io.cpp:113</span></code>)</p></td>
-<td><p>stays in <code class="docutils literal notranslate"><span class="pre">Document</span></code>, driven by the option</p></td>
-<td><p>it runs for every STL whichever of <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code> and <code class="docutils literal notranslate"><span class="pre">io_trueform</span></code> read it</p></td>
-<td><p>keep, read the option instead</p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Document::mergeImportedStlVertices</span></code> (<code class="docutils literal notranslate"><span class="pre">document_io.cpp:157</span></code>, called at <code class="docutils literal notranslate"><span class="pre">:258</span></code> and <code class="docutils literal notranslate"><span class="pre">:512</span></code>)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">io_vcg</span></code>’s STL load, which declares the option</p></td>
+<td><p>TrueForm’s STL reader merges while reading, always (<code class="docutils literal notranslate"><span class="pre">trueformioplugin.cpp:139–141</span></code>), so only <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code> gives a soup</p></td>
+<td><p>move (the draft said keep)</p></td>
 </tr>
-<tr class="row-odd"><td><p>the mentions in <code class="docutils literal notranslate"><span class="pre">plugins/io_trueform/trueformioplugin.cpp:141</span></code> and <code class="docutils literal notranslate"><span class="pre">plugins/io_trueform/UPSTREAM.md:176</span></code></p></td>
+<tr class="row-odd"><td><p>mentions: <code class="docutils literal notranslate"><span class="pre">trueformioplugin.cpp:141</span></code>, <code class="docutils literal notranslate"><span class="pre">io_trueform/UPSTREAM.md:176</span></code>, <code class="docutils literal notranslate"><span class="pre">data_model.md:115</span></code>, the test comment at <code class="docutils literal notranslate"><span class="pre">test_document.cpp:4206</span></code></p></td>
 <td><p>name the option</p></td>
-<td><p>comments only</p></td>
+<td><p>comments and docs only</p></td>
 <td><p>reword</p></td>
+</tr>
+<tr class="row-even"><td><p>test <code class="docutils literal notranslate"><span class="pre">stlOpensWithDuplicateVerticesMerged</span></code> (<code class="docutils literal notranslate"><span class="pre">test_document.cpp:4202</span></code>)</p></td>
+<td><p>passes the option</p></td>
+<td><p>its three setter calls</p></td>
+<td><p>adapt</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>There is one move, one removal, one kept piece and one rewording, four rows in all. The STL option is
-declared once, by <code class="docutils literal notranslate"><span class="pre">Document</span></code>, for whichever STL importer runs, rather than by each plugin.
-That one exception is worth it: the merge is the Document’s, not the importer’s.</p>
+<p>Two moves, one removal, one rewording, one adaptation: five rows. The draft kept the merge in
+<code class="docutils literal notranslate"><span class="pre">Document</span></code> “for whichever STL importer runs”; but the only other STL reader already merges,
+and keeping it there meant a check of the file’s extension in the shared load path, the
+kind of special case the working agreements call a hack. In <code class="docutils literal notranslate"><span class="pre">io_vcg</span></code> it is a declared option
+of the one reader that needs it, and <code class="docutils literal notranslate"><span class="pre">Document</span></code> has no STL code left.</p>
 </section>
 <section id="open-questions">
 <h2>6. Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
