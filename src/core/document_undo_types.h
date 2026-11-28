@@ -77,6 +77,7 @@ struct MeshSnapshot {
     bool visible = false;
     int ioMask = 0;
     int polygonFaceCount = -1;
+    MeshFilterParameterValues loadOptions;
     // Shared, immutable geometry; never null after capture. Its selection, colors and
     // scalars are those of the state that made it, whose revisions geometryLayerRevisions
     // holds (indexed as meshAttributeKinds).

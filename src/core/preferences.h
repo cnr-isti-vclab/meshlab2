@@ -56,6 +56,13 @@ public:
     void resetToDefault(const QString &id);
     void resetToDefaults();
 
+    // Load options the user chose to remember for a format (Reload with Options, "Remember
+    // for this format"), by the importer's pluginId; a load takes them before the declared
+    // defaults (Document::setRememberedLoadOptions). Kept apart from the declared
+    // preferences, as each format declares its own. An empty map forgets them.
+    MeshFilterParameterValues loadOptions(const QString &pluginId) const;
+    void setLoadOptions(const QString &pluginId, const MeshFilterParameterValues &values);
+
 signals:
     // Emitted after the new value is stored and persisted.
     void changed(const QString &id, const QVariant &value);

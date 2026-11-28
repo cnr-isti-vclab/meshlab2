@@ -66,6 +66,7 @@ private slots:
     void openFile();
     void openRasterImage();
     void reloadCurrentMesh();
+    void reloadCurrentMeshWithOptions();
     void reloadAllMeshes();
     void undo();
     void redo();

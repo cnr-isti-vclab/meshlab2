@@ -34,6 +34,7 @@ private slots:
     void theMarkSaysWhetherAFileHoldsTheLayer();
     void typingANameRunsTheRenameFilter();
     void ctrlDDuplicatesTheCurrentLayer();
+    void reloadWithOptionsIsOfferedForFormatsWithOptions();
     void selectedCountsFollowEverySelectionChange();
     void countRowsListOnlyTheKindsALayerHas();
 };
@@ -549,6 +550,51 @@ void LayerWidgetTests::ctrlDDuplicatesTheCurrentLayer()
                                               QStringLiteral("Reload"), QStringLiteral("-") }));
     QCOMPARE(entries.last(), QStringLiteral("Remove"));
     QVERIFY(!entries.join(QLatin1Char(' ')).contains(QStringLiteral("Raster")));
+}
+
+// Reload with Options... is in a layer's menu only when its file's format has load options:
+// an STL read by io_vcg (merge duplicate vertices), not a PLY.
+void LayerWidgetTests::reloadWithOptionsIsOfferedForFormatsWithOptions()
+{
+    Document doc;
+    // io_vcg's STL reader declares the option, TrueForm's none; the choice persists in
+    // QSettings, shared with the user's own application, so it is put back.
+    const QString previousStl = doc.preferredImportPluginForExtension(QStringLiteral("stl"));
+    const auto restore = qScopeGuard([&] {
+        doc.setPreferredImportPluginForExtension(QStringLiteral("stl"), previousStl);
+    });
+    doc.setPreferredImportPluginForExtension(QStringLiteral("stl"), QStringLiteral("io_vcg"));
+    addTinyMesh(doc, QStringLiteral("part"));
+    LayerWidget widget(&doc);
+    widget.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&widget));
+    QTreeWidget *meshTree = nullptr;
+    for (QTreeWidget *candidate : widget.findChildren<QTreeWidget *>())
+        if (candidate->topLevelItemCount() == 1)
+            meshTree = candidate;
+    QVERIFY(meshTree);
+    const auto menuEntries = [&] {
+        const QPoint rowCenter = widget.mapFrom(
+            meshTree->viewport(), meshTree->visualItemRect(meshTree->topLevelItem(0)).center());
+        QStringList entries;
+        QTimer::singleShot(0, &widget, [&] {
+            if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+                for (QAction *action : menu->actions())
+                    entries << action->text();
+                menu->close();
+            }
+        });
+        QContextMenuEvent event(QContextMenuEvent::Mouse, rowCenter, widget.mapToGlobal(rowCenter));
+        QApplication::sendEvent(&widget, &event);
+        return entries;
+    };
+    const QString entry = QStringLiteral("Reload with Options...");
+    QVERIFY(!menuEntries().contains(entry));   // no file
+    doc.mesh(0).sourcePath = QStringLiteral("/nowhere/part.ply");
+    QVERIFY(!menuEntries().contains(entry));   // a format with no options
+    doc.mesh(0).sourcePath = QStringLiteral("/nowhere/part.stl");
+    const QStringList entries = menuEntries();
+    QCOMPARE(entries.indexOf(entry), entries.indexOf(QStringLiteral("Reload")) + 1);
 }
 
 // The selected column of the Vert, Edge and Face rows. A selection change is not a data change,

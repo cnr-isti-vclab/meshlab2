@@ -38,6 +38,7 @@ UndoState Document::captureUndoState() const
         snap.materialSet        = entry->materialSet;
         snap.visible            = entry->visible;
         snap.ioMask             = entry->ioMask;
+        snap.loadOptions        = entry->loadOptions;
         snap.polygonFaceCount   = entry->polygonFaceCount;
         // Pointers, not payloads: immutability makes sharing the capture.
         snap.pluginData         = entry->pluginData;
@@ -177,6 +178,9 @@ void Document::restoreUndoState(const UndoState &state, bool keepUnchangedMeshes
                 // this state was captured named another one.
                 const auto stored = m_storedMeshes.find(snap.meshId);
                 entry->sourcePath       = stored != m_storedMeshes.end() ? stored->second.path : snap.sourcePath;
+                // The options read the state's file; a file saved since is read with its own.
+                entry->loadOptions      = entry->sourcePath == snap.sourcePath ? snap.loadOptions
+                                                                               : MeshFilterParameterValues{};
                 entry->textureFileNames = snap.textureFileNames;
                 entry->textureFilePaths = snap.textureFilePaths;
                 entry->textureAssets    = snap.textureAssets;

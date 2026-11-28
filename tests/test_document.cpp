@@ -4202,8 +4202,8 @@ void DocumentTests::trueFormRoundTripsObjAndStl()
 void DocumentTests::stlOpensWithDuplicateVerticesMerged()
 {
     // STL stores every triangle with its own three corners, so this quad is written as six
-    // vertices. Opening it merges them back to four unless the document is told not to,
-    // which is what the document.mergeStlDuplicateVertices preference does.
+    // vertices. Opening it merges them back to four unless the mergeDuplicateVertices load
+    // option of io_vcg's STL reader says not to.
     VCGMesh quad;
     vcg::tri::Allocator<VCGMesh>::AddVertex(quad, VCGMesh::CoordType(0.0f, 0.0f, 0.0f));
     vcg::tri::Allocator<VCGMesh>::AddVertex(quad, VCGMesh::CoordType(2.0f, 0.0f, 0.0f));
@@ -4225,23 +4225,60 @@ void DocumentTests::stlOpensWithDuplicateVerticesMerged()
         probe.setPreferredImportPluginForExtension(QStringLiteral("stl"), previousStl);
     });
     probe.setPreferredImportPluginForExtension(QStringLiteral("stl"), QStringLiteral("io_vcg"));
+    const QString merge = QStringLiteral("mergeDuplicateVertices");
+    QCOMPARE(probe.loadParameters(path).size(), size_t(1));
+    QCOMPARE(probe.loadParameters(path).front().id, merge);
 
+    // By default, merged; the layer keeps the options it was read with.
     Document merged;
-    QVERIFY(merged.mergeStlDuplicateVertices());
     QCOMPARE(merged.loadMesh(path), 0);
     QCOMPARE(merged.mesh(0).mesh.FN(), 2);
     QCOMPARE(merged.mesh(0).mesh.VN(), 4);
+    QCOMPARE(merged.mesh(0).loadOptions.value(merge).toBool(), true);
 
+    // Asked not to, the soup as stored; plain Reload repeats the options.
     Document soup;
-    soup.setMergeStlDuplicateVertices(false);
-    QCOMPARE(soup.loadMesh(path), 0);
+    QCOMPARE(soup.loadMesh(path, nullptr, QString(), nullptr, { { merge, false } }), 0);
     QCOMPARE(soup.mesh(0).mesh.FN(), 2);
     QCOMPARE(soup.mesh(0).mesh.VN(), 6);
-
-    // Reload goes through the same step, so it follows the setting too.
-    soup.setMergeStlDuplicateVertices(true);
     QCOMPARE(soup.reloadMesh(0), 0);
+    QCOMPARE(soup.mesh(0).mesh.VN(), 6);
+
+    // Reload with Options reads it again with others, as one undo step that takes them back.
+    const MeshFilterParameterValues on { { merge, true } };
+    QCOMPARE(soup.reloadMesh(0, &on), 0);
     QCOMPARE(soup.mesh(0).mesh.VN(), 4);
+    QCOMPARE(soup.mesh(0).loadOptions.value(merge).toBool(), true);
+    // The history records the options that differ from the defaults, which a generated script
+    // passes: none for the reload back to them, false for the load.
+    const auto recorded = [&soup](const QString &kind) {
+        for (const UndoTreeNodeInfo &node : soup.undoTreeInfo())
+            for (const ScriptAction &action : soup.undoNodeScriptActions(node.nodeId))
+                if (action.kind == kind)
+                    return std::optional<QVariantMap>(action.params);
+        return std::optional<QVariantMap>();
+    };
+    QVERIFY(recorded(QStringLiteral("load_mesh")) == (QVariantMap { { merge, false } }));
+    QVERIFY(recorded(QStringLiteral("reload_mesh")) == QVariantMap());
+    QVERIFY(soup.undo());
+    QCOMPARE(soup.mesh(0).mesh.VN(), 6);
+    QCOMPARE(soup.mesh(0).loadOptions.value(merge).toBool(), false);
+
+    // A remembered value comes before the declared default, and a given one before both.
+    Document remembering;
+    remembering.setRememberedLoadOptions(QStringLiteral("io_vcg"), { { merge, false } });
+    QCOMPARE(remembering.loadMesh(path), 0);
+    QCOMPARE(remembering.mesh(0).mesh.VN(), 6);
+    QCOMPARE(remembering.loadMesh(path, nullptr, QString(), nullptr, { { merge, true } }), 0);
+    QCOMPARE(remembering.mesh(1).mesh.VN(), 4);
+
+    // An option the format does not declare, or a value that does not fit, refuses the load.
+    Document refusing;
+    QString error;
+    QVERIFY(refusing.loadMesh(path, &error, QString(), nullptr, { { QStringLiteral("mergeVertices"), false } }) != 0);
+    QVERIFY2(error.contains(merge), qPrintable(error));
+    QVERIFY(refusing.loadMesh(path, &error, QString(), nullptr, { { merge, QStringLiteral("perhaps") } }) != 0);
+    QCOMPARE(refusing.meshCount(), 0);
 }
 
 void DocumentTests::stlFaceColorsLoadInBothConventions()

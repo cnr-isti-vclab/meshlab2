@@ -47,6 +47,8 @@
 #include <QScrollBar>
 #include <QSplitter>
 #include <QDockWidget>
+#include "parameterformbuilder.h"
+
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
@@ -374,8 +376,9 @@ MainWindow::MainWindow(QWidget *parent)
         * 1024LL * 1024LL);
     m_purgeUndoOnMemoryPressure = Preferences::instance().boolValue(
         QStringLiteral("document.purgeUndoOnMemoryPressure"));
-    m_doc->setMergeStlDuplicateVertices(Preferences::instance().boolValue(
-        QStringLiteral("document.mergeStlDuplicateVertices")));
+    // The load options the user chose to remember, for every format that has some.
+    for (const Document::ImportPluginInfo &info : m_doc->importPluginInfos())
+        m_doc->setRememberedLoadOptions(info.id, Preferences::instance().loadOptions(info.id));
     m_memoryPressureMonitor = new MemoryPressureMonitor(this);
     connect(
         m_memoryPressureMonitor,
@@ -616,6 +619,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_layerWidget, &LayerWidget::filterRunRequested, this, &MainWindow::executeFilter);
     connect(m_layerWidget, &LayerWidget::saveMeshRequested, this, &MainWindow::saveCurrentMesh);
     connect(m_layerWidget, &LayerWidget::reloadMeshRequested, this, &MainWindow::reloadCurrentMesh);
+    connect(m_layerWidget, &LayerWidget::reloadMeshWithOptionsRequested, this, &MainWindow::reloadCurrentMeshWithOptions);
     m_layerDock = new QDockWidget(tr("Layers"), this);
     m_layerDock->setWidget(m_layerWidget);
 
@@ -905,10 +909,6 @@ MainWindow::MainWindow(QWidget *parent)
                 m_purgeUndoOnMemoryPressure = Preferences::instance().boolValue(id);
                 return;
             }
-            if (id == QStringLiteral("document.mergeStlDuplicateVertices")) {
-                m_doc->setMergeStlDuplicateVertices(Preferences::instance().boolValue(id));
-                return;
-            }
             if (id != QStringLiteral("log.verbosity") && id != QStringLiteral("log.timestamp"))
                 return;
             m_logVerbosity = logVerbosityPreference();
@@ -1068,6 +1068,19 @@ MainWindow::MainWindow(QWidget *parent)
 
         int exportedCurrentMeshIndex = -1;
         int exportedCurrentRasterIndex = -1;
+        // A load's call, with its load options as keyword arguments, and where each file's last
+        // load went: a reload with options rewrites that line, so the script reads the file
+        // once, with the options the user ended with.
+        QHash<QString, int> loadLineOfFile;
+        const auto loadCall = [this, &commonDir](const QString &path, const QVariantMap &options) {
+            QString rel = commonDir.isEmpty() ? path : QDir(commonDir).relativeFilePath(path);
+            QStringList args { QStringLiteral("\"%1\"").arg(rel.replace('\\', '/')) };
+            for (const MeshFilterParameterDescriptor &parameter : m_doc->loadParameters(path))
+                if (options.contains(parameter.id))
+                    args << QStringLiteral("%1=%2").arg(parameter.id,
+                        filterParamValueToPythonLiteral(options.value(parameter.id), parameter.type));
+            return QStringLiteral("ms.load_new_mesh(%1)").arg(args.join(QStringLiteral(", ")));
+        };
 
         for (const auto &pn : path) {
             for (const ScriptAction &sa : m_doc->undoNodeScriptActions(pn.nodeId)) {
@@ -1100,9 +1113,16 @@ MainWindow::MainWindow(QWidget *parent)
                         lines << QStringLiteral("# unknown filter: %1").arg(sa.filterKey);
                 } else if (sa.kind == QStringLiteral("load_mesh")) {
                     for (const QString &fp : sa.filePaths) {
-                        QString rel = commonDir.isEmpty() ? fp : QDir(commonDir).relativeFilePath(fp);
-                        lines << QStringLiteral("ms.load_new_mesh(\"%1\")").arg(rel.replace('\\', '/'));
+                        loadLineOfFile.insert(fp, int(lines.size()));
+                        lines << loadCall(fp, sa.params);
                         exportedCurrentMeshIndex = -1;
+                    }
+                } else if (sa.kind == QStringLiteral("reload_mesh")) {
+                    for (const QString &fp : sa.filePaths) {
+                        if (loadLineOfFile.contains(fp))
+                            lines[loadLineOfFile.value(fp)] = loadCall(fp, sa.params);
+                        else
+                            lines << QStringLiteral("# reloaded with options: %1").arg(loadCall(fp, sa.params));
                     }
                 } else if (sa.kind == QStringLiteral("load_raster")) {
                     for (const QString &fp : sa.filePaths) {
@@ -2311,6 +2331,63 @@ void MainWindow::reloadCurrentMesh()
     }
 
     statusBar()->showMessage(tr("Reloaded %1").arg(meshName), 2500);
+}
+
+// The layer's load options in a form, on the values it was read with. Reload reads the file
+// again with the new ones; Remember keeps them as the format's defaults for later files.
+void MainWindow::reloadCurrentMeshWithOptions()
+{
+    const int index = m_doc ? m_doc->currentMeshIndex() : -1;
+    if (index < 0 || index >= m_doc->meshCount())
+        return;
+    const Document::MeshEntry &entry = m_doc->mesh(index);
+    const QString sourcePath = entry.sourcePath;
+    const std::vector<MeshFilterParameterDescriptor> parameters = m_doc->loadParameters(sourcePath);
+    if (sourcePath.isEmpty() || parameters.empty())
+        return;
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Reload with Options"));
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *intro = new QLabel(
+        tr("Read '%1' again from %2.").arg(entry.name, QFileInfo(sourcePath).fileName()), &dialog);
+    intro->setWordWrap(true);
+    layout->addWidget(intro);
+    // A reload is undoable, but say what it discards.
+    if (m_doc->meshStoredState(index) != Document::StoredState::Stored) {
+        auto *warning = new QLabel(
+            tr("The layer has changed since it was read: the changes are discarded (Undo brings them back)."),
+            &dialog);
+        warning->setWordWrap(true);
+        layout->addWidget(warning);
+    }
+    auto *form = new QFormLayout;
+    layout->addLayout(form);
+    ParameterFormBuilder builder(form, &dialog);
+    builder.setShowsResetButtons(true);
+    builder.build(parameters, entry.loadOptions);
+    auto *remember = new QCheckBox(tr("Remember for %1 files").arg(QFileInfo(sourcePath).suffix().toUpper()), &dialog);
+    layout->addWidget(remember);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, &dialog);
+    buttons->addButton(tr("Reload"), QDialogButtonBox::AcceptRole);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const MeshFilterParameterValues values = builder.values();
+    if (remember->isChecked()) {
+        const QString pluginId = m_doc->importPluginId(sourcePath);
+        Preferences::instance().setLoadOptions(pluginId, values);
+        m_doc->setRememberedLoadOptions(pluginId, values);
+    }
+    QString error;
+    if (m_doc->reloadMesh(index, &values, &error) != 0) {
+        statusBar()->showMessage(tr("Failed to reload %1: %2").arg(entry.name, error), 4500);
+        return;
+    }
+    statusBar()->showMessage(tr("Reloaded %1").arg(m_doc->mesh(index).name), 2500);
 }
 
 void MainWindow::reloadAllMeshes()

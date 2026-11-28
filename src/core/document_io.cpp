@@ -154,28 +154,84 @@ void Document::setPreferredImportPluginForExtension(const QString &extension, co
     m_pluginManager->setPreferredPluginForExtension(extension, pluginId);
 }
 
-void Document::mergeImportedStlVertices(const QString &path, VCGMesh &mesh)
+std::vector<MeshFilterParameterDescriptor> Document::loadParameters(const QString &filename) const
 {
-    if (!m_mergeStlDuplicateVertices
-        || QFileInfo(path).suffix().compare(QLatin1String("stl"), Qt::CaseInsensitive) != 0)
+    const MeshIOPlugin *plugin = m_pluginManager ? m_pluginManager->pluginFor(filename) : nullptr;
+    return plugin ? plugin->loadParameters(filename) : std::vector<MeshFilterParameterDescriptor>{};
+}
+
+QString Document::importPluginId(const QString &filename) const
+{
+    const MeshIOPlugin *plugin = m_pluginManager ? m_pluginManager->pluginFor(filename) : nullptr;
+    return plugin ? plugin->pluginId() : QString();
+}
+
+void Document::setRememberedLoadOptions(const QString &pluginId, const MeshFilterParameterValues &values)
+{
+    if (values.isEmpty())
+        m_rememberedLoadOptions.remove(pluginId);
+    else
+        m_rememberedLoadOptions.insert(pluginId, values);
+}
+
+bool Document::resolveLoadOptions(const MeshIOPlugin &plugin, const QString &filename,
+    const MeshFilterParameterValues &given, MeshFilterParameterValues &resolved,
+    MeshFilterParameterValues &changed, QString &error) const
+{
+    resolved.clear();
+    changed.clear();
+    const std::vector<MeshFilterParameterDescriptor> declared = plugin.loadParameters(filename);
+    const MeshFilterParameterValues remembered = m_rememberedLoadOptions.value(plugin.pluginId());
+    QStringList known;
+    for (const MeshFilterParameterDescriptor &parameter : declared) {
+        known << parameter.id;
+        // A remembered value that no longer fits (the declaration changed) is passed over.
+        QVariant value = parameter.defaultValue;
+        QVariant converted;
+        QString ignored;
+        if (remembered.contains(parameter.id)
+            && MeshFilterPluginManager::convertParameterValue(parameter, remembered.value(parameter.id), converted, ignored))
+            value = converted;
+        if (given.contains(parameter.id)) {
+            if (!MeshFilterPluginManager::convertParameterValue(parameter, given.value(parameter.id), value, error))
+                return false;
+        }
+        resolved.insert(parameter.id, value);
+        if (!sameParameterValue(value, parameter.defaultValue))
+            changed.insert(parameter.id, value);
+    }
+    for (auto it = given.constBegin(); it != given.constEnd(); ++it) {
+        if (!known.contains(it.key())) {
+            error = known.isEmpty()
+                ? tr("%1 files have no load options, and '%2' was given.").arg(QFileInfo(filename).suffix().toUpper(), it.key())
+                : tr("Unknown load option '%1' for %2 files: the options are %3.")
+                      .arg(it.key(), QFileInfo(filename).suffix().toUpper(), known.join(QStringLiteral(", ")));
+            return false;
+        }
+    }
+    return true;
+}
+
+void Document::logLoadContext(const MeshIOLoadContext &context, const MeshIOPlugin &plugin, const QString &filename)
+{
+    const QString fileName = QFileInfo(filename).fileName();
+    for (const QString &message : context.messages)
+        writeLog(tr("'%1': %2").arg(fileName, message), LogSource::Application);
+    if (context.options.isEmpty())
         return;
-    // Every open and reload passes here, whichever plugin read the file. The TrueForm
-    // reader has already merged, so for it this finds nothing to do.
-    const int facesBefore = mesh.FN();
-    const int merged = vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(mesh);
-    if (merged <= 0)
-        return;
-    const int degenerate = facesBefore - mesh.FN();
-    writeLog(degenerate > 0
-                 ? tr("Merged %1 duplicate vertices of '%2' and removed %3 faces the merge left degenerate.")
-                       .arg(merged).arg(QFileInfo(path).fileName()).arg(degenerate)
-                 : tr("Merged %1 duplicate vertices of '%2'.")
-                       .arg(merged).arg(QFileInfo(path).fileName()),
+    QStringList used;
+    for (const MeshFilterParameterDescriptor &parameter : plugin.loadParameters(filename))
+        used << QStringLiteral("%1 = %2").arg(parameter.label,
+            parameter.type == MeshFilterParameterType::Bool
+                ? (context.options.value(parameter.id).toBool() ? tr("on") : tr("off"))
+                : context.options.value(parameter.id).toString());
+    writeLog(tr("Read '%1' with %2. Reload with Options reads it again with others.")
+                 .arg(fileName, used.join(QStringLiteral(", "))),
         LogSource::Application);
 }
 
 int Document::loadMesh(const QString &filename, QString *errorMessage, const QString &label,
-                       const QMatrix4x4 *transform)
+                       const QMatrix4x4 *transform, const MeshFilterParameterValues &options)
 {
     const auto reportError = [errorMessage](const QString &message) {
         if (errorMessage)
@@ -192,11 +248,20 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
         return -1;
     }
 
+    MeshFilterParameterValues loadOptions, changedOptions;
+    QString optionError;
+    if (!resolveLoadOptions(*plugin, filename, options, loadOptions, changedOptions, optionError)) {
+        writeLog(tr("Cannot load %1: %2").arg(filename, optionError), LogSource::Application, LogLevel::Warning);
+        reportError(optionError);
+        return -1;
+    }
+
     const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
     if (ownUndoStep) {
         ScriptAction sa;
         sa.kind = QStringLiteral("load_mesh");
         sa.filePaths = QStringList{filename};
+        sa.params = changedOptions;
         beginUndoStep(tr("Open Mesh"), sa);
     }
 
@@ -228,6 +293,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     int loadMask = 0;
     MeshIOMaterialSet loadedMaterialSet;
     MeshIOLoadContext loadContext = this->loadContext();
+    loadContext.options = loadOptions;
     // Pre-enable storable OCF fields so the importer can write into them.
     entry->mesh.vert.EnableTexCoord();
     entry->mesh.face.EnableWedgeTexCoord();
@@ -255,13 +321,13 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
         writeLog(tr("Load warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
     adoptFileOrigin(loadContext, entry->mesh, filename, meshCount() == 0);
-    mergeImportedStlVertices(filename, entry->mesh);
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.
     compactMeshStorageInvariant(entry->mesh);
     vcg::tri::UpdateBounding<VCGMesh>::Box(entry->mesh);
     computeMissingNormals(entry->mesh, loadMask);
     entry->ioMask = loadMask;
+    entry->loadOptions = loadOptions;
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = m_nextGeometryRevision++;
     entry->materialRevision = m_nextGeometryRevision++;
@@ -337,6 +403,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
         .arg(meshEntry.mesh.FN())
         .arg(meshEntry.mesh.EN()),
         LogSource::Application);
+    logLoadContext(loadContext, *plugin, filename);
     adoptFileUnit(loadContext.unit, filename);
     if (elapsedMs >= 250) {
         writeLog(tr("Load timing '%1': import %2 ms, post %3 ms")
@@ -426,7 +493,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     return 0;
 }
 
-int Document::reloadMesh(int index)
+int Document::reloadMesh(int index, const MeshFilterParameterValues *options, QString *errorMessage)
 {
     if (index < 0 || index >= meshCount()) {
         writeLog(tr("Cannot reload: invalid mesh index %1").arg(index), LogSource::Application);
@@ -450,9 +517,36 @@ int Document::reloadMesh(int index)
         return -3;
     }
 
+    // The options given, or those the layer was read with, as far as the format still
+    // declares them.
+    MeshFilterParameterValues given = options ? *options : MeshFilterParameterValues{};
+    if (!options) {
+        for (const MeshFilterParameterDescriptor &parameter : plugin->loadParameters(sourcePath))
+            if (entry.loadOptions.contains(parameter.id))
+                given.insert(parameter.id, entry.loadOptions.value(parameter.id));
+    }
+    MeshFilterParameterValues loadOptions, changedOptions;
+    QString optionError;
+    if (!resolveLoadOptions(*plugin, sourcePath, given, loadOptions, changedOptions, optionError)) {
+        writeLog(tr("Cannot reload mesh '%1': %2").arg(entry.name, optionError),
+            LogSource::Application, LogLevel::Warning);
+        if (errorMessage)
+            *errorMessage = optionError;
+        return -4;
+    }
+
     const bool ownUndoStep = !m_undoManager->isRestoring() && !m_undoManager->isStepActive();
-    if (ownUndoStep)
+    if (ownUndoStep && options) {
+        // Recorded so a script reads the file with the options the user ended with.
+        ScriptAction sa;
+        sa.kind = QStringLiteral("reload_mesh");
+        sa.filePaths = QStringList{sourcePath};
+        sa.params = changedOptions;
+        sa.currentMeshIndex = index;
+        beginUndoStep(tr("Reload with Options"), sa);
+    } else if (ownUndoStep) {
         beginUndoStep(tr("Reload Mesh"));
+    }
 
     const QString oldName = entry.name;
     writeLog(
@@ -485,6 +579,7 @@ int Document::reloadMesh(int index)
     reloadedMesh.vert.EnableTexCoord();
     reloadedMesh.face.EnableWedgeTexCoord();
     MeshIOLoadContext loadContext = this->loadContext();
+    loadContext.options = loadOptions;
     const int err = plugin->load(sourcePath, reloadedMesh, logCallback(), &loadMask, &loadedMaterialSet, loadContext);
     // Disable storable OCF fields that the importer did not actually populate.
     if (!(loadMask & vcg::tri::io::Mask::IOM_VERTTEXCOORD))  reloadedMesh.vert.DisableTexCoord();
@@ -501,6 +596,8 @@ int Document::reloadMesh(int index)
                 .arg(importElapsedMs)
                 .arg(plugin->errorString(err)),
             LogSource::Application);
+        if (errorMessage)
+            *errorMessage = plugin->errorString(err);
         if (ownUndoStep)
             endUndoStep(false);
         return err;
@@ -509,7 +606,6 @@ int Document::reloadMesh(int index)
         writeLog(tr("Reload warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
     adoptFileOrigin(loadContext, reloadedMesh, sourcePath, meshCount() == 1);
-    mergeImportedStlVertices(sourcePath, reloadedMesh);
     // Framework invariant: meshes entering the document from IO must not
     // retain deleted elements in storage.
     compactMeshStorageInvariant(reloadedMesh);
@@ -545,6 +641,7 @@ int Document::reloadMesh(int index)
 
     deepCopyMesh(reloadedMesh, entry.mesh);
     entry.ioMask = loadMask;
+    entry.loadOptions = loadOptions;
     // The name is the user's label, not the file's: reloading the contents keeps it.
     entry.sourcePath = sourcePath;
     entry.textureFileNames = textureFileNames;
@@ -569,6 +666,7 @@ int Document::reloadMesh(int index)
         .arg(entry.mesh.FN())
         .arg(entry.mesh.EN()),
         LogSource::Application);
+    logLoadContext(loadContext, *plugin, sourcePath);
     if (elapsedMs >= 250) {
         writeLog(tr("Reload timing '%1': import %2 ms, post %3 ms")
                 .arg(entry.name)
@@ -816,6 +914,10 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
     const QString savedPath = QFileInfo(normalizedFilename).absoluteFilePath();
     if (!entry.sourcePath.isEmpty() && entry.name == QFileInfo(entry.sourcePath).fileName())
         entry.name = QFileInfo(savedPath).fileName();
+    // Another file is now the layer's, read with its own format's defaults; the same file
+    // keeps the options that read it.
+    if (QFileInfo(entry.sourcePath).absoluteFilePath() != savedPath)
+        entry.loadOptions.clear();
     entry.sourcePath = savedPath;
     recordMeshStored(entry, savedPath, &savedTexturePaths);
     adoptDirectoryOf(savedPath);

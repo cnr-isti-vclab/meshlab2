@@ -11,6 +11,14 @@ class Document;
 class MeshFilterPluginManager
 {
 public:
+    // A value given for parameter, converted to its type and checked against its range and
+    // options; false, with errorMessage, when it does not fit. Also used for load options.
+    static bool convertParameterValue(
+        const MeshFilterParameterDescriptor &parameter,
+        const QVariant &inputValue,
+        QVariant &outputValue,
+        QString &errorMessage);
+
     struct FilterInfo {
         QString key;
         QString pluginId;
@@ -52,11 +60,7 @@ private:
         const Document &doc,
         MeshFilterParameterValues &normalizedParameters,
         QString &errorMessage) const;
-    static bool convertParameterValue(
-        const MeshFilterParameterDescriptor &parameter,
-        const QVariant &inputValue,
-        QVariant &outputValue,
-        QString &errorMessage);
+
 
     std::vector<std::unique_ptr<MeshFilterPlugin>> m_plugins;
 };

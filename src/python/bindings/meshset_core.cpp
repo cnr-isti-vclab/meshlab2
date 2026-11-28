@@ -257,11 +257,12 @@ bool MeshSetCore::isMeshVisible(int index) const
     return m_document->mesh(requireMeshIndex(index)).visible;
 }
 
-void MeshSetCore::loadNewMesh(const std::string &path)
+void MeshSetCore::loadNewMesh(const std::string &path, const nb::dict &options)
 {
-    const int err = m_document->loadMesh(toQString(path));
+    QString error;
+    const int err = m_document->loadMesh(toQString(path), &error, QString(), nullptr, pythonDictToFilterParams(options));
     if (err != 0)
-        throw std::runtime_error("Failed to load mesh: " + path);
+        throw std::runtime_error("Failed to load mesh: " + path + (error.isEmpty() ? "" : ": " + toStdString(error)));
 }
 
 void MeshSetCore::saveCurrentMesh(const std::string &path)

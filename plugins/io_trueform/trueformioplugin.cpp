@@ -137,8 +137,8 @@ tf::polygons_buffer<int, float, 3, 3> makeTrueFormTriangles(const VCGMesh &mesh)
 //
 // Two behavioural differences worth knowing:
 //  - STL import **deduplicates vertices while loading**, always. STL is a triangle soup
-//    with no shared vertices; the document merges them after any reader by default
-//    (document.mergeStlDuplicateVertices), so this only differs with that turned off.
+//    with no shared vertices; io_vcg merges them too by default (its mergeDuplicateVertices
+//    load option), so this only differs with that turned off.
 //  - OBJ import reads **vertex positions and faces only** — no UVs, normals or
 //    materials. For a textured OBJ, use io_vcg or io_obj_rapidobj instead.
 class TrueFormIOPlugin final : public MeshIOPlugin

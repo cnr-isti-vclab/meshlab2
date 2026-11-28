@@ -127,7 +127,11 @@ NB_MODULE(_meshlab, m)
         .def("is_current_mesh_visible", &MeshSetCore::isCurrentMeshVisible)
         .def("is_mesh_visible",         &MeshSetCore::isMeshVisible, nb::arg("index"),
              "Whether the mesh at this 0-based position is visible.")
-        .def("load_new_mesh",      &MeshSetCore::loadNewMesh,       nb::arg("path"))
+        .def("load_new_mesh",
+             [](MeshSetCore &ms, const std::string &path, const nb::kwargs &options) { ms.loadNewMesh(path, options); },
+             nb::arg("path"), nb::arg("options"),
+             "Loads a mesh file as a new layer. Keyword arguments are the format's load options,\n"
+             "by id (STL: mergeDuplicateVertices=True); an unknown one or a bad value raises.")
         .def("save_current_mesh",  &MeshSetCore::saveCurrentMesh,   nb::arg("path"))
         .def("save_current_mesh_texture", &MeshSetCore::saveCurrentMeshTexture,
              nb::arg("texture_index"), nb::arg("path"))

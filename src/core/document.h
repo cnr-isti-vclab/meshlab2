@@ -10,6 +10,7 @@
 #include "viewstate.h"
 #include <QObject>
 #include <QElapsedTimer>
+#include <QHash>
 #include <QImage>
 #include <QMatrix4x4>
 #include <QSize>
@@ -83,6 +84,10 @@ public:
         MeshIOMaterialSet materialSet;
         bool visible = true;
         int ioMask = 0;
+        // The load options the layer's file was read with, every declared one; empty when its
+        // format has none or the layer has no file. Reload repeats them; a save that makes
+        // another file the layer's clears them.
+        MeshFilterParameterValues loadOptions;
         // Logical face count for faux-edge polygon meshes; -1 for triangle meshes.
         int polygonFaceCount = -1;
         // Plugin-owned intermediates keyed by owner (see setLayerData). Immutable and
@@ -184,15 +189,26 @@ public:
     // label and transform, when given, are the layer's from the start. A project supplies
     // them, and applying them after the load announced the layer meant it was first shown
     // at the origin under its file name and then moved.
+    //
+    // options are load options of the file's format (loadParameters), by id; those not given
+    // take the remembered value, then the declared default. An unknown id or a value that does
+    // not fit refuses the load. The layer keeps them (MeshEntry::loadOptions), and the
+    // load_mesh action records those that differ from the declared defaults.
     int loadMesh(const QString &filename, QString *errorMessage = nullptr,
-                 const QString &label = QString(), const QMatrix4x4 *transform = nullptr);
-    int reloadMesh(int index);
-    // STL stores every triangle with its own three corners, so a mesh read from it shares no
-    // vertices. When set (the default), opening or reloading an STL merges vertices at the
-    // same position, as Remove Duplicate Vertices does. The app sets it from the
-    // document.mergeStlDuplicateVertices preference.
-    bool mergeStlDuplicateVertices() const { return m_mergeStlDuplicateVertices; }
-    void setMergeStlDuplicateVertices(bool merge) { m_mergeStlDuplicateVertices = merge; }
+                 const QString &label = QString(), const QMatrix4x4 *transform = nullptr,
+                 const MeshFilterParameterValues &options = {});
+    // Reads the layer's file again, with the options it was loaded with, or, when options
+    // is given, with those (one undo step, "Reload with Options", recorded as reload_mesh).
+    // errorMessage as for loadMesh.
+    int reloadMesh(int index, const MeshFilterParameterValues *options = nullptr, QString *errorMessage = nullptr);
+    // The load options of a file's format (MeshIOPlugin::loadParameters); empty when it has
+    // none or no importer takes the file.
+    std::vector<MeshFilterParameterDescriptor> loadParameters(const QString &filename) const;
+    // Values the user chose to keep for the format of a file, which a load takes before the
+    // declared defaults (the app stores them, Preferences::loadOptions). Unknown ids are
+    // ignored when a load resolves them. importPluginId names whose they are.
+    QString importPluginId(const QString &filename) const;
+    void setRememberedLoadOptions(const QString &pluginId, const MeshFilterParameterValues &values);
     int saveMesh(int index, const QString &filename, const MeshIOSaveOptions &options);
     int saveMesh(int index, const QString &filename);
     int saveCurrentMesh(const QString &filename, const MeshIOSaveOptions &options);
@@ -617,7 +633,14 @@ private:
     void appendOrReplaceLog(const QString &message, LogSource source, LogLevel level, bool replaceLast);
     void writeProgressLog(const QString &message);
     static bool dispatchLogCallback(int pos, const char *message);
-    void mergeImportedStlVertices(const QString &path, VCGMesh &mesh);
+    // Resolves a load's options for filename (see loadMesh): every declared one, into
+    // resolved, and those that differ from the declared defaults, into changed. False, with
+    // error, on an unknown id or a value that does not fit.
+    bool resolveLoadOptions(const MeshIOPlugin &plugin, const QString &filename,
+        const MeshFilterParameterValues &given, MeshFilterParameterValues &resolved,
+        MeshFilterParameterValues &changed, QString &error) const;
+    // The log lines a load leaves: the importer's messages, and the options used.
+    void logLoadContext(const MeshIOLoadContext &context, const MeshIOPlugin &plugin, const QString &filename);
     // What a file that has just been loaded says its unit is (Unknown when it says none). It
     // becomes the document's unit only if nothing else has said so: the file's layer is the
     // only one and the unit is not set. Otherwise it is reported when it differs from the
@@ -704,5 +727,5 @@ private:
     std::function<void(const ViewState &, bool restoreCamera)> m_restoreViewState;
     std::function<bool(const QString &, const QSize &, QImage &, CameraShot &, QString &)> m_captureRenderStateSnapshot;
     bool m_bulkLoading = false;
-    bool m_mergeStlDuplicateVertices = true;
+    QHash<QString, MeshFilterParameterValues> m_rememberedLoadOptions;
 };

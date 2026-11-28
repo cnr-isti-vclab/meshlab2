@@ -8,6 +8,7 @@
 #include <wrap/io_trimesh/export_ply.h>
 #include <wrap/io_trimesh/export_stl.h>
 #include <wrap/io_trimesh/import.h>
+#include <vcg/complex/algorithms/clean.h>
 
 #include <QDir>
 #include <QFile>
@@ -27,6 +28,8 @@ constexpr int kErrSavePlyBase = -2000;
 constexpr int kErrSaveObjBase = -3000;
 constexpr int kErrSaveStlBase = -4000;
 constexpr int kErrSaveOffBase = -5000;
+// The STL load option (loadParameters).
+constexpr auto kMergeDuplicateVertices = "mergeDuplicateVertices";
 
 QString normalizedExtension(const QString &filename)
 {
@@ -324,6 +327,46 @@ public:
         const QString ext = normalizedExtension(filename);
         return { saveMaskCapabilityForExtension(ext), ext == QLatin1String("obj"),
             ext == QLatin1String("obj") || ext == QLatin1String("ply") };
+    }
+
+    // STL stores every triangle with its own three corners: read as it is, a mesh shares no
+    // vertex. Whether to merge them is the one thing an STL load leaves to the user.
+    std::vector<MeshFilterParameterDescriptor> loadParameters(const QString &filename) const override
+    {
+        if (normalizedExtension(filename) != QLatin1String("stl"))
+            return {};
+        MeshFilterParameterDescriptor merge;
+        merge.id = QString::fromLatin1(kMergeDuplicateVertices);
+        merge.label = QObject::tr("Merge duplicate vertices");
+        merge.helpMarkdown = QObject::tr(
+            "STL stores every triangle with its own three corners, so a mesh read from it shares no "
+            "vertices: each triangle is detached from its neighbors, and anything that needs "
+            "connectivity (smoothing, closing holes, selecting connected components, remeshing) sees "
+            "a heap of loose triangles. On, vertices at exactly the same position are merged as the "
+            "file is read, as *Remove Duplicate Vertices* does, and the triangles the merge leaves "
+            "degenerate are removed. Off, the file is read exactly as stored.");
+        merge.type = MeshFilterParameterType::Bool;
+        merge.defaultValue = true;
+        return { merge };
+    }
+
+    int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask,
+        MeshIOMaterialSet *outMaterialSet, MeshIOLoadContext &context) const override
+    {
+        const int err = MeshIOPlugin::load(filename, mesh, cb, outLoadMask, outMaterialSet, context);
+        if (err != 0 || normalizedExtension(filename) != QLatin1String("stl")
+            || !context.options.value(QString::fromLatin1(kMergeDuplicateVertices), true).toBool())
+            return err;
+        const int facesBefore = mesh.FN();
+        const int merged = vcg::tri::Clean<VCGMesh>::RemoveDuplicateVertex(mesh);
+        if (merged > 0) {
+            const int degenerate = facesBefore - mesh.FN();
+            context.messages << (degenerate > 0
+                    ? QObject::tr("Merged %1 duplicate vertices and removed %2 faces the merge left degenerate.")
+                          .arg(merged).arg(degenerate)
+                    : QObject::tr("Merged %1 duplicate vertices.").arg(merged));
+        }
+        return err;
     }
 
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override

@@ -65,6 +65,8 @@ signals:
     // first. They are not filters, so the main window runs them.
     void saveMeshRequested();
     void reloadMeshRequested();
+    // Reload with Options... on the current layer, whose format has load options.
+    void reloadMeshWithOptionsRequested();
 
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;

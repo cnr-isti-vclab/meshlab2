@@ -418,6 +418,7 @@ void copyMeshEntryMetadata(const Document::MeshEntry &src, Document::MeshEntry &
     dst.materialSet = src.materialSet;
     dst.visible = src.visible;
     dst.ioMask = src.ioMask;
+    dst.loadOptions = src.loadOptions;
     dst.polygonFaceCount = src.polygonFaceCount;
     // Shared, not copied: the payloads are immutable, so a duplicate and its original
     // pointing at one instance cannot interfere. The copy is O(entries).

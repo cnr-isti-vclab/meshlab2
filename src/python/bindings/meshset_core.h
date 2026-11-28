@@ -83,7 +83,9 @@ public:
     bool isCurrentMeshVisible() const;
     bool isMeshVisible(int index) const;
 
-    void loadNewMesh(const std::string &path);
+    // options are the format's load options (Document::loadParameters), as keyword
+    // arguments: ms.load_new_mesh("part.stl", mergeDuplicateVertices=False).
+    void loadNewMesh(const std::string &path, const nanobind::dict &options = nanobind::dict());
     void saveCurrentMesh(const std::string &path);
     void saveCurrentMeshTexture(int textureIndex, const std::string &path);
 

@@ -9,6 +9,20 @@ namespace {
 
 constexpr auto kResourcePath = ":/resources/preferences.json";
 constexpr auto kSettingsGroup = "preferences";
+constexpr auto kLoadOptionsGroup = "loadOptions";
+
+// Settings that moved elsewhere, carried over once: the STL merge was a preference until it
+// became io_vcg's load option (docs/design/proposals/load_options.md §5).
+void migrateSettings()
+{
+    QSettings settings;
+    const QString stlMerge = QStringLiteral("%1/document.mergeStlDuplicateVertices").arg(QString::fromLatin1(kSettingsGroup));
+    if (!settings.contains(stlMerge))
+        return;
+    settings.setValue(QStringLiteral("%1/io_vcg/mergeDuplicateVertices").arg(QString::fromLatin1(kLoadOptionsGroup)),
+        settings.value(stlMerge).toBool());
+    settings.remove(stlMerge);
+}
 
 } // namespace
 
@@ -25,6 +39,7 @@ void Preferences::ensureLoaded() const
     if (m_loaded)
         return;
     m_loaded = true;
+    migrateSettings();
 
     QString error;
     m_descriptors = FilterDescriptorLoader::loadParameters(QString::fromLatin1(kResourcePath), error);
@@ -148,6 +163,29 @@ void Preferences::resetToDefault(const QString &id)
     settings.endGroup();
     if (moves)
         emit changed(id, d->defaultValue);
+}
+
+MeshFilterParameterValues Preferences::loadOptions(const QString &pluginId) const
+{
+    ensureLoaded();
+    QSettings settings;
+    settings.beginGroup(QStringLiteral("%1/%2").arg(QString::fromLatin1(kLoadOptionsGroup), pluginId));
+    MeshFilterParameterValues values;
+    for (const QString &key : settings.childKeys())
+        values.insert(key, settings.value(key));
+    settings.endGroup();
+    return values;
+}
+
+void Preferences::setLoadOptions(const QString &pluginId, const MeshFilterParameterValues &values)
+{
+    ensureLoaded();
+    QSettings settings;
+    settings.beginGroup(QStringLiteral("%1/%2").arg(QString::fromLatin1(kLoadOptionsGroup), pluginId));
+    settings.remove(QString());
+    for (auto it = values.constBegin(); it != values.constEnd(); ++it)
+        settings.setValue(it.key(), it.value());
+    settings.endGroup();
 }
 
 void Preferences::resetToDefaults()

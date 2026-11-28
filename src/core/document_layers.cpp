@@ -184,6 +184,7 @@ int Document::duplicateMesh(int sourceIndex, const QString &newName)
     dst->geometryRevision = m_nextGeometryRevision++;
     dst->materialRevision = m_nextGeometryRevision++;
     dst->sourcePath.clear();
+    dst->loadOptions.clear();
     dst->name = newName.trimmed().isEmpty() ? tr("%1 copy").arg(src.name) : newName.trimmed();
 
     const int newIndex = meshCount();

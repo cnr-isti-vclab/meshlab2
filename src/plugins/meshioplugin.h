@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lengthunit.h"
+#include "meshfilterplugin.h"
 #include "vcgmesh.h"
 #include <vcg/math/shot.h>
 #include <QImage>
@@ -104,6 +105,12 @@ struct MeshIOLoadContext
     // their definition (glTF and E57 are in meters) or in the file (3MF). Unknown when the
     // file does not say, which is what most formats do.
     LengthUnit unit = LengthUnit::Unknown;
+    // In: the load options (loadParameters), every declared one, resolved and validated by
+    // the Document; empty for a format that declares none.
+    MeshFilterParameterValues options;
+    // Out: what the load did that the log should keep -- the importer's progress callback
+    // only shows a passing line.
+    QStringList messages;
 };
 
 // Whether a box lies too far from zero for float coordinates: the float step at its centre is
@@ -210,6 +217,17 @@ public:
     {
         (void) context;
         return load(filename, mesh, cb, outLoadMask, outMaterialSet);
+    }
+
+    // The options a load of this file accepts, declared with the filter parameter schema:
+    // what the format leaves to the user (whether STL's duplicated corners are merged).
+    // Opening never asks: the Document fills them in from the declared defaults, the values
+    // the user chose to remember for the format, and what the caller passes, and hands them to
+    // load() in MeshIOLoadContext::options. Empty, the default, means the format has none.
+    virtual std::vector<MeshFilterParameterDescriptor> loadParameters(const QString &filename) const
+    {
+        (void) filename;
+        return {};
     }
 
     // Whether the format's coordinates are true, georeferenced ones (E57): it subtracts the
