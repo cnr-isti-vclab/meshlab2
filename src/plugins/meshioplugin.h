@@ -127,6 +127,20 @@ inline bool isFarFromZero(const vcg::Box3d &box)
     return std::nextafter(centre, std::numeric_limits<float>::infinity()) - centre > 1e-6 * box.Diag();
 }
 
+// The load option of the formats that declare an up axis (USD, glTF): MeshLab keeps a file's
+// own frame, so a Y-up file is read as it is unless the user asks to turn it Z-up. Not the
+// default and never automatic; when applied, the log says so (docs/design/data_model.md,
+// "Frames are kept").
+namespace UpAxisOption {
+inline constexpr const char *kId = "rotateYUpToZUp";
+MeshFilterParameterDescriptor descriptor();
+// Whether a load was asked to turn a Y-up file Z-up.
+bool requested(const MeshIOLoadContext &context);
+// Turns mesh Z-up, +90 degrees about X, positions and normals, when the file is Y-up and the
+// option asks for it; either way, a Y-up file leaves a log line saying which.
+void apply(VCGMesh &mesh, bool fileIsYUp, MeshIOLoadContext &context);
+}
+
 // On save, an asset's sourcePath is the file holding exactly its image (Document::saveMesh
 // resolves it), so a saver copies or refers to that file and writes the image only when the
 // path is empty.

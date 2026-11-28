@@ -158,6 +158,7 @@ private slots:
     void polygonExportKeepsAQuadWithItsOtherHalfDeleted();
     void savingIgnoresTextureCoordinatesTheMeshLacks();
     void gltfPolylineRoundTrips();
+    void gltfKeepsItsFrameUnlessAskedToRotate();
     void usdReadsPolygonsSubsetsAndTextures();
     void usdReadsYUpLeftHandedAndUnauthoredUnit();
     void usdReadsReferencesAndMirroredInstances();
@@ -4517,6 +4518,30 @@ void DocumentTests::gltfPolylineRoundTrips()
     QVERIFY(loaded.mesh(0).ioMask & vcg::tri::io::Mask::IOM_EDGEINDEX);
 }
 
+// glTF is Y-up by definition: read as it is by default, turned Z-up only when asked.
+void DocumentTests::gltfKeepsItsFrameUnlessAskedToRotate()
+{
+    VCGMesh mesh;
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0, 0, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(1, 0, 0));
+    vcg::tri::Allocator<VCGMesh>::AddVertex(mesh, VCGMesh::CoordType(0, 2, 0));
+    vcg::tri::Allocator<VCGMesh>::AddFace(mesh, size_t(0), size_t(1), size_t(2));
+    Document source;
+    source.addMesh(mesh, QStringLiteral("triangle"), vcg::tri::io::Mask::IOM_VERTCOORD | vcg::tri::io::Mask::IOM_FACEINDEX);
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("triangle.glb"));
+    QCOMPARE(source.saveMesh(0, path), 0);
+
+    Document loaded;
+    QCOMPARE(loaded.loadMesh(path), 0);
+    QVERIFY((loaded.mesh(0).mesh.vert[2].cP() - vcg::Point3f(0, 2, 0)).Norm() < 1e-6f);
+    QCOMPARE(loaded.mesh(0).loadOptions.value(QString::fromLatin1(UpAxisOption::kId)).toBool(), false);
+    QCOMPARE(loaded.loadMesh(path, nullptr, QString(), nullptr,
+                 { { QString::fromLatin1(UpAxisOption::kId), true } }), 0);
+    QVERIFY((loaded.mesh(1).mesh.vert[2].cP() - vcg::Point3f(0, 0, 2)).Norm() < 1e-6f);
+}
+
 namespace {
 // The unit normal of a triangle, from its winding.
 vcg::Point3f windingNormal(const VCGFace &f)
@@ -4571,29 +4596,45 @@ void DocumentTests::usdReadsPolygonsSubsetsAndTextures()
     QCOMPARE(fauxEdges, 2);
 }
 
-// A Y-up stage is turned Z-up, a leftHanded mesh keeps the front its winding names, a stage
-// with no metersPerUnit is in centimeters by the specification, and an invisible prim is
-// not read.
+// A Y-up stage keeps its frame unless the Rotate Y-up to Z-up load option asks, a leftHanded
+// mesh keeps the front its winding names, a stage with no metersPerUnit is in centimeters by
+// the specification, an invisible prim is not read, and the log says all of it.
 void DocumentTests::usdReadsYUpLeftHandedAndUnauthoredUnit()
 {
     Document doc;
     const QString path = QStringLiteral(TEST_SOURCE_DIR "/tests/data/usd/y_up_left_handed.usda");
     if (doc.saveMaskCapability(path) == 0)
         QSKIP("This build has no USD support.");
+    const auto logged = [&doc](const QString &text) {
+        return std::any_of(doc.logMessages().begin(), doc.logMessages().end(),
+            [&text](const Document::LogEntry &e) { return e.message.contains(text); });
+    };
+    const auto hasVertex = [](const VCGMesh &mesh, const vcg::Point3f &p) {
+        return std::any_of(mesh.vert.begin(), mesh.vert.end(),
+            [&p](const VCGVertex &v) { return (v.cP() - p).Norm() < 1e-6f; });
+    };
+
+    // As the file has it: (0, 2, 0) is the top, and the left-handed triangle faces +Z.
     QCOMPARE(doc.loadMesh(path), 0);
-    const VCGMesh &mesh = doc.mesh(0).mesh;
-    QCOMPARE(mesh.VN(), 3);
-    QCOMPARE(mesh.FN(), 1);
+    const VCGMesh &kept = doc.mesh(0).mesh;
+    QCOMPARE(kept.VN(), 3);
+    QCOMPARE(kept.FN(), 1);
     QCOMPARE(doc.unit(), LengthUnit::Centimeter);
-    // (0, 2, 0), up in Y, is up in Z.
-    bool foundTop = false;
-    for (const VCGVertex &v : mesh.vert) {
-        foundTop |= (v.cP() - vcg::Point3f(0, 0, 2)).Norm() < 1e-6f;
+    QVERIFY(hasVertex(kept, vcg::Point3f(0, 2, 0)));
+    for (const VCGVertex &v : kept.vert)
         QCOMPARE(v.cC(), vcg::Color4b(0, 255, 0, 255));
-    }
-    QVERIFY(foundTop);
-    // Read left-handed, the triangle faces +Z of its own frame, which is -Y once Z is up.
-    QVERIFY(windingNormal(mesh.face[0]).Y() < -0.99f);
+    QVERIFY(windingNormal(kept.face[0]).Z() > 0.99f);
+    QVERIFY(logged(QStringLiteral("its coordinates are kept as they are")));
+    QVERIFY(logged(QStringLiteral("no metersPerUnit")));
+    QVERIFY(logged(QStringLiteral("skipped 1 invisible prim")));
+
+    // Asked to, turned Z-up: the top is (0, 0, 2) and the front -Y; the log says so.
+    QCOMPARE(doc.loadMesh(path, nullptr, QString(), nullptr,
+                 { { QString::fromLatin1(UpAxisOption::kId), true } }), 0);
+    const VCGMesh &rotated = doc.mesh(1).mesh;
+    QVERIFY(hasVertex(rotated, vcg::Point3f(0, 0, 2)));
+    QVERIFY(windingNormal(rotated.face[0]).Y() < -0.99f);
+    QVERIFY(logged(QStringLiteral("rotated by +90 degrees about X to Z-up")));
 }
 
 // A triangle in another file, referenced twice: once translated by 10 in x, once mirrored
@@ -4684,6 +4725,10 @@ void DocumentTests::usdRoundTripsALayer()
         QCOMPARE(entry.mesh.FN(), 3);
         QCOMPARE(entry.polygonFaceCount, 2);
         QCOMPARE(loaded.unit(), LengthUnit::Millimeter);
+        // Written Y-up, as MeshLab's view shows it, and read back as it is.
+        QVERIFY(std::any_of(loaded.logMessages().begin(), loaded.logMessages().end(), [](const Document::LogEntry &e) {
+            return e.message.contains(QStringLiteral("Y-up; its coordinates are kept"));
+        }));
         QCOMPARE(int(entry.materialSet.entries.size()), 1);
         QCOMPARE(entry.materialSet.entries[0].name, QStringLiteral("Painted"));
         QCOMPARE(entry.materialSet.entries[0].roughnessFactor, 0.3f);

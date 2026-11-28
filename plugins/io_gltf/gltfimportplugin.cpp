@@ -818,6 +818,12 @@ public:
         return isSupportedExtension(normalizedExtension(filename));
     }
 
+    // glTF is Y-up by definition; MeshLab keeps its frame unless asked.
+    std::vector<MeshFilterParameterDescriptor> loadParameters(const QString &) const override
+    {
+        return { UpAxisOption::descriptor() };
+    }
+
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
         return load(filename, mesh, cb, outLoadMask, nullptr);
@@ -832,9 +838,11 @@ public:
         MeshIOLoadContext &context) const override
     {
         const int err = load(filename, mesh, cb, outLoadMask, outMaterialSet);
-        // The glTF specification measures every distance in meters.
-        if (err == 0)
+        // The glTF specification measures every distance in meters, with +Y up.
+        if (err == 0) {
             context.unit = LengthUnit::Meter;
+            UpAxisOption::apply(mesh, true, context);
+        }
         return err;
     }
 

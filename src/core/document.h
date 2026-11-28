@@ -639,6 +639,25 @@ private:
     bool resolveLoadOptions(const MeshIOPlugin &plugin, const QString &filename,
         const MeshFilterParameterValues &given, MeshFilterParameterValues &resolved,
         MeshFilterParameterValues &changed, QString &error) const;
+    // Every mesh entering the document from a file -- loaded, reloaded, imported from a scene --
+    // goes through the same steps: storage compacted, bounding box, missing normals, its load
+    // mask, texture names resolved against the file, texture assets, material set and the PBR
+    // channel textures its slots name. What the textures were declared and resolved as is
+    // returned for logImportedMesh, which writes the file, texture and material lines.
+    struct ImportedTextureInfo {
+        QStringList declared;
+        QStringList resolved;
+        QString selected;
+    };
+    ImportedTextureInfo prepareImportedMesh(MeshEntry &entry, const QString &filename, int loadMask,
+        const MeshIOMaterialSet &loadedMaterialSet);
+    void logImportedMesh(const MeshEntry &entry, int loadMask, const ImportedTextureInfo &textures);
+    // What a save hands an exporter for a layer: the texture assets with the file that holds
+    // each image (none when no file does, and the exporter writes it), and the mask -- the one
+    // asked for, or the layer's default for the format, less the texture coordinates the mesh
+    // has not allocated.
+    std::vector<MeshIOTextureAsset> texturesToSave(const MeshEntry &entry) const;
+    static int maskToSave(const MeshEntry &entry, int requestedMask, int capabilityMask);
     // The log lines a load leaves: the importer's messages, and the options used.
     void logLoadContext(const MeshIOLoadContext &context, const MeshIOPlugin &plugin, const QString &filename);
     // What a file that has just been loaded says its unit is (Unknown when it says none). It

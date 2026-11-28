@@ -167,6 +167,20 @@ nothing is ever converted. The adoption is part of the load's undo step. On the 
 document's unit in `MeshIOSaveOptions::unit`, which the 3MF writer records (it can name every unit but
 kilometers, which it leaves out, with a note in the log); glTF and E57 have nowhere to say it.
 
+**Frames are kept** (decided 2026-11-28). MeshLab reads a file's coordinates in the file's own
+frame, for every format: an importer does not turn, flip or re-center what it reads to suit
+MeshLab's conventions, so that what is saved back is what was read. Changing the frame is the
+user's choice, never automatic and never the default, and when it happens the log says so
+plainly. The one such choice today is the `rotateYUpToZUp` load option of the formats that
+declare an up axis (USD's `upAxis`, glTF's +Y by definition; `UpAxisOption` in
+`src/plugins/meshioplugin.cpp`): off by default, it rotates by +90 degrees about X, and a Y-up
+file leaves a log line either way. MeshLab's default view is itself Y-up (an identity trackball
+shows +Y as up), so a Y-up file read as it is stands as its author meant. Precision is the one
+reason coordinates change on their own, and then only by a translation that is kept and given
+back: the document origin, below. A writer that must declare an up axis declares the view's,
++Y (USD's `upAxis`; glTF is Y-up by definition), so a Y-up file read as it is comes back as it
+was; a Z-up one comes back declared Y-up until a layer records the frame it came from.
+
 **Origin** (`Document::origin()`, a `std::optional<vcg::Point3d>`): the point, in true coordinates and
 double precision, that every layer's coordinates are relative to, so that survey coordinates in the
 millions stay precise in float vertices (at 5,000,000 a float keeps multiples of 0.5). Unset for

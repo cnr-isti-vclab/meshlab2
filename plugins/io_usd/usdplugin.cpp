@@ -116,17 +116,16 @@ vcg::Color4b toColor(const tn::FloatChunked &colors, size_t index, int component
 class SceneImporter
 {
 public:
-    SceneImporter(const QString &filename, const tn::RenderScene &scene, VCGMesh &mesh, vcg::CallBackPos *cb)
-        : m_filename(filename), m_scene(scene), m_mesh(mesh), m_cb(cb)
+    // What the import did that the log keeps goes to messages (MeshIOLoadContext::messages);
+    // cb only shows progress.
+    SceneImporter(const QString &filename, const tn::RenderScene &scene, VCGMesh &mesh, vcg::CallBackPos *cb,
+        QStringList &messages)
+        : m_filename(filename), m_scene(scene), m_mesh(mesh), m_cb(cb), m_messages(messages)
     {
     }
 
     int run(int *outLoadMask, MeshIOMaterialSet *outMaterialSet)
     {
-        m_yUp = m_scene.up_axis == tn::RenderScene::UpAxis::Y;
-        if (m_yUp)
-            report(m_cb, 0, QObject::tr("USD stage is Y-up: rotated by +90 degrees about X to MeshLab's Z-up."));
-
         int meshNodes = 0, pointNodes = 0, skippedInvisible = 0, skippedOther = 0;
         for (const tn::SceneNode &node : m_scene.nodes) {
             const bool isMesh = node.type == tn::NodeType::Mesh
@@ -153,17 +152,17 @@ public:
                 QObject::tr("Reading USD prims...") + QStringLiteral("\r"));
         }
         if (skippedInvisible > 0)
-            report(m_cb, 90, QObject::tr("USD: skipped %1 invisible prim(s).").arg(skippedInvisible));
+            m_messages << QObject::tr("skipped %1 invisible prim(s).").arg(skippedInvisible);
         if (skippedOther > 0)
-            report(m_cb, 90, QObject::tr("USD: skipped %1 prim(s) that are not meshes or points "
-                                         "(cameras, lights, curves, skeletons...).").arg(skippedOther));
+            m_messages << QObject::tr("skipped %1 prim(s) that are not meshes or points "
+                                      "(cameras, lights, curves, skeletons...).").arg(skippedOther);
         for (const QString &name : std::as_const(m_droppedInputs))
-            report(m_cb, 90, QObject::tr("USD: material input %1 is not represented in MeshLab and was dropped.").arg(name));
+            m_messages << QObject::tr("material input %1 is not represented in MeshLab and was dropped.").arg(name);
         if (m_mesh.VN() == 0)
             return kErrNoGeometry;
 
-        report(m_cb, 95, QObject::tr("USD: %1 mesh prim(s), %2 point prim(s), %3 material(s) with a texture.")
-                              .arg(meshNodes).arg(pointNodes).arg(m_materials.entries.size()));
+        m_messages << QObject::tr("%1 mesh prim(s), %2 point prim(s), %3 material(s) with a texture.")
+                          .arg(meshNodes).arg(pointNodes).arg(m_materials.entries.size());
 
         int mask = M::IOM_VERTCOORD;
         if (m_mesh.FN() > 0)
@@ -189,17 +188,11 @@ public:
     }
 
 private:
-    // The world transform as a column-vector matrix, with the Y-up rotation applied after it.
-    // USD stores row-vector matrices, whose flat array is the transpose of Qt's row-major input.
+    // The world transform as a column-vector matrix. USD stores row-vector matrices, whose
+    // flat array is the transpose of Qt's row-major input.
     QMatrix4x4 worldMatrix(const tn::Matrix4 &m) const
     {
-        QMatrix4x4 world = QMatrix4x4(m.m).transposed();
-        if (m_yUp) {
-            QMatrix4x4 up;
-            up.rotate(90.0f, 1.0f, 0.0f, 0.0f);
-            world = up * world;
-        }
-        return world;
+        return QMatrix4x4(m.m).transposed();
     }
 
     void appendMesh(const tn::RenderMesh &src, const tn::Matrix4 &transform)
@@ -476,7 +469,7 @@ private:
             asset.name = QFileInfo(entry).fileName();
             asset.image = packageImage(resolved.left(bracket), entry);
             if (asset.image.isNull()) {
-                report(m_cb, 0, QObject::tr("USD warning: cannot decode texture %1 inside the package.").arg(entry));
+                m_messages << QObject::tr("cannot decode texture %1 inside the package.").arg(entry);
                 return ref;
             }
             ref.fileName = asset.name;
@@ -485,7 +478,7 @@ private:
             if (QFileInfo(path).isRelative())
                 path = QFileInfo(m_filename).absoluteDir().filePath(path);
             if (!QFileInfo::exists(path)) {
-                report(m_cb, 0, QObject::tr("USD warning: texture file not found: %1").arg(path));
+                m_messages << QObject::tr("texture file not found: %1").arg(path);
                 return ref;
             }
             path = QFileInfo(path).absoluteFilePath();
@@ -531,7 +524,7 @@ private:
     const tn::RenderScene &m_scene;
     VCGMesh &m_mesh;
     vcg::CallBackPos *m_cb;
-    bool m_yUp = false;
+    QStringList &m_messages;
     bool m_hasNormals = false, m_averagedNormals = false, m_hasVertexColors = false, m_hasFaceColors = false;
     bool m_hasTexCoords = false, m_hasPolygons = false;
     MeshIOMaterialSet m_materials;
@@ -816,6 +809,12 @@ public:
         return QObject::tr("USD Binary (*.usdc);;USD Text (*.usda);;USD Package (*.usdz)");
     }
 
+    // A stage may declare itself Y-up; MeshLab keeps its frame unless asked.
+    std::vector<MeshFilterParameterDescriptor> loadParameters(const QString &) const override
+    {
+        return { UpAxisOption::descriptor() };
+    }
+
     int load(const QString &filename, VCGMesh &mesh, vcg::CallBackPos *cb, int *outLoadMask) const override
     {
         return load(filename, mesh, cb, outLoadMask, nullptr);
@@ -846,7 +845,7 @@ public:
             return kErrParse;
         }
         if (!warn.empty())
-            report(cb, 0, QObject::tr("USD warning: %1").arg(QString::fromStdString(warn).trimmed()));
+            context.messages << QObject::tr("reader warning: %1").arg(QString::fromStdString(warn).trimmed());
 
         // Polygons are triangulated by the converter, which also reports which authored face
         // and corner each triangle comes from: MeshLab keeps the polygons as faux edges, and
@@ -861,7 +860,7 @@ public:
         report(cb, 5, QObject::tr("Converting USD stage...") + QStringLiteral("\r"));
         const tn::ConvertResult result = converter.Convert(stage);
         for (const std::string &w : result.warnings)
-            report(cb, 5, QObject::tr("USD warning: %1").arg(QString::fromStdString(w)));
+            context.messages << QObject::tr("converter warning: %1").arg(QString::fromStdString(w));
         if (!result.success) {
             report(cb, 0, QObject::tr("USD conversion error: %1").arg(QString::fromStdString(result.error)));
             return kErrConvert;
@@ -869,12 +868,13 @@ public:
 
         mesh.Clear();
         mesh.textures.clear();
-        SceneImporter importer(filename, result.scene, mesh, cb);
+        SceneImporter importer(filename, result.scene, mesh, cb, context.messages);
         const int status = importer.run(outLoadMask, outMaterialSet);
         if (status != 0)
             return status;
+        UpAxisOption::apply(mesh, result.scene.up_axis == tn::RenderScene::UpAxis::Y, context);
         if (importer.averagedNormals())
-            report(cb, 100, QObject::tr("USD: per-corner (faceVarying) normals were averaged per vertex."));
+            context.messages << QObject::tr("per-corner (faceVarying) normals were averaged per vertex.");
 
         // metersPerUnit falls back to centimeters by the USD specification; the converter's own
         // fallback (meters) is not used, as it does not distinguish an authored value.
@@ -882,10 +882,10 @@ public:
         const double metersPerUnit = meta.metersPerUnit_set ? result.scene.meters_per_unit : 0.01;
         context.unit = unitFromMetersPerUnit(metersPerUnit);
         if (!meta.metersPerUnit_set)
-            report(cb, 100, QObject::tr("USD stage authors no metersPerUnit: centimeters, by the USD specification."));
+            context.messages << QObject::tr("the stage authors no metersPerUnit: centimeters, by the USD specification.");
         else if (context.unit == LengthUnit::Unknown)
-            report(cb, 100, QObject::tr("USD metersPerUnit %1 is not a unit MeshLab names: unit left unset.")
-                                .arg(metersPerUnit));
+            context.messages << QObject::tr("metersPerUnit %1 is not a unit MeshLab names: unit left unset.")
+                                    .arg(metersPerUnit);
         return 0;
     }
 
@@ -989,7 +989,10 @@ public:
         const uint16_t uniform = ln::PropSlot::kFlagUniform;
         ln::StageBuilder sb;
         sb.SetDefaultPrim("World");
-        sb.SetUpAxis("Z");
+        // Y, as MeshLab's default view shows the coordinates and as USD's own fallback says: a
+        // Y-up stage read as it is (frames are kept) comes back as it was, and what stands up in
+        // MeshLab stands up elsewhere. A Z-up stage read as it is comes back declared Y-up.
+        sb.SetUpAxis("Y");
         if (options.unit != LengthUnit::Unknown)
             sb.SetMetersPerUnit(LengthUnits::metersPer(options.unit));
         ln::LayerBuilder &b = sb.GetLayerBuilder();

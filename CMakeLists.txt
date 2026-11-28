@@ -241,7 +241,7 @@ add_library(MeshLab2Core STATIC
     src/plugins/selectionscope.h src/plugins/selectionscope.cpp
     src/plugins/meshfilterplugin.h src/plugins/meshfilterplugin.cpp
     src/plugins/meshfilterpluginmanager.h src/plugins/meshfilterpluginmanager.cpp
-    src/plugins/meshioplugin.h
+    src/plugins/meshioplugin.h src/plugins/meshioplugin.cpp
     src/plugins/meshiopluginmanager.h src/plugins/meshiopluginmanager.cpp
     src/render/colormap.h src/render/colormap.cpp
     src/render/linerenderer.h src/render/linerenderer.cpp

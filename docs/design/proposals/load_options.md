@@ -3,7 +3,7 @@
 This document proposes letting a mesh importer declare options -- what to read and how.
 **Opening a file never asks**: the layer is loaded with the default options, and *Reload with
 Options...* in the layer's context menu reads its file again with different ones. Stage 1 is
-implemented (2026-11-28), with STL's merge as its one option; the project (stage 2) and
+implemented (2026-11-28), with STL's merge and USD's and glTF's Y-up rotation as its options; the project (stage 2) and
 several layers from one file (stage 3) are not.
 
 See also: [Data Model](../data_model.md) (Layer Provenance, the I/O model),
@@ -30,7 +30,7 @@ in the importer or a global preference:
 | E57 | which scans; intensity as scalar; open the photos as rasters; panoramas resampled into pinhole views | all of it always done (`plugins/io_e57`) |
 | LAS/LAZ | keep every point or a subset; which per-point fields to keep; the coordinate offset | not supported ([LAS Support](las_support.md)) |
 | glTF, USD, 3MF, E57 | one layer, or one per node, item or scan | always one layer (stage 3) |
-| USD | apply the up axis to the layer matrix or to the coordinates | not supported ([USD Support §9](usd_support.md#9-open-questions)) |
+| USD, glTF | rotate a Y-up file Z-up | the `rotateYUpToZUp` load option, off by default (since 2026-11-28: MeshLab keeps a file's frame) |
 | OBJ | which of the three importers that accept `.obj` reads it | the plugin order |
 
 Legacy MeshLab had this mechanism (`IOPlugin::initPreOpenParameter`, in

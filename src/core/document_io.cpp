@@ -230,6 +230,115 @@ void Document::logLoadContext(const MeshIOLoadContext &context, const MeshIOPlug
         LogSource::Application);
 }
 
+Document::ImportedTextureInfo Document::prepareImportedMesh(
+    MeshEntry &entry, const QString &filename, int loadMask, const MeshIOMaterialSet &loadedMaterialSet)
+{
+    // Framework invariant: meshes entering the document from IO must not
+    // retain deleted elements in storage.
+    compactMeshStorageInvariant(entry.mesh);
+    vcg::tri::UpdateBounding<VCGMesh>::Box(entry.mesh);
+    computeMissingNormals(entry.mesh, loadMask);
+    entry.ioMask = loadMask;
+    entry.materialSet = normalizeMaterialSet(filename, loadedMaterialSet, entry.mesh);
+
+    // Texture names are resolved against the file, and the mesh keeps the resolved paths.
+    ImportedTextureInfo info;
+    entry.textureFileNames.clear();
+    entry.textureFilePaths.clear();
+    std::vector<std::string> normalizedMeshTexturePaths;
+    bool selectedExistingTexture = false;
+    for (const std::string &rawTextureName : entry.mesh.textures) {
+        const QString textureName = QString::fromStdString(rawTextureName).trimmed();
+        if (textureName.isEmpty())
+            continue;
+        info.declared.append(textureName);
+        const QString resolvedTexturePath = resolveTexturePath(filename, textureName);
+        info.resolved.append(resolvedTexturePath);
+        entry.textureFileNames.append(textureName);
+        entry.textureFilePaths.append(resolvedTexturePath);
+        normalizedMeshTexturePaths.push_back(QDir::toNativeSeparators(resolvedTexturePath).toStdString());
+        if (info.selected.isEmpty())
+            info.selected = textureName;
+        if (!selectedExistingTexture && QFileInfo::exists(resolvedTexturePath)) {
+            info.selected = textureName;
+            selectedExistingTexture = true;
+        }
+    }
+    if (!normalizedMeshTexturePaths.empty())
+        entry.mesh.textures = std::move(normalizedMeshTexturePaths);
+    entry.textureAssets = buildTextureAssetsFromLegacyAssociation(
+        entry.textureFileNames,
+        entry.textureFilePaths,
+        entry.mesh.textures,
+        loadedMaterialSet.textureAssets);
+
+    // Also register any PBR channel textures from materialSet that were not listed in
+    // mesh.textures (e.g. glTF normal / occlusion / roughness maps that have no UV slot).
+    for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
+        auto addIfNew = [&](const MeshIOMaterialTextureRef &ref) {
+            const QString p = ref.filePath.trimmed();
+            if (p.isEmpty() || entry.textureFilePaths.contains(p))
+                return;
+            entry.textureFileNames.append(QFileInfo(p).fileName());
+            entry.textureFilePaths.append(p);
+        };
+        addIfNew(slot.baseColorTexture);
+        addIfNew(slot.normalTexture);
+        addIfNew(slot.occlusionTexture);
+        addIfNew(slot.roughnessTexture);
+    }
+    return info;
+}
+
+void Document::logImportedMesh(const MeshEntry &entry, int loadMask, const ImportedTextureInfo &textures)
+{
+    writeLog(tr("File info for '%1': %2 (mask: 0x%3)")
+        .arg(entry.name)
+        .arg(summarizeLoadMask(loadMask))
+        .arg(QString::number(static_cast<quint32>(loadMask), 16).toUpper()),
+        LogSource::Application, LogLevel::Debug);
+    if (!textures.declared.isEmpty()) {
+        int existingTextureFiles = 0;
+        for (const QString &path : entry.textureFilePaths) {
+            if (QFileInfo::exists(path))
+                ++existingTextureFiles;
+        }
+        writeLog(tr("Texture info for '%1': declared [%2], resolved [%3], selected '%4' (%5/%6 files found)")
+            .arg(entry.name)
+            .arg(textures.declared.join(QStringLiteral(", ")))
+            .arg(textures.resolved.join(QStringLiteral(", ")))
+            .arg(textures.selected.isEmpty() ? tr("none") : textures.selected)
+            .arg(existingTextureFiles)
+            .arg(entry.textureFilePaths.size()),
+            LogSource::Application, LogLevel::Debug);
+    }
+    if (!entry.materialSet.empty()) {
+        int baseCount = 0;
+        int normalCount = 0;
+        int aoCount = 0;
+        int roughnessCount = 0;
+        for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
+            if (slot.baseColorTexture.isValid())
+                ++baseCount;
+            if (slot.normalTexture.isValid())
+                ++normalCount;
+            if (slot.occlusionTexture.isValid())
+                ++aoCount;
+            if (slot.roughnessTexture.isValid())
+                ++roughnessCount;
+        }
+        writeLog(
+            tr("Material info for '%1': %2 slot(s), base=%3, normal=%4, ao=%5, roughness=%6")
+                .arg(entry.name)
+                .arg(entry.materialSet.entries.size())
+                .arg(baseCount)
+                .arg(normalCount)
+                .arg(aoCount)
+                .arg(roughnessCount),
+            LogSource::Application);
+    }
+}
+
 int Document::loadMesh(const QString &filename, QString *errorMessage, const QString &label,
                        const QMatrix4x4 *transform, const MeshFilterParameterValues &options)
 {
@@ -321,12 +430,6 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
         writeLog(tr("Load warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
     adoptFileOrigin(loadContext, entry->mesh, filename, meshCount() == 0);
-    // Framework invariant: meshes entering the document from IO must not
-    // retain deleted elements in storage.
-    compactMeshStorageInvariant(entry->mesh);
-    vcg::tri::UpdateBounding<VCGMesh>::Box(entry->mesh);
-    computeMissingNormals(entry->mesh, loadMask);
-    entry->ioMask = loadMask;
     entry->loadOptions = loadOptions;
     entry->meshId = m_nextMeshId++;
     entry->geometryRevision = m_nextGeometryRevision++;
@@ -338,54 +441,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
     const QString trimmedLabel = label.trimmed();
     entry->name = trimmedLabel.isEmpty() ? QFileInfo(filename).fileName() : trimmedLabel;
     entry->sourcePath = filename;
-    entry->materialSet = normalizeMaterialSet(filename, loadedMaterialSet, entry->mesh);
-
-    QStringList declaredTextureNames;
-    QStringList resolvedTexturePaths;
-    std::vector<std::string> normalizedMeshTexturePaths;
-    QString selectedTextureName;
-    bool selectedExistingTexture = false;
-    for (const std::string &rawTextureName : entry->mesh.textures) {
-        const QString textureName = QString::fromStdString(rawTextureName).trimmed();
-        if (textureName.isEmpty())
-            continue;
-        declaredTextureNames.append(textureName);
-        const QString resolvedTexturePath = resolveTexturePath(filename, textureName);
-        resolvedTexturePaths.append(resolvedTexturePath);
-        entry->textureFileNames.append(textureName);
-        entry->textureFilePaths.append(resolvedTexturePath);
-        normalizedMeshTexturePaths.push_back(QDir::toNativeSeparators(resolvedTexturePath).toStdString());
-        if (selectedTextureName.isEmpty()) {
-            selectedTextureName = textureName;
-        }
-        if (!selectedExistingTexture && QFileInfo::exists(resolvedTexturePath)) {
-            selectedTextureName = textureName;
-            selectedExistingTexture = true;
-        }
-    }
-    if (!normalizedMeshTexturePaths.empty())
-        entry->mesh.textures = std::move(normalizedMeshTexturePaths);
-    entry->textureAssets = buildTextureAssetsFromLegacyAssociation(
-        entry->textureFileNames,
-        entry->textureFilePaths,
-        entry->mesh.textures,
-        loadedMaterialSet.textureAssets);
-
-    // Also register any PBR channel textures from materialSet that were not listed in
-    // mesh.textures (e.g. glTF normal / occlusion / roughness maps that have no UV slot).
-    for (const MeshIOMaterialSlot &slot : entry->materialSet.entries) {
-        auto addIfNew = [&](const MeshIOMaterialTextureRef &ref) {
-            const QString p = ref.filePath.trimmed();
-            if (p.isEmpty() || entry->textureFilePaths.contains(p))
-                return;
-            entry->textureFileNames.append(QFileInfo(p).fileName());
-            entry->textureFilePaths.append(p);
-        };
-        addIfNew(slot.baseColorTexture);
-        addIfNew(slot.normalTexture);
-        addIfNew(slot.occlusionTexture);
-        addIfNew(slot.roughnessTexture);
-    }
+    const ImportedTextureInfo textureInfo = prepareImportedMesh(*entry, filename, loadMask, loadedMaterialSet);
 
     recordMeshStored(*entry, filename, nullptr);
     adoptDirectoryOf(filename);
@@ -422,51 +478,7 @@ int Document::loadMesh(const QString &filename, QString *errorMessage, const QSt
                 .arg(QString::number(processEventsMs, 'f', 2)),
             LogSource::Application, LogLevel::Debug);
     }
-    writeLog(tr("File info for '%1': %2 (mask: 0x%3)")
-        .arg(meshEntry.name)
-        .arg(summarizeLoadMask(loadMask))
-        .arg(QString::number(static_cast<quint32>(loadMask), 16).toUpper()),
-        LogSource::Application, LogLevel::Debug);
-    if (!declaredTextureNames.isEmpty()) {
-        int existingTextureFiles = 0;
-        for (const QString &path : meshEntry.textureFilePaths) {
-            if (QFileInfo::exists(path))
-                ++existingTextureFiles;
-        }
-        writeLog(tr("Texture info for '%1': declared [%2], resolved [%3], selected '%4' (%5/%6 files found)")
-            .arg(meshEntry.name)
-            .arg(declaredTextureNames.join(QStringLiteral(", ")))
-            .arg(resolvedTexturePaths.join(QStringLiteral(", ")))
-            .arg(selectedTextureName.isEmpty() ? tr("none") : selectedTextureName)
-            .arg(existingTextureFiles)
-            .arg(meshEntry.textureFilePaths.size()),
-            LogSource::Application, LogLevel::Debug);
-    }
-    if (!meshEntry.materialSet.empty()) {
-        int baseCount = 0;
-        int normalCount = 0;
-        int aoCount = 0;
-        int roughnessCount = 0;
-        for (const MeshIOMaterialSlot &slot : meshEntry.materialSet.entries) {
-            if (slot.baseColorTexture.isValid())
-                ++baseCount;
-            if (slot.normalTexture.isValid())
-                ++normalCount;
-            if (slot.occlusionTexture.isValid())
-                ++aoCount;
-            if (slot.roughnessTexture.isValid())
-                ++roughnessCount;
-        }
-        writeLog(
-            tr("Material info for '%1': %2 slot(s), base=%3, normal=%4, ao=%5, roughness=%6")
-                .arg(meshEntry.name)
-                .arg(meshEntry.materialSet.entries.size())
-                .arg(baseCount)
-                .arg(normalCount)
-                .arg(aoCount)
-                .arg(roughnessCount),
-            LogSource::Application);
-    }
+    logImportedMesh(meshEntry, loadMask, textureInfo);
 
     emit meshAdded(index);
     setCurrentMeshIndex(index);
@@ -567,7 +579,9 @@ int Document::reloadMesh(int index, const MeshFilterParameterValues *options, QS
     emit loadProgressStarted(sourcePath);
     emit loadProgressUpdated(0, tr("Reloading %1").arg(QFileInfo(sourcePath).fileName()));
 
-    VCGMesh reloadedMesh;
+    // Read into a layer of its own first: the live one is replaced only once it all worked.
+    MeshEntry staged;
+    VCGMesh &reloadedMesh = staged.mesh;
     Document *previousCallbackDocument = g_callbackDocument;
     const CallbackMode previousCallbackMode = m_callbackMode;
     m_callbackMode = CallbackMode::Load;
@@ -606,52 +620,17 @@ int Document::reloadMesh(int index, const MeshFilterParameterValues *options, QS
         writeLog(tr("Reload warning: %1").arg(plugin->errorString(err)), LogSource::Application, LogLevel::Warning);
 
     adoptFileOrigin(loadContext, reloadedMesh, sourcePath, meshCount() == 1);
-    // Framework invariant: meshes entering the document from IO must not
-    // retain deleted elements in storage.
-    compactMeshStorageInvariant(reloadedMesh);
-    vcg::tri::UpdateBounding<VCGMesh>::Box(reloadedMesh);
-    computeMissingNormals(reloadedMesh, loadMask);
-
-    QStringList declaredTextureNames;
-    QStringList resolvedTexturePaths;
-    QStringList textureFileNames;
-    QStringList textureFilePaths;
-    std::vector<std::string> normalizedMeshTexturePaths;
-    QString selectedTextureName;
-    bool selectedExistingTexture = false;
-    for (const std::string &rawTextureName : reloadedMesh.textures) {
-        const QString textureName = QString::fromStdString(rawTextureName).trimmed();
-        if (textureName.isEmpty())
-            continue;
-        declaredTextureNames.append(textureName);
-        const QString resolvedTexturePath = resolveTexturePath(sourcePath, textureName);
-        resolvedTexturePaths.append(resolvedTexturePath);
-        textureFileNames.append(textureName);
-        textureFilePaths.append(resolvedTexturePath);
-        normalizedMeshTexturePaths.push_back(QDir::toNativeSeparators(resolvedTexturePath).toStdString());
-        if (selectedTextureName.isEmpty())
-            selectedTextureName = textureName;
-        if (!selectedExistingTexture && QFileInfo::exists(resolvedTexturePath)) {
-            selectedTextureName = textureName;
-            selectedExistingTexture = true;
-        }
-    }
-    if (!normalizedMeshTexturePaths.empty())
-        reloadedMesh.textures = std::move(normalizedMeshTexturePaths);
+    const ImportedTextureInfo textureInfo = prepareImportedMesh(staged, sourcePath, loadMask, loadedMaterialSet);
 
     deepCopyMesh(reloadedMesh, entry.mesh);
-    entry.ioMask = loadMask;
+    entry.ioMask = staged.ioMask;
     entry.loadOptions = loadOptions;
     // The name is the user's label, not the file's: reloading the contents keeps it.
     entry.sourcePath = sourcePath;
-    entry.textureFileNames = textureFileNames;
-    entry.textureFilePaths = textureFilePaths;
-    entry.textureAssets = buildTextureAssetsFromLegacyAssociation(
-        entry.textureFileNames,
-        entry.textureFilePaths,
-        reloadedMesh.textures,
-        loadedMaterialSet.textureAssets);
-    entry.materialSet = normalizeMaterialSet(sourcePath, loadedMaterialSet, reloadedMesh);
+    entry.textureFileNames = staged.textureFileNames;
+    entry.textureFilePaths = staged.textureFilePaths;
+    entry.textureAssets = staged.textureAssets;
+    entry.materialSet = staged.materialSet;
     entry.geometryRevision = m_nextGeometryRevision++;
     entry.materialRevision = m_nextGeometryRevision++;
     recordMeshStored(entry, sourcePath, nullptr);
@@ -684,51 +663,7 @@ int Document::reloadMesh(int index, const MeshFilterParameterValues *options, QS
                 .arg(QString::number(processEventsMs, 'f', 2)),
             LogSource::Application, LogLevel::Debug);
     }
-    writeLog(tr("File info for '%1': %2 (mask: 0x%3)")
-        .arg(entry.name)
-        .arg(summarizeLoadMask(loadMask))
-        .arg(QString::number(static_cast<quint32>(loadMask), 16).toUpper()),
-        LogSource::Application, LogLevel::Debug);
-    if (!declaredTextureNames.isEmpty()) {
-        int existingTextureFiles = 0;
-        for (const QString &path : entry.textureFilePaths) {
-            if (QFileInfo::exists(path))
-                ++existingTextureFiles;
-        }
-        writeLog(tr("Texture info for '%1': declared [%2], resolved [%3], selected '%4' (%5/%6 files found)")
-            .arg(entry.name)
-            .arg(declaredTextureNames.join(QStringLiteral(", ")))
-            .arg(resolvedTexturePaths.join(QStringLiteral(", ")))
-            .arg(selectedTextureName.isEmpty() ? tr("none") : selectedTextureName)
-            .arg(existingTextureFiles)
-            .arg(entry.textureFilePaths.size()),
-            LogSource::Application, LogLevel::Debug);
-    }
-    if (!entry.materialSet.empty()) {
-        int baseCount = 0;
-        int normalCount = 0;
-        int aoCount = 0;
-        int roughnessCount = 0;
-        for (const MeshIOMaterialSlot &slot : entry.materialSet.entries) {
-            if (slot.baseColorTexture.isValid())
-                ++baseCount;
-            if (slot.normalTexture.isValid())
-                ++normalCount;
-            if (slot.occlusionTexture.isValid())
-                ++aoCount;
-            if (slot.roughnessTexture.isValid())
-                ++roughnessCount;
-        }
-        writeLog(
-            tr("Material info for '%1': %2 slot(s), base=%3, normal=%4, ao=%5, roughness=%6")
-                .arg(entry.name)
-                .arg(entry.materialSet.entries.size())
-                .arg(baseCount)
-                .arg(normalCount)
-                .arg(aoCount)
-                .arg(roughnessCount),
-            LogSource::Application);
-    }
+    logImportedMesh(entry, loadMask, textureInfo);
 
     emit meshDataChanged(index);
     emit loadProgressUpdated(100, tr("Reloaded %1").arg(entry.name));
@@ -807,6 +742,41 @@ void Document::adoptFileOrigin(const MeshIOLoadContext &context, VCGMesh &mesh, 
         LogSource::Application, LogLevel::Warning);
 }
 
+std::vector<MeshIOTextureAsset> Document::texturesToSave(const MeshEntry &entry) const
+{
+    // A texture whose image a file holds is handed to the saver with that file, which it
+    // copies or refers to; one no file holds goes without, and is written from its image.
+    // The asset's own path cannot say which: undo may have brought back an image that a
+    // later save wrote somewhere else, and a filter that replaced a texture's image leaves
+    // the path of the file it came from. A texture with no image is its file.
+    std::vector<MeshIOTextureAsset> assets = entry.textureAssets;
+    for (MeshIOTextureAsset &asset : assets) {
+        if (!asset.hasImage())
+            continue;
+        const auto stored = m_storedImages.find(asset.image.cacheKey());
+        asset.sourcePath = stored == m_storedImages.end() || stored->second.packed
+            ? QString()
+            : QDir::toNativeSeparators(stored->second.path);
+    }
+    return assets;
+}
+
+int Document::maskToSave(const MeshEntry &entry, int requestedMask, int capabilityMask)
+{
+    // No mask asks for what the layer holds, as the Save dialog proposes; left to the exporter, it
+    // asked for everything the format can hold, and a project or Python save wrote white colors
+    // and zero scalars the layer never had.
+    int mask = requestedMask != 0 ? requestedMask : defaultSaveMask(entry, capabilityMask);
+    // Texture coordinates are optional components: a mask asking for ones the mesh has not
+    // allocated made an exporter read storage that does not exist (the glTF writer crashed on
+    // a mesh with faces and no UVs). The bits for them are dropped here, for every exporter.
+    if (!vcg::tri::HasPerVertexTexCoord(entry.mesh))
+        mask &= ~vcg::tri::io::Mask::IOM_VERTTEXCOORD;
+    if (!vcg::tri::HasPerWedgeTexCoord(entry.mesh))
+        mask &= ~(vcg::tri::io::Mask::IOM_WEDGTEXCOORD | vcg::tri::io::Mask::IOM_WEDGTEXMULTI);
+    return mask;
+}
+
 int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptions &options)
 {
     if (index < 0 || index >= meshCount()) {
@@ -841,20 +811,7 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
     m_callbackMode = CallbackMode::Save;
     m_cancelRequested.store(false, std::memory_order_relaxed);
     g_callbackDocument = this;
-    // A texture whose image a file holds is handed to the saver with that file, which it
-    // copies or refers to; one no file holds goes without, and is written from its image.
-    // The asset's own path cannot say which: undo may have brought back an image that a
-    // later save wrote somewhere else, and a filter that replaced a texture's image leaves
-    // the path of the file it came from. A texture with no image is its file.
-    std::vector<MeshIOTextureAsset> savedAssets = entry.textureAssets;
-    for (MeshIOTextureAsset &asset : savedAssets) {
-        if (!asset.hasImage())
-            continue;
-        const auto stored = m_storedImages.find(asset.image.cacheKey());
-        asset.sourcePath = stored == m_storedImages.end() || stored->second.packed
-            ? QString()
-            : QDir::toNativeSeparators(stored->second.path);
-    }
+    std::vector<MeshIOTextureAsset> savedAssets = texturesToSave(entry);
     QStringList savedTexturePaths;
     const MeshIOTextureContext textureContext{
         &entry.textureFileNames,
@@ -867,18 +824,7 @@ int Document::saveMesh(int index, const QString &filename, const MeshIOSaveOptio
     MeshIOSaveOptions saveOptions = options;
     saveOptions.unit = m_unit;
     saveOptions.origin = m_origin.value_or(vcg::Point3d(0, 0, 0));
-    // No mask asks for what the layer holds, as the Save dialog proposes; left to the exporter, it
-    // asked for everything the format can hold, and a project or Python save wrote white colors
-    // and zero scalars the layer never had.
-    if (saveOptions.mask == 0)
-        saveOptions.mask = defaultSaveMask(entry, plugin->saveMaskCapability(normalizedFilename));
-    // Texture coordinates are optional components: a mask asking for ones the mesh has not
-    // allocated made an exporter read storage that does not exist (the glTF writer crashed on
-    // a mesh with faces and no UVs). The bits for them are dropped here, for every exporter.
-    if (!vcg::tri::HasPerVertexTexCoord(entry.mesh))
-        saveOptions.mask &= ~vcg::tri::io::Mask::IOM_VERTTEXCOORD;
-    if (!vcg::tri::HasPerWedgeTexCoord(entry.mesh))
-        saveOptions.mask &= ~(vcg::tri::io::Mask::IOM_WEDGTEXCOORD | vcg::tri::io::Mask::IOM_WEDGTEXMULTI);
+    saveOptions.mask = maskToSave(entry, saveOptions.mask, plugin->saveMaskCapability(normalizedFilename));
     const int err = plugin->save(
         normalizedFilename,
         entry.mesh,

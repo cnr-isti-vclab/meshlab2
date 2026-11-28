@@ -18,7 +18,7 @@ for flattening a scene).
 |---|---|---|
 | 0 | LightUSD as a submodule; read and write the stage-0 fixtures; check against OpenUSD | done 2026-11-27 (§3.1): go; `external/lightusd` at v1.0.0 |
 | 1 | `io_usd`: flattened import, single-layer export, four material channels, units and up axis | done 2026-11-27 (§4.4), with the departures from the plan listed there |
-| 2 | Scene I/O: export visible layers to one file, import as separate layers | not started; needs approval of the interface |
+| 2 | Scene I/O: export visible layers to one file, import as separate layers | interface approved 2026-11-28; cameras left out (5.3) |
 | 3 | The material model, extended once for USD and glTF | not started; needs its own mapping table |
 
 ## 1. What USD asks of MeshLab
@@ -37,8 +37,9 @@ matter for us:
   `materialBind`). The portable surface is `UsdPreviewSurface`, fed by `UsdUVTexture` nodes,
   each of which reads one or more channels of an image, with a scale and a bias.
 - **Units and orientation** are stage metadata: `metersPerUnit`, whose fallback by the
-  specification is 0.01 (centimeters), and `upAxis`, whose fallback is **Y**. MeshLab is
-  Z-up.
+  specification is 0.01 (centimeters), and `upAxis`, whose fallback is **Y**. MeshLab keeps
+  a file's own frame ([Data Model](../data_model.md), "Frames are kept"); its default view
+  is Y-up.
 - **Packaging**: `.usdz` is an uncompressed zip with the stage and its textures inside, the
   form Apple's Quick Look, Blender, Omniverse and Houdini exchange.
 - **Composition**: a file can be a root layer that references others; what the user sees is
@@ -184,7 +185,7 @@ adds the channel; stage 1 records the image and logs the channel it ignored.
 | vertex scalar | `primvars:scalar`, float, vertex (by the vocabulary's user-facing word) |
 | texture slots | one `UsdShadeMaterial` per slot with a `UsdPreviewSurface` and a `UsdUVTexture` per channel present (base color, normal, occlusion, roughness), bound by one `GeomSubset` per slot |
 | document unit | `metersPerUnit`; nothing authored while the unit is not set |
-| | `upAxis` `Z` |
+| | `upAxis` `Y`, as MeshLab's default view shows the coordinates (decided 2026-11-28; stage 1 wrote `Z`). A Y-up stage read as it is comes back as it was; a Z-up stage read as it is comes back declared Y-up, until a layer records the frame it came from (5.3) |
 
 `.usda` is text, `.usdc` binary, `.usdz` packs the textures. Textures follow the Save Mesh
 rule: stored and unchanged ones are referred to or copied byte for byte, new ones written
@@ -202,7 +203,7 @@ tools, tests, C API, bundled importers, audio and EXR off. The plugin compiles w
 | Planned | Implemented | Why |
 |---|---|---|
 | faceVarying normals as wedge normals | averaged per vertex, with a log line | `VCGFace` has no per-corner normal (`src/core/vcgmesh.h`); the OBJ path's `IOM_WEDGNORMAL` is a mask bit with no storage behind it in MeshLab's mesh |
-| `upAxis` Y as a rotation on the layer matrix (question 1) | the rotation baked into the coordinates, with a log line | `MeshIOPlugin::load` returns no matrix; carrying one is the request-struct change of [Load Options §6.1](load_options.md#6-open-questions), not a stage 1 change. glTF, also Y-up, is not rotated at all today, so the two formats now disagree |
+| `upAxis` Y as a rotation on the layer matrix (question 1) | the coordinates kept as the file has them; the `rotateYUpToZUp` load option, off by default, rotates them, and the log says which (since 2026-11-28; stage 1 first rotated every Y-up stage automatically) | MeshLab keeps a file's own frame (question 1). glTF, Y-up by definition, has the same option |
 | unfallbacked `metersPerUnit` (question 2) | centimeters, by the specification, with a log line | the specification's value; one line to change if Unknown is preferred |
 | texture coordinates as vertex or wedge by interpolation | always wedge, as glTF's importer does | one path; a vertex-interpolated `st` gives the same wedges |
 | one slot per material | one slot per material whose diffuse color is a texture; a material with a constant diffuse color gives its faces a face color, and their slot index is −1 | a slot is a texture group to the renderer (`MeshGpuResourceCache`), and `mesh.textures[i]` must pair with slot `i` for `Document::loadMesh` |
@@ -272,9 +273,21 @@ to keep in step.
 ### 5.3 Import as Separate Layers
 
 The other half: each `UsdGeomMesh`, `UsdGeomPoints` and `UsdGeomBasisCurves` prim becomes a
-layer, its world transform the layer matrix and its prim name (or `displayName`) the label;
-cameras become rasters without images. A file written by 5.2 then comes back as the layers
-that wrote it. A menu entry beside Import Mesh; plain Open keeps flattening.
+layer, its world transform the layer matrix and its prim name (or `displayName`) the label.
+A file written by 5.2 then comes back as the layers that wrote it. A menu entry beside Import
+Mesh; plain Open keeps flattening.
+
+**Cameras are left out of stage 2** (decided 2026-11-28), both ways: a camera with no image is
+not a raster, and the place for it is the annotations framework to come, which will attach
+geometric information of several kinds to layers.
+
+**Where an imported layer comes from is an open problem** (recorded 2026-11-28). For now a
+layer imported from a scene has no file of its own: it is not reloadable, and *Save* asks for a
+new file. A layer could instead record the scene file and its prim (as `package.usdz[entry]`
+names a texture inside a package), so that *Reload* reads that prim again and the stored-state
+mark knows the layer still holds it; that needs provenance below the file level in
+`MeshEntry`, in the stored-state record and in the project, and is worth doing once more than
+one format imports scenes.
 
 ### 5.4 Other formats that would use the same interface
 
@@ -330,13 +343,15 @@ whose size its mapping table will tell.
 
 ## 9. Open questions
 
-1. **Up axis.** A rotation on the layer matrix (proposed), or baked into the coordinates as
-   glTF's node transforms are? *Stage 1 bakes it (4.4): the layer matrix needs the load request
-   of Load Options. And should glTF, Y-up by definition, be rotated too?*
+1. ~~**Up axis.**~~ Settled 2026-11-28: MeshLab keeps a file's own frame, for every format.
+   A rotation is the user's choice, the `rotateYUpToZUp` load option of USD and glTF, off by
+   default and logged ([Data Model](../data_model.md), "Frames are kept").
 2. **Unit fallback.** A stage that does not author `metersPerUnit` is in centimeters by the
    specification. Report centimeters (by definition, as glTF's meters), or Unknown (as for a
    format that does not say)? Stage 0 showed the importer can tell the two apart
    (`metersPerUnit_set`); Tydra's own fallback, 1.0, is used by neither choice. *Stage 1
    reports centimeters.*
-3. **Scene interface** (5.1): approve the two optional calls, or another shape?
+3. ~~**Scene interface** (5.1).~~ Approved 2026-11-28: `holdsScenes`, `loadScene`, `saveScene`.
+   Cameras are left to the annotations framework, and imported layers have no file of their
+   own for now (5.3).
 4. **Stage 3 timing**: right after stage 1, or after stage 2?
