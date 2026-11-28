@@ -345,11 +345,14 @@ for free.</p>
 <span class="c1">// extra fields). Empty, the default, means the format has no options.</span>
 <span class="k">virtual</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">MeshFilterParameterDescriptor</span><span class="o">&gt;</span><span class="w"> </span><span class="n">loadParameters</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">QString</span><span class="w"> </span><span class="o">&amp;</span><span class="n">filename</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
 
-<span class="c1">// options holds every declared parameter, defaults filled in by the Document.</span>
-<span class="c1">// (One more overload; the alternative is a MeshIOLoadRequest struct, see §6.)</span>
-<span class="k">virtual</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">QString</span><span class="w"> </span><span class="o">&amp;</span><span class="n">filename</span><span class="p">,</span><span class="w"> </span><span class="n">VCGMesh</span><span class="w"> </span><span class="o">&amp;</span><span class="n">mesh</span><span class="p">,</span><span class="w"> </span><span class="n">vcg</span><span class="o">::</span><span class="n">CallBackPos</span><span class="w"> </span><span class="o">*</span><span class="n">cb</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">outLoadMask</span><span class="p">,</span>
-<span class="w">                 </span><span class="n">MeshIOMaterialSet</span><span class="w"> </span><span class="o">*</span><span class="n">outMaterialSet</span><span class="p">,</span><span class="w"> </span><span class="n">LengthUnit</span><span class="w"> </span><span class="o">*</span><span class="n">outUnit</span><span class="p">,</span>
-<span class="w">                 </span><span class="k">const</span><span class="w"> </span><span class="n">QVariantMap</span><span class="w"> </span><span class="o">&amp;</span><span class="n">options</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="c1">// MeshIOLoadContext (src/plugins/meshioplugin.h, which already carries the document origin</span>
+<span class="c1">// and the file's unit) gains the options: every declared parameter, defaults filled in by</span>
+<span class="c1">// the Document. No new overload.</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">MeshIOLoadContext</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">optional</span><span class="o">&lt;</span><span class="n">vcg</span><span class="o">::</span><span class="n">Point3d</span><span class="o">&gt;</span><span class="w"> </span><span class="n">origin</span><span class="p">;</span>
+<span class="w">    </span><span class="n">LengthUnit</span><span class="w"> </span><span class="n">unit</span><span class="p">;</span>
+<span class="w">    </span><span class="n">QVariantMap</span><span class="w"> </span><span class="n">options</span><span class="p">;</span><span class="w">   </span><span class="c1">// new</span>
+<span class="p">};</span>
 </pre></div>
 </div>
 <p>A plugin with no options changes nothing. Declarations may live in the plugin’s JSON, read by
@@ -471,10 +474,10 @@ That one exception is worth it: the merge is the Document’s, not the importer�
 <section id="open-questions">
 <h2>6. Open questions<a class="headerlink" href="#open-questions" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
-<li><p><strong>An overload or a request struct.</strong> <code class="docutils literal notranslate"><span class="pre">MeshIOPlugin::load</span></code> already has three overloads,
-each adding one out-parameter, and <code class="docutils literal notranslate"><span class="pre">loadRasters</span></code> is a fourth call. A fourth overload is the
-smallest change. A <code class="docutils literal notranslate"><span class="pre">MeshIOLoadRequest</span></code> / <code class="docutils literal notranslate"><span class="pre">MeshIOLoadResult</span></code> pair would end the growth, but
-would mean touching six plugins, so it should be done only if a later need forces it.</p></li>
+<li><p>~~<strong>An overload or a request struct.</strong>~~ Settled 2026-11-28 by the document origin
+(<a class="reference internal" href="las_support.html#2-the-real-problem-precision"><span class="std std-ref">LAS Support §2</span></a>): <code class="docutils literal notranslate"><span class="pre">MeshIOLoadContext</span></code>
+replaced the last overload’s <code class="docutils literal notranslate"><span class="pre">LengthUnit</span> <span class="pre">*outUnit</span></code>, and <code class="docutils literal notranslate"><span class="pre">loadRasters</span></code> takes it too. The
+options go into it. Folding the three <code class="docutils literal notranslate"><span class="pre">load</span></code> overloads into one remains a separate cleanup.</p></li>
 <li><p><strong>Save options.</strong> <code class="docutils literal notranslate"><span class="pre">MeshIOSaveOptions</span></code> is a fixed struct holding glTF’s Draco settings for
 every format. Declared save parameters would be the same mechanism; they are not proposed
 here.</p></li>

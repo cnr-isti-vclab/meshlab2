@@ -3,7 +3,7 @@
 This document proposes reading and writing ASPRS LAS point clouds and their compressed form,
 LAZ, in MeshLab. It also proposes the piece any georeferenced format needs and MeshLab lacks:
 a **document origin**, so that coordinates in the millions keep their precision. **Nothing
-described here is implemented.**
+described here is implemented** except the document origin (§2), done for E57.
 
 See also: [Load Options](load_options.md) (how the user chooses what to read),
 [Data Model](../data_model.md) (layers, units, provenance),
@@ -14,7 +14,7 @@ See also: [Load Options](load_options.md) (how the user chooses what to read),
 
 | Stage | What | State |
 |---|---|---|
-| 1 | Document origin: offset subtracted in double precision on load, added back on save; E57 first | not started; needs approval of §2 |
+| 1 | Document origin: offset subtracted in double precision on load, added back on save; E57 first | done for E57, 2026-11-28 |
 | 2 | `io_las`: LAS and LAZ through LASzip, read and write, fields as in §4 and §5 | not started |
 | 3 | Load options for LAS: point budget, fields to keep ([Load Options](load_options.md)) | not started; follows Load Options stage 1 |
 | 4 | COPC: load a chosen level of detail or region of a cloud-optimized file | not started; optional |
@@ -60,33 +60,53 @@ each point to float after applying the scan pose
 and subtracts no offset, so a scan placed by its pose loses precision exactly as one stored in
 absolute coordinates does.
 
-**The proposal: a document origin.** `Document` gets an origin, a `vcg::Point3d` kept in double
-precision; every layer's coordinates are relative to it.
+**The document origin** (stage 1, implemented 2026-11-28 for E57). `Document` has an origin,
+a `vcg::Point3d` in double precision (`Document::origin()`); every layer's coordinates are
+relative to it.
 
+- **Only georeferenced formats use it.** A format whose coordinates are true, survey ones
+  (`MeshIOPlugin::isGeoreferenced`: E57 now, LAS next) subtracts the origin on load and adds
+  it back on save. Every other format holds coordinates relative to it, both ways, so a
+  project whose layers are float PLY files reopens where it was. Saving a non-georeferenced
+  format with an origin set writes local coordinates and logs the origin to add.
 - **On load**, the importer subtracts the origin **in double precision, before converting to
-  float**. This changes the importer, not `Document`: once the values are float the precision
-  is already lost. The origin is one more input to `MeshIOPlugin::load`, the second after load
-  options, which tips [Load Options §6.1](load_options.md#6-open-questions) toward a request
-  struct.
-- **Which origin.** If the document has one, every new layer uses it, so layers still align.
-  If it has none and the file's coordinates are far from zero, the file proposes one and the
-  document adopts it. "Far" means the bounding box centre is farther from zero than its
-  diagonal is long. The proposed origin is the file's own LAS offset, or the bounding box minimum
-  rounded to whole units. A file near zero sets none, so everyday meshes are unaffected.
-- **On save**, formats that store doubles and are georeferenced by nature (LAS, E57) add the
-  origin back, so a load and save round trip keeps the true coordinates. The others write
-  local coordinates and log the origin (open question 2).
-- **Shown** wherever a position is shown to the user: the measuring and picking tools add the
-  origin when it is set, and the status bar says it is in effect.
+  float**: once the values are float the precision is already lost. The origin goes in and
+  out through `MeshIOLoadContext` (`src/plugins/meshioplugin.h`), which replaced the
+  `LengthUnit *outUnit` of the last `load` overload and is where load options will go. The
+  photos' cameras (`loadRasters`) are relative to the same origin.
+- **Which origin.** If the document has one, every new layer uses it, so layers still align;
+  one that is still far from zero relative to it is reported with the precision it keeps.
+  If it has none and the file is far from zero, the file proposes one, and the document adopts
+  it when the layer is its only one (no other layer or raster, not inside a project). Otherwise
+  the layer is moved back to the file's coordinates, as precise as float allows there, and the
+  log says so: open it in a document of its own. **Far** (`isFarFromZero`) means the float step
+  at the bounding box's centre is coarser than a millionth of its diagonal, about 16 diagonals
+  from zero. The first rule written here, "the centre farther from zero than the diagonal is
+  long", gave an origin to a 2 m scan 5 m from zero, which loses nothing to float. E57
+  proposes the corner of its bounding box rounded down to whole units; it reads the points
+  relative to the first one, rounded, so it needs no second pass over the file.
+- **Shown**: the status bar shows the origin when one is set, and the measuring tool's printed
+  and saved points include it. Lengths are unaffected.
 - **Kept** in the project as `<Origin x="..." y="..." z="..."/>`, a sibling of `<LengthUnit>`,
-  which legacy MeshLab skips. *File > New* clears it. It is not part of the undo state, because
-  nothing but a load sets it: like the unit, it is adopted, never edited by a filter.
-- **Python**: `ms.document_origin()`.
+  which legacy MeshLab skips. A project's origin is taken only into an empty document;
+  otherwise the log says the layers will be misplaced. *File > New* clears it.
+- **Undone with the load that set it**: it is part of the undo state, like the unit. It is
+  never edited by a filter.
+- **Python**: `ms.document_origin()`, `(x, y, z)` or `None`.
 
-The fix is a few dozen lines in `Document` and the project reader and writer, and a few lines
-in each importer of a format that can be georeferenced: E57 now, then LAS, then glTF/USD if
-ever needed (both are usually local). E57 goes first, with its measured test as the
-regression test.
+**Per document, not per layer.** A per-layer origin would serve one case better, layers far
+apart (tiles 50 km apart, two sites in one document), but it breaks the invariant every
+multi-layer algorithm, the renderer and the trackball rely on: a layer's world position is its
+matrix times its vertex. Each would have to reconcile origins, and folding their difference
+into the float layer matrix only works when it is small, which is when one origin suffices.
+CloudCompare's per-entity "global shift" offers to reuse the previous shift for the same
+reason. Layers far from the document origin are reported instead; a per-layer origin would be
+a proposal of its own, and nothing here prevents it.
+
+The regression test is the grid above (`e57FarFromZeroKeepsItsPrecision`): 10,000 distinct
+points, each within 0.01 mm, in the coordinates and placed by the pose, its camera too, and
+true coordinates written back on save. `theDocumentOriginTravelsWithTheProject` covers the
+project.
 
 ## 3. The library: LASzip
 
@@ -117,7 +137,7 @@ kept as text (WKT) for the round trip, so no PROJ is needed: MeshLab does not re
 | extra bytes | named attributes; three named as normals become vertex normals |
 | synthetic, key-point, withheld and overlap flags | withheld points dropped (the standard says to ignore them); the others as one named `int` attribute of bits |
 | waveform packets | dropped, with a log line |
-| coordinate system VLR | the length unit through `outUnit` (meter, foot, US survey foot as foot, with a log line); the WKT kept as layer metadata, written back on save |
+| coordinate system VLR | the length unit through `MeshIOLoadContext::unit` (meter, foot, US survey foot as foot, with a log line); the WKT kept as layer metadata, written back on save |
 
 Expression filters already read named per-vertex `int`, `float` and `Point3f` attributes
 (`plugins/filter_expression/expressionfilterplugin.cpp`). Before relying on them, check
@@ -181,8 +201,8 @@ One new vcpkg dependency, LASzip, with no further dependencies.
 
 1. **LAS 1.4 or 1.2 on export.** 1.4 holds 8-bit classification, extra bytes and the WKT, but
    some older tools refuse it. Should 1.4 be written always, or 1.2 when nothing needs 1.4?
-2. **Origin on non-georeferenced formats.** Should PLY, OBJ and STL write true coordinates,
-   losing precision in float formats, or local ones plus a log line? A save option, or never?
+2. ~~**Origin on non-georeferenced formats.**~~ Settled 2026-11-28: they write local
+   coordinates and the log gives the origin. A save option to write true ones can come later.
 3. **GPS time.** Kept by default, offset by its minimum, or dropped unless asked for? It is
    8 bytes a point in double and useless to most users.
 4. **The point budget.** Is 30 million points right, and should it follow the memory

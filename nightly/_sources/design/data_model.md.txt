@@ -112,7 +112,7 @@ stored state, rather than provenance: a generated layer becomes Saved when writt
 
 ## I/O Model
 
-`Document::loadMesh()`: resolves import plugin, runs plugin load, merges duplicate vertices when the file is STL (a triangle soup with no shared vertices; on by default, `setMergeStlDuplicateVertices()`, driven by the `document.mergeStlDuplicateVertices` preference), compacts imported mesh storage, updates the bbox, computes the normals the file lacks (`computeMissingNormals`: imported vertex normals are kept as given, smooth ones generated only when absent, and face normals always computed unless the file brings them together with vertex normals, so every mesh enters the document with valid face normals), initializes transform and material set, resolves texture paths/assets, logs stats, records the stored state and the document folder, appends entry, emits signals. `reloadMesh(index)` follows the same path while preserving mesh identity and the layer's name; it adopts no unit. The VCG PLY path recognizes edge endpoint indices plus `red`/`green`/`blue` and optional `alpha` properties (including `diffuse_*` aliases), sets `IOM_EDGECOLOR`, and defaults missing edge alpha to 255. A `quality` property on the edge element, `float` or `double`, is read as the edge scalar and sets `IOM_EDGEQUALITY`.
+`Document::loadMesh()`: resolves import plugin, runs plugin load, merges duplicate vertices when the file is STL (a triangle soup with no shared vertices; on by default, `setMergeStlDuplicateVertices()`, driven by the `document.mergeStlDuplicateVertices` preference), compacts imported mesh storage, updates the bbox, computes the normals the file lacks (`computeMissingNormals`: imported vertex normals are kept as given, smooth ones generated only when absent, and face normals always computed unless the file brings them together with vertex normals, so every mesh enters the document with valid face normals), initializes transform and material set, resolves texture paths/assets, logs stats, records the stored state and the document folder, appends entry, emits signals. `reloadMesh(index)` follows the same path while preserving mesh identity and the layer's name; it adopts no unit, but reads a georeferenced file relative to the document origin. The VCG PLY path recognizes edge endpoint indices plus `red`/`green`/`blue` and optional `alpha` properties (including `diffuse_*` aliases), sets `IOM_EDGECOLOR`, and defaults missing edge alpha to 255. A `quality` property on the edge element, `float` or `double`, is read as the edge scalar and sets `IOM_EDGEQUALITY`.
 
 `Document::loadRasterImage()`: loads a `QImage`, creates a `RasterEntry` with an RGBA `RasterPlane`, appends the raster layer, makes it current, and emits raster/current-layer signals. Ordinary image loads do not synthesize a calibrated camera; callers such as snapshot capture can pass a `CameraShot` through `addRasterImage(...)`, and raster-mode mesh projection is enabled only when that shot is valid.
 
@@ -157,8 +157,8 @@ one leaves the unit of the document it is loaded into as it is; it is applied be
 are loaded, so that their files have to agree with it. Old MeshLab reads only `MeshGroup` and `RasterGroup`
 and skips the other elements, so a project with the unit opens there unchanged.
 
-*Formats that know their unit* report it through the extended `MeshIOPlugin::load` (`outUnit`, left
-`Unknown` by the formats that say none: PLY, OBJ, STL, OFF): glTF/GLB and E57 are in meters by their
+*Formats that know their unit* report it through the extended `MeshIOPlugin::load` (`MeshIOLoadContext::unit`,
+left `Unknown` by the formats that say none: PLY, OBJ, STL, OFF): glTF/GLB and E57 are in meters by their
 definitions, and 3MF carries a unit in the file -- millimeters when it names none, which is what the
 specification says. `Document::loadMesh` hands it to `adoptFileUnit`: it becomes the document's unit only
 when the loaded layer is the only one and no unit is set, so a document with layers of unknown unit is not
@@ -166,6 +166,24 @@ told a guess; a unit the user chose is kept, a disagreeing file is reported in t
 nothing is ever converted. The adoption is part of the load's undo step. On the way out `saveMesh` puts the
 document's unit in `MeshIOSaveOptions::unit`, which the 3MF writer records (it can name every unit but
 kilometers, which it leaves out, with a note in the log); glTF and E57 have nowhere to say it.
+
+**Origin** (`Document::origin()`, a `std::optional<vcg::Point3d>`): the point, in true coordinates and
+double precision, that every layer's coordinates are relative to, so that survey coordinates in the
+millions stay precise in float vertices (at 5,000,000 a float keeps multiples of 0.5). Unset for
+everyday meshes. Only a load sets it, and only a georeferenced format uses it
+(`MeshIOPlugin::isGeoreferenced`: E57): its importer subtracts the origin in double before converting to
+float and its exporter adds it back (`MeshIOLoadContext::origin`, `MeshIOSaveOptions::origin`, which
+`loadMesh`, `reloadMesh` and `saveMesh` fill in); every other format holds coordinates relative to it both
+ways, and a save in one logs the origin to add. Given no origin, such an importer chooses one when the file
+is far from zero (`isFarFromZero`: the float step at the box centre is coarser than a millionth of its
+diagonal), and `adoptFileOrigin` makes it the document's when the layer is the only one (no raster, not
+inside a project); otherwise the layer is moved back to the file's coordinates and the log says how
+precise it is. A layer loaded far from an existing origin is reported the same way. It is in the undo state
+(`UndoState::origin`), so undoing the load that set it unsets it; `clearAllLayers()` forgets it and
+`originChanged()` tells the interface (the status bar shows it). In the project it is
+`<Origin x= y= z=/>` after `<LengthUnit>`, applied before the layers and only into an empty document.
+The measure tool's printed and saved points include it; Python reads it with `ms.document_origin()`.
+Why per document and not per layer: [LAS Support §2](proposals/las_support.md#2-the-real-problem-precision).
 
 **Visibility sets** (`Document::visibilitySets()`): a name and the persistent `meshId`s of the layers that show together, kept in the document, in the `.mlp` and in the undo state (`UndoState::visibilitySets`, captured and restored with the layers, so their ids stay valid): adding, redefining, renaming and deleting one are undo steps, each with the usual guard so that one made inside an open step -- a project load -- belongs to it. Showing one is not a step, as the layer panel's eye is not. A filter can leave one (`MeshFilterRunResult::visibilitySets`, by layer index): the framework stores it with `addVisibilitySet` inside the filter's own undo step, from the indices as they stand when the filter returns, under `uniqueVisibilitySetName` (a taken name gets " 2", " 3" ..., as a layer's does), so each run leaves a set of its own. A filter can take a set as a parameter (`visibilityset`, whose value is the set's name; `indexOfVisibilitySet`, `visibilitySetMeshIndices`). `moveVisibilitySet` reorders them (an undo step; the Alt+number keys follow the order). `addToVisibilitySet` and `removeFromVisibilitySet` edit a set a layer at a time (each an undo step unless it changes nothing). `showVisibilitySet(i, addToVisible)` goes through `setMeshVisible`, so it acts on the current view, as the layer panel's eye does; `visibilitySetIsShown(i)` is whether the visible layers are exactly the set's; a layer that is gone is not in the set any more, and `clearAllLayers()` (File > New) drops the sets. In the file they follow `RasterGroup` as `<VisibilitySets><VisibilitySet name="..." meshes="0 2"/></VisibilitySets>`, each number the position of an `MLMesh` among those written, so that a layer left out of the file (`onlyVisibleMeshes`, an empty path) does not shift the others; a set left with no layer is not written, and a loaded one maps the positions to the ids the layers got. Old versions skip the element. Rasters have no sets.
 

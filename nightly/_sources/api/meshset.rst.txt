@@ -63,6 +63,15 @@ Methods
 
    current_raster(self) -> int
 
+.. py:method:: MeshSet.document_origin(...)
+   :module: _meshlab
+
+   document_origin(self) -> list[float] \\| None
+   
+   The point, in true coordinates, that every mesh's coordinates are relative to, as
+   (x, y, z); None when there is none. A georeferenced file (E57) far from zero sets it
+   on load, so float positions keep their precision: add it to get true positions.
+
 .. py:method:: MeshSet.filter_descriptor(...)
    :module: _meshlab
 

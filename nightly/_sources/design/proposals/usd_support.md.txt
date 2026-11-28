@@ -145,7 +145,7 @@ baked into its positions and normals, instances are expanded, and the meshes are
 | `GeomSubset` (`materialBind`) and the mesh's own binding | each face's texture slot index (wedge `N()`), one slot per material | as glTF's primitives |
 | `UsdGeomPoints` | vertices with no faces | a point cloud |
 | `UsdGeomBasisCurves`, cameras, lights, skinning, blend shapes | not read in stage 1; the log says what was skipped | curves and cameras come in stage 2 |
-| `metersPerUnit` | the document unit, through `outUnit` | see question 2 |
+| `metersPerUnit` | the document unit, through `MeshIOLoadContext::unit` | see question 2 |
 | `upAxis` `Y` | a rotation of +90° about X on the **layer matrix**; the coordinates are kept | nothing is baked, and Freeze Matrix bakes it when the user wants |
 
 ### 4.2 Materials, stage 1

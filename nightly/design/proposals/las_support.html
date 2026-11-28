@@ -249,7 +249,7 @@
 <p>This document proposes reading and writing ASPRS LAS point clouds and their compressed form,
 LAZ, in MeshLab. It also proposes the piece any georeferenced format needs and MeshLab lacks:
 a <strong>document origin</strong>, so that coordinates in the millions keep their precision. <strong>Nothing
-described here is implemented.</strong></p>
+described here is implemented</strong> except the document origin (§2), done for E57.</p>
 <p>See also: <a class="reference internal" href="load_options.html"><span class="std std-doc">Load Options</span></a> (how the user chooses what to read),
 <a class="reference internal" href="../data_model.html"><span class="std std-doc">Data Model</span></a> (layers, units, provenance),
 <a class="reference internal" href="../memory_accounting.html"><span class="std std-doc">Memory Accounting</span></a>, <a class="reference internal" href="../third_party.html"><span class="std std-doc">Third-Party Code</span></a>,
@@ -267,7 +267,7 @@ described here is implemented.</strong></p>
 <tbody>
 <tr class="row-even"><td><p>1</p></td>
 <td><p>Document origin: offset subtracted in double precision on load, added back on save; E57 first</p></td>
-<td><p>not started; needs approval of §2</p></td>
+<td><p>done for E57, 2026-11-28</p></td>
 </tr>
 <tr class="row-odd"><td><p>2</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">io_las</span></code>: LAS and LAZ through LASzip, read and write, fields as in §4 and §5</p></td>
@@ -345,33 +345,52 @@ each point to float after applying the scan pose
 (<code class="docutils literal notranslate"><span class="pre">vcg::Point3f::Construct(rotation.Rotate(p)</span> <span class="pre">+</span> <span class="pre">translation)</span></code>, <code class="docutils literal notranslate"><span class="pre">plugins/io_e57/e57importplugin.cpp</span></code>)
 and subtracts no offset, so a scan placed by its pose loses precision exactly as one stored in
 absolute coordinates does.</p>
-<p><strong>The proposal: a document origin.</strong> <code class="docutils literal notranslate"><span class="pre">Document</span></code> gets an origin, a <code class="docutils literal notranslate"><span class="pre">vcg::Point3d</span></code> kept in double
-precision; every layer’s coordinates are relative to it.</p>
+<p><strong>The document origin</strong> (stage 1, implemented 2026-11-28 for E57). <code class="docutils literal notranslate"><span class="pre">Document</span></code> has an origin,
+a <code class="docutils literal notranslate"><span class="pre">vcg::Point3d</span></code> in double precision (<code class="docutils literal notranslate"><span class="pre">Document::origin()</span></code>); every layer’s coordinates are
+relative to it.</p>
 <ul class="simple">
+<li><p><strong>Only georeferenced formats use it.</strong> A format whose coordinates are true, survey ones
+(<code class="docutils literal notranslate"><span class="pre">MeshIOPlugin::isGeoreferenced</span></code>: E57 now, LAS next) subtracts the origin on load and adds
+it back on save. Every other format holds coordinates relative to it, both ways, so a
+project whose layers are float PLY files reopens where it was. Saving a non-georeferenced
+format with an origin set writes local coordinates and logs the origin to add.</p></li>
 <li><p><strong>On load</strong>, the importer subtracts the origin <strong>in double precision, before converting to
-float</strong>. This changes the importer, not <code class="docutils literal notranslate"><span class="pre">Document</span></code>: once the values are float the precision
-is already lost. The origin is one more input to <code class="docutils literal notranslate"><span class="pre">MeshIOPlugin::load</span></code>, the second after load
-options, which tips <a class="reference internal" href="load_options.html#6-open-questions"><span class="std std-ref">Load Options §6.1</span></a> toward a request
-struct.</p></li>
-<li><p><strong>Which origin.</strong> If the document has one, every new layer uses it, so layers still align.
-If it has none and the file’s coordinates are far from zero, the file proposes one and the
-document adopts it. “Far” means the bounding box centre is farther from zero than its
-diagonal is long. The proposed origin is the file’s own LAS offset, or the bounding box minimum
-rounded to whole units. A file near zero sets none, so everyday meshes are unaffected.</p></li>
-<li><p><strong>On save</strong>, formats that store doubles and are georeferenced by nature (LAS, E57) add the
-origin back, so a load and save round trip keeps the true coordinates. The others write
-local coordinates and log the origin (open question 2).</p></li>
-<li><p><strong>Shown</strong> wherever a position is shown to the user: the measuring and picking tools add the
-origin when it is set, and the status bar says it is in effect.</p></li>
+float</strong>: once the values are float the precision is already lost. The origin goes in and
+out through <code class="docutils literal notranslate"><span class="pre">MeshIOLoadContext</span></code> (<code class="docutils literal notranslate"><span class="pre">src/plugins/meshioplugin.h</span></code>), which replaced the
+<code class="docutils literal notranslate"><span class="pre">LengthUnit</span> <span class="pre">*outUnit</span></code> of the last <code class="docutils literal notranslate"><span class="pre">load</span></code> overload and is where load options will go. The
+photos’ cameras (<code class="docutils literal notranslate"><span class="pre">loadRasters</span></code>) are relative to the same origin.</p></li>
+<li><p><strong>Which origin.</strong> If the document has one, every new layer uses it, so layers still align;
+one that is still far from zero relative to it is reported with the precision it keeps.
+If it has none and the file is far from zero, the file proposes one, and the document adopts
+it when the layer is its only one (no other layer or raster, not inside a project). Otherwise
+the layer is moved back to the file’s coordinates, as precise as float allows there, and the
+log says so: open it in a document of its own. <strong>Far</strong> (<code class="docutils literal notranslate"><span class="pre">isFarFromZero</span></code>) means the float step
+at the bounding box’s centre is coarser than a millionth of its diagonal, about 16 diagonals
+from zero. The first rule written here, “the centre farther from zero than the diagonal is
+long”, gave an origin to a 2 m scan 5 m from zero, which loses nothing to float. E57
+proposes the corner of its bounding box rounded down to whole units; it reads the points
+relative to the first one, rounded, so it needs no second pass over the file.</p></li>
+<li><p><strong>Shown</strong>: the status bar shows the origin when one is set, and the measuring tool’s printed
+and saved points include it. Lengths are unaffected.</p></li>
 <li><p><strong>Kept</strong> in the project as <code class="docutils literal notranslate"><span class="pre">&lt;Origin</span> <span class="pre">x=&quot;...&quot;</span> <span class="pre">y=&quot;...&quot;</span> <span class="pre">z=&quot;...&quot;/&gt;</span></code>, a sibling of <code class="docutils literal notranslate"><span class="pre">&lt;LengthUnit&gt;</span></code>,
-which legacy MeshLab skips. <em>File &gt; New</em> clears it. It is not part of the undo state, because
-nothing but a load sets it: like the unit, it is adopted, never edited by a filter.</p></li>
-<li><p><strong>Python</strong>: <code class="docutils literal notranslate"><span class="pre">ms.document_origin()</span></code>.</p></li>
+which legacy MeshLab skips. A project’s origin is taken only into an empty document;
+otherwise the log says the layers will be misplaced. <em>File &gt; New</em> clears it.</p></li>
+<li><p><strong>Undone with the load that set it</strong>: it is part of the undo state, like the unit. It is
+never edited by a filter.</p></li>
+<li><p><strong>Python</strong>: <code class="docutils literal notranslate"><span class="pre">ms.document_origin()</span></code>, <code class="docutils literal notranslate"><span class="pre">(x,</span> <span class="pre">y,</span> <span class="pre">z)</span></code> or <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
 </ul>
-<p>The fix is a few dozen lines in <code class="docutils literal notranslate"><span class="pre">Document</span></code> and the project reader and writer, and a few lines
-in each importer of a format that can be georeferenced: E57 now, then LAS, then glTF/USD if
-ever needed (both are usually local). E57 goes first, with its measured test as the
-regression test.</p>
+<p><strong>Per document, not per layer.</strong> A per-layer origin would serve one case better, layers far
+apart (tiles 50 km apart, two sites in one document), but it breaks the invariant every
+multi-layer algorithm, the renderer and the trackball rely on: a layer’s world position is its
+matrix times its vertex. Each would have to reconcile origins, and folding their difference
+into the float layer matrix only works when it is small, which is when one origin suffices.
+CloudCompare’s per-entity “global shift” offers to reuse the previous shift for the same
+reason. Layers far from the document origin are reported instead; a per-layer origin would be
+a proposal of its own, and nothing here prevents it.</p>
+<p>The regression test is the grid above (<code class="docutils literal notranslate"><span class="pre">e57FarFromZeroKeepsItsPrecision</span></code>): 10,000 distinct
+points, each within 0.01 mm, in the coordinates and placed by the pose, its camera too, and
+true coordinates written back on save. <code class="docutils literal notranslate"><span class="pre">theDocumentOriginTravelsWithTheProject</span></code> covers the
+project.</p>
 </section>
 <section id="the-library-laszip">
 <h2>3. The library: LASzip<a class="headerlink" href="#the-library-laszip" title="Link to this heading">¶</a></h2>
@@ -465,7 +484,7 @@ kept as text (WKT) for the round trip, so no PROJ is needed: MeshLab does not re
 <td><p>dropped, with a log line</p></td>
 </tr>
 <tr class="row-even"><td><p>coordinate system VLR</p></td>
-<td><p>the length unit through <code class="docutils literal notranslate"><span class="pre">outUnit</span></code> (meter, foot, US survey foot as foot, with a log line); the WKT kept as layer metadata, written back on save</p></td>
+<td><p>the length unit through <code class="docutils literal notranslate"><span class="pre">MeshIOLoadContext::unit</span></code> (meter, foot, US survey foot as foot, with a log line); the WKT kept as layer metadata, written back on save</p></td>
 </tr>
 </tbody>
 </table>
@@ -574,8 +593,8 @@ regression test of stage 1.</p></li>
 <ol class="arabic simple">
 <li><p><strong>LAS 1.4 or 1.2 on export.</strong> 1.4 holds 8-bit classification, extra bytes and the WKT, but
 some older tools refuse it. Should 1.4 be written always, or 1.2 when nothing needs 1.4?</p></li>
-<li><p><strong>Origin on non-georeferenced formats.</strong> Should PLY, OBJ and STL write true coordinates,
-losing precision in float formats, or local ones plus a log line? A save option, or never?</p></li>
+<li><p>~~<strong>Origin on non-georeferenced formats.</strong>~~ Settled 2026-11-28: they write local
+coordinates and the log gives the origin. A save option to write true ones can come later.</p></li>
 <li><p><strong>GPS time.</strong> Kept by default, offset by its minimum, or dropped unless asked for? It is
 8 bytes a point in double and useless to most users.</p></li>
 <li><p><strong>The point budget.</strong> Is 30 million points right, and should it follow the memory

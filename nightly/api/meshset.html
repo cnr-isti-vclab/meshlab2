@@ -309,6 +309,15 @@ duplicating the full filter list here.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="meshlab.MeshSet.document_origin">
+<span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">document_origin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.document_origin" title="Link to this definition">¶</a></dt>
+<dd><p>document_origin(self) -&gt; list[float] \| None</p>
+<p>The point, in true coordinates, that every mesh’s coordinates are relative to, as
+(x, y, z); None when there is none. A georeferenced file (E57) far from zero sets it
+on load, so float positions keep their precision: add it to get true positions.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="meshlab.MeshSet.filter_descriptor">
 <span class="sig-prename descclassname"><span class="pre">MeshSet.</span></span><span class="sig-name descname"><span class="pre">filter_descriptor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">...</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#meshlab.MeshSet.filter_descriptor" title="Link to this definition">¶</a></dt>
 <dd><p>filter_descriptor(self, filter: str) -&gt; object</p>
@@ -510,6 +519,7 @@ duplicating the full filter list here.</p>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_mesh_id"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_mesh_id()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_mesh_index"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_mesh_index()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.current_raster"><code class="docutils literal notranslate"><span class="pre">MeshSet.current_raster()</span></code></a></li>
+<li><a class="reference internal" href="#meshlab.MeshSet.document_origin"><code class="docutils literal notranslate"><span class="pre">MeshSet.document_origin()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.filter_descriptor"><code class="docutils literal notranslate"><span class="pre">MeshSet.filter_descriptor()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.filter_list"><code class="docutils literal notranslate"><span class="pre">MeshSet.filter_list()</span></code></a></li>
 <li><a class="reference internal" href="#meshlab.MeshSet.is_current_mesh_visible"><code class="docutils literal notranslate"><span class="pre">MeshSet.is_current_mesh_visible()</span></code></a></li>

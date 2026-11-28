@@ -99,6 +99,7 @@ bool parseMeshLabProjectFile(
     std::vector<MeshLabProjectRasterEntry> &rasters,
     std::vector<MeshLabProjectVisibilitySetEntry> &visibilitySets,
     LengthUnit &unit,
+    std::optional<vcg::Point3d> &origin,
     QString &errorMessage)
 {
     QFile file(filename);
@@ -151,6 +152,14 @@ bool parseMeshLabProjectFile(
                 visibilitySets.push_back(std::move(set));
             } else if (name == QStringLiteral("LengthUnit")) {
                 unit = LengthUnits::fromSymbol(xml.attributes().value(QStringLiteral("name")).toString());
+            } else if (name == QStringLiteral("Origin")) {
+                const QXmlStreamAttributes attributes = xml.attributes();
+                bool ok[3] = {};
+                const vcg::Point3d point(attributes.value(QStringLiteral("x")).toDouble(&ok[0]),
+                    attributes.value(QStringLiteral("y")).toDouble(&ok[1]),
+                    attributes.value(QStringLiteral("z")).toDouble(&ok[2]));
+                if (ok[0] && ok[1] && ok[2])
+                    origin = point;
             } else if (name == QStringLiteral("MLRaster")) {
                 MeshLabProjectRasterEntry raster;
                 raster.label = xml.attributes().value(QStringLiteral("label")).toString().trimmed();
